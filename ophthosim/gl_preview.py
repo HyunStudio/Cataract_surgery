@@ -236,8 +236,16 @@ class GPUEyePreview:
         shader["u_pitch"].value = view.pitch
         shader["u_zoom"].value = view.zoom
         shader["u_aspect"].value = w / h
-        # Front (opaque) anatomy before a low-alpha corneal shell.
-        for name in ("sclera", "iris", "lens"):
+        # The closed-globe placeholder would otherwise occlude the iris and
+        # lens in depth testing. Paint it as a background that doesn't write
+        # depth, then draw anterior structures with normal depth semantics.
+        # A future scleral cutaway mesh should replace this atlas shortcut.
+        self.ctx.depth_mask = False
+        shader["u_tint"].value = self.TINTS["sclera"]
+        shader["u_alpha"].value = 1.0
+        self.meshes["sclera"][0].render()
+        self.ctx.depth_mask = True
+        for name in ("iris", "lens"):
             shader["u_tint"].value = self.TINTS[name]
             shader["u_alpha"].value = 1.0
             self.meshes[name][0].render()
