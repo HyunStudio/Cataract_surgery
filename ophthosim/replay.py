@@ -57,26 +57,29 @@ class ReplayGame(Game):
         self.journal.append(record)
 
     def action(self, name: str, x: Any = None, y: Any = None) -> bool:
-        # A Game action can call self.action('abort') when assessing a serious
-        # alert. Save the top-level command only; replay reproduces the nested
-        # safety transition without a second action.
+        # Game.action('assess') can internally call self.action('abort').
+        # Only the outer command belongs to the user's command stream.
         is_outer = self._dispatch_depth == 0
         self._dispatch_depth += 1
         try:
             accepted = super().action(name, x, y)
         finally:
             self._dispatch_depth -= 1
-        if accepted and is_outer:
-            item: dict[str, Any] = {"kind": "action", "name": name}
-            if name == "verify":
+        if is_outer and isinstance(name, str):
+            item: dict[str, Any] = {"kind": "action", "name": name,
+                                    "accepted": accepted}
+            if name == "verify" and isinstance(x, str) and len(x) <= 80:
                 item["x"] = x
+                self._append(item)
             elif name in {"touch", "trace", "remove", "place"}:
-                # Only validated, accepted normalized coordinates reach here.
                 point = self._xy(x, y)
-                if point is None:
-                    raise AssertionError("Game accepted an invalid point")
-                item["x"], item["y"] = point
-            self._append(item)
+                if point is not None:
+                    # Failed in-range actions also matter. A missed 'remove'
+                    # can increment the synthetic capsule-stress counter.
+                    item["x"], item["y"] = point
+                    self._append(item)
+            elif name in {"abort", "assess", "pause", "confirm", "prepare"}:
+                self._append(item)
         return accepted
 
     def tick(self, dt: float) -> None:
@@ -162,8 +165,11 @@ class ReplayGame(Game):
             elif entry.get("kind") == "action":
                 if not set(entry).issubset({"kind", "name", "x", "y"}) or "name" not in entry:
                     raise ValueError("Unknown action fields")
-                if not game.action(entry["name"], entry.get("x"), entry.get("y")):
-                    raise ValueError("Replay command rejected by state machine")
+                if type(entry.get("accepted")) is not bool:
+                    raise ValueError("Action acceptance marker missing")
+                actual = game.action(entry["name"], entry.get("x"), entry.get("y"))
+                if actual != entry["accepted"]:
+                    raise ValueError("Replay command outcome mismatch")
             else:
                 raise ValueError("Unknown replay event type")
         if (footer["events_sha256"] != _digest(game.export_jsonl())
