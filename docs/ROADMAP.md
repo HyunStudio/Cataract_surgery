@@ -66,3 +66,8 @@ Track blockers, models licensed/provenance, unresolved clinical assumptions and 
 - Asset license conflicts → provenance manifest before adding any third-party files
 
 No fixed estimate in lines of code is a commitment. The 32 WP scope is a planning decomposition, not a validated time estimate.
+
+## Increment tracking (not WP completion)
+- **Replay & integrity milestone — implemented/tested:** bounded semantic accepted/rejected command capture, synchronized simulation tick compression, JSONL verification and CLI, GUI export, hazard replay.
+- **Geometry prototype — implemented/tested:** procedural normalized cornea, iris, sclera, lens and IOL mesh surfaces; ray–sphere intersection and dirty-parameter tests.
+- **WP04 / WP08 still OPEN:** Pygame↔OpenGL rendering integration, actual 3D on-screen appearance, camera depth/ray-picking against scene, Windows GPU benchmarks, visually credible textured anatomy and validated tissue interaction remain unimplemented.
