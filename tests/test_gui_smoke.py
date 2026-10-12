@@ -21,8 +21,6 @@ def app():
 
 def test_first_frame_and_monitor(app):
     app.draw()
-    os.makedirs('build/screenshots',exist_ok=True)
-    pygame.image.save(app.canvas,'build/screenshots/01_preop.png')
     assert app.canvas.get_size()==(1280,720)
     assert app.screen.get_size()==(1280,720)
     assert app.canvas.get_at((0,0))[:3] == (7,18,30)
@@ -34,8 +32,29 @@ def test_all_phase_screens_render(app):
         app.game.paused=False
         app.game.ending='SIMULATION COMPLETE' if phase==Phase.RECOVERY else ('SAFELY ABORTED' if phase==Phase.ABORTED else None)
         app.draw()
-        if phase in (Phase.PHACO,Phase.IOL,Phase.RECOVERY):
-            pygame.image.save(app.canvas,f'build/screenshots/{phase.value.lower()}.png')
+
+
+def test_export_completed_game_visual(app):
+    app.game=Game('normal')
+    g=app.game
+    g.action('confirm')
+    g.action('prepare')
+    for x,y in g._entry_target:
+        g.action('touch',x,y)
+    import math
+    for i in range(24):
+        theta=(i+.5)*math.tau/24
+        g.action('trace',.5+.28*math.cos(theta),.5+.28*math.sin(theta))
+    for _ in range(80):
+        g.action('remove',.5,.5)
+    assert g.action('place',.5,.5)
+    for key in ('alignment','wound','handoff'):
+        g.action('verify',key)
+    assert g.phase==Phase.RECOVERY
+    assert g.score()==100
+    app.draw()
+    os.makedirs('build/screenshots',exist_ok=True)
+    pygame.image.save(app.canvas,'build/screenshots/recovery.png')
 
 
 def test_alert_and_pause_layers_render(app):
