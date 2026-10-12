@@ -1,6 +1,6 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
-**Status:** Design and research specification (v1.1, 2026-10-12). Gameplay is **not implemented yet**.
+**Status:** Design and research specification (v1.2, 2026-10-12). Gameplay is **not implemented yet**.
 
 An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built around Python, Pygame for UI/input, and an optional hardware-accelerated 3D renderer. The project models a complete *abstracted* cataract surgery encounter: patient preparation, topical anesthesia and monitoring, microscope navigation, corneal entry, capsular task, cataract removal, residual material cleanup, intraocular lens (IOL) placement, wound assessment, recovery, and result scoring.
 
@@ -40,6 +40,9 @@ Events may include patient motion/anxiety, unstable view, capsular damage, poste
 Investigate simulated interaction metrics and accessibility adaptation: track cursor/tool path efficiency, near-miss events, task time, visibility interventions and complication recognition time. Evaluate against simple baseline strategies and distinguish internal synthetic results from validated clinical claims. See [research plan](docs/RESEARCH_PLAN.md).
 
 > **Educational and research prototype only.** No clinical procedural instructions, drug dosing, tool power settings or real-patient treatment recommendations. Not a medical device, surgical training certification tool or validated physiologic model. All numbers in the simulation are synthetic until independently validated.
+
+## Review v1.2 — development guardrails
+The reviewed specifications now define a 2.5D playable MVP before 3D polish, explicit stage guards and safe-abort branches, seeded exceptions, deterministic session replay, acceptance tests, input/camera collision handling, and predeclared research metrics. **True 3D remains conditional on a Windows ModernGL interoperability/performance spike (WP04), not an implemented or guaranteed capability.**
 
 ## Next milestone
 **WP01:** minimal executable window, deterministic scene/state loop, placeholder microscope layout, mocked monitor, automated smoke tests. Subsequent work packages must keep the application runnable.
