@@ -22,8 +22,10 @@ def _reach_phaco(game):
         assert game.action("assess")
     for i in range(24):
         angle = (i + .5) * math.tau / 24
-        assert game.action("trace", .5 + .28 * math.cos(angle),
-                           .5 + .28 * math.sin(angle))
+        if game.phase == Phase.CAPSULE:
+            assert game.action("trace", .5 + .28 * math.cos(angle),
+                               .5 + .28 * math.sin(angle))
+    assert game.phase == Phase.PHACO
 
 
 def _finish(game):
