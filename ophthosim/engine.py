@@ -126,6 +126,26 @@ class Game:
         previous = self.phase
         self.phase = to
         self._record('phase', {'from': previous.value, 'to': to.value})
+        # Trigger case hazards on *state entry*: a burst of input events must
+        # not be able to skip a hazard before the next frame's tick.
+        if not self._scenario_fired:
+            hazard = {
+                ('motion', Phase.CAPSULE): 'PATIENT MOTION',
+                ('vitals', Phase.PHACO): 'PATIENT MONITOR',
+                ('capsule', Phase.PHACO): 'CAPSULE INTEGRITY',
+            }.get((self.case, to))
+            if hazard:
+                self._scenario_fired = True
+                if hazard == 'PATIENT MOTION':
+                    self.patient.motion = 0.9
+                    self.patient.cooperation = 0.25
+                    self.patient.heart_rate = 104
+                elif hazard == 'PATIENT MONITOR':
+                    self.patient.spo2 = 91
+                    self.patient.heart_rate = 99
+                else:
+                    self.eye.capsule_integrity = .55
+                self._alert(hazard)
         if to == Phase.RECOVERY:
             self.ending = 'SIMULATION COMPLETE'
             self._record('ending', {'outcome': self.ending, 'score': self.score()})
@@ -146,21 +166,6 @@ class Game:
         dt = min(float(dt), self.MAX_DT)
         self.time += dt
         self.step += 1
-        if self.case == 'motion' and not self._scenario_fired and self.phase == Phase.CAPSULE:
-            self._scenario_fired = True
-            self.patient.motion = 0.9
-            self.patient.cooperation = 0.25
-            self.patient.heart_rate = 104
-            self._alert('PATIENT MOTION')
-        elif self.case == 'vitals' and not self._scenario_fired and self.phase == Phase.PHACO:
-            self._scenario_fired = True
-            self.patient.spo2 = 91
-            self.patient.heart_rate = 99
-            self._alert('PATIENT MONITOR')
-        elif self.case == 'capsule' and not self._scenario_fired and self.phase == Phase.PHACO:
-            self._scenario_fired = True
-            self.eye.capsule_integrity = .55
-            self._alert('CAPSULE INTEGRITY')
 
     def action(self, name: str, x: Any = None, y: Any = None) -> bool:
         """Return whether the game accepted the semantic user command."""
