@@ -120,3 +120,45 @@ def test_gui_replay_overflow_is_reported_not_crash(app, tmp_path, monkeypatch):
     app.game.action('abort')
     app.save()
     assert app.message == 'Export failed: RuntimeError'
+
+
+def test_3d_mesh_preview_is_interactive_but_cannot_apply_surgical_actions(app):
+    """CPU mesh rotates; surgical interactions remain disabled in preview mode."""
+    app.game.action('confirm')
+    app.game.action('prepare')
+    assert app.game.phase == Phase.ENTRY
+    app.dispatch(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_g}))
+    assert app.view_3d
+    initial = app.view_yaw
+    app.dispatch(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_l}))
+    assert app.view_yaw > initial
+    for x,y in app.game._entry_target:
+        px,py=(round(640+(x-.5)*444),round(366+(y-.5)*444))
+        app.dispatch(pygame.event.Event(pygame.MOUSEBUTTONDOWN,
+                                        {'button':1,'pos':(px,py)}))
+        app.dispatch(pygame.event.Event(pygame.MOUSEBUTTONUP,
+                                        {'button':1,'pos':(px,py)}))
+    assert app.game.phase == Phase.ENTRY
+    assert app.game.eye.entry_hits == 0
+    app.draw()
+    os.makedirs('build/screenshots',exist_ok=True)
+    pygame.image.save(app.canvas, 'build/screenshots/mesh3d-preview.png')
+    app.dispatch(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_g}))
+    assert not app.view_3d
+    app.dispatch(pygame.event.Event(pygame.MOUSEBUTTONDOWN,
+                                    {'button':1,'pos':(round(640+(.69-.5)*444),
+                                                        round(366+(.46-.5)*444))}))
+    assert app.game.eye.entry_hits == 1
+
+
+def test_3d_preview_orbit_clamps_and_phase_rendering(app):
+    app.dispatch(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_g}))
+    for _ in range(100):
+        app.dispatch(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_l}))
+        app.dispatch(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_i}))
+    assert app.view_yaw == 1.2 and app.view_pitch == .9
+    for phase in Phase:
+        app.game.phase = phase
+        app.game.ending = ('SIMULATION COMPLETE' if phase == Phase.RECOVERY else
+                           'SAFELY ABORTED' if phase == Phase.ABORTED else None)
+        app.draw()
