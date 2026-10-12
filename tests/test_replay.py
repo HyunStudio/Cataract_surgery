@@ -197,3 +197,27 @@ def test_replay_rejects_changed_acceptance_bit():
     rows[1]["accepted"] = False
     with pytest.raises(ValueError, match="modified"):
         ReplayGame.replay_jsonl("\n".join(json.dumps(row) for row in rows))
+
+def test_standalone_verify_cli(tmp_path, capsys):
+    from ophthosim.verify_replay import main
+
+    game = ReplayGame()
+    game.action("confirm")
+    game.action("abort")
+    target = tmp_path / "session.replay.jsonl"
+    target.write_text(game.export_replay_jsonl(), encoding="utf-8")
+    assert main([str(target)]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["status"] == "verified"
+    assert output["clinical_validation"] is False
+    assert output["ending"] == "SAFELY ABORTED"
+    target.write_text(target.read_text(encoding="utf-8").replace('"accepted":true', '"accepted":false'), encoding="utf-8")
+    assert main([str(target)]) == 2
+    assert "REPLAY INVALID" in capsys.readouterr().err
+
+
+def test_verify_cli_refuses_missing_file(tmp_path, capsys):
+    from ophthosim.verify_replay import main
+
+    assert main([str(tmp_path / "not_found.jsonl")]) == 2
+    assert "REPLAY INVALID" in capsys.readouterr().err
