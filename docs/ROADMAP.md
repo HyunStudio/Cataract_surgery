@@ -46,3 +46,23 @@ Each work package (WP) ends with a runnable application, a test or reproducible 
 
 ## Management
 Track blockers, models licensed/provenance, unresolved clinical assumptions and graphics benchmarks explicitly. Prefer quality gate over strict line-count targets. No real-world surgical validity is claimed before subject matter review and external validation.
+
+## v1.1 milestone review — scope and delivery criteria
+
+**Release strategy:** R0 playable graybox at WP15; R1 cataract-removal vertical slice at WP20; R2 complete core encounter at WP25; R3 safety branches at WP28; R4 research-ready release at WP32. An optional production 3D renderer is conditional on WP04 measurement; it may continue as a parallel improvement without blocking playable releases.
+
+**Exit evidence per WP:** one short CHANGELOG entry, explicit acceptance checklist, at least one automated test where logic changes, screenshot/video for visual changes, and a known-limitations note. Mark TODO/IN PROGRESS/TESTED, never label unimplemented tasks complete.
+
+**Critical path:** WP01 → WP02 → WP03 → WP04 → WP05 → WP06 → WP07 → WP12 → WP13 → WP14 → WP15 → WP16–20 → WP21–25 → WP26–29 → WP30–32. WP08 (optional 3D) must not stall later game-state work.
+
+**Minimum end-to-end demo:** one normal full session and two deterministic exception sessions (patient motion and capsule/vital alert), with alternative safe-stop outcomes. Baseline 1080p, 4K scaling screenshot, simulation log replay, and results traceability must all be demonstrated.
+
+**Risk register (owners assigned when implementation starts):**
+- Pygame/OpenGL rendering interoperability → WP04 early spike; keep 2.5D fallback
+- Lens/cornea transparent depth composition → isolated shader prototype; transparent picking separate from display
+- UI latency/4K scaling → logical pixel coordinate conversion and frame-time logging
+- Animation/medical credibility → ophthalmology reviewer checklist and explicit model assumptions
+- Research confounding → freeze scenario seeds/UI conditions and pre-specify endpoints
+- Asset license conflicts → provenance manifest before adding any third-party files
+
+No fixed estimate in lines of code is a commitment. The 32 WP scope is a planning decomposition, not a validated time estimate.
