@@ -1,1 +1,2 @@
--r requirements.txt\nmoderngl>=5.10,<6.0\n
+-r requirements.txt
+moderngl>=5.10,<6.0
