@@ -41,3 +41,11 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Verified categories: headless state machine, Pygame SDL dummy GUI, complete synthetic procedure, hazard/safe-abort, command replay/journal integrity, standalone verifier, fuzz/dirty input, normalized 3D mesh generation and ray geometry.
 - `python -m compileall -q ophthosim main.py` also ran successfully in CI.
 - **Not tested:** real Windows monitor/keyboard/4K, rendering on the user's GPU, ModernGL/OpenGL shader output, high-fidelity anatomy, eye biomechanics, actual clinician assessment or IRB human-subject studies.
+
+## 2026-10-13 KST incremental 3D-preview verification
+
+- Verified latest [GitHub Actions run 38272300713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38272300713): success for Python 3.12 and 3.13; Python 3.12 completed **116 tests**.
+- Added `tests/test_preview3d.py` to exercise triangle rendering inputs, cached deterministic meshes, rotated camera, synthetic lens/IOL distinction, malformed numerical values, adversarial invalid camera settings and 100 random valid angles.
+- Added GUI smoke tests for G/J/L/I/K, camera-angle bounds, visual rendering of all procedure states, blocking surgery clicks during 3D preview, and returning to interactive 2.5D mode.
+- First new test run had **2 failures / 114 passes** due to a typo in GUI yaw update; corrected in commit `4c7014637792dd874ef9b34c94065da576cf7d45` and rerun green.
+- **Boundaries:** 3D scene is CPU-projected triangles, not OpenGL 3D rendering. SDL dummy-screen success does not validate performance, mouse accuracy, or visual quality on a Windows GPU/monitor.
