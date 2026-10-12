@@ -164,7 +164,7 @@ class Game:
         # Compare bounds before math.isfinite: converting a gigantic int to
         # float may raise OverflowError rather than our documented ValueError.
         if (isinstance(dt, bool) or not isinstance(dt, (int, float))
-                or dt < 0 or dt > self.MAX_DT and isinstance(dt, int)
+                or dt < 0 or (isinstance(dt, int) and dt > 1000000000000)
                 or not math.isfinite(dt)):
             raise ValueError('dt must be finite and nonnegative')
         if self.paused or self.ending:
