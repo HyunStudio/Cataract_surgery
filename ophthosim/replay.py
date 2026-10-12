@@ -104,7 +104,7 @@ class ReplayGame(Game):
         header = {"kind": "session", "schema_version": self.REPLAY_VERSION,
                   "case": self.case, "seed": self.seed}
         footer = {"kind": "integrity",
-                  "journal_sha256": _digest("\\n".join(_canonical(row) for row in [header, *self.journal])),
+                  "journal_sha256": _digest("\n".join(_canonical(row) for row in [header, *self.journal])),
                   "events_sha256": _digest(self.export_jsonl()),
                   "snapshot_sha256": _digest(_canonical(self.snapshot())),
                   "records": len(self.journal)}
@@ -136,7 +136,7 @@ class ReplayGame(Game):
         if any(not isinstance(footer[key], str) or len(footer[key]) != 64
                for key in ("journal_sha256", "events_sha256", "snapshot_sha256")):
             raise ValueError("Malformed replay digest")
-        if footer["journal_sha256"] != _digest("\\n".join(_canonical(row) for row in records[:-1])):
+        if footer["journal_sha256"] != _digest("\n".join(_canonical(row) for row in records[:-1])):
             raise ValueError("Replay command journal was modified")
         try:
             game = cls(case=header["case"], seed=header["seed"])
