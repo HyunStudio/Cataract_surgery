@@ -225,3 +225,13 @@ def test_case_boundary_invariants_and_extreme_invalid_actions():
     assert not game.action('trace', -math.inf, .5)
     assert game.phase==Phase.CAPSULE
     assert 0 <= game.patient.spo2 <= 100
+
+
+def test_score_starts_at_zero_and_requires_completion():
+    game=Game()
+    assert game.score()==0
+    game.action('confirm')
+    assert game.score() < 20
+    completed=Game()
+    finish(completed)
+    assert completed.score()>=95
