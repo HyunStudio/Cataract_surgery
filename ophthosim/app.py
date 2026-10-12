@@ -188,7 +188,7 @@ class App:
                               if self.view_3d else 'Returned to the 2.5D interactive surgical view.')
             elif self.view_3d and event.key in (pg.K_j,pg.K_l,pg.K_i,pg.K_k):
                 if event.key in (pg.K_j,pg.K_l):
-                    self.view_yaw=max(-1.2,min(1.2,self.view_y+(-.10 if event.key==pg.K_j else .10)))
+                    self.view_yaw=max(-1.2,min(1.2,self.view_yaw+(-.10 if event.key==pg.K_j else .10)))
                 else:
                     self.view_pitch=max(-.9,min(.9,self.view_pitch+(.10 if event.key==pg.K_i else -.10)))
             elif event.key==pg.K_e and self.game.ending:
