@@ -1,6 +1,6 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
-**Status:** Design and research specification (v1.2, 2026-10-12). Gameplay is **not implemented yet**.
+**Status:** Initial playable 2.5D research prototype (2026-10-12). Full 32-WP design and true 3D are **not complete**.
 
 An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built around Python, Pygame for UI/input, and an optional hardware-accelerated 3D renderer. The project models a complete *abstracted* cataract surgery encounter: patient preparation, topical anesthesia and monitoring, microscope navigation, corneal entry, capsular task, cataract removal, residual material cleanup, intraocular lens (IOL) placement, wound assessment, recovery, and result scoring.
 
@@ -11,6 +11,18 @@ An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built
 - [32-work-package roadmap](docs/ROADMAP.md)
 - [Research and evaluation plan](docs/RESEARCH_PLAN.md)
 - [Safety, realism and limitations](docs/SAFETY.md)
+
+## Quick start (Windows / Python 3.12+)
+
+```powershell
+python -m pip install -r requirements.txt
+python main.py
+# optional: python main.py --case motion --seed 42 --scale 1.5
+```
+
+Keys: **1–4** select a synthetic case on the first screen; **Space** confirms pre-op/anesthesia screens; **left-click** marked approach targets; **left-drag** the guide ring for capsular task; **hold left mouse** in the lens field for removal/cleanup; **left-click** central marker for IOL alignment; **left-click** final safety checks. **A** assesses a monitor alert, **X** safe-aborts, **Esc** pauses, **R** restarts, and **E** exports synthetic JSONL data after an ending.
+
+The game contains a procedural illustrated 2.5D eye and synthetic HR/BP/SpO2 displays. **It is not yet a real 3D surgical trainer**. For test commands and caveats see [test report](docs/TEST_REPORT.md) and [implementation progress](docs/PROGRESS.md).
 
 ## Visual direction
 A **microscope-first** interface with a visually realistic iris/cornea/lens, coupled to a synchronized cross-sectional depth view. Patient vital signs and a small anesthesia status panel occupy the periphery, not the operative field. A 2.5D vertical slice comes first; optional 3D meshes, camera orbit and shader-based effects are introduced behind a stable renderer interface. See the visual design document for layout, typography, accessibility and feedback specifications.
@@ -45,7 +57,7 @@ Investigate simulated interaction metrics and accessibility adaptation: track cu
 The reviewed specifications now define a 2.5D playable MVP before 3D polish, explicit stage guards and safe-abort branches, seeded exceptions, deterministic session replay, acceptance tests, input/camera collision handling, and predeclared research metrics. **True 3D remains conditional on a Windows ModernGL interoperability/performance spike (WP04), not an implemented or guaranteed capability.**
 
 ## Next milestone
-**WP01:** minimal executable window, deterministic scene/state loop, placeholder microscope layout, mocked monitor, automated smoke tests. Subsequent work packages must keep the application runnable.
+**WP04:** GPU/Pygame interoperability and graphical smoke test on an actual Windows desktop, then measured selection of a production 3D rendering approach. The current graphical interface has not been launched or GPU-benchmarked in the headless coding environment.
 
 ## License
 See repository [LICENSE](LICENSE); external assets must have their own documented provenance and compatible redistribution permissions.
