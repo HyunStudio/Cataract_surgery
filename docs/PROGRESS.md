@@ -55,3 +55,11 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Added tests for invalid/huge/nonfinite values, 10,000 repeated camera input events, lens/IOL switching, CI-only GUI render differences, patient HR coupling and deterministic output.
 - Verified [Actions run 38318581035](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38318581035): success for Python 3.12 & 3.13, **167 tests passed on Python 3.12**.
 - **Remaining for full completion:** actual Windows GPU shader/scene validation, production 3D surgery viewport, depth-based tools, realistic but non-clinical animation and anatomical materials, 4K desktop test, SME review.
+
+## 2026-10-13 follow-up — depth picking and actual software-OpenGL smoke
+
+- Added `ophthosim/picking3d.py`: reverse-projection from scaled window pixels to normalized world rays; deterministic nearest-surface synthetic lens/IOL/iris hits; offscreen/NaN/huge-int rejection. Transparent cornea is excluded to permit viewing inner synthetic anatomy. Picker is **read-only**, not authority for surgical tool/tissue collision.
+- Connected iris/lens/IOL selection and crosshair to experimental ModernGL view. Camera/phase changes invalidate selection to avoid stale annotations.
+- Added `tests/test_picking3d.py` covering projected-point roundtrips, rotation, near/far, simulated surfaces and 2,000 seeded fuzz selections. Both Python 3.12 and 3.13 CI jobs green: [run 38319316882](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319316882), 202 tests on 3.12.
+- Added `ophthosim/gl_smoke.py` and [Mesa/Xvfb workflow](../.github/workflows/gl-software.yml). Real Linux software OpenGL context created, GLSL compiled, both synthetic states rendered; verified framebuffer not blank and saved PNG artifacts. [Run 38319493162](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319493162) passed with llvmpipe OpenGL 4.5. This removes the previous **complete absence of executed GL shaders**, but it does **not** meet WP04's real Windows hardware gate.
+- Remaining: Windows AMD GPU/4K performance, physical input and display quality; accurate GPU scene picking vs triangle meshes, 3D surgical tool gesture integration, anatomy/capsule animations, depth visual calibration and SME assessment.
