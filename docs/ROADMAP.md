@@ -71,3 +71,9 @@ No fixed estimate in lines of code is a commitment. The 32 WP scope is a plannin
 - **Replay & integrity milestone — implemented/tested:** bounded semantic accepted/rejected command capture, synchronized simulation tick compression, JSONL verification and CLI, GUI export, hazard replay.
 - **Geometry prototype — implemented/tested:** procedural normalized cornea, iris, sclera, lens and IOL mesh surfaces; ray–sphere intersection and dirty-parameter tests.
 - **WP04 / WP08 still OPEN:** Pygame↔OpenGL rendering integration, actual 3D on-screen appearance, camera depth/ray-picking against scene, Windows GPU benchmarks, visually credible textured anatomy and validated tissue interaction remain unimplemented.
+
+## Latest progress marker — 2026-10-13 KST
+
+- **WP08 partial prototype:** working CPU-projected, keyboard-rotatable 3D mesh *anatomy preview* in the Pygame display, with 3D math and dirty/GUI tests.
+- **WP04 NOT complete:** ModernGL/OpenGL integration, physical GPU benchmarking and production-grade 3D picking/lighting still need validation on target hardware.
+- 3D preview is read-only and never replaces the main surgical state interaction. Remaining gates and planned work-package status are otherwise unchanged.
