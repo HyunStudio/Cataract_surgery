@@ -37,3 +37,11 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Replayer/CLI tests cover tamper detection, malformed files, seeded hazards, rejected but state-changing actions and GUI export; synthetic 3D mesh tests cover normals, bounds, face orientation, deterministic generation, ray hits and malformed geometry inputs.
 - Added `ophthosim/geometry.py` and `tests/test_geometry.py`. This is a GPU-independent **mesh math prototype**, not a finished 3D rendered operating field.
 - Priority remains WP04 Windows OpenGL feasibility, then live 3D viewport and richer microsurgical tool interaction. No completed clinical skill validation.
+
+## Development increment — interactive software-projected 3D atlas (2026-10-13 KST)
+
+- Implemented `ophthosim/preview3d.py` using cached 3D meshes, yaw/pitch transforms, bounded perspective projection, face sorting and wireframe corneal meridians.
+- Added `G` toggle and `J/L/I/K` orbit keys to existing Pygame UI. The atlas is **view-only**; 2.5D surgery remains the only interactive surgery scene. Surgical clicks do not run while the 3D view is active.
+- Added pure-Python dirty tests for NaN/inf/huge integers/invalid angles and centers, 100 deterministic random previews, and SDL GUI tests across phases, orbits and blocked tool actions.
+- CI failure from typo `self.view_y` was diagnosed and corrected to `self.view_yaw`; final checked [run 38272300713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38272300713) passed on Python 3.12 and 3.13. 116 tests passed on Python 3.12.
+- Remaining: real GPU 3D rendering, synchronized depth-based surgical tool interaction, graphics performance on Windows hardware, licensed high-quality anatomy assets, 4K UI and clinical subject-matter review.
