@@ -35,3 +35,9 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Deterministic replay does not equate to a validated training simulator. Rejected out-of-region actions with synthetic stress effects are captured; rejected invalid coordinates are not (they have no state effects).
 - A giant integer `dt` previously risked float overflow; it is now explicitly converted under an exception guard and raises `ValueError`. Finite large dt values continue to clamp as documented. Seed values beyond signed 63-bit magnitude are rejected.
 - As before, GitHub Actions SDL dummy tests are not real Windows GPU rendering, and no interactive true 3D graphics test has run.
+
+## 2026-10-12 additive test evidence
+- GitHub Actions [run 38260708128](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38260708128): **97 automated tests passed** (Python 3.12 and 3.13 matrix).
+- Verified categories: headless state machine, Pygame SDL dummy GUI, complete synthetic procedure, hazard/safe-abort, command replay/journal integrity, standalone verifier, fuzz/dirty input, normalized 3D mesh generation and ray geometry.
+- `python -m compileall -q ophthosim main.py` also ran successfully in CI.
+- **Not tested:** real Windows monitor/keyboard/4K, rendering on the user's GPU, ModernGL/OpenGL shader output, high-fidelity anatomy, eye biomechanics, actual clinician assessment or IRB human-subject studies.
