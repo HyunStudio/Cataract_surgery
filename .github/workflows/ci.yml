@@ -19,3 +19,9 @@ jobs:
         env:
           SDL_VIDEODRIVER: dummy
           SDL_AUDIODRIVER: dummy
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ophthosim-screenshots-${{ matrix.python-version }}
+          path: build/screenshots/
+          if-no-files-found: ignore
