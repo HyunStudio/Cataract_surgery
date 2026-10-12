@@ -81,3 +81,9 @@ No fixed estimate in lines of code is a commitment. The 32 WP scope is a plannin
 ## WP04 incremental status — 2026-10-13
 
 Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests have been added. **WP04 is still OPEN** pending genuine Windows OpenGL execution, actual shader compilation, frame-time measurement, window resizing and visual screenshots. The surgical 2.5D mode is still the playable fallback. Synchronized synthetic vital waveform rendering has been integrated and CI tested. Refer to `GPU_VALIDATION_CHECKLIST.md`.
+
+## 2026-10-13 follow-up WP04/WP08
+
+- **WP04 partial:** modern OpenGL 3.3 shaders/UI composition now actually execute on GitHub-hosted Linux Mesa llvmpipe with nonblank framebuffer screenshots, separate from earlier CPU-only shader inspections. **Windows GPU gate remains OPEN**.
+- **WP08 partial:** read-only lens/IOL/iris depth picking added to a rotatable 3D atlas with camera transform inverse and safe hit boundaries. The picker does not yet drive actual surgical instrument coordinates or state actions; no production 3D surgery release claim.
+- Next: bring the GPU scene and synthetic tool pose under one stateful controller; translate guarded 3D hit events into *educational* procedural actions only after phase-specific tests, and preserve 2.5D fallback.
