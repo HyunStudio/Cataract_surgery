@@ -196,3 +196,32 @@ def test_event_list_bounded():
     for _ in range(Game.MAX_EVENTS+10):
         game.action('pause')
     assert game.event_count()==Game.MAX_EVENTS
+
+
+def test_alert_cannot_be_skipped_by_burst_of_actions():
+    motion=Game('motion')
+    enter_capsule(motion)
+    # The hazard must be active on phase entry, *before* any frame tick.
+    assert motion.patient.alert=='PATIENT MOTION'
+    assert motion.paused
+    for _ in range(100):
+        assert not motion.action('trace',.78,.5)
+    assert motion.phase==Phase.CAPSULE
+
+    vital=Game('vitals')
+    enter_capsule(vital)
+    trace_capsule(vital)
+    assert vital.patient.alert=='PATIENT MONITOR'
+    for _ in range(100):
+        assert not vital.action('remove',.5,.5)
+    assert vital.eye.opacity==1
+
+
+def test_case_boundary_invariants_and_extreme_invalid_actions():
+    game=Game('normal')
+    enter_capsule(game)
+    for _ in range(200):
+        assert not game.action('trace', 10**400, 10**400)
+    assert not game.action('trace', -math.inf, .5)
+    assert game.phase==Phase.CAPSULE
+    assert 0 <= game.patient.spo2 <= 100
