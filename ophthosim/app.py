@@ -310,7 +310,7 @@ class App:
         pg=self.pg;s=self.canvas;g=self.game
         s.fill(BG)
         draw_text(pg,s,self.fonts,'OPHTHOSIM', (24,21),size='title',color=CYAN)
-        draw_text(pg,s,self.fonts,'AI  /  CATARACT MICROSURGERY', (210,31),color=MUTED)
+        draw_text(pg,s,self.fonts,'AI  /  CATARACT MICROSURGERY', (237,31),color=MUTED)
         draw_text(pg,s,self.fonts,'2.5D EDUCATIONAL BUILD',(1002,29),color=MINT,size='tiny')
         rounded(pg,s,(13,31,45),(275,75,690,620),16)
         pg.draw.circle(s,(30,65,71),(EYE_CX,EYE_CY),243)
