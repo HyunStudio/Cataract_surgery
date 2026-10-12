@@ -17,6 +17,7 @@ import math
 from typing import Iterable
 
 from .geometry import Mesh, anterior_eye_meshes
+from .picking3d import SurfaceHit, pick_anatomy
 
 VERTEX_SHADER = """
 #version 330
@@ -204,6 +205,8 @@ class GPUEyePreview:
         self.font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self.hud_texture = None
         self.meshes: dict[str, tuple[object, object, object]] = {}
+        self.selection: SurfaceHit | None = None
+        self.selection_pixel: tuple[int, int] | None = None
         self.set_meshes(atlas_meshes("CATARACT"))
 
     def set_meshes(self, meshes: dict[str, Mesh]) -> None:
@@ -220,6 +223,21 @@ class GPUEyePreview:
                             [(vbo, "3f 3f", "in_position", "in_normal")],
                             index_buffer=ibo)
             self.meshes[name] = vao, vbo, ibo
+
+    def select(self, pos: tuple[int, int], view: View) -> SurfaceHit | None:
+        """Anatomy inspection only. Mouse picks must not mutate surgery state."""
+        view.check()
+        w, h = self.pg.display.get_window_size()
+        if len(pos) != 2:
+            raise ValueError("Mouse position must contain two coordinates")
+        self.selection = pick_anatomy(pos[0], pos[1], w, h,
+                                      view.yaw, view.pitch, view.zoom, view.phase)
+        self.selection_pixel = pos if self.selection is not None else None
+        return self.selection
+
+    def clear_selection(self) -> None:
+        self.selection = None
+        self.selection_pixel = None
 
     def render(self, view: View, fps: float) -> None:
         view.check()
@@ -270,14 +288,22 @@ class GPUEyePreview:
             (f"VIEW: {view.phase}    FPS: {fps:.0f} (measured locally)", self.font, (125, 211, 231)),
             ("ARROWS: ORBIT   +/-: ZOOM   SPACE: LENS/IOL   ESC: EXIT",
              self.font, (201, 223, 236)),
-            ("NO SURGICAL INTERACTION / PHYSIOLOGY / 3D TOOL PICKING",
+            ("LEFT CLICK: INSPECT IRIS / LENS (READ-ONLY DEPTH PICKING)",
              self.font, (245, 202, 136)),
+            ((f"SELECTED: {self.selection.name.upper()}  DEPTH: {self.selection.distance:.2f}" 
+              if self.selection is not None else "SELECTED: NONE"),
+             self.font, (128, 221, 174)),
         )
         y = 24
         for text, font, color in lines:
             glyph = font.render(text, True, color)
             hud.blit(glyph, (20, y))
             y += 42 if font is self.font_big else 31
+        if self.selection_pixel is not None:
+            px, py = self.selection_pixel
+            self.pg.draw.circle(hud, (110, 230, 195), (px, py), 12, 2)
+            self.pg.draw.line(hud, (110, 230, 195), (px-18,py), (px-5,py), 2)
+            self.pg.draw.line(hud, (110, 230, 195), (px+5,py), (px+18,py), 2)
         # Upload one RGBA HUD texture and draw it using the very same GL
         # context. Avoid creating extra Pygame display surfaces.
         if self.hud_texture is None or self.hud_texture.size != (w, h):
@@ -330,19 +356,30 @@ def run() -> None:
                         running = False
                     elif event.key == pygame.K_LEFT:
                         view.key("left")
+                        atlas.clear_selection()
                     elif event.key == pygame.K_RIGHT:
                         view.key("right")
+                        atlas.clear_selection()
                     elif event.key == pygame.K_UP:
                         view.key("up")
+                        atlas.clear_selection()
                     elif event.key == pygame.K_DOWN:
                         view.key("down")
+                        atlas.clear_selection()
                     elif event.key in (pygame.K_PLUS, pygame.K_EQUALS, pygame.K_KP_PLUS):
                         view.key("zoom_in")
+                        atlas.clear_selection()
                     elif event.key in (pygame.K_MINUS, pygame.K_KP_MINUS):
                         view.key("zoom_out")
+                        atlas.clear_selection()
                     elif event.key == pygame.K_SPACE:
                         view.key("toggle")
                         atlas.set_meshes(atlas_meshes(view.phase))
+                        atlas.clear_selection()
+                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    atlas.select(event.pos, view)
+                elif event.type == pygame.VIDEORESIZE:
+                    atlas.clear_selection()
             clock.tick(60)
             atlas.render(view, clock.get_fps())
     finally:
