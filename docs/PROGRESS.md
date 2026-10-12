@@ -31,3 +31,9 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Extra tests cover normal end-to-end reproduction, motion/vital/capsule alerts, paused ticks, rejected tool actions, tampered records, oversized/malformed inputs, replay overflow, 2,000 randomized inputs and GUI export.
 - Remaining: animated viewer for reconstructed sessions, rich input telemetry, clinical and Windows/GPU visual validation, true 3D renderer.
 - At the time of this edit, the latest CI must still be checked for the new extreme-input tests; results must not be inferred from previous green runs.
+
+## Verified increment — 2026-10-12 (latest run)
+- GitHub Actions run [38260708128](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38260708128): **97 tests passed** in the checked matrix with Python 3.12 and 3.13 (SDL dummy driver for GUI tests).
+- Replayer/CLI tests cover tamper detection, malformed files, seeded hazards, rejected but state-changing actions and GUI export; synthetic 3D mesh tests cover normals, bounds, face orientation, deterministic generation, ray hits and malformed geometry inputs.
+- Added `ophthosim/geometry.py` and `tests/test_geometry.py`. This is a GPU-independent **mesh math prototype**, not a finished 3D rendered operating field.
+- Priority remains WP04 Windows OpenGL feasibility, then live 3D viewport and richer microsurgical tool interaction. No completed clinical skill validation.
