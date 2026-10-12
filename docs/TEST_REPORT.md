@@ -56,3 +56,10 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - New offline GL tests check binary vertex/normal packing, mesh indices, source shader uniforms, camera bounds under 10,000 events, malformed floats and lens/IOL swaps. GLSL source inspected only, not GPU compiled.
 - New synthetic monitor tests validate deterministic ECG/pleth generated from changing in-game heart rate, zero-rate flat trace, NaN/Inf/huge-int rejection, extreme sample counts, and rendered GUI pixel changes via SDL dummy driver.
 - **No evidence yet for physical Windows GPU performance, OpenGL context/shader success, IOL/cornea visual realism, clinical accuracy, or interactive 3D surgical tool precision.**
+
+## 2026-10-13 depth picking + executable GLSL test
+
+- [Actions tests run 38319316882](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319316882): Python 3.12 and 3.13 success; **202 tests passed on 3.12**. Covers 3D camera inversion, lens/IOL/iris picking, mathematical roundtrip, clipping/outside viewport, extreme input rejection and seeded fuzz.
+- [Mesa/Xvfb OpenGL smoke run 38319493162](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319493162): **success**, framebuffer bytes captured for both states; PNG artifacts attached. GL renderer `llvmpipe (LLVM 20.1.2, 256 bits)`, OpenGL `4.5`. Captured two different images; 20-frame mean ~2.97 ms is a short software diagnostic sample **not** a meaningful frame-rate benchmark.
+- Verified that 3D click inspection is **read-only** and does not mutate the synthetic surgery score/state. This inspection uses analytic spherical/ellipsoidal approximations and does not yet perform triangle-level precision hit testing.
+- Still untested: Windows AMD graphics context/driver, 1080p/4K real monitor legibility and sustained performance, real surgical interaction, expert clinical plausibility.
