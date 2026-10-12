@@ -157,7 +157,7 @@ def pick_anatomy(x: object, y: object, width: int, height: int,
     used by the current atlas are considered; this is not triangle-mesh
     picking and cannot be used as a surgical collision authority.
     """
-    if phase not in {"CATARACT", "IOL"}:
+    if not isinstance(phase, str) or phase not in {"CATARACT", "IOL"}:
         raise ValueError("Unknown synthetic atlas phase")
     ray = screen_ray(x,y,width,height,yaw,pitch,zoom)
     if ray is None:
