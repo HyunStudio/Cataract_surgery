@@ -78,3 +78,15 @@ Integrity includes command-journal and resulting event/snapshot SHA-256 digests.
 
 ## License
 See repository [LICENSE](LICENSE); external assets must have their own documented provenance and compatible redistribution permissions.
+
+## 3D geometry prototype (not yet rendered)
+The dependency-free `ophthosim/geometry.py` now generates bounded procedural **sclera, iris, crystalline lens, IOL and cornea** meshes with vertex normals and triangle indices. It also implements ray/sphere intersection for future depth-aware tool picking. This is normalized graphical geometry — **not** validated ocular anatomy, a surgical instrument simulator, or real-time 3D rendering. See the technical architecture and test suite for the GPU renderer gate.
+
+## Standalone replay verification
+After exporting a session, check it without launching Pygame:
+
+```bash
+python -m ophthosim.verify_replay session_logs/case_normal_seed_7.replay.jsonl
+```
+
+A verified replay reports its synthetic ending, score and simulation step count. Invalid, tampered or missing files return a nonzero status.
