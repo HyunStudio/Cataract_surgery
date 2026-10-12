@@ -80,3 +80,8 @@ Handle input → map to semantic commands → advance fixed simulation steps (bo
 
 ### Quality gates & dependencies
 WP01–04 before 3D scope approval. Eye model and coordinate transforms before tool collision. Event schema before assessment and complications. Scoring requires explainable raw event references. Rendering backend never directly changes synthetic patient values. Automated CI can run headless simulation tests even when OpenGL is unavailable.
+
+## 2026-10-12 3D geometry increment — not a completed renderer
+Implemented in `ophthosim/geometry.py`: immutable mesh vertices/normals/face indices for schematic cornea dome, iris annulus, sclera and two elliptical optical elements (original lens/IOL). +Z points towards the microscope, units are **normalized**, and a bounded ray/sphere hit test provides a future picking primitive. Triangle winding and input-resolution limits have automated tests. Meshes do not deform tissue and are not surgically accurate.
+
+**Next integration gate:** upload meshes to an OpenGL vertex/index buffer; check orientation/culling, transparent-corneal depth sorting, view/projection matrices, DPI scaling, texture overlay for UI and resizing/context loss on Windows. Capture GPU environment and measured frame times. Only then can we label it live 3D. The CPU geometry tests are deliberately independent of ModernGL and do not satisfy WP04.
