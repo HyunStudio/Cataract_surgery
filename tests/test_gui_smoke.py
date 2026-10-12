@@ -96,3 +96,27 @@ def test_ui_dirty_mouse_coordinates_do_not_crash(app):
         app.dispatch(pygame.event.Event(pygame.MOUSEBUTTONUP,{'pos':pos,'button':1}))
         app.draw()
     assert app.game.phase==Phase.ENTRY
+def test_gui_exports_verifiable_replay(app, tmp_path, monkeypatch):
+    """An end-user save must include a loader-verifiable command journal."""
+    from ophthosim.replay import ReplayGame
+
+    monkeypatch.chdir(tmp_path)
+    assert app.game.action('confirm')
+    assert app.game.action('prepare')
+    assert app.game.action('abort')
+    app.save()
+    trace_path=tmp_path/'session_logs/case_normal_seed_7.jsonl'
+    replay_path=tmp_path/'session_logs/case_normal_seed_7.replay.jsonl'
+    assert trace_path.is_file() and replay_path.is_file()
+    restored=ReplayGame.replay_jsonl(replay_path.read_text(encoding='utf-8'))
+    assert restored.snapshot()==app.game.snapshot()
+    assert restored.export_jsonl()==trace_path.read_text(encoding='utf-8')
+
+
+def test_gui_replay_overflow_is_reported_not_crash(app, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    app.game.MAX_RECORDS=0
+    app.game.action('confirm')
+    app.game.action('abort')
+    app.save()
+    assert app.message == 'Export failed: RuntimeError'
