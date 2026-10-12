@@ -67,7 +67,7 @@ def test_all_scenarios_construct(case):
     assert game.snapshot()['case']==case
 
 
-@pytest.mark.parametrize('seed', [True,'7',2.4,None])
+@pytest.mark.parametrize('seed', [True,'7',2.4,None,10**400,-10**400])
 def test_bad_seed_rejected(seed):
     with pytest.raises(ValueError):Game(seed=seed)
 
@@ -85,7 +85,7 @@ def test_dirty_coordinates(value):
     assert not game.eye.capsule_points
 
 
-@pytest.mark.parametrize('value', [-1,float('nan'),float('inf'),'abc',None,True])
+@pytest.mark.parametrize('value', [-1,float('nan'),float('inf'),'abc',None,True,10**400])
 def test_dirty_dt(value):
     game=Game()
     with pytest.raises(ValueError):game.tick(value)
@@ -235,3 +235,9 @@ def test_score_starts_at_zero_and_requires_completion():
     completed=Game()
     finish(completed)
     assert completed.score()>=95
+def test_integer_dt_clamps_without_overflow():
+    game = Game()
+    game.tick(1000)
+    assert game.time == pytest.approx(Game.MAX_DT)
+    with pytest.raises(ValueError):
+        game.tick(10**400)
