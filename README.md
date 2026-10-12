@@ -56,6 +56,23 @@ Investigate simulated interaction metrics and accessibility adaptation: track cu
 ## Review v1.2 — development guardrails
 The reviewed specifications now define a 2.5D playable MVP before 3D polish, explicit stage guards and safe-abort branches, seeded exceptions, deterministic session replay, acceptance tests, input/camera collision handling, and predeclared research metrics. **True 3D remains conditional on a Windows ModernGL interoperability/performance spike (WP04), not an implemented or guaranteed capability.**
 
+## Deterministic test replay (implemented, educational only)
+
+When an interactive case ends, press `E`. The game saves two synthetic JSONL files in `session_logs/`: `case_<scenario>_seed_<seed>.jsonl` (state/event trace) and `case_<scenario>_seed_<seed>.replay.jsonl` (accepted and state-changing rejected semantic input commands with run-length-compressed simulation ticks). Replay is an analysis tool, not an animated playback UI.
+
+A replay can be independently checked using:
+
+```python
+from pathlib import Path
+from ophthosim.replay import ReplayGame
+
+raw = Path("session_logs/case_normal_seed_7.replay.jsonl").read_text(encoding="utf-8")
+session = ReplayGame.replay_jsonl(raw)
+print(session.phase.value, session.score(), session.ending)
+```
+
+Integrity includes command-journal and resulting event/snapshot SHA-256 digests. These catch accidental or unsanctioned edits **but do not authenticate authorship** without digital signatures. Raw mouse trajectories, clinician assessments and real patient data are not captured. Unrepresentable replay captures fail closed rather than silently export incomplete traces.
+
 ## Next milestone
 **WP04:** GPU/Pygame interoperability and graphical smoke test on an actual Windows desktop, then measured selection of a production 3D rendering approach. The current graphical interface has not been launched or GPU-benchmarked in the headless coding environment.
 
