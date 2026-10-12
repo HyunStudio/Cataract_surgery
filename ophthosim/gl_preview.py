@@ -239,11 +239,11 @@ class GPUEyePreview:
         self.selection = None
         self.selection_pixel = None
 
-    def render(self, view: View, fps: float) -> None:
+    def render(self, view: View, fps: float, *, capture: bool = False) -> bytes | None:
         view.check()
         w, h = self.pg.display.get_window_size()
         if not (w > 0 and h > 0):
-            return
+            return None
         self.size = (w, h)
         self.ctx.viewport = (0, 0, w, h)
         self.ctx.clear(.026, .065, .105, 1.0, depth=1.0)
@@ -278,7 +278,11 @@ class GPUEyePreview:
         self.ctx.disable(self.gl.BLEND)
         self.ctx.enable(self.gl.CULL_FACE)
         self.draw_hud(view, fps, w, h)
+        # Optional readback must occur before swapping. CI uses Mesa software
+        # GL; this cannot establish Windows GPU or display-driver correctness.
+        image = self.ctx.screen.read(components=3, alignment=1) if capture else None
         self.pg.display.flip()
+        return image
 
     def draw_hud(self, view: View, fps: float, w: int, h: int) -> None:
         hud = self.pg.Surface((w, h), self.pg.SRCALPHA)
