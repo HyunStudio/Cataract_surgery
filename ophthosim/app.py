@@ -13,6 +13,7 @@ import sys
 from .engine import Phase
 from .replay import ReplayGame as Game
 from .preview3d import draw_preview
+from .signals import sample_trace
 
 WIDTH, HEIGHT = 1280, 720
 EYE_CX, EYE_CY, EYE_R = 640, 366, 222
@@ -122,16 +123,13 @@ def bar(pg,surf,x,y,w,value,color):
     rounded(pg,surf,color,(x,y,max(0,int(w*min(1,max(0,value)))),8),4)
 
 
-def waveform(pg,surf,origin,tick,color):
-    x,y=origin
-    points=[]
-    for i in range(280):
-        phase=((i+tick*110)*.019)%1
-        def spike(q,c,width):
-            return max(0,1-abs(q-c)/width)
-        v=spike(phase,.23,.025)*1.8-spike(phase,.20,.02)*.3-spike(phase,.27,.03)*.55+spike(phase,.62,.09)*.13
-        points.append((x+i,y-int(v*20)))
-    pg.draw.lines(surf,color,False,points,2)
+def waveform(pg, surf, origin, tick, color, heart_rate, kind='ecg', count=238):
+    """Visualize synthetic patient-dependent signals, not clinical telemetry."""
+    x, y = origin
+    values = sample_trace(kind, heart_rate, tick, count=count)
+    points = [(x+i, y-round(v*(21 if kind=='ecg' else 12)))
+              for i,v in enumerate(values)]
+    pg.draw.lines(surf, color, False, points, 2)
 
 
 class App:
@@ -316,13 +314,14 @@ class App:
         rounded(pg,s,PANEL2,(990,165,260,145))
         draw_text(pg,s,self.fonts,'ECG / HR', (1004,179),color=MINT)
         draw_text(pg,s,self.fonts,str(p.heart_rate), (1005,208),size='big',color=MINT)
-        waveform(pg,s,(997,281),g.time,MINT)
+        waveform(pg,s,(997,281),g.time,MINT,p.heart_rate)
         rounded(pg,s,PANEL2,(990,324,260,91))
         draw_text(pg,s,self.fonts,'NIBP', (1005,339),color=AMBER)
         draw_text(pg,s,self.fonts,f'{p.sbp} / {p.dbp}',(1005,362),size='big',color=AMBER)
         rounded(pg,s,PANEL2,(990,426,260,90))
         draw_text(pg,s,self.fonts,'SpO2', (1005,439),color=CYAN)
         draw_text(pg,s,self.fonts,f'{p.spo2}%',(1005,461),size='big',color=CYAN)
+        waveform(pg,s,(1094,500),g.time,CYAN,p.heart_rate,'pleth',145)
         col=RED if p.alert else MINT
         rounded(pg,s,(61,32,47) if p.alert else (25,67,60),(990,531,260,97))
         draw_text(pg,s,self.fonts,'STATUS', (1004,539),color=col)
