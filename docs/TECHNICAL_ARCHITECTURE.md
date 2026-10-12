@@ -85,3 +85,9 @@ WP01–04 before 3D scope approval. Eye model and coordinate transforms before t
 Implemented in `ophthosim/geometry.py`: immutable mesh vertices/normals/face indices for schematic cornea dome, iris annulus, sclera and two elliptical optical elements (original lens/IOL). +Z points towards the microscope, units are **normalized**, and a bounded ray/sphere hit test provides a future picking primitive. Triangle winding and input-resolution limits have automated tests. Meshes do not deform tissue and are not surgically accurate.
 
 **Next integration gate:** upload meshes to an OpenGL vertex/index buffer; check orientation/culling, transparent-corneal depth sorting, view/projection matrices, DPI scaling, texture overlay for UI and resizing/context loss on Windows. Capture GPU environment and measured frame times. Only then can we label it live 3D. The CPU geometry tests are deliberately independent of ModernGL and do not satisfy WP04.
+
+## Implemented optional GL experiment (2026-10-13)
+
+`ophthosim/gl_preview.py` creates a single Pygame-owned OPENGL window and requests a ModernGL 3.3 context, packs authored procedural geometry into GPU-compatible vertex and index buffers, uses per-frame yaw/pitch/zoom uniforms, and draws a GPU-textured overlay. External `moderngl` is **optional** so default `python main.py` remains 2.5D and dependency-light.
+
+The GL atlas has its own input loop and no surgical input/state mutations. Scene/HUD shaders and mesh buffers are tested **without a GPU**, but OpenGL execution and shader compilation are not validated in CI. The closed sclera renders as non-depth-writing background pending a future anatomical cutaway; do not mistake this for physical optics. See `docs/GPU_VALIDATION_CHECKLIST.md` for exact hardware gates and failure reporting.
