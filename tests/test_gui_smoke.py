@@ -21,6 +21,8 @@ def app():
 
 def test_first_frame_and_monitor(app):
     app.draw()
+    os.makedirs('build/screenshots',exist_ok=True)
+    pygame.image.save(app.canvas,'build/screenshots/01_preop.png')
     assert app.canvas.get_size()==(1280,720)
     assert app.screen.get_size()==(1280,720)
     assert app.canvas.get_at((0,0))[:3] == (7,18,30)
@@ -32,6 +34,8 @@ def test_all_phase_screens_render(app):
         app.game.paused=False
         app.game.ending='SIMULATION COMPLETE' if phase==Phase.RECOVERY else ('SAFELY ABORTED' if phase==Phase.ABORTED else None)
         app.draw()
+        if phase in (Phase.PHACO,Phase.IOL,Phase.RECOVERY):
+            pygame.image.save(app.canvas,f'build/screenshots/{phase.value.lower()}.png')
 
 
 def test_alert_and_pause_layers_render(app):
