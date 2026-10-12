@@ -28,3 +28,10 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 ## Visual review correction
 - Reviewed generated CI screenshots. Fixed adjacent title/subtitle spacing and zero-based score initialization.
 - The recovery screenshot test now performs a complete synthetic case before capturing, rather than merely forcing the phase variable; source screenshot artifacts are available from GitHub Actions.
+
+## Follow-up testing — deterministic replay increment
+- Automated checks: round-trip command replay after completing the synthetic surgical flow; preserved patient-motion/vital/capsule warnings; saved GUI replay reload; journal tamper/rejection checks; range/NaN/overflow fuzz inputs.
+- Replay format contains a cryptographic digest of canonical command records and hashes of result events/snapshot. This is integrity checking, **not identity authentication**.
+- Deterministic replay does not equate to a validated training simulator. Rejected out-of-region actions with synthetic stress effects are captured; rejected invalid coordinates are not (they have no state effects).
+- A giant integer `dt` previously risked float overflow; it is now explicitly converted under an exception guard and raises `ValueError`. Finite large dt values continue to clamp as documented. Seed values beyond signed 63-bit magnitude are rejected.
+- As before, GitHub Actions SDL dummy tests are not real Windows GPU rendering, and no interactive true 3D graphics test has run.
