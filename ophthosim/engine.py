@@ -161,7 +161,11 @@ class Game:
         self._record('alert', {'kind': kind})
 
     def tick(self, dt: float) -> None:
-        if isinstance(dt, bool) or not isinstance(dt, (int, float)) or not math.isfinite(dt) or dt < 0:
+        # Compare bounds before math.isfinite: converting a gigantic int to
+        # float may raise OverflowError rather than our documented ValueError.
+        if (isinstance(dt, bool) or not isinstance(dt, (int, float))
+                or dt < 0 or dt > self.MAX_DT and isinstance(dt, int)
+                or not math.isfinite(dt)):
             raise ValueError('dt must be finite and nonnegative')
         if self.paused or self.ending:
             return
