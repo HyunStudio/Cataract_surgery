@@ -162,3 +162,18 @@ def test_3d_preview_orbit_clamps_and_phase_rendering(app):
         app.game.ending = ('SIMULATION COMPLETE' if phase == Phase.RECOVERY else
                            'SAFELY ABORTED' if phase == Phase.ABORTED else None)
         app.draw()
+
+
+def test_monitor_waveforms_change_with_synthetic_patient_heart_rate(app):
+    """Both waveform panels are driven by the same shared patient state."""
+    app.game.time = 2.0
+    app.game.patient.heart_rate = 70
+    app.draw()
+    a_ecg = app.canvas.subsurface((995, 254, 246, 49)).copy()
+    a_pleth = app.canvas.subsurface((1090, 484, 150, 30)).copy()
+    app.game.patient.heart_rate = 120
+    app.draw()
+    b_ecg = app.canvas.subsurface((995, 254, 246, 49)).copy()
+    b_pleth = app.canvas.subsurface((1090, 484, 150, 30)).copy()
+    assert pygame.image.tobytes(a_ecg, 'RGB') != pygame.image.tobytes(b_ecg, 'RGB')
+    assert pygame.image.tobytes(a_pleth, 'RGB') != pygame.image.tobytes(b_pleth, 'RGB')
