@@ -45,3 +45,13 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Added pure-Python dirty tests for NaN/inf/huge integers/invalid angles and centers, 100 deterministic random previews, and SDL GUI tests across phases, orbits and blocked tool actions.
 - CI failure from typo `self.view_y` was diagnosed and corrected to `self.view_yaw`; final checked [run 38272300713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38272300713) passed on Python 3.12 and 3.13. 116 tests passed on Python 3.12.
 - Remaining: real GPU 3D rendering, synchronized depth-based surgical tool interaction, graphics performance on Windows hardware, licensed high-quality anatomy assets, 4K UI and clinical subject-matter review.
+
+## Implementation increment — ModernGL GPU atlas source and synced monitors (2026-10-13 KST)
+
+- Added `ophthosim/gl_preview.py`, an independent optional OpenGL 3.3/ModernGL **hardware renderer experiment** with separate scene and GPU-uploaded HUD textures. Real driver/GLSL execution **not yet verified**.
+- Added `requirements-3d.txt`, CPU geometry packing and camera bound tests, a standalone `--check` mode that explicitly reports `gpu_tested: false`, and `docs/GPU_VALIDATION_CHECKLIST.md`.
+- Improved the atlas' opaque globe rendering so its closed front surface does not hide lens/iris in depth buffer. This code correction is not yet visually verified on hardware.
+- Added `ophthosim/signals.py`: deterministic synthetic ECG/pleth waveforms use the current PatientState heart rate and simulation time; integrated into Pygame monitor. These are stylized, non-clinical curves.
+- Added tests for invalid/huge/nonfinite values, 10,000 repeated camera input events, lens/IOL switching, CI-only GUI render differences, patient HR coupling and deterministic output.
+- Verified [Actions run 38318581035](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38318581035): success for Python 3.12 & 3.13, **167 tests passed on Python 3.12**.
+- **Remaining for full completion:** actual Windows GPU shader/scene validation, production 3D surgery viewport, depth-based tools, realistic but non-clinical animation and anatomical materials, 4K desktop test, SME review.
