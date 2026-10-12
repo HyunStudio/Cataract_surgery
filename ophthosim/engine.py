@@ -115,10 +115,12 @@ class Game:
     def score(self) -> int:
         completed = PHASES.index(self.phase) if self.phase in PHASES else 0
         phases = min(8, completed) * 3
-        tissue = round(26 * self.eye.capsule_integrity)
-        placement = round(20 * self.eye.iol_alignment)
-        progress = round(16 * (1 - self.eye.opacity) * (1 - self.eye.cortex))
-        safety = 14 if self.patient.alert == '' else (8 if self._warning_seen else 0)
+        # Earn quality/safety points only once the relevant task is evaluated.
+        # An untouched pre-operative case must not start at 40/100.
+        tissue = round(26 * self.eye.capsule_integrity) if completed >= 4 else 0
+        placement = round(20 * self.eye.iol_alignment) if completed >= 7 else 0
+        progress = round(16 * (1 - self.eye.opacity) * (1 - self.eye.cortex)) if completed >= 6 else 0
+        safety = 14 if self.phase == Phase.RECOVERY and not self.patient.alert else 0
         result = max(0, min(100, phases + tissue + placement + progress + safety))
         return result
 
