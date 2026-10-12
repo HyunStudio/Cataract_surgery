@@ -97,9 +97,10 @@ def test_repeated_ticks_compact():
     assert ReplayGame.replay_jsonl(game.export_replay_jsonl()).step == 500
 
 
-def test_rejected_commands_not_recorded():
+def test_rejected_in_range_commands_are_replayed():
     game = ReplayGame()
     assert not game.action("remove", .5, .5)
+    assert game.journal[-1]["accepted"] is False
     assert game.action("confirm")
     assert game.phase == Phase.ANESTHESIA
     assert game.action("abort")
@@ -170,3 +171,29 @@ def test_replay_fuzz_2000_malformed_user_inputs():
     for _ in range(2000):
         assert isinstance(game.action(rng.choice(commands), rng.choice(vals), rng.choice(vals)), bool)
     assert ReplayGame.replay_jsonl(game.export_replay_jsonl()).snapshot() == game.snapshot()
+
+def test_stress_from_rejected_actions_replays_exactly():
+    game = ReplayGame("normal")
+    _reach_phaco(game)
+    for _ in range(110):
+        game.action("remove", 0.0, 0.0)
+        if game.patient.alert:
+            break
+    assert game.patient.alert == "CAPSULE INTEGRITY"
+    assert game.paused
+    assert any(item["kind"] == "action" and item.get("name") == "remove"
+               and item["accepted"] is False for item in game.journal)
+    assert game.action("assess")
+    assert game.phase == Phase.ABORTED
+    copy = ReplayGame.replay_jsonl(game.export_replay_jsonl())
+    assert copy.snapshot() == game.snapshot()
+    assert copy.export_jsonl() == game.export_jsonl()
+
+
+def test_replay_rejects_changed_acceptance_bit():
+    game = ReplayGame()
+    game.action("confirm")
+    rows = [json.loads(line) for line in game.export_replay_jsonl().splitlines()]
+    rows[1]["accepted"] = False
+    with pytest.raises(ValueError, match="modified"):
+        ReplayGame.replay_jsonl("\n".join(json.dumps(row) for row in rows))
