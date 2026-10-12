@@ -104,6 +104,7 @@ class ReplayGame(Game):
         header = {"kind": "session", "schema_version": self.REPLAY_VERSION,
                   "case": self.case, "seed": self.seed}
         footer = {"kind": "integrity",
+                  "journal_sha256": _digest("\\n".join(_canonical(row) for row in [header, *self.journal])),
                   "events_sha256": _digest(self.export_jsonl()),
                   "snapshot_sha256": _digest(_canonical(self.snapshot())),
                   "records": len(self.journal)}
@@ -128,13 +129,15 @@ class ReplayGame(Game):
             raise ValueError("Invalid replay header")
         if header["kind"] != "session" or header["schema_version"] != cls.REPLAY_VERSION:
             raise ValueError("Unsupported replay version")
-        if not isinstance(footer, dict) or set(footer) != {"kind", "events_sha256", "snapshot_sha256", "records"}:
+        if not isinstance(footer, dict) or set(footer) != {"kind", "journal_sha256", "events_sha256", "snapshot_sha256", "records"}:
             raise ValueError("Invalid replay integrity footer")
         if footer["kind"] != "integrity" or footer["records"] != len(records) - 2:
             raise ValueError("Replay record count mismatch")
         if any(not isinstance(footer[key], str) or len(footer[key]) != 64
-               for key in ("events_sha256", "snapshot_sha256")):
+               for key in ("journal_sha256", "events_sha256", "snapshot_sha256")):
             raise ValueError("Malformed replay digest")
+        if footer["journal_sha256"] != _digest("\\n".join(_canonical(row) for row in records[:-1])):
+            raise ValueError("Replay command journal was modified")
         try:
             game = cls(case=header["case"], seed=header["seed"])
         except (ValueError, TypeError, OverflowError) as exc:
