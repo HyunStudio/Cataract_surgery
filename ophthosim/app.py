@@ -10,7 +10,8 @@ import math
 from pathlib import Path
 import sys
 
-from .engine import Game, Phase
+from .engine import Phase
+from .replay import ReplayGame as Game
 
 WIDTH, HEIGHT = 1280, 720
 EYE_CX, EYE_CY, EYE_R = 640, 366, 222
@@ -238,7 +239,15 @@ class App:
         path=root/f'case_{self.game.case}_seed_{self.game.seed}.jsonl'
         try:
             path.write_text(self.game.export_jsonl(),encoding='utf-8')
-            self.message=f'Exported synthetic log: {path}'
+            # Saved separately: one trace for analysis and one verifiable
+            # accepted-command replay. Legacy Game objects in tests may
+            # intentionally lack the replay API.
+            if hasattr(self.game, 'export_replay_jsonl'):
+                replay_path=root/f'case_{self.game.case}_seed_{self.game.seed}.replay.jsonl'
+                replay_path.write_text(self.game.export_replay_jsonl(),encoding='utf-8')
+                self.message=f'Exported trace and replay to {root}'
+            else:
+                self.message=f'Exported synthetic trace: {path}'
         except OSError as exc:
             self.message=f'Export failed: {exc.__class__.__name__}'
 
