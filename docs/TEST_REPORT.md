@@ -49,3 +49,10 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Added GUI smoke tests for G/J/L/I/K, camera-angle bounds, visual rendering of all procedure states, blocking surgery clicks during 3D preview, and returning to interactive 2.5D mode.
 - First new test run had **2 failures / 114 passes** due to a typo in GUI yaw update; corrected in commit `4c7014637792dd874ef9b34c94065da576cf7d45` and rerun green.
 - **Boundaries:** 3D scene is CPU-projected triangles, not OpenGL 3D rendering. SDL dummy-screen success does not validate performance, mouse accuracy, or visual quality on a Windows GPU/monitor.
+
+## 2026-10-13 additive CI coverage — ModernGL prototype + shared monitor
+
+- Latest verified [GitHub Actions run 38318581035](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38318581035): Python 3.12 **167 passed in 1.72s**, Python 3.13 workflow succeeded.
+- New offline GL tests check binary vertex/normal packing, mesh indices, source shader uniforms, camera bounds under 10,000 events, malformed floats and lens/IOL swaps. GLSL source inspected only, not GPU compiled.
+- New synthetic monitor tests validate deterministic ECG/pleth generated from changing in-game heart rate, zero-rate flat trace, NaN/Inf/huge-int rejection, extreme sample counts, and rendered GUI pixel changes via SDL dummy driver.
+- **No evidence yet for physical Windows GPU performance, OpenGL context/shader success, IOL/cornea visual realism, clinical accuracy, or interactive 3D surgical tool precision.**
