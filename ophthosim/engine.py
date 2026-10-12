@@ -62,8 +62,9 @@ class Game:
     def __init__(self, case: str = 'normal', seed: int = 7):
         if case not in {'normal', 'motion', 'vitals', 'capsule'}:
             raise ValueError('Unknown scenario')
-        if isinstance(seed, bool) or not isinstance(seed, int):
-            raise ValueError('seed must be integer')
+        if (isinstance(seed, bool) or not isinstance(seed, int)
+                or abs(seed) > 2**63 - 1):
+            raise ValueError('seed must be a bounded 64-bit integer')
         self.case = case
         self.seed = seed
         self.rng = random.Random(seed)
@@ -161,15 +162,19 @@ class Game:
         self._record('alert', {'kind': kind})
 
     def tick(self, dt: float) -> None:
-        # Compare bounds before math.isfinite: converting a gigantic int to
-        # float may raise OverflowError rather than our documented ValueError.
-        if (isinstance(dt, bool) or not isinstance(dt, (int, float))
-                or dt < 0 or (isinstance(dt, int) and dt > 1000000000000)
-                or not math.isfinite(dt)):
+        # float() is guarded: converting a gigantic int can overflow before
+        # math.isfinite has a chance to validate it.
+        if isinstance(dt, bool) or not isinstance(dt, (int, float)):
+            raise ValueError('dt must be finite and nonnegative')
+        try:
+            value = float(dt)
+        except (OverflowError, ValueError) as exc:
+            raise ValueError('dt must be finite and nonnegative') from exc
+        if not math.isfinite(value) or value < 0:
             raise ValueError('dt must be finite and nonnegative')
         if self.paused or self.ending:
             return
-        dt = min(float(dt), self.MAX_DT)
+        dt = min(value, self.MAX_DT)
         self.time += dt
         self.step += 1
 
