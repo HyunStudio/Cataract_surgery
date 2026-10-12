@@ -13,13 +13,13 @@ Updated 2026-10-12. **This report applies only to the initial build**, not compl
 - Run `python -m compileall -q ophthosim main.py` for syntax.
 
 ## Environment and limitations
-- The local execution environment has Python 3.13, numpy and pytest, **but lacks pygame**; network package installation is unavailable. Thus graphical launch, mouse controls, GPU compatibility, FPS, 1080p/4K resizing and visual regression **have NOT been validated in this environment**.
+- The local execution environment has Python 3.13, numpy and pytest, **but lacks pygame**; network package installation is unavailable. GitHub Actions has successfully executed Pygame GUI smoke tests via an SDL dummy display. Actual Windows desktop input, GPU/driver compatibility, FPS, 1080p/4K visual quality and real 3D **remain unvalidated**.
 - UI implementation contains procedural 2.5D styling only; no real 3D mesh, ModernGL context, shader pipeline, medically accurate anatomy/tissue dynamics, anesthesia pharmacology or validated score model.
 - Next action: run Pygame smoke tests on a desktop with `pip install -r requirements.txt`; review source inspection and collect screenshot/trace. Implement WP04 true-3D technical spike before claiming 3D support.
 
 ## Observed results
 - Local Python 3.13: **38 tests passed** (pytest, 2026-10-12) and compileall succeeded.
-- GitHub Actions: Python 3.12/3.13 initial workflow run passed before the final two adversarial tests were added. Confirm the latest commit workflow result separately.
+- GitHub Actions (run 38252031292): **success on Python 3.12 and Python 3.13**, with pygame installed and SDL dummy-driver UI tests; 38 headless engine cases plus 6 GUI smoke cases in the test suite. GUI tests cover phase displays, alerts, keyboard navigation, coordinate scaling and malformed mouse input.
 - An initial dirty-test failure (extremely large integer coordinate OverflowError) was fixed by range checking before floating-point finiteness checking.
 - A second logic improvement triggers hazards on phase entry instead of waiting for next frame to prevent burst inputs bypassing alerts.
 
