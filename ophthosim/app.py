@@ -248,7 +248,7 @@ class App:
                 self.message=f'Exported trace and replay to {root}'
             else:
                 self.message=f'Exported synthetic trace: {path}'
-        except OSError as exc:
+        except (OSError, RuntimeError, ValueError) as exc:
             self.message=f'Export failed: {exc.__class__.__name__}'
 
     def draw_sidebar(self):
