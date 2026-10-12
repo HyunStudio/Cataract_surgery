@@ -163,7 +163,7 @@ class ReplayGame(Game):
                 for _ in range(repetitions):
                     game.tick(dt)
             elif entry.get("kind") == "action":
-                if not set(entry).issubset({"kind", "name", "x", "y"}) or "name" not in entry:
+                if not set(entry).issubset({"kind", "name", "x", "y", "accepted"}) or "name" not in entry:
                     raise ValueError("Unknown action fields")
                 if type(entry.get("accepted")) is not bool:
                     raise ValueError("Action acceptance marker missing")
