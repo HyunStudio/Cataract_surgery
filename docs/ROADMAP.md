@@ -77,3 +77,7 @@ No fixed estimate in lines of code is a commitment. The 32 WP scope is a plannin
 - **WP08 partial prototype:** working CPU-projected, keyboard-rotatable 3D mesh *anatomy preview* in the Pygame display, with 3D math and dirty/GUI tests.
 - **WP04 NOT complete:** ModernGL/OpenGL integration, physical GPU benchmarking and production-grade 3D picking/lighting still need validation on target hardware.
 - 3D preview is read-only and never replaces the main surgical state interaction. Remaining gates and planned work-package status are otherwise unchanged.
+
+## WP04 incremental status — 2026-10-13
+
+Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests have been added. **WP04 is still OPEN** pending genuine Windows OpenGL execution, actual shader compilation, frame-time measurement, window resizing and visual screenshots. The surgical 2.5D mode is still the playable fallback. Synchronized synthetic vital waveform rendering has been integrated and CI tested. Refer to `GPU_VALIDATION_CHECKLIST.md`.
