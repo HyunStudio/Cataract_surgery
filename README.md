@@ -1,6 +1,6 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
-**Status:** Initial playable 2.5D research prototype (2026-10-12). Full 32-WP design and true 3D are **not complete**.
+**Status:** Playable 2.5D research prototype + read-only CPU 3D atlas + optional ModernGL GPU renderer experiment (2026-10-13). The full 32-WP game and interactive 3D surgery are **not complete**.
 
 An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built around Python, Pygame for UI/input, and an optional hardware-accelerated 3D renderer. The project models a complete *abstracted* cataract surgery encounter: patient preparation, topical anesthesia and monitoring, microscope navigation, corneal entry, capsular task, cataract removal, residual material cleanup, intraocular lens (IOL) placement, wound assessment, recovery, and result scoring.
 
@@ -11,6 +11,7 @@ An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built
 - [32-work-package roadmap](docs/ROADMAP.md)
 - [Research and evaluation plan](docs/RESEARCH_PLAN.md)
 - [Safety, realism and limitations](docs/SAFETY.md)
+- [Windows ModernGL GPU validation checklist](docs/GPU_VALIDATION_CHECKLIST.md)
 
 ## Quick start (Windows / Python 3.12+)
 
@@ -40,10 +41,11 @@ A **microscope-first** interface with a visually realistic iris/cornea/lens, cou
 
 Events may include patient motion/anxiety, unstable view, capsular damage, posterior capsule rupture, corneal haze, IOL decentration, wound leak and vital sign alerts. **Recognizing and safely stopping** may be the successful response; the game will not reward proceeding through unsafe situations.
 
-## Technology (proposed, not yet implemented)
+## Implemented stack and proposed extensions
 - Python 3.12; Pygame (application/UI, desktop inputs)
 - NumPy for deterministic geometry and synthetic signals
-- Renderer adapter: Pygame 2.5D prototype, optional ModernGL/OpenGL-backed mesh renderer
+- Pygame 2.5D interactive surgery and CPU 3D anatomy preview (implemented)
+- Separate **experimental** ModernGL GPU atlas demo (code implemented, real Windows GPU execution **unverified**)
 - Blender-authored original assets or appropriately licensed models
 - pytest, typed models, deterministic scenario seeds, CSV/JSONL logs
 - Windows target, 1080p native UI with scalable 4K support
@@ -74,7 +76,7 @@ print(session.phase.value, session.score(), session.ending)
 Integrity includes command-journal and resulting event/snapshot SHA-256 digests. These catch accidental or unsanctioned edits **but do not authenticate authorship** without digital signatures. Raw mouse trajectories, clinician assessments and real patient data are not captured. Unrepresentable replay captures fail closed rather than silently export incomplete traces.
 
 ## Next milestone
-**WP04:** GPU/Pygame interoperability and graphical smoke test on an actual Windows desktop, then measured selection of a production 3D rendering approach. The current graphical interface has not been launched or GPU-benchmarked in the headless coding environment.
+**WP04:** Execute the experimental OpenGL atlas on an actual Windows desktop, check shader compilation and HUD/depth accuracy, and benchmark rendering before selecting the production interactive 3D viewport. CI validates source/CPU geometry and SDL dummy rendering but does not GPU-benchmark it.
 
 ## License
 See repository [LICENSE](LICENSE); external assets must have their own documented provenance and compatible redistribution permissions.
@@ -98,3 +100,21 @@ Press **G** during gameplay to switch between the interactive 2.5D surgical scen
 This uses cached normalized 3D iris, lens/IOL and corneal dome meshes, real 3D rotation and perspective projection, back-face selection and painter sorting. **Triangles are rasterized by Pygame on the CPU. It is not a ModernGL/GPU renderer, does not provide 3D tool picking, and must not be described as completed 3D surgery.** Model state drives which synthetic lens is visible. Run `python -m pytest -q` to validate projection and mode isolation.
 
 CI evidence for the increment: [GitHub Actions run 38272300713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38272300713) — Python 3.12/3.13 jobs green; 116 tests on Python 3.12. Hardware GPU/Windows validation still outstanding.
+
+## Experimental hardware-accelerated atlas (new, not a 3D surgical game)
+
+An opt-in ModernGL shader renderer is now available as a separate feasibility demo:
+
+```powershell
+python -m pip install -r requirements-3d.txt
+python -m ophthosim.gl_preview --check   # CPU mesh validation, **not** a GPU check
+python -m ophthosim.gl_preview           # attempts real OpenGL 3.3 context
+```
+
+Orbit with arrow keys, zoom with +/- and switch between cloudy lens / simulated IOL with Space. The Pygame 2.5D surgical game remains under `python main.py`. The GPU atlas cannot perform surgery, tool picking, tissue deformation, or provide clinically valid optical realism. Follow the [GPU validation checklist](docs/GPU_VALIDATION_CHECKLIST.md) on a real Windows machine before claiming hardware rendering support.
+
+## Shared synthetic ECG and pulse monitor (new)
+
+The game's synthetic ECG and pulse waveform shapes now change with the same in-game heart-rate state displayed in the monitor. No vital signs are measured and the schematic curves have **no diagnostic or clinical physiological interpretation**. Automated GUI tests check that two simulated heart rates produce different rendered waveforms.
+
+[Latest tested CI run](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38318581035): Python 3.12/3.13 jobs success; **167 tests** passed on 3.12. GitHub CI runs without a physical monitor, GPU, or clinical evaluation.
