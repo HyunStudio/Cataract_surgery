@@ -12,6 +12,7 @@ import sys
 
 from .engine import Phase
 from .replay import ReplayGame as Game
+from .preview3d import draw_preview
 
 WIDTH, HEIGHT = 1280, 720
 EYE_CX, EYE_CY, EYE_R = 640, 366, 222
@@ -154,6 +155,9 @@ class App:
         self.message='Educational synthetic simulation — not for clinical use.'
         self.drag=False
         self.quality='2.5D'
+        self.view_3d=False
+        self.view_yaw=.2
+        self.view_pitch=.13
 
     def mapped(self, raw):
         w,h=self.screen.get_size()
@@ -177,6 +181,16 @@ class App:
             elif event.key==pg.K_r:
                 self.game=Game(self.game.case,self.game.seed)
                 self.message='New synthetic case started.'
+            elif event.key==pg.K_g:
+                self.view_3d=not self.view_3d
+                self.drag=False
+                self.message=('3D mesh preview: J/L orbit horizontally, I/K tilt, G to return.'
+                              if self.view_3d else 'Returned to the 2.5D interactive surgical view.')
+            elif self.view_3d and event.key in (pg.K_j,pg.K_l,pg.K_i,pg.K_k):
+                if event.key in (pg.K_j,pg.K_l):
+                    self.view_yaw=max(-1.2,min(1.2,self.view_y+(-.10 if event.key==pg.K_j else .10)))
+                else:
+                    self.view_pitch=max(-.9,min(.9,self.view_pitch+(.10 if event.key==pg.K_i else -.10)))
             elif event.key==pg.K_e and self.game.ending:
                 self.save()
             elif event.key==pg.K_SPACE:
@@ -203,6 +217,10 @@ class App:
             self.game.action('prepare')
 
     def pointer_action(self):
+        # This view is an explanatory 3D visualization, not a surgical picking
+        # mode; never mis-map CPU-projected triangles into 2D task coordinates.
+        if self.view_3d:
+            return
         x,y=self.cursor
         game=self.game
         if game.patient.alert:
@@ -320,19 +338,28 @@ class App:
         s.fill(BG)
         draw_text(pg,s,self.fonts,'OPHTHOSIM', (24,21),size='title',color=CYAN)
         draw_text(pg,s,self.fonts,'AI  /  CATARACT MICROSURGERY', (237,31),color=MUTED)
-        draw_text(pg,s,self.fonts,'2.5D EDUCATIONAL BUILD',(1002,29),color=MINT,size='tiny')
+        draw_text(pg,s,self.fonts,('3D MESH PREVIEW (CPU)' if self.view_3d
+                                   else '2.5D EDUCATIONAL BUILD'),(1002,29),color=MINT,size='tiny')
         rounded(pg,s,(13,31,45),(275,75,690,620),16)
         pg.draw.circle(s,(30,65,71),(EYE_CX,EYE_CY),243)
-        render_eye(pg,s,g,g.time)
+        if self.view_3d:
+            draw_preview(pg,s,g.phase.value,g.eye.opacity,g.eye.iol_alignment,
+                         self.view_yaw,self.view_pitch)
+        else:
+            render_eye(pg,s,g,g.time)
         # Microscope masks / aperture.
         pg.draw.circle(s,(58,103,115),(EYE_CX,EYE_CY),239,2)
-        draw_text(pg,s,self.fonts,'MICROSCOPE  •  SYNTHETIC MODEL',(289,90),size='tiny',color=CYAN)
-        if g.phase in (Phase.PHACO,Phase.CORTEX):
+        draw_text(pg,s,self.fonts,('ROTATABLE 3D MESH PREVIEW - NON-INTERACTIVE' if self.view_3d
+                                   else 'MICROSCOPE  •  SYNTHETIC MODEL'),(289,90),size='tiny',color=CYAN)
+        if self.view_3d:
+            draw_text(pg,s,self.fonts,'J/L Orbit  I/K Tilt  G Return to surgery',
+                      (372,609),size='base',color=CYAN)
+        if not self.view_3d and g.phase in (Phase.PHACO,Phase.CORTEX):
             pt=(round(self.cursor[0]),round(self.cursor[1]))
             if self.drag:
                 pg.draw.line(s,(156,206,217),(973,650),pt,5)
                 pg.draw.circle(s,(219,245,241),pt,8,2)
-        if g.phase==Phase.IOL:
+        if not self.view_3d and g.phase==Phase.IOL:
             pg.draw.circle(s,CYAN,(EYE_CX,EYE_CY),26,1)
             pg.draw.line(s,CYAN,(EYE_CX-38,EYE_CY),(EYE_CX+38,EYE_CY),1)
         self.draw_sidebar();self.draw_monitor()
