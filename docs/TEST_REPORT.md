@@ -18,10 +18,13 @@ Updated 2026-10-12. **This report applies only to the initial build**, not compl
 - Next action: run Pygame smoke tests on a desktop with `pip install -r requirements.txt`; review source inspection and collect screenshot/trace. Implement WP04 true-3D technical spike before claiming 3D support.
 
 ## Observed results
-- Local Python 3.13: **38 tests passed** (pytest, 2026-10-12) and compileall succeeded.
-- GitHub Actions (run 38252031292): **success on Python 3.12 and Python 3.13**, with pygame installed and SDL dummy-driver UI tests; 38 headless engine cases plus 6 GUI smoke cases in the test suite. GUI tests cover phase displays, alerts, keyboard navigation, coordinate scaling and malformed mouse input.
+- Local Python 3.13: **39 tests passed** (pytest, 2026-10-12) and compileall succeeded.
+- GitHub Actions (run 38252781503): **success on Python 3.12 and Python 3.13**, with pygame installed and SDL dummy-driver UI tests; 39 headless engine cases plus 7 GUI smoke cases in the test suite. GUI tests cover phase displays, alerts, keyboard navigation, coordinate scaling, real simulated end-to-end recovery screenshot and malformed mouse input.
 - An initial dirty-test failure (extremely large integer coordinate OverflowError) was fixed by range checking before floating-point finiteness checking.
 - A second logic improvement triggers hazards on phase entry instead of waiting for next frame to prevent burst inputs bypassing alerts.
 
 ## Clinical claims
 Everything is a non-clinical game abstraction; scores and data are synthetic. No clinical skill validation or real-world safety claims.
+## Visual review correction
+- Reviewed generated CI screenshots. Fixed adjacent title/subtitle spacing and zero-based score initialization.
+- The recovery screenshot test now performs a complete synthetic case before capturing, rather than merely forcing the phase variable; source screenshot artifacts are available from GitHub Actions.
