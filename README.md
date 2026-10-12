@@ -90,3 +90,11 @@ python -m ophthosim.verify_replay session_logs/case_normal_seed_7.replay.jsonl
 ```
 
 A verified replay reports its synthetic ending, score and simulation step count. Invalid, tampered or missing files return a nonzero status.
+
+## Interactive 3D anatomy preview (implemented, CPU-rendered)
+
+Press **G** during gameplay to switch between the interactive 2.5D surgical scene and a **non-interactive 3D mesh anatomy preview**. In preview mode press **J/L** to yaw left/right and **I/K** to tilt; press **G** again to resume 2.5D interaction. Preview mode deliberately blocks surgical mouse actions to avoid mapping 3D projection pixels into the 2D task coordinates.
+
+This uses cached normalized 3D iris, lens/IOL and corneal dome meshes, real 3D rotation and perspective projection, back-face selection and painter sorting. **Triangles are rasterized by Pygame on the CPU. It is not a ModernGL/GPU renderer, does not provide 3D tool picking, and must not be described as completed 3D surgery.** Model state drives which synthetic lens is visible. Run `python -m pytest -q` to validate projection and mode isolation.
+
+CI evidence for the increment: [GitHub Actions run 38272300713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38272300713) — Python 3.12/3.13 jobs green; 116 tests on Python 3.12. Hardware GPU/Windows validation still outstanding.
