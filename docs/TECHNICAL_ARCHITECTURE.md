@@ -60,3 +60,23 @@ docs/
 
 ## Critical early decision gate
 After WP04 run the Pygame+OpenGL feasibility spike on target Windows device. If frame/context interoperability is fragile, use a dedicated 3D engine for the surgical viewport or remain in polished 2.5D without coupling business logic to rendering.
+
+## v1.1 design review — decisions and risk gates
+
+### Renderer choice is a measured decision, not an assumption
+**Path A:** Pygame surfaces for 2.5D and independent UI. **Path B:** Pygame OpenGL window with a ModernGL context and UI drawn via GPU-uploaded texture(s). Do not assume Pygame software surfaces can be directly blitted onto an OpenGL display. Prototype texture upload, text rendering, resize, fullscreen toggle, input and context restoration under Windows; document benchmarks and compatibility. Do not launch separate blocking render loops. If Path B fails, ship Path A or re-evaluate a dedicated 3D engine rather than force dual context hacks.
+
+### Gate WP04 (pass/fail)
+On target Windows machine: render rotating simplified eye mesh, eye-camera pan/zoom, two overlay panels, mock ECG; handle resize and DPI changes; perform screen→ray→hit test and reset. Log GPU/driver/library versions and 5-minute fps/P95 frame time/memory. **Pass** only if input mapping remains aligned after zoom/resize and UI overlay stays legible without crashes. 60fps at 1080p is an aspirational target; 30fps fallback is allowed as a documented degraded mode. All performance numbers measured, never fabricated.
+
+### Physics scope
+No surgical force prediction, no physiologically accurate lens removal. Use simple capsule region geometry, sprite/mesh blend states and particle pool with bounded size. Put collision layer in simulation domain, never in shaders. 3D deformation is optical approximation and MUST NOT drive clinical scoring.
+
+### Data schema & replay
+Every event has `schema_version`, `session_id` (random synthetic ID), `scenario_id`, `seed`, `step_index`, `sim_time_ms`, `event_type`, `payload`. Do not rely on wall-clock timestamps for deterministic replay. JSONL stores authoritative event stream; CSV is analysis export. No personal identifiers, no external telemetry by default. Include versioned event migration and dataset dictionary.
+
+### Explicit application loop
+Handle input → map to semantic commands → advance fixed simulation steps (bounded catch-up) → snapshot → render surgical viewport → compose UI → log resulting events. Pause blocks simulation time advancement while rendering menus. Resume with no accumulated time jump. Replay reads commands and seed in recorded order.
+
+### Quality gates & dependencies
+WP01–04 before 3D scope approval. Eye model and coordinate transforms before tool collision. Event schema before assessment and complications. Scoring requires explainable raw event references. Rendering backend never directly changes synthetic patient values. Automated CI can run headless simulation tests even when OpenGL is unavailable.
