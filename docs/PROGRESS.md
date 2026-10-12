@@ -23,3 +23,11 @@
 
 ## Quality gate
 Never call this a 'completed 3D simulator' until GUI execution, full procedure continuity, exception scenarios, performance and automated regression are verified on the intended target machine.
+
+## Development increment — input replay and dirty-test coverage
+- Added `ophthosim/replay.py` with compact deterministic semantic command journal, replay loader, strict schema checks, SHA-256 input/state/event consistency and bounded capture.
+- GUI `E` export saves both synthetic trace and verifiable replay; errors are handled instead of crashing the game.
+- Crucial edge case: **failed but in-range removal attempts can accumulate synthetic tissue stress** and are therefore recorded for exact hazard reproduction.
+- Extra tests cover normal end-to-end reproduction, motion/vital/capsule alerts, paused ticks, rejected tool actions, tampered records, oversized/malformed inputs, replay overflow, 2,000 randomized inputs and GUI export.
+- Remaining: animated viewer for reconstructed sessions, rich input telemetry, clinical and Windows/GPU visual validation, true 3D renderer.
+- At the time of this edit, the latest CI must still be checked for the new extreme-input tests; results must not be inferred from previous green runs.
