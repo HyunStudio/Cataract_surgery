@@ -19,6 +19,7 @@ from typing import Iterable
 from .geometry import Mesh, anterior_eye_meshes
 from .picking3d import SurfaceHit, pick_anatomy
 from .tool3d import stylus_mesh
+from .iol3d import foldable_iol_mesh
 
 VERTEX_SHADER = """
 #version 330
@@ -29,6 +30,8 @@ uniform float u_pitch;
 uniform float u_aspect;
 uniform float u_zoom;
 uniform vec3 u_offset;
+uniform float u_iol_mode;
+uniform float u_iol_fold;
 out vec3 v_normal;
 void main() {
     float cy = cos(u_yaw), sy = sin(u_yaw);
@@ -36,7 +39,13 @@ void main() {
     mat3 ry = mat3(cy, 0.0, -sy, 0.0, 1.0, 0.0, sy, 0.0, cy);
     mat3 rx = mat3(1.0, 0.0, 0.0, 0.0, cp, sp, 0.0, -sp, cp);
     mat3 rotation = rx * ry;
-    vec3 p = rotation * (in_position + u_offset);
+    vec3 local_pos = in_position;
+    // Synthetic fold/unfold effect only; not a deformable IOL material model.
+    if (u_iol_mode > 0.5) {
+        local_pos.x = mix(0.24 * in_position.x, in_position.x, u_iol_fold);
+        local_pos.z += (1.0 - u_iol_fold) * 0.30 * abs(in_position.x);
+    }
+    vec3 p = rotation * (local_pos + u_offset);
     v_normal = normalize(rotation * in_normal);
     float distance = u_zoom - p.z;
     const float near_plane = 0.5;
@@ -115,11 +124,13 @@ class AnatomyAppearance:
     opacity: float = 1.0
     cortex: float = 1.0
     iol_alignment: float = 1.0
+    iol_deployment: float = 1.0
 
     def check(self) -> None:
         bounded_float(self.opacity, 0., 1.)
         bounded_float(self.cortex, 0., 1.)
         bounded_float(self.iol_alignment, 0., 1.)
+        bounded_float(self.iol_deployment, 0., 1.)
 
 
 @dataclass(slots=True)
@@ -162,7 +173,7 @@ def atlas_meshes(phase: str) -> dict[str, Mesh]:
     return {
         "sclera": all_meshes["sclera"],
         "iris": all_meshes["iris"],
-        "lens": all_meshes["lens" if phase == "CATARACT" else "iol"],
+        "lens": all_meshes["lens"] if phase == "CATARACT" else foldable_iol_mesh(),
         "cornea": all_meshes["cornea"],
     }
 
@@ -286,6 +297,8 @@ class GPUEyePreview:
         shader["u_zoom"].value = view.zoom
         shader["u_aspect"].value = w / h
         shader["u_offset"].value = (0., 0., 0.)
+        shader["u_iol_mode"].value = 0.0
+        shader["u_iol_fold"].value = 1.0
         # The closed-globe placeholder would otherwise occlude the iris and
         # lens in depth testing. Paint it as a background that doesn't write
         # depth, then draw anterior structures with normal depth semantics.
@@ -313,10 +326,14 @@ class GPUEyePreview:
                              .42 + .34 * opacity,
                              .50 + .10 * opacity)
             shader["u_offset"].value = offset
+            shader["u_iol_mode"].value = (1.0 if name == "lens" and view.phase == "IOL" else 0.0)
+            shader["u_iol_fold"].value = (appearance.iol_deployment if appearance is not None else 1.0)
             shader["u_tint"].value = color
             shader["u_alpha"].value = 1.0
             self.meshes[name][0].render()
         shader["u_offset"].value = (0., 0., 0.)
+        shader["u_iol_mode"].value = 0.0
+        shader["u_iol_fold"].value = 1.0
         self.ctx.enable(self.gl.BLEND)
         self.ctx.blend_func = self.gl.SRC_ALPHA, self.gl.ONE_MINUS_SRC_ALPHA
         self.ctx.disable(self.gl.CULL_FACE)
