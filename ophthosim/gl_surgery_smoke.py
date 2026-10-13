@@ -18,7 +18,7 @@ def main() -> int:
         import pygame
         import moderngl
         from .engine import Phase
-        from .gl_preview import GPUEyePreview, atlas_meshes
+        from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
         from .gl_surgery import SurgeryHUD, CHECKS
         from .input3d import Surgery3DController, eye_to_pixel
         from .replay import ReplayGame
@@ -43,7 +43,9 @@ def main() -> int:
             if ctrl.view.phase != atlas_state:
                 atlas_state = ctrl.view.phase
                 atlas.set_meshes(atlas_meshes(atlas_state))
-            data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay)
+            e=ctrl.game.eye
+            data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay,
+                                appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment))
             if data is None or len(data) != W*H*3:
                 raise AssertionError(f"Frame readback missing: {name}")
             if max(data[::97]) - min(data[::97]) < 20:
@@ -71,7 +73,10 @@ def main() -> int:
             point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
         assert ctrl.game.phase == Phase.PHACO
         frame("phaco")
-        for _ in range(82):
+        for _ in range(20):
+            point(.5,.5)
+        frame("phaco-mid")
+        for _ in range(62):
             point(.5,.5)
         assert ctrl.game.phase == Phase.IOL
         frame("iol")
