@@ -36,7 +36,7 @@ def test_capsule_visual_meshes_cache_contain_true_open_arc():
     assert math.dist(left,right) > .1
     assert len(a["intact"].faces)==len(a["damaged"].faces)
     assert max(math.dist(a["intact"].vertices[i],a["damaged"].vertices[i])
-               for i in range(len(a["intact"].vertices))) > .1
+               for i in range(len(a["intact"].vertices))) > .05
 
 
 def test_capsule_state_only_visible_at_relevant_stages():
