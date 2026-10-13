@@ -169,3 +169,14 @@ The interactive 3D game now displays a stylized pupil-centered **intact green/te
 **Educational illustration only:** this is not a clinically accurate capsule location, rupture geometry, mechanical tear simulation, surgical rescue guidance or medical-device validation. The indicator is deliberately positioned for visibility in the simplified pupil view.
 
 [Python 3.12/3.13 CI: 335 tests each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000372), including malformed numerical state, cache/mesh integrity and 3 scenario safety checks. [Mesa llvmpipe OpenGL CI](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377) validates different *central-eye* pixels (HUD excluded) for intact and injured capsule, and completes full normal, motion and capsule-injury scenarios. [Synthetic screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377/artifacts/11785910265). Physical Windows GPU/4K validation and medical specialist review remain open.
+
+
+## Synthetic movement and haze feedback / accessibility (2026-10-13)
+
+The *separate interactive 3D prototype* now reads existing synthetic patient motion, game phase, opacity and cortex state through `ophthosim/vision3d.py`. Its camera-plane eye translation and frosted-view HUD veil are **visual metaphors only**; they are not physical eye tracking, simulated clinical optics, predictive physiology, or an input to the surgical collision/score engine. Motion is bounded and deterministic from **simulation time**, freezes during a safety hold, and never adds flashing or strobe animations.
+
+- Press **M** in the 3D prototype to disable eye-motion displacement (reduced motion); warning text, pausing and safety locks remain fully active.
+- Press **H** for an additional bright static high-contrast microscope outline. Both settings are purely local display choices.
+- Synthetic opacity/cortex clearing reduces the veil in active procedural phases. The view remains clinically unvalidated and the 2.5D fallback is unchanged.
+
+**Verified:** [Python 3.12 and 3.13, 395 tests each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531317); [Mesa Linux software OpenGL full integration](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344), showing distinct **center-eye** pixels for scene motion and haze and visual differences with reduced motion under the same patient-motion safety hold. [Captured screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344/artifacts/11785993260). Windows Radeon hardware GPU, 4K monitor testing, contrast accessibility audit and clinical review remain **unverified**.
