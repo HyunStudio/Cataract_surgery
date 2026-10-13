@@ -47,17 +47,31 @@ def iol_vertex_position(vertex: tuple[float, float, float],
 
 
 @lru_cache(maxsize=16)
+def _cached_iol_mesh(d: float, a: float) -> Mesh:
+    """Private cache receives *only* prevalidated primitive floating values."""
+    original = foldable_iol_mesh()
+    # Shader-equivalent transformation. Not a tissue/material simulation.
+    vertices = tuple((x*(.24+.76*d)+.18*(1.-a),
+                      y,z+(1.-d)*.30*abs(x))
+                     for x,y,z in original.vertices)
+    result = Mesh("iol",vertices,original.normals,original.faces)
+    result.validate()
+    return result
+
+
 def deformed_iol_mesh(deployment: float = 1.0,
                       alignment: float = 1.0) -> Mesh:
-    """Return one immutable, finite, budgeted mesh at a visual fold state.
+    """Validate untrusted input *before* caching finite IOL mesh geometry.
 
-    No per-frame index building or mutation of the GPU source mesh. Cache is
-    bounded to 16 combinations, including intermediate deployment values.
+    Python boolean equality (True == 1) can poison an lru_cache if the
+    decorator wraps input validation; lists can throw TypeError before the
+    intended ValueError. This wrapper excludes both classes of dirty input.
     """
     d = _fraction(deployment, "IOL deployment")
     a = _fraction(alignment, "IOL alignment")
-    original = foldable_iol_mesh()
-    vertices = tuple(iol_vertex_position(p, d, a) for p in original.vertices)
-    result = Mesh("iol", vertices, original.normals, original.faces)
-    result.validate()
-    return result
+    return _cached_iol_mesh(d,a)
+
+
+# Expose diagnostic cache control for deterministic regression tests.
+deformed_iol_mesh.cache_info = _cached_iol_mesh.cache_info
+deformed_iol_mesh.cache_clear = _cached_iol_mesh.cache_clear
