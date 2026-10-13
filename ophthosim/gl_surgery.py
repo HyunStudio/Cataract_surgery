@@ -21,6 +21,7 @@ from .input3d import Surgery3DController, eye_to_pixel
 from .signals import sample_trace
 from .tool3d import visible_stylus
 from .iol3d import iol_visual_deployment
+from .capsule3d import capsule_display_state
 
 PHASE_NAMES = {
     Phase.PREOP: "CASE / PREOPERATIVE REVIEW",
@@ -70,6 +71,10 @@ class SurgeryHUD:
         label(f"Phase: {g.phase.value}", 24, 285)
         label(f"Score (synthetic): {g.score():03d}", 24, 316)
         label(f"Tool z: {c.tool_depth:+.2f}", 24, 350, color=green)
+        capsule_on, damage = capsule_display_state(g)
+        if capsule_on:
+            label(("CAPSULE ALERT" if damage >= .15 else "CAPSULE INTACT"),
+                  24, 433, color=red if damage >= .15 else green)
         if g.phase in (Phase.IOL, Phase.CLOSE, Phase.RECOVERY):
             label(f"IOL deploy (visual): {iol_visual_deployment(g):.0%}",
                   width//2-104, height-171, color=green)
@@ -262,10 +267,12 @@ def run(case: str="normal",seed: int=7) -> None:
                 atlas.set_meshes(atlas_meshes(current_atlas))
                 atlas.clear_selection()
             eye=controller.game.eye
+            has_capsule, capsule_damage = capsule_display_state(controller.game)
             atlas.render(controller.view,clock.get_fps(),overlay=hud,
                          appearance=AnatomyAppearance(eye.opacity,eye.cortex,
                                                       eye.iol_alignment,
-                                                      iol_visual_deployment(controller.game)),
+                                                      iol_visual_deployment(controller.game),
+                                                      capsule_damage, has_capsule),
                          tool_pose=visible_stylus(controller))
     finally:
         if atlas is not None:
