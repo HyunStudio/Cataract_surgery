@@ -20,6 +20,7 @@ from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
 from .input3d import Surgery3DController, eye_to_pixel
 from .signals import sample_trace
 from .tool3d import visible_stylus
+from .iol3d import iol_visual_deployment
 
 PHASE_NAMES = {
     Phase.PREOP: "CASE / PREOPERATIVE REVIEW",
@@ -69,6 +70,9 @@ class SurgeryHUD:
         label(f"Phase: {g.phase.value}", 24, 285)
         label(f"Score (synthetic): {g.score():03d}", 24, 316)
         label(f"Tool z: {c.tool_depth:+.2f}", 24, 350, color=green)
+        if g.phase in (Phase.IOL, Phase.CLOSE, Phase.RECOVERY):
+            label(f"IOL deploy (visual): {iol_visual_deployment(g):.0%}",
+                  width//2-104, height-171, color=green)
         target = c.target_depth
         label(f"Target z: {target:+.2f}" if target is not None
               else "Tool inactive", 24, 378, color=light)
@@ -260,7 +264,8 @@ def run(case: str="normal",seed: int=7) -> None:
             eye=controller.game.eye
             atlas.render(controller.view,clock.get_fps(),overlay=hud,
                          appearance=AnatomyAppearance(eye.opacity,eye.cortex,
-                                                      eye.iol_alignment),
+                                                      eye.iol_alignment,
+                                                      iol_visual_deployment(controller.game)),
                          tool_pose=visible_stylus(controller))
     finally:
         if atlas is not None:
