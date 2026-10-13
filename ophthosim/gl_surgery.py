@@ -23,6 +23,7 @@ from .tool3d import visible_stylus
 from .iol3d import iol_visual_deployment
 from .capsule3d import capsule_display_state
 from .vision3d import visual_feedback
+from .surface_probe3d import probe_surface
 
 PHASE_NAMES = {
     Phase.PREOP: "CASE / PREOPERATIVE REVIEW",
@@ -79,6 +80,14 @@ class SurgeryHUD:
             label(f"TOOL GUIDE: {kind}", 24, 151,
                   color=green if kind=="TARGET" else amber if kind in
                         ("NEAR","VISITED") else red)
+        # Proximity is visual-only, expressed in unitless model coordinates;
+        # no physical contact or surgical action is inferred from this label.
+        proximity=probe_surface(c,visual_feedback(g,
+            reduced_motion=self.reduced_motion,
+            high_contrast=self.high_contrast))
+        if proximity is not None:
+            label(f"MESH GAP: {proximity.status} (synthetic)",
+                  width//2-154, 128, color=amber)
         capsule_on, damage = capsule_display_state(g)
         if capsule_on:
             label(("CAPSULE ALERT" if damage >= .15 else "CAPSULE INTACT"),
@@ -285,15 +294,18 @@ def run(case: str="normal",seed: int=7) -> None:
                 atlas.clear_selection()
             eye=controller.game.eye
             has_capsule, capsule_damage = capsule_display_state(controller.game)
+            feedback=visual_feedback(controller.game,
+                reduced_motion=hud.reduced_motion,
+                high_contrast=hud.high_contrast)
+            proximity=probe_surface(controller,feedback)
             atlas.render(controller.view,clock.get_fps(),overlay=hud,
                          appearance=AnatomyAppearance(eye.opacity,eye.cortex,
                                                       eye.iol_alignment,
                                                       iol_visual_deployment(controller.game),
                                                       capsule_damage, has_capsule),
                          tool_pose=visible_stylus(controller),
-                         vision=visual_feedback(controller.game,
-                            reduced_motion=hud.reduced_motion,
-                            high_contrast=hud.high_contrast),
+                         vision=feedback,
+                         surface_probe=proximity,
                          contact=(controller.last_contact if not
                                   (controller.game.paused or controller.game.ending
                                    or controller.game.patient.alert) else None))
