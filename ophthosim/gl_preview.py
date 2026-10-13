@@ -20,6 +20,7 @@ from .geometry import Mesh, anterior_eye_meshes
 from .mesh_raycast import TriangleHit, build_index, pick_indexed
 from .tool3d import stylus_mesh
 from .iol3d import foldable_iol_mesh
+from .iol_pick3d import deformed_iol_mesh
 from .capsule3d import capsule_indicator_meshes
 from .vision3d import VisualFeedback
 from .contact3d import ContactGuide, guide_ring_mesh
@@ -150,6 +151,7 @@ class View:
     pitch: float = .12
     zoom: float = 3.6
     phase: str = "CATARACT"
+    iol_deployment: float = 1.0
 
     def key(self, key: str) -> None:
         """Deterministic camera and state changes; no surgical consequences."""
@@ -167,11 +169,16 @@ class View:
             self.zoom = min(5.0, self.zoom + .12)
         elif key == "toggle":
             self.phase = "IOL" if self.phase == "CATARACT" else "CATARACT"
+        elif key == "fold":
+            # Standalone educational atlas: static three-position display.
+            self.iol_deployment = ({1.0: 0.0, 0.0: .5, .5: 1.0}
+                                   .get(self.iol_deployment, 1.0))
 
     def check(self) -> None:
         bounded_float(self.yaw, -1.2, 1.2)
         bounded_float(self.pitch, -.8, .8)
         bounded_float(self.zoom, 2.6, 5.0)
+        bounded_float(self.iol_deployment, 0., 1.)
         if self.phase not in {"CATARACT", "IOL"}:
             raise ValueError("Invalid atlas state")
 
@@ -288,18 +295,50 @@ class GPUEyePreview:
         # never on each pointer event or 60-Hz render cycle.
         self.mesh_indexes = {name:build_index(meshes[name])
                              for name in ("iris", "lens")}
+        self._dynamic_iol_signature = None
+        self._dynamic_iol_index = None
 
-    def select(self, pos: tuple[int, int], view: View) -> TriangleHit | None:
-        """Anatomy inspection only. Mouse picks must not mutate surgery state."""
+    def select(self, pos: tuple[int, int], view: View, *,
+               appearance: AnatomyAppearance | None = None,
+               vision: VisualFeedback | None = None) -> TriangleHit | None:
+        """Pick the SAME synthetic positions as the displayed deforming IOL.
+
+        This is a visual inspection feature, not the surgery task's collision
+        or force authority. Only iris and IOL/cataract triangles are inspected;
+        corneal transparency and depth-buffer culling are not reproduced.
+        """
         view.check()
-        w, h = self.pg.display.get_window_size()
-        if len(pos) != 2:
+        if appearance is not None:
+            if not isinstance(appearance, AnatomyAppearance):
+                raise ValueError("Invalid visual appearance")
+            appearance.check()
+        if vision is not None:
+            if not isinstance(vision, VisualFeedback):
+                raise ValueError("Invalid visual feedback")
+            vision.check()
+        if not isinstance(pos,(tuple,list)) or len(pos)!=2:
             raise ValueError("Mouse position must contain two coordinates")
-        # Rigid atlas inspection uses actual triangle faces and a bounded BVH.
-        # Does not perform surgical collision, physics, or state updates.
-        self.selection = pick_indexed(self.mesh_indexes,pos[0],pos[1],w,h,
-                         view.yaw,view.pitch,view.zoom,view.phase)
-        self.selection_pixel = pos if self.selection is not None else None
+        w, h = self.pg.display.get_window_size()
+        indexes=self.mesh_indexes
+        if view.phase=="IOL":
+            deployment=(appearance.iol_deployment if appearance is not None
+                        else view.iol_deployment)
+            alignment=(appearance.iol_alignment if appearance is not None
+                       else 1.0)
+            signature=(deployment,alignment)
+            if self._dynamic_iol_signature!=signature:
+                deformed=deformed_iol_mesh(deployment,alignment)
+                new_index=build_index(deformed)
+                self._dynamic_iol_index=new_index
+                self._dynamic_iol_signature=signature
+            indexes={"iris":self.mesh_indexes["iris"],
+                     "lens":self._dynamic_iol_index}
+        shift=((vision.motion_x,vision.motion_y) if vision is not None
+               else (0.,0.))
+        self.selection=pick_indexed(indexes,pos[0],pos[1],w,h,
+                        view.yaw,view.pitch,view.zoom,view.phase,
+                        scene_shift=shift)
+        self.selection_pixel=tuple(pos) if self.selection is not None else None
         return self.selection
 
     def clear_selection(self) -> None:
@@ -375,7 +414,7 @@ class GPUEyePreview:
                              .50 + .10 * opacity)
             shader["u_offset"].value = offset
             shader["u_iol_mode"].value = (1.0 if name == "lens" and view.phase == "IOL" else 0.0)
-            shader["u_iol_fold"].value = (appearance.iol_deployment if appearance is not None else 1.0)
+            shader["u_iol_fold"].value = (appearance.iol_deployment if appearance is not None else view.iol_deployment)
             shader["u_tint"].value = color
             shader["u_alpha"].value = 1.0
             self.meshes[name][0].render()
@@ -461,8 +500,8 @@ class GPUEyePreview:
             lines = (
                 ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
                 ("EDUCATIONAL SYNTHETIC ANATOMY - NOT CLINICAL", self.font, (245, 202, 136)),
-                (f"VIEW: {view.phase}    FPS: {fps:.0f} (measured locally)", self.font, (125, 211, 231)),
-                ("ARROWS: ORBIT   +/-: ZOOM   SPACE: LENS/IOL   ESC: EXIT",
+                (f"VIEW: {view.phase}    FOLD: {view.iol_deployment:.0%}    FPS: {fps:.0f}", self.font, (125, 211, 231)),
+                ("ARROWS: ORBIT   +/-: ZOOM   SPACE: LENS/IOL   F: FOLD   ESC: EXIT",
                  self.font, (201, 223, 236)),
                 ("LEFT CLICK: INSPECT IRIS / LENS (READ-ONLY DEPTH PICKING)",
                  self.font, (245, 202, 136)),
@@ -573,6 +612,9 @@ def run() -> None:
                     elif event.key == pygame.K_SPACE:
                         view.key("toggle")
                         atlas.set_meshes(atlas_meshes(view.phase))
+                        atlas.clear_selection()
+                    elif event.key == pygame.K_f and view.phase == "IOL":
+                        view.key("fold")
                         atlas.clear_selection()
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     atlas.select(event.pos, view)
