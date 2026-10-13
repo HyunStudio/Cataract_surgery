@@ -106,3 +106,14 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Initial geometry test expected an unnecessarily large per-vertex displacement; corrected its threshold while preserving separate discontinuity/topology checks. Validated test suite afterward.
 - **Verified:** [Python CI 38338000372](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000372) Python 3.12 and 3.13 **335 passed each**; [Mesa OpenGL CI 38338000377](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377) **success**, [frame captures](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377/artifacts/11785910265).
 - **Remaining:** actual capsule tissue deformation and realistic optics/occlusion (not simulated), richer patient motion visualization, hardware Windows Radeon GPU/4K performance, accessibility review, subject-matter validation, and completion of 32 WP.
+
+
+## 2026-10-13 — deterministic motion/veil graphics and accessibility toggles
+
+- Added `ophthosim/vision3d.py`: read-only, bounded deterministic patient-motion offsets and synthetic opacity/cortex-based haze; rejects NaN, infinity, huge integers, invalid booleans and malformed game state.
+- The OpenGL vertex shader now shifts eye anatomy in camera-plane coordinates without moving synthetic tool poses or changing normalized task picking. The HUD draws a non-flashing frosted synthetic veil and optional bright static contrast ring.
+- Interactive GPU app has **M = reduced motion** (zero scene translation) and **H = high contrast** visual toggles. On safety hold the motion cue is static and the existing Game input interlock is unchanged. Visibility/physics explicitly non-clinical.
+- Added `tests/test_vision3d.py` for seeded pseudo-random fuzz, 1000 time samples, invalid values, no state mutation, pause/safety invariants and accessibility type validation.
+- Expanded `gl_surgery_smoke.py` to verify eye-center-only (no sidebar or HUD labels) pixel differences for haze/motion with an otherwise identical scene, plus actual before/after **M low-motion** state in a patient-motion hazard; compared snapshots for game-state immutability.
+- **Verified** [Tests run 38340531317](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531317): Python 3.12 and 3.13 **395 passed each**; [Mesa llvmpipe 38340531344](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344): success, [capture artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344/artifacts/11785993260).
+- **Open:** actual eye/iris motion tracking, realistic optical scattering/material shaders, real hardware AMD GPU/4K profiling, accessibility contrast/vision testing on Windows, specialist clinical review and complete 32 WP acceptance.
