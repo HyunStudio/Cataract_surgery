@@ -144,3 +144,11 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - **WP12 still partial:** no validated end-to-end 3D *surgical action* based on triangle intersection and no tool-tissue force simulation. In particular, GPU shader-deformed IOL, depth/cosmetic offsets and patient-eye motion must be represented in any future interaction model before it can be considered geometry-consistent.
 - All existing stage/alert/score/replay safety authority stays with the 2.5D/3D `ReplayGame` state machine. Do not substitute triangle hits for procedural safety decisions.
 - Next: design phase-consistent GPU/CPU deformation representation and a pure read-only instrument-to-mesh proximity indicator; independently verify static and animated coordinate parity, then improve Windows/4K UX.
+
+
+## 2026-10-13 — unfolded/deforming optic picking consistency (WP12 partial)
+
+- **Implemented in standalone 3D atlas:** IOL fold-geometry CPU/BVH replica using the same synthetic vertex-position deformation as the GPU shader; supports alignment offset and inverse camera-plane shift. F cycles static visual fold poses, and triangle selection now tracks that displayed geometry. Face counts stay bounded and cached.
+- **QA:** Python 3.12/3.13 each 480 passed, Mesa software OpenGL eye-region screenshot comparisons and unfolded-vs-folded contact decision succeeded, dirty cache-value aliasing corrected.
+- **Still partial:** this is visual read-only inspection, not an action-authoritative 3D surgery collision model. Cornea optics, animated capsule tear/tissue, tool interaction with physical resistance, real target hardware tests and expert anatomical review are not completed.
+- Next: define an explicit nonclinical mesh/tooltip hover contract in the interactive 3D surgery display, then add geometric proximity *without* overriding ReplayGame's phase/safety decisions; profile Windows AMD GPU and 4K usability separately.
