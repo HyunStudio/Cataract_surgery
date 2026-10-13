@@ -80,3 +80,11 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Renderer rejects invalid 3D uniform vectors before touching an OpenGL context.
 - Mesa run [38335940404](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404) confirmed a true screenshot pixel change between otherwise identical frames with/without an actual tool mesh; nine screenshot artifacts were captured, normal outcome and motion safe-stop replay matched.
 - Initial screenshot-visibility test **failed** at [run 38335798484](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335798484). After visible overlay treatment, both workflows passed. Synthetic 3D instrument overlay is deliberately not physically occluded, and **neither test validates clinical force response or hardware GPU behavior**.
+
+
+## 2026-10-13 IOL mesh and scene-depth regression verification
+
+- [Python Actions run 38337153815](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153815): both 3.12 and 3.13 green, **289 automated tests** each; additional IOL bounded geometry, cache, stage timing, pause and dirty numerical input coverage.
+- [Mesa OpenGL run 38337153811](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811) green, with distinct `iol-placement`/`iol-unfolding`/`iol-deployed` frames. The test compares a **200×200 center-eye crop, excluding HUD text**. The actual generated images were inspected; iris and synthetic IOL are visible after the scleral backdrop depth fix. [Screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811/artifacts/11785108404).
+- A temporary failing strict crop test [38336952604](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38336952604) was useful: it proved earlier differences were confined to HUD and that the closed sclera visually masked the IOL. Production code was repaired (not weakened test), then rerun passed.
+- **No clinical validation or Windows hardware acceptance:** GPU rasterization and frame screenshots verified only on Linux Mesa llvmpipe. Actual IOL haptic design, insertion technique and force profiles are not claimed to be realistic.
