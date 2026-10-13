@@ -140,3 +140,12 @@ python -m ophthosim.gl_surgery --case normal --seed 7
 Controls: **Space** next preop/anesthesia stage, **mouse** entry/capsular tracing/lens clearing, **a fresh click** for IOL placement, **1–3** final safety checks, **arrows** orbit, **+/-** zoom, **Q/E** tool depth, **A** acknowledge synthetic patient warning, **X** safe abort, **Esc** pause, **R** restart, **S** export results/replay after the end. The standard 2.5D game is still launched with `python main.py`. See [complete Korean guide](docs/INTERACTIVE_3D_USAGE_KO.md).
 
 **Verified in CI:** [Python tests run 38334178228](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334178228), **245 tests passed on Python 3.12 and successful Python 3.13 matrix**. [Mesa OpenGL run 38334142433](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433) exercised two synthetic cases, a complete end-to-end surgical game replay, safe abort and eight distinct rendered frames including mid-phaco visual change. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433/artifacts/11783937737). Windows physical GPU/4K performance is still unverified.
+
+
+## 3D synthetic instrument visualization (2026-10-13)
+
+The interactive GPU 3D surgery prototype now draws a **cached tapered synthetic stylus mesh** in the world coordinates of the most recent validated procedure input. The 3D mesh follows the controller's normalized tool position and educational depth plane; it is **not** a real surgical instrument model, physical collision object, or source of state changes. The tool is hidden when there is no valid pose, during safety hold/pause, after an ending, or when the pose no longer matches the active depth.
+
+The stylus is drawn as a clear **visual overlay** to avoid misleadingly disappearing behind transparent display anatomy; its occlusion therefore does not model optical or tissue physics. The existing strict ReplayGame drives tasks and records replay deterministically.
+
+[Verified 274-test CI](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940393) (Python 3.12/3.13 jobs succeeded); [Mesa OpenGL integration run](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404) confirms real framebuffer pixel change when the 3D stylus appears, nine synthetic screenshots, normal completion, motion-alert safe stop and replay consistency. This is Linux software rasterization only. Windows GPU/4K and clinical assessments are **not** validated.
