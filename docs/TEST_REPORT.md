@@ -70,3 +70,13 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - [3D Mesa OpenGL run 38334142433](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433): successful GLSL context, GPU code execution on **software OpenGL**, real framebuffer readbacks across **eight distinct surgical/complication frames**, plus full educational surgery and alert-safe-stop paths with exact replay reconstruction.
 - The progress-aware 3D lens tint and IOL translation are **visual approximations** only; rendering different images is not clinical validation, nor do the current 3D rays establish tissue collision truth.
 - **Still not tested:** real Windows GPU/monitor, 4K scaling, sustained 60 fps, 3D instrument pressure/deformation, external ophthalmologist appraisal.
+
+
+## 2026-10-13 synthetic 3D stylus visibility tests
+
+- Unit/GUI regression: [run 38335940393](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940393), Python 3.12 **274 passed in 2.27s**, Python 3.13 job success.
+- `stylus_mesh()` validates packed mesh bounds/indices, normal vectors and single-entry caching.
+- `visible_stylus()` displays only a world pose accepted by the existing phase-gated simulation, hides during patient alarms, pause, abort, stale depth, invalid semantic coordinates and rejected huge/nonfinite inputs.
+- Renderer rejects invalid 3D uniform vectors before touching an OpenGL context.
+- Mesa run [38335940404](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404) confirmed a true screenshot pixel change between otherwise identical frames with/without an actual tool mesh; nine screenshot artifacts were captured, normal outcome and motion safe-stop replay matched.
+- Initial screenshot-visibility test **failed** at [run 38335798484](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335798484). After visible overlay treatment, both workflows passed. Synthetic 3D instrument overlay is deliberately not physically occluded, and **neither test validates clinical force response or hardware GPU behavior**.
