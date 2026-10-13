@@ -22,6 +22,7 @@ def main() -> int:
         from .gl_surgery import SurgeryHUD, CHECKS
         from .input3d import Surgery3DController, eye_to_pixel
         from .replay import ReplayGame
+        from .iol3d import iol_visual_deployment
         from .tool3d import visible_stylus
     except ImportError as exc:
         print(f"Optional GL dependency missing: {exc}", file=sys.stderr)
@@ -46,7 +47,8 @@ def main() -> int:
                 atlas.set_meshes(atlas_meshes(atlas_state))
             e=ctrl.game.eye
             data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay,
-                                appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
+                                appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment,
+                                                             iol_visual_deployment(ctrl.game)),
                                 tool_pose=visible_stylus(ctrl))
             if data is None or len(data) != W*H*3:
                 raise AssertionError(f"Frame readback missing: {name}")
@@ -98,6 +100,17 @@ def main() -> int:
         assert not point(.5,.5)
         assert point(.5,.5,pressed=True)
         assert ctrl.game.phase == Phase.CLOSE
+        frame("iol-placement")
+        # Synthetic game time, not wall time, drives the 3D unfolding shader.
+        for _ in range(15):
+            ctrl.advance_clock(.05)
+        frame("iol-unfolding")
+        for _ in range(15):
+            ctrl.advance_clock(.05)
+        frame("iol-deployed")
+        if images["iol-placement"] == images["iol-unfolding"] or (
+                images["iol-unfolding"] == images["iol-deployed"]):
+            raise AssertionError("IOL animation frames did not change")
         for name in CHECKS:
             assert ctrl.command("verify",name)
         assert ctrl.game.phase == Phase.RECOVERY
