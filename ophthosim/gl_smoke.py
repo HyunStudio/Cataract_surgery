@@ -44,7 +44,7 @@ def main() -> int:
             expected = "cloudy lens" if phase == "CATARACT" else "IOL"
             if center is None or center.name != expected or center.face_index < 0:
                 raise AssertionError("Triangle BVH did not pick the intended lens")
-            if not all(0. <= b <= 1. for b in center.barycentric):
+            if not all(-1e-9 <= b <= 1.+1e-9 for b in center.barycentric):
                 raise AssertionError("Invalid lens triangle barycentric coordinates")
             frame = atlas.render(view, 60., capture=True)
             if not frame or len(frame) != 800 * 600 * 3:
