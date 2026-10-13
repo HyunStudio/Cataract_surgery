@@ -22,6 +22,7 @@ from .tool3d import stylus_mesh
 from .iol3d import foldable_iol_mesh
 from .capsule3d import capsule_indicator_meshes
 from .vision3d import VisualFeedback
+from .contact3d import ContactGuide, guide_ring_mesh
 
 VERTEX_SHADER = """
 #version 330
@@ -244,6 +245,12 @@ class GPUEyePreview:
         self.selection: SurfaceHit | None = None
         self.selection_pixel: tuple[int, int] | None = None
         self.set_meshes(atlas_meshes("CATARACT"))
+        ring_vertices, ring_indices, _ = pack_mesh(guide_ring_mesh())
+        self.contact_vbo = self.ctx.buffer(ring_vertices)
+        self.contact_ibo = self.ctx.buffer(ring_indices)
+        self.contact_vao = self.ctx.vertex_array(self.scene_shader,
+                [(self.contact_vbo, "3f 3f", "in_position", "in_normal")],
+                index_buffer=self.contact_ibo)
         # Both state-independent cosmetic meshes live for the GL context.
         # Never allocate a mesh every frame during an alert.
         self.capsule_buffers = {}
@@ -296,7 +303,8 @@ class GPUEyePreview:
     def render(self, view: View, fps: float, *, capture: bool = False,
                overlay=None, appearance: AnatomyAppearance | None = None,
                tool_pose: tuple[float, float, float] | None = None,
-               vision: VisualFeedback | None = None) -> bytes | None:
+               vision: VisualFeedback | None = None,
+               contact: ContactGuide | None = None) -> bytes | None:
         view.check()
         if appearance is not None:
             appearance.check()
@@ -304,6 +312,10 @@ class GPUEyePreview:
             if not isinstance(vision, VisualFeedback):
                 raise ValueError("Invalid visual feedback object")
             vision.check()
+        if contact is not None:
+            if not isinstance(contact, ContactGuide):
+                raise ValueError("Invalid contact preview")
+            contact.check()
         if tool_pose is not None:
             if not isinstance(tool_pose, (tuple, list)) or len(tool_pose) != 3:
                 raise ValueError("Tool position must have three coordinates")
@@ -399,6 +411,23 @@ class GPUEyePreview:
             shader["u_offset"].value = (0., 0., 0.)
             self.ctx.enable(self.gl.CULL_FACE)
             self.ctx.enable(self.gl.DEPTH_TEST)
+        if contact is not None and contact.location is not None:
+            # Read-only educational target ring. Painted as a world-positioned
+            # overlay, with no physical depth collision or tissue effects.
+            shader["u_scene_shift"].value = (0.,0.)
+            shader["u_offset"].value = contact.location
+            shader["u_iol_mode"].value = 0.0
+            shader["u_iol_fold"].value = 1.0
+            shader["u_tint"].value = ((.30,.95,.62) if contact.status == "TARGET"
+                                      else (.32,.69,.91) if contact.status == "VISITED"
+                                      else (.98,.69,.26))
+            shader["u_alpha"].value = 1.0
+            self.ctx.disable(self.gl.DEPTH_TEST)
+            self.ctx.disable(self.gl.CULL_FACE)
+            self.contact_vao.render()
+            self.ctx.enable(self.gl.CULL_FACE)
+            self.ctx.enable(self.gl.DEPTH_TEST)
+            shader["u_offset"].value = (0.,0.,0.)
         self.draw_hud(view, fps, w, h, overlay=overlay, vision=vision)
         # Optional readback must occur before swapping. CI uses Mesa software
         # GL; this cannot establish Windows GPU or display-driver correctness.
@@ -475,6 +504,9 @@ class GPUEyePreview:
         self.ctx.enable(self.gl.DEPTH_TEST)
 
     def close(self) -> None:
+        self.contact_vao.release()
+        self.contact_vbo.release()
+        self.contact_ibo.release()
         for vao, vbo, ibo in self.capsule_buffers.values():
             vao.release()
             vbo.release()
