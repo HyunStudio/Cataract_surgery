@@ -20,6 +20,7 @@ from .geometry import Mesh, anterior_eye_meshes
 from .picking3d import SurfaceHit, pick_anatomy
 from .tool3d import stylus_mesh
 from .iol3d import foldable_iol_mesh
+from .capsule3d import capsule_indicator_meshes
 
 VERTEX_SHADER = """
 #version 330
@@ -125,12 +126,17 @@ class AnatomyAppearance:
     cortex: float = 1.0
     iol_alignment: float = 1.0
     iol_deployment: float = 1.0
+    capsule_damage: float = 0.0
+    capsule_present: bool = False
 
     def check(self) -> None:
         bounded_float(self.opacity, 0., 1.)
         bounded_float(self.cortex, 0., 1.)
         bounded_float(self.iol_alignment, 0., 1.)
         bounded_float(self.iol_deployment, 0., 1.)
+        bounded_float(self.capsule_damage, 0., 1.)
+        if type(self.capsule_present) is not bool:
+            raise ValueError("Capsule visual flag must be a boolean")
 
 
 @dataclass(slots=True)
@@ -234,6 +240,17 @@ class GPUEyePreview:
         self.selection: SurfaceHit | None = None
         self.selection_pixel: tuple[int, int] | None = None
         self.set_meshes(atlas_meshes("CATARACT"))
+        # Both state-independent cosmetic meshes live for the GL context.
+        # Never allocate a mesh every frame during an alert.
+        self.capsule_buffers = {}
+        for key, mesh in capsule_indicator_meshes().items():
+            vertex_bytes, index_bytes, _ = pack_mesh(mesh)
+            vb = self.ctx.buffer(vertex_bytes)
+            ib = self.ctx.buffer(index_bytes)
+            vao = self.ctx.vertex_array(self.scene_shader,
+                     [(vb, "3f 3f", "in_position", "in_normal")],
+                     index_buffer=ib)
+            self.capsule_buffers[key] = (vao, vb, ib)
         # Allocate one stylized 3D tool; motion uses a shader uniform only.
         tool_vertices, tool_indices, _ = pack_mesh(stylus_mesh())
         self.stylus_vbo = self.ctx.buffer(tool_vertices)
@@ -336,6 +353,15 @@ class GPUEyePreview:
         shader["u_offset"].value = (0., 0., 0.)
         shader["u_iol_mode"].value = 0.0
         shader["u_iol_fold"].value = 1.0
+        if appearance is not None and appearance.capsule_present:
+            # A cosmetic visual warning in front of the pupil, not a mesh
+            # collision or physically positioned human lens capsule.
+            damage = appearance.capsule_damage
+            key = "damaged" if damage >= .15 else "intact"
+            shader["u_tint"].value = ((.99, .24, .28) if key == "damaged"
+                                      else (.22, .82, .72))
+            shader["u_alpha"].value = 1.0
+            self.capsule_buffers[key][0].render()
         self.ctx.enable(self.gl.BLEND)
         self.ctx.blend_func = self.gl.SRC_ALPHA, self.gl.ONE_MINUS_SRC_ALPHA
         self.ctx.disable(self.gl.CULL_FACE)
@@ -424,6 +450,10 @@ class GPUEyePreview:
         self.ctx.enable(self.gl.DEPTH_TEST)
 
     def close(self) -> None:
+        for vao, vbo, ibo in self.capsule_buffers.values():
+            vao.release()
+            vbo.release()
+            ibo.release()
         for vao, vbo, ibo in self.meshes.values():
             vao.release()
             vbo.release()
