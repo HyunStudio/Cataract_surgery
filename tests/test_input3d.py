@@ -15,10 +15,10 @@ from ophthosim.replay import ReplayGame
 W, H = 1280, 720
 
 
-def gesture(controller, x, y):
+def gesture(controller, x, y, *, fresh_press=False):
     point = eye_to_pixel(x, y, controller.tool_depth, W, H, controller.view)
     assert point is not None
-    return controller.pointer(*point, W, H)
+    return controller.pointer(*point, W, H, fresh_press=fresh_press)
 
 
 def enter_capsule(controller):
@@ -48,7 +48,7 @@ def test_full_synthetic_procedure_in_3d_input_mode_and_replay():
     for _ in range(40):
         gesture(c, .5, .5)
     assert c.game.phase == Phase.IOL
-    assert gesture(c, .5, .5)
+    assert gesture(c, .5, .5, fresh_press=True)
     assert c.game.phase == Phase.CLOSE
     for item in ("alignment", "wound", "handoff"):
         assert c.command("verify", item)
@@ -177,3 +177,17 @@ def test_2000_randomized_3d_input_roundtrip_does_not_crash():
         c.pointer(rng.uniform(-100,1400),rng.uniform(-100,900),W,H)
     assert c.game.phase in {Phase.ENTRY, Phase.CAPSULE}
     assert len(c.game.journal) < 16000
+
+
+def test_removal_hold_cannot_auto_place_iol():
+    c = Surgery3DController()
+    enter_phaco(c)
+    # Even if a user keeps dragging for 100 frames, the new IOL phase
+    # cannot treat a continuous hold as a deliberate placement click.
+    for _ in range(100):
+        gesture(c, .5, .5)
+    assert c.game.phase == Phase.IOL
+    assert c.game.eye.iol_alignment == 0.
+    assert not gesture(c, .5, .5)
+    assert gesture(c, .5, .5, fresh_press=True)
+    assert c.game.phase == Phase.CLOSE
