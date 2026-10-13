@@ -8,9 +8,12 @@ from __future__ import annotations
 
 from functools import lru_cache
 import math
+from typing import TYPE_CHECKING
 
 from .geometry import Mesh
-from .input3d import Surgery3DController
+
+if TYPE_CHECKING:
+    from .input3d import Surgery3DController
 
 
 @lru_cache(maxsize=1)
