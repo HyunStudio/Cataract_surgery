@@ -228,3 +228,33 @@ and [Linux Mesa OpenGL integration](https://github.com/HyunStudio/Cataract_surge
 **Not verified:** Windows AMD/Radeon hardware or 4K performance, corneal
 refraction/transparent occlusion parity, deforming tissue contact mechanics,
 clinical relevance, or complete 32-WP readiness.
+
+
+## Unitless nearest-triangle visual proximity in the interactive 3D game (2026-10-13)
+
+The synthetic interactive 3D mode now computes the Euclidean nearest point from
+the **validated, safely visible virtual stylus tip** to actual authored iris,
+crystalline-lens or visually folded/aligned IOL **triangle faces**. A bounded
+BVH branch-and-bound search uses exact point-to-triangle closest-point regions,
+including triangle edges, vertices and nonfatal degenerate faces. Static mesh
+indexes are cached; the synthetic IOL BVH is cached for up to eight
+deployment/alignment states. Where the scene is visually moved, the same
+camera-plane transformation is inverted for the read-only distance query.
+
+This appears as a separate 3D nearest-surface marker and **MESH GAP:
+CLOSE/NEAR/FAR (synthetic)** HUD label. Distances are **unitless model
+coordinates**, not millimeters or clinically meaningful separation. These
+thresholds are artistic feedback, NOT injury triggers. During a patient safety
+hold, pause, ending, invalid/outdated tool pose or inactive procedure, the
+visual tool and proximity indicator are suppressed. The procedural
+`ReplayGame` retains exclusive authority over actions, phases, alerts,
+scoring and event/replay records.
+
+**Verified:** [Python 3.12 and 3.13 CI: 510 passed per version](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355094995)
+and [Mesa Linux software OpenGL integration](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355095000)
+with different *eye-only* framebuffer pixels when the nearest-triangle
+marker is present. [Rendered synthetic screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355095000/artifacts/11792706594).
+
+**Not validated:** real tool/tissue force, contact physics, anatomical accuracy,
+real-world surgical training, Windows Radeon GPU or 4K desktop frame-time
+performance. The 32-work-package project is still in progress.
