@@ -239,7 +239,8 @@ class GPUEyePreview:
         self.selection = None
         self.selection_pixel = None
 
-    def render(self, view: View, fps: float, *, capture: bool = False) -> bytes | None:
+    def render(self, view: View, fps: float, *, capture: bool = False,
+               overlay=None) -> bytes | None:
         view.check()
         w, h = self.pg.display.get_window_size()
         if not (w > 0 and h > 0):
@@ -277,14 +278,15 @@ class GPUEyePreview:
         self.ctx.depth_mask = True
         self.ctx.disable(self.gl.BLEND)
         self.ctx.enable(self.gl.CULL_FACE)
-        self.draw_hud(view, fps, w, h)
+        self.draw_hud(view, fps, w, h, overlay=overlay)
         # Optional readback must occur before swapping. CI uses Mesa software
         # GL; this cannot establish Windows GPU or display-driver correctness.
         image = self.ctx.screen.read(components=3, alignment=1) if capture else None
         self.pg.display.flip()
         return image
 
-    def draw_hud(self, view: View, fps: float, w: int, h: int) -> None:
+    def draw_hud(self, view: View, fps: float, w: int, h: int,
+                 *, overlay=None) -> None:
         hud = self.pg.Surface((w, h), self.pg.SRCALPHA)
         lines = (
             ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
@@ -303,6 +305,10 @@ class GPUEyePreview:
             glyph = font.render(text, True, color)
             hud.blit(glyph, (20, y))
             y += 42 if font is self.font_big else 31
+        if overlay is not None:
+            # The integration overlay observes a simulation snapshot and
+            # paints into this one shared GPU-uploaded Pygame HUD texture.
+            overlay.draw(self.pg, hud, view, w, h, self.font, self.font_big)
         if self.selection_pixel is not None:
             px, py = self.selection_pixel
             self.pg.draw.circle(hud, (110, 230, 195), (px, py), 12, 2)
