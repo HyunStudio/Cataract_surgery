@@ -96,3 +96,11 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - **WP16–23 partial:** existing lens clearing and IOL alignment states drive visible GPU appearance changes; no phaco biomechanical solver, lens fragmentation mesh physics or folded-IOL animation.
 - **WP29–30 partial:** synthetic score/endings/replay persisted unchanged under 3D mode, with safety-hold tests.
 - Regression evidence: [245 Python tests](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334178228) and [Mesa full-session frames](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433). **The 32-work-package plan remains incomplete.**
+
+
+## 2026-10-13 — world-space stylus milestone (partial WP12/WP13)
+
+- Procedural 3D synthetic tool mesh is now positioned using guarded existing task inputs and depth; the renderer cannot change surgical state or bypass alert/safe-abort gates.
+- Verified under headless Python 3.12/3.13 and Mesa software OpenGL with actual before/after frame comparison.
+- **WP12/WP13 remain partial** until 3D instrument selection, actual 3D collision/picking and full surgical feedback are developed; this geometry is an educational overlay rather than a force-controlled instrument.
+- Next recommended implementation: state-consistent capsule geometry transitions and IOL insertion/unfold animation, plus real Windows AMD GPU profiling and 4K accessibility tests.
