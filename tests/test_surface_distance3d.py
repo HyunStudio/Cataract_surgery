@@ -67,7 +67,7 @@ def test_bvh_nearest_does_not_pick_farther_triangle():
 def test_single_triangle_far_budget_and_center():
     idx=triangle()
     assert nearest_triangle(idx,(0,0,3),max_distance=.9) is None
-    assert nearest_triangle(idx,(.2,.2,0),max_distance=0).distance==0
+    assert nearest_triangle(idx,(.2,.2,0),max_distance=0).distance == pytest.approx(0.,abs=1e-12)
 
 
 def test_mesh_probe_gated_before_case_and_during_abort():
