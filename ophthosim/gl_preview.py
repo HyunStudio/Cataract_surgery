@@ -328,13 +328,20 @@ class GPUEyePreview:
         self.ctx.disable(self.gl.BLEND)
         self.ctx.enable(self.gl.CULL_FACE)
         if tool_pose is not None:
-            # A visual instrument follows an already validated game input
-            # position. Rendering it is never an action on simulated tissue.
+            # Deliberately draw this NON-COLLIDING educational pointer on top
+            # of transparent anatomy. Without this overlay pass, its narrow
+            # end cap can be hidden by depth/culling in the microscope view.
+            # The shader still projects its actual world-space tip position.
+            # This display override is not a physically accurate occlusion.
+            self.ctx.disable(self.gl.DEPTH_TEST)
+            self.ctx.disable(self.gl.CULL_FACE)
             shader["u_offset"].value = tool_pose
-            shader["u_tint"].value = (.34, .87, .76)
+            shader["u_tint"].value = (.43, .95, .80)
             shader["u_alpha"].value = 1.0
             self.stylus_vao.render()
             shader["u_offset"].value = (0., 0., 0.)
+            self.ctx.enable(self.gl.CULL_FACE)
+            self.ctx.enable(self.gl.DEPTH_TEST)
         self.draw_hud(view, fps, w, h, overlay=overlay)
         # Optional readback must occur before swapping. CI uses Mesa software
         # GL; this cannot establish Windows GPU or display-driver correctness.
