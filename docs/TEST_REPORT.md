@@ -114,3 +114,13 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - The pause/resume marker handling now requires a fresh validated mouse position, preventing restoration of stale tool geometry. The old expectation was replaced by explicit no-stale-display and hover-reacquisition assertions.
 - [Mesa llvmpipe OpenGL 38343565188](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188) passed full synthetic 3D scenario smoke and a visual **center-eye crop** comparison of otherwise identical frames with the GPU ring off/on, avoiding HUD-only false positives. [Frame captures](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188/artifacts/11788405053).
 - **Not tested:** real triangle-level anatomy picking, true tool-tissue contact pressure, mechanical surgical response, human factors/accessibility audit on 4K Windows or physical Radeon device. This is a non-clinical guide only.
+
+
+## 2026-10-13 — BVH triangle-picking verification
+
+- [Python Actions 38345423438](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423438): **452 passed** on each Python 3.12 and 3.13.
+- `mesh_raycast` tests include known-plane exact barycentric coordinates, near/far exclusion, double-sided hits, collinear triangles (no spurious contact), nearest hit across overlapping faces, indexed iris pupil opening, IOL center and iris ring, camera rotation/zoom, cache/index reuse and 400 deterministic random ray queries.
+- Dirty input checks include malformed vectors, booleans, NaN/infinity, integers exceeding floating range, zero-length rays, invalid mesh face budgets, missing or malformed phase/scene mapping and offscreen pointers.
+- [Mesa OpenGL 38345423347](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423347) passed both real iris and optic face IDs: iris face 127, cataract optic face 12 and IOL optic face 12 in the fixed test camera view. [Rendered screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423347/artifacts/11788119181).
+- **Failure history:** initial IOL result reported lowercase source name `iol` (fixed display label); strict exact `0<=barycentric<=1` comparison failed at a triangle vertex due to floating-point epsilon, corrected to tolerance consistent with the collision test. No procedural-state or safety gate was disabled.
+- **Limitations:** independent static atlas mesh inspection only. GPU shader-deformed IOL, cosmetic offsets, patient movement and interactive surgical instrument contact do not yet use these face hits. Not a clinical or Windows GPU acceptance test.
