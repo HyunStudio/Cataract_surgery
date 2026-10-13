@@ -225,6 +225,6 @@ def pick_indexed(meshes: dict[str,MeshIndex], x: object, y: object,
     if not hits:
         return None
     best=min(hits,key=lambda hit:(hit.distance,hit.name,hit.face_index))
-    label=("cloudy lens" if phase=="CATARACT" else "IOL") if best.name=="lens" else best.name
+    label=("cloudy lens" if phase=="CATARACT" else "IOL") if best.name in {"lens","iol"} else best.name
     return TriangleHit(label,best.distance,best.position,best.face_index,
                        best.barycentric)
