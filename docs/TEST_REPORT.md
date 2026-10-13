@@ -63,3 +63,10 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - [Mesa/Xvfb OpenGL smoke run 38319493162](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319493162): **success**, framebuffer bytes captured for both states; PNG artifacts attached. GL renderer `llvmpipe (LLVM 20.1.2, 256 bits)`, OpenGL `4.5`. Captured two different images; 20-frame mean ~2.97 ms is a short software diagnostic sample **not** a meaningful frame-rate benchmark.
 - Verified that 3D click inspection is **read-only** and does not mutate the synthetic surgery score/state. This inspection uses analytic spherical/ellipsoidal approximations and does not yet perform triangle-level precision hit testing.
 - Still untested: Windows AMD graphics context/driver, 1080p/4K real monitor legibility and sustained performance, real surgical interaction, expert clinical plausibility.
+
+## 2026-10-13 interactive ModernGL surgery integration and dirty testing
+
+- [Tests CI run 38334178228](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334178228): **245 tests passed on Python 3.12**, Python 3.13 matrix also successful. New tests for 3D input mapping, camera zoom/orbit calibration, stage-dependent z gating, wrong-depth ignore behavior, full end-to-end completion and replay checksum matching, alert lock, safe stop, malformed inputs, 2,000 randomized pointer inputs and IOL fresh-press requirement.
+- [3D Mesa OpenGL run 38334142433](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433): successful GLSL context, GPU code execution on **software OpenGL**, real framebuffer readbacks across **eight distinct surgical/complication frames**, plus full educational surgery and alert-safe-stop paths with exact replay reconstruction.
+- The progress-aware 3D lens tint and IOL translation are **visual approximations** only; rendering different images is not clinical validation, nor do the current 3D rays establish tissue collision truth.
+- **Still not tested:** real Windows GPU/monitor, 4K scaling, sustained 60 fps, 3D instrument pressure/deformation, external ophthalmologist appraisal.
