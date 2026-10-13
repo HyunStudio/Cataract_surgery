@@ -96,3 +96,12 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - [Mesa OpenGL 38338000377](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377): passed shader/context/frame output and synthetic surgery smoke. Two capsule render passes with **identical HUD and viewport** but different 3D ring meshes produced *distinct 200×200 center-eye image hashes*, proving the scene itself changes. Captured full normal, motion and irreversible capsule event scenarios, with replay reconstructed after safe abort.
 - Unit tests exercise ring mesh bounds, cached VAOs' source meshes, topology opening, synthetic damage threshold, invalid flags, NaN/Inf/big-int states, invalid segments/gaps, game snapshot immutability and retained damage after abort. Only synthetic state values are checked.
 - Nonclinical visual mapping: intact = cool green/teal; damaged = red discontinuous ring visible in pupil. Neither placement nor damage geometry represents human capsule anatomy or an actual complication. **No real clinical outcome and no physical Windows GPU/4K benchmark verified.**
+
+
+## 2026-10-13 — synthetic eye-motion and vision-accessibility validation
+
+- [GitHub Tests CI 38340531317](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531317): **395 passed on Python 3.12** and **395 passed on Python 3.13**.
+- [GitHub Mesa OpenGL CI 38340531344](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344): successful full synthetic surgery rendering, with nonblank PNG frames; central eye-only crop hashes distinguish identical-scene **synthetic motion**, **haze**, and patient-motion **reduced-motion** mode without relying on changed HUD text. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344/artifacts/11785993260).
+- New boundary/dirty coverage: malformed and nonfinite patient motion, opacity, cortex, simulation time, accessibility booleans and shader inputs; 2,000 seeded valid random states; 1,000 timed samples proving bounded camera-plane offsets.
+- The motion cue freezes while patient safety is on hold; low-motion removes displacement but does not cancel the existing alert, safety pause, warning, replay or score. Visual rendering queries cannot mutate `Game.snapshot()`.
+- Limits: **Linux Mesa software GL only**, not Radeon/Windows/4K, real microscope optics, screen-reader certification, WCAG audit or clinically validated motion perception.
