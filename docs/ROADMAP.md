@@ -160,3 +160,10 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - The visual query is strictly gated to active/safe phases and valid 3D tool poses. The existing `ReplayGame` remains authoritative; no geometry-based injury, force feedback, surgical action validation or actual tissue collision has been enabled.
 - Python 3.12/3.13 510 tests passed and Mesa software OpenGL eye-region visual comparison passed. This confirms implementation against synthetic meshes and regression tests, **not** clinical physical fidelity or real target GPU.
 - Next: evaluate optimized single-pass proximity calculation and actual 3D tool/tissue pose consistency; add accessible distinction beyond color and 4K visual readability checks, then Windows Radeon hardware gate and specialist anatomy assessment.
+
+
+## 2026-10-13 — renderer/HUD surface query reuse (WP12/WP31 partial)
+
+- Interactive 3D render now computes the unitless nearest-triangle `SurfaceProbe` **once** per visual frame, passes the same immutable result to GPU overlay and HUD, and invalidates old HUD observations on changed phase, pose, camera orientation or safety state. This eliminates duplicate CPU BVH queries in one frame without allowing a visual result to authorize Game actions.
+- Automated spy/counter tests, stale/hostile-input checks and Mesa software OpenGL integration pass: 522 Python tests on 3.12 and 3.13.
+- **WP12/WP31 remain PARTIAL**: need measured 4K Windows GPU frame latency, adaptive 4K HUD layout/legibility, accessible status typography, validated phase-consistent visual pose and deformed *synthetic* geometry, specialist review and full release acceptance.
