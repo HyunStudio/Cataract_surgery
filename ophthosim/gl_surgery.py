@@ -22,6 +22,7 @@ from .signals import sample_trace
 from .tool3d import visible_stylus
 from .iol3d import iol_visual_deployment
 from .capsule3d import capsule_display_state
+from .vision3d import visual_feedback
 
 PHASE_NAMES = {
     Phase.PREOP: "CASE / PREOPERATIVE REVIEW",
@@ -45,6 +46,8 @@ class SurgeryHUD:
         self.controller = controller
         self.last_cursor: tuple[int, int] | None = None
         self.status = "Synthetic training experiment. No clinical use."
+        self.reduced_motion = False
+        self.high_contrast = False
 
     def draw(self, pg, surf, view, width: int, height: int, font, title) -> None:
         c = self.controller
@@ -140,11 +143,14 @@ class SurgeryHUD:
                      border_radius=10)
         instructions = (
             "SPACE next  |  MOUSE surgical task  |  1-3 final checks  |  A assess",
-            "ARROWS orbit  +/- zoom  Q/E depth  X abort  ESC pause  R restart",
+            "ARROWS orbit +/- zoom Q/E depth M motion H contrast X abort R restart", 
         )
         for i,msg in enumerate(instructions):
             label(msg[:90],24,bottom+6+i*25,color=green if i==0 else amber)
         label(self.status[:72], 24, height-100, color=light)
+        if self.reduced_motion or self.high_contrast:
+            flags=("LOW MOTION " if self.reduced_motion else "") + ("HIGH CONTRAST" if self.high_contrast else "")
+            label(flags.strip(), width//2-115, 110, color=(255,238,155))
         # Avoid displaying an earlier cursor after phase changes or restart.
         if self.last_cursor and c.last_pose is not None:
             pg.draw.circle(surf,green,self.last_cursor,8,2)
@@ -235,6 +241,10 @@ def run(case: str="normal",seed: int=7) -> None:
                             hud.status=f"Saved {first.name} and {second.name}"
                         except (OSError,ValueError,RuntimeError) as exc:
                             hud.status=f"Export failed: {type(exc).__name__}"
+                    elif key==pygame.K_m:
+                        hud.reduced_motion=not hud.reduced_motion
+                    elif key==pygame.K_h:
+                        hud.high_contrast=not hud.high_contrast
                     elif key==pygame.K_q:
                         controller.adjust_depth(-1)
                     elif key==pygame.K_e:
@@ -273,7 +283,10 @@ def run(case: str="normal",seed: int=7) -> None:
                                                       eye.iol_alignment,
                                                       iol_visual_deployment(controller.game),
                                                       capsule_damage, has_capsule),
-                         tool_pose=visible_stylus(controller))
+                         tool_pose=visible_stylus(controller),
+                         vision=visual_feedback(controller.game,
+                            reduced_motion=hud.reduced_motion,
+                            high_contrast=hud.high_contrast))
     finally:
         if atlas is not None:
             atlas.close()
