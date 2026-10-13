@@ -258,3 +258,31 @@ marker is present. [Rendered synthetic screenshots](https://github.com/HyunStudi
 **Not validated:** real tool/tissue force, contact physics, anatomical accuracy,
 real-world surgical training, Windows Radeon GPU or 4K desktop frame-time
 performance. The 32-work-package project is still in progress.
+
+
+## Single-evaluation 3D proximity per visual frame (2026-10-13)
+
+The interactive GPU surgery loop now computes the **synthetic nearest-triangle
+surface probe once per frame** and shares that one validated result between
+the GPU's nearest-surface ring and the 2D Pygame HUD. Previously the HUD
+triggered a second, redundant BVH proximity query after the renderer's
+own query. `SurgeryHUD.set_frame_proximity()` receives the prepared,
+read-only `SurfaceProbe`; `SurgeryHUD.draw()` only reads it.
+
+The HUD suppresses a stale prepared result after a stage transition, camera
+orbit, tool tip movement, safety alert, pause/abort, or restart. It displays
+`MESH GAP: CLOSE/NEAR/FAR 0.000u` where **u = unitless model space**, not
+millimetres or physical collision. The anatomical marker still uses its
+existing read-only GPU overlay. No procedural actions, safety gates, score,
+injury assessments or replay events are derived from this display data.
+
+[Python CI: 522 passed on each of 3.12 and 3.13](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978889);
+[Mesa Linux OpenGL full synthetic surgery CI](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911),
+including the same three normal/complication scenarios and screenshot artifacts.
+New regression checks instrument the BVH distance call count and ensure repeated
+HUD draws add **zero** BVH distance queries. This reduces redundant work; it
+does **not** establish a measured FPS speedup or 4K/Windows GPU performance.
+
+**Remaining:** 4K readability and sustained frame-time profiling on physical
+Windows AMD hardware, deforming tissue physics, medical realism validation and
+completion of the full 32-work-package plan.
