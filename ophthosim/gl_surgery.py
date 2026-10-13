@@ -23,7 +23,7 @@ from .tool3d import visible_stylus
 from .iol3d import iol_visual_deployment
 from .capsule3d import capsule_display_state
 from .vision3d import visual_feedback
-from .surface_probe3d import probe_surface
+from .surface_probe3d import SurfaceProbe, probe_surface
 
 PHASE_NAMES = {
     Phase.PREOP: "CASE / PREOPERATIVE REVIEW",
@@ -49,6 +49,21 @@ class SurgeryHUD:
         self.status = "Synthetic training experiment. No clinical use."
         self.reduced_motion = False
         self.high_contrast = False
+        # Prepared exactly once per rendered frame by the outer game loop.
+        # HUD painting must never trigger a second expensive BVH query.
+        self.frame_proximity: SurfaceProbe | None = None
+        self._probe_phase: Phase | None = None
+
+    def set_frame_proximity(self, result: SurfaceProbe | None) -> None:
+        """Attach a non-mutating proximity observation to this exact phase."""
+        if result is not None:
+            if not isinstance(result, SurfaceProbe):
+                raise ValueError("Expected a validated synthetic surface probe")
+            result.check()
+            if visible_stylus(self.controller) is None:
+                raise ValueError("Cannot display stale tool proximity")
+        self.frame_proximity = result
+        self._probe_phase = self.controller.game.phase if result is not None else None
 
     def draw(self, pg, surf, view, width: int, height: int, font, title) -> None:
         c = self.controller
@@ -82,12 +97,16 @@ class SurgeryHUD:
                         ("NEAR","VISITED") else red)
         # Proximity is visual-only, expressed in unitless model coordinates;
         # no physical contact or surgical action is inferred from this label.
-        proximity=probe_surface(c,visual_feedback(g,
-            reduced_motion=self.reduced_motion,
-            high_contrast=self.high_contrast))
+        # Read the prepared frame observation; never recalculate proximity
+        # in this text overlay. Old results are suppressed on phase changes,
+        # safety holds, finished cases and a missing live stylus position.
+        proximity=(self.frame_proximity if (
+            self._probe_phase == g.phase and
+            not g.paused and not g.patient.alert and not g.ending and
+            visible_stylus(c) is not None) else None)
         if proximity is not None:
-            label(f"MESH GAP: {proximity.status} (synthetic)",
-                  width//2-154, 128, color=amber)
+            label(f"MESH GAP: {proximity.status} {proximity.gap:.3f}u",
+                  width//2-155, 128, color=amber)
         capsule_on, damage = capsule_display_state(g)
         if capsule_on:
             label(("CAPSULE ALERT" if damage >= .15 else "CAPSULE INTACT"),
@@ -298,6 +317,7 @@ def run(case: str="normal",seed: int=7) -> None:
                 reduced_motion=hud.reduced_motion,
                 high_contrast=hud.high_contrast)
             proximity=probe_surface(controller,feedback)
+            hud.set_frame_proximity(proximity)
             atlas.render(controller.view,clock.get_fps(),overlay=hud,
                          appearance=AnatomyAppearance(eye.opacity,eye.cortex,
                                                       eye.iol_alignment,
