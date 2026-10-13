@@ -88,3 +88,11 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - [Mesa OpenGL run 38337153811](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811) green, with distinct `iol-placement`/`iol-unfolding`/`iol-deployed` frames. The test compares a **200×200 center-eye crop, excluding HUD text**. The actual generated images were inspected; iris and synthetic IOL are visible after the scleral backdrop depth fix. [Screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811/artifacts/11785108404).
 - A temporary failing strict crop test [38336952604](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38336952604) was useful: it proved earlier differences were confined to HUD and that the closed sclera visually masked the IOL. Production code was repaired (not weakened test), then rerun passed.
 - **No clinical validation or Windows hardware acceptance:** GPU rasterization and frame screenshots verified only on Linux Mesa llvmpipe. Actual IOL haptic design, insertion technique and force profiles are not claimed to be realistic.
+
+
+## 2026-10-13 — capsule damage renderer regression and dirty tests
+
+- [GitHub Actions Python 38338000372](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000372): **335 passed** on Python 3.12 and **335 passed** on 3.13.
+- [Mesa OpenGL 38338000377](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377): passed shader/context/frame output and synthetic surgery smoke. Two capsule render passes with **identical HUD and viewport** but different 3D ring meshes produced *distinct 200×200 center-eye image hashes*, proving the scene itself changes. Captured full normal, motion and irreversible capsule event scenarios, with replay reconstructed after safe abort.
+- Unit tests exercise ring mesh bounds, cached VAOs' source meshes, topology opening, synthetic damage threshold, invalid flags, NaN/Inf/big-int states, invalid segments/gaps, game snapshot immutability and retained damage after abort. Only synthetic state values are checked.
+- Nonclinical visual mapping: intact = cool green/teal; damaged = red discontinuous ring visible in pupil. Neither placement nor damage geometry represents human capsule anatomy or an actual complication. **No real clinical outcome and no physical Windows GPU/4K benchmark verified.**
