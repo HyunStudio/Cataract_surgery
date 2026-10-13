@@ -27,6 +27,7 @@ uniform float u_yaw;
 uniform float u_pitch;
 uniform float u_aspect;
 uniform float u_zoom;
+uniform vec3 u_offset;
 out vec3 v_normal;
 void main() {
     float cy = cos(u_yaw), sy = sin(u_yaw);
@@ -34,7 +35,7 @@ void main() {
     mat3 ry = mat3(cy, 0.0, -sy, 0.0, 1.0, 0.0, sy, 0.0, cy);
     mat3 rx = mat3(1.0, 0.0, 0.0, 0.0, cp, sp, 0.0, -sp, cp);
     mat3 rotation = rx * ry;
-    vec3 p = rotation * in_position;
+    vec3 p = rotation * (in_position + u_offset);
     v_normal = normalize(rotation * in_normal);
     float distance = u_zoom - p.z;
     const float near_plane = 0.5;
@@ -105,6 +106,19 @@ def pack_mesh(mesh: Mesh) -> tuple[bytes, bytes, int]:
     if len(vertex_data) != 6 * len(mesh.vertices):
         raise ValueError("Unexpected mesh packing length")
     return vertex_data.tobytes(), indices.tobytes(), len(indices)
+
+
+@dataclass(frozen=True, slots=True)
+class AnatomyAppearance:
+    """Renderer-facing synthetic state, not anatomical/clinical measurement."""
+    opacity: float = 1.0
+    cortex: float = 1.0
+    iol_alignment: float = 1.0
+
+    def check(self) -> None:
+        bounded_float(self.opacity, 0., 1.)
+        bounded_float(self.cortex, 0., 1.)
+        bounded_float(self.iol_alignment, 0., 1.)
 
 
 @dataclass(slots=True)
@@ -240,8 +254,10 @@ class GPUEyePreview:
         self.selection_pixel = None
 
     def render(self, view: View, fps: float, *, capture: bool = False,
-               overlay=None) -> bytes | None:
+               overlay=None, appearance: AnatomyAppearance | None = None) -> bytes | None:
         view.check()
+        if appearance is not None:
+            appearance.check()
         w, h = self.pg.display.get_window_size()
         if not (w > 0 and h > 0):
             return None
@@ -255,6 +271,7 @@ class GPUEyePreview:
         shader["u_pitch"].value = view.pitch
         shader["u_zoom"].value = view.zoom
         shader["u_aspect"].value = w / h
+        shader["u_offset"].value = (0., 0., 0.)
         # The closed-globe placeholder would otherwise occlude the iris and
         # lens in depth testing. Paint it as a background that doesn't write
         # depth, then draw anterior structures with normal depth semantics.
@@ -265,9 +282,27 @@ class GPUEyePreview:
         self.meshes["sclera"][0].render()
         self.ctx.depth_mask = True
         for name in ("iris", "lens"):
-            shader["u_tint"].value = self.TINTS[name]
+            # Actual 3D geometry is deliberately simple: appearance changes
+            # communicate *simulated* progress, not biological tissue effects.
+            color = self.TINTS[name]
+            offset = (0., 0., 0.)
+            if name == "lens" and appearance is not None:
+                if view.phase == "IOL":
+                    displacement = .18 * (1. - appearance.iol_alignment)
+                    offset = (displacement, 0., 0.)
+                else:
+                    opacity = appearance.opacity
+                    residual = appearance.cortex
+                    if opacity <= .001 and residual <= .001:
+                        continue
+                    color = (.22 + .61 * opacity,
+                             .42 + .34 * opacity,
+                             .50 + .10 * opacity)
+            shader["u_offset"].value = offset
+            shader["u_tint"].value = color
             shader["u_alpha"].value = 1.0
             self.meshes[name][0].render()
+        shader["u_offset"].value = (0., 0., 0.)
         self.ctx.enable(self.gl.BLEND)
         self.ctx.blend_func = self.gl.SRC_ALPHA, self.gl.ONE_MINUS_SRC_ALPHA
         self.ctx.disable(self.gl.CULL_FACE)
