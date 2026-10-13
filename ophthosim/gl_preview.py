@@ -323,18 +323,27 @@ class GPUEyePreview:
     def draw_hud(self, view: View, fps: float, w: int, h: int,
                  *, overlay=None) -> None:
         hud = self.pg.Surface((w, h), self.pg.SRCALPHA)
-        lines = (
-            ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
-            ("EDUCATIONAL SYNTHETIC ANATOMY - NOT CLINICAL", self.font, (245, 202, 136)),
-            (f"VIEW: {view.phase}    FPS: {fps:.0f} (measured locally)", self.font, (125, 211, 231)),
-            ("ARROWS: ORBIT   +/-: ZOOM   SPACE: LENS/IOL   ESC: EXIT",
-             self.font, (201, 223, 236)),
-            ("LEFT CLICK: INSPECT IRIS / LENS (READ-ONLY DEPTH PICKING)",
-             self.font, (245, 202, 136)),
-            ((f"SELECTED: {self.selection.name.upper()}  DEPTH: {self.selection.distance:.2f}" 
-              if self.selection is not None else "SELECTED: NONE"),
-             self.font, (128, 221, 174)),
-        )
+        if overlay is None:
+            lines = (
+                ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
+                ("EDUCATIONAL SYNTHETIC ANATOMY - NOT CLINICAL", self.font, (245, 202, 136)),
+                (f"VIEW: {view.phase}    FPS: {fps:.0f} (measured locally)", self.font, (125, 211, 231)),
+                ("ARROWS: ORBIT   +/-: ZOOM   SPACE: LENS/IOL   ESC: EXIT",
+                 self.font, (201, 223, 236)),
+                ("LEFT CLICK: INSPECT IRIS / LENS (READ-ONLY DEPTH PICKING)",
+                 self.font, (245, 202, 136)),
+                ((f"SELECTED: {self.selection.name.upper()}  DEPTH: {self.selection.distance:.2f}"
+                  if self.selection is not None else "SELECTED: NONE"),
+                 self.font, (128, 221, 174)),
+            )
+        else:
+            lines = (
+                ("OPHTHOSIM-AI  /  INTERACTIVE 3D PROTOTYPE", self.font_big, (230, 241, 250)),
+                ("SYNTHETIC EDUCATIONAL SURGERY - NOT CLINICAL TRAINING", self.font,
+                 (245, 202, 136)),
+                (f"ANATOMY: {view.phase}    FPS: {fps:.0f} (measured locally)", self.font,
+                 (125, 211, 231)),
+            )
         y = 24
         for text, font, color in lines:
             glyph = font.render(text, True, color)
