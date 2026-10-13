@@ -24,6 +24,7 @@ def main() -> int:
         from .replay import ReplayGame
         from .iol3d import iol_visual_deployment
         from .tool3d import visible_stylus
+        from .capsule3d import capsule_display_state
     except ImportError as exc:
         print(f"Optional GL dependency missing: {exc}", file=sys.stderr)
         return 2
@@ -47,9 +48,11 @@ def main() -> int:
                 atlas_state = ctrl.view.phase
                 atlas.set_meshes(atlas_meshes(atlas_state))
             e=ctrl.game.eye
+            capsule_on, damage=capsule_display_state(ctrl.game)
             data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay,
                                 appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment,
-                                                             iol_visual_deployment(ctrl.game)),
+                                                             iol_visual_deployment(ctrl.game),
+                                                             damage,capsule_on),
                                 tool_pose=visible_stylus(ctrl))
             if data is None or len(data) != W*H*3:
                 raise AssertionError(f"Frame readback missing: {name}")
@@ -69,6 +72,19 @@ def main() -> int:
             if pixel is None:
                 raise AssertionError("3D target not visible")
             return ctrl.pointer(*pixel,W,H,fresh_press=pressed)
+
+        # Isolate the actual 3D capsule layer. Identical camera and HUD,
+        # only the *world-space ring* differs. Crop excludes interface text.
+        for name,damage in (("capsule-intact",0.),("capsule-damaged",.45)):
+            pixels=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+                appearance=AnatomyAppearance(capsule_damage=damage,
+                                             capsule_present=True))
+            surface=pygame.image.fromstring(pixels,(W,H),"RGB",True)
+            eye=surface.subsurface((W//2-100,H//2-100,200,200))
+            eye_regions[name]=hashlib.sha256(pygame.image.tobytes(eye,"RGB")).hexdigest()
+            pygame.image.save(surface,str(root/f"gl-surgery-{name}.png"))
+        if eye_regions["capsule-intact"]==eye_regions["capsule-damaged"]:
+            raise AssertionError("3D capsule tear not visible inside the eye region")
 
         ctrl.command("confirm")
         ctrl.command("prepare")
@@ -141,13 +157,34 @@ def main() -> int:
         frame("safe-abort")
         assert ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl()).ending == "SAFELY ABORTED"
 
+        # Third deterministic scenario triggers an irreversible capsule hold.
+        ctrl=Surgery3DController("capsule",seed=17)
+        overlay=SurgeryHUD(ctrl)
+        ctrl.command("confirm")
+        ctrl.command("prepare")
+        for x,y in ctrl.game._entry_target:
+            assert point(x,y,pressed=True)
+        for n in range(24):
+            angle=(n+.5)*math.tau/24
+            point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
+        assert ctrl.game.phase==Phase.PHACO
+        assert ctrl.game.patient.alert=="CAPSULE INTEGRITY"
+        assert capsule_display_state(ctrl.game)==(True,.45)
+        assert not point(.5,.5,pressed=True)
+        frame("capsule-safety-hold")
+        assert ctrl.command("assess")
+        assert ctrl.game.phase==Phase.ABORTED
+        frame("capsule-safe-abort")
+        assert ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl()).ending=="SAFELY ABORTED"
+
         if len(set(images.values())) != len(images):
             raise AssertionError("Distinct states rendered identical images")
         print(json.dumps({
             "status": "software-opengl-3d-surgery-integration-passed",
             "frame_hashes": images,
             "gl_renderer": atlas.ctx.info.get("GL_RENDERER", "unknown"),
-            "scenario_count": 2,
+            "scenario_count": 3,
+            "capsule_center_region_healthy_vs_damage_distinct": True,
             "windows_gpu_tested": False,
             "clinical_validation": False,
         },sort_keys=True))
