@@ -7,7 +7,7 @@ import sys
 import pytest
 
 from ophthosim.gl_preview import (
-    View, pack_mesh, atlas_meshes, bounded_float, offline_check,
+    View, AnatomyAppearance, pack_mesh, atlas_meshes, bounded_float, offline_check,
     VERTEX_SHADER, FRAGMENT_SHADER, UI_VERTEX_SHADER, UI_FRAGMENT_SHADER,
 )
 from ophthosim.geometry import ellipsoid
@@ -100,3 +100,22 @@ def test_view_invalid_zoom_fails_closed(bad):
     v.zoom = bad
     with pytest.raises(ValueError):
         v.check()
+
+
+def test_synthetic_appearance_defaults_and_valid_extremes():
+    for values in ((1.,1.,1.),(0.,0.,0.),(.3,.6,.9)):
+        AnatomyAppearance(*values).check()
+
+
+@pytest.mark.parametrize("bad",[float("nan"),float("inf"),-1.,1.1,10**400,None,True,"0.5"])
+def test_synthetic_appearance_dirty_values_fail_closed(bad):
+    for which in range(3):
+        values=[.5,.5,.5]
+        values[which]=bad
+        with pytest.raises(ValueError):
+            AnatomyAppearance(*values).check()
+
+
+def test_shader_has_declared_model_translation_for_iol():
+    assert "uniform vec3 u_offset;" in VERTEX_SHADER
+    assert "in_position + u_offset" in VERTEX_SHADER
