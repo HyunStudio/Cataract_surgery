@@ -19,6 +19,7 @@ from .engine import Phase
 from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
 from .input3d import Surgery3DController, eye_to_pixel
 from .signals import sample_trace
+from .tool3d import visible_stylus
 
 PHASE_NAMES = {
     Phase.PREOP: "CASE / PREOPERATIVE REVIEW",
@@ -259,7 +260,8 @@ def run(case: str="normal",seed: int=7) -> None:
             eye=controller.game.eye
             atlas.render(controller.view,clock.get_fps(),overlay=hud,
                          appearance=AnatomyAppearance(eye.opacity,eye.cortex,
-                                                      eye.iol_alignment))
+                                                      eye.iol_alignment),
+                         tool_pose=visible_stylus(controller))
     finally:
         if atlas is not None:
             atlas.close()
