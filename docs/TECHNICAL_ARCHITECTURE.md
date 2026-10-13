@@ -111,3 +111,10 @@ The shader's **visual-overlay draw pass** intentionally ignores depth occlusion 
 `contact3d.py` evaluates pre-existing **abstract normalized phase targets**, the selected educational tool depth and the immutable `ToolPose` snapshot. It exposes only `ContactGuide(status, location)`. It cannot call `Game.action`, alter case hazards or serialize new semantic events. Its bounded statuses also distinguish previous entry/capsule points from currently active targets.
 
 `Surgery3DController.inspect` computes new hover feedback separately from `pointer` (which alone may invoke `Game.action`). Unsafe phases and wrong depth clear previously cached render poses, including on pause/resume. `GPUEyePreview` keeps one reusable ring geometry on the GPU and renders it at an optional world-space offset with status text and color; this visual ring is not physical tissue collision. Mesa smoke checks a center-eye pixel difference with the HUD unchanged. The whole pipeline remains synthetic educational design, not validated surgical training.
+
+
+## Shared immutable 3D visual-frame proximity (2026-10-13)
+
+`gl_surgery.run()` now calls `visual_feedback(Game)` and `probe_surface(controller, feedback)` once per frame and hands the same read-only probe to `GPUEyePreview.render(surface_probe=...)` and `SurgeryHUD.set_frame_proximity()`. HUD painting never traverses the triangle BVH; it reads the prepared probe and validates active phase, live stylus position, camera yaw/pitch and safety status before displaying unitless model gap. This avoids the former second HUD-time proximity lookup and prevents stale marker text after game transitions.
+
+Regression spies prove two expected triangle-mesh lookups at probe preparation and zero further lookups during five HUD repaints. The visual result cannot drive procedural actions, replay, simulated complications or clinical interpretation. GPU marker draw remains a separate purely visual pass. This is an architectural optimization, **not measured wall-clock FPS or hardware 4K readiness**.
