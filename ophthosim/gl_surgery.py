@@ -54,6 +54,7 @@ class SurgeryHUD:
         self.frame_proximity: SurfaceProbe | None = None
         self._probe_phase: Phase | None = None
         self._probe_pose: tuple[float,float,float] | None = None
+        self._probe_camera: tuple[float,float] | None = None
 
     def set_frame_proximity(self, result: SurfaceProbe | None) -> None:
         """Attach a non-mutating proximity observation to this exact phase."""
@@ -66,6 +67,8 @@ class SurgeryHUD:
         self.frame_proximity = result
         self._probe_phase = self.controller.game.phase if result is not None else None
         self._probe_pose = visible_stylus(self.controller) if result is not None else None
+        self._probe_camera = ((self.controller.view.yaw, self.controller.view.pitch)
+                              if result is not None else None)
 
     def draw(self, pg, surf, view, width: int, height: int, font, title) -> None:
         c = self.controller
@@ -106,7 +109,8 @@ class SurgeryHUD:
             self._probe_phase == g.phase and
             not g.paused and not g.patient.alert and not g.ending and
             self._probe_pose is not None and
-            visible_stylus(c) == self._probe_pose) else None)
+            visible_stylus(c) == self._probe_pose and
+            self._probe_camera == (c.view.yaw,c.view.pitch)) else None)
         if proximity is not None:
             label(f"MESH GAP: {proximity.status} {proximity.gap:.3f}u",
                   width//2-155, 128, color=amber)
