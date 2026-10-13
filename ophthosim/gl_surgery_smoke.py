@@ -22,6 +22,7 @@ def main() -> int:
         from .gl_surgery import SurgeryHUD, CHECKS
         from .input3d import Surgery3DController, eye_to_pixel
         from .replay import ReplayGame
+        from .tool3d import visible_stylus
     except ImportError as exc:
         print(f"Optional GL dependency missing: {exc}", file=sys.stderr)
         return 2
@@ -45,7 +46,8 @@ def main() -> int:
                 atlas.set_meshes(atlas_meshes(atlas_state))
             e=ctrl.game.eye
             data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay,
-                                appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment))
+                                appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
+                                tool_pose=visible_stylus(ctrl))
             if data is None or len(data) != W*H*3:
                 raise AssertionError(f"Frame readback missing: {name}")
             if max(data[::97]) - min(data[::97]) < 20:
@@ -64,8 +66,20 @@ def main() -> int:
         ctrl.command("prepare")
         assert ctrl.game.phase == Phase.ENTRY
         frame("entry")
-        for x,y in ctrl.game._entry_target:
+        for index, (x,y) in enumerate(ctrl.game._entry_target):
             assert point(x,y,pressed=True)
+            if index == 0:
+                assert visible_stylus(ctrl) is not None
+                # Verify mesh draws into GL pixels, not just a HUD cursor.
+                e = ctrl.game.eye
+                raw = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                    appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
+                    tool_pose=None)
+                with_tool = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                    appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
+                    tool_pose=visible_stylus(ctrl))
+                assert raw != with_tool, "Synthetic 3D instrument not visible in frame"
+                frame("entry-stylus")
         assert ctrl.game.phase == Phase.CAPSULE
         frame("capsule")
         for n in range(24):
