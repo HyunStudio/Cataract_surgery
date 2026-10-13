@@ -17,7 +17,7 @@ import math
 from typing import Iterable
 
 from .geometry import Mesh, anterior_eye_meshes
-from .picking3d import SurfaceHit, pick_anatomy
+from .mesh_raycast import TriangleHit, build_index, pick_indexed
 from .tool3d import stylus_mesh
 from .iol3d import foldable_iol_mesh
 from .capsule3d import capsule_indicator_meshes
@@ -242,7 +242,7 @@ class GPUEyePreview:
         self.font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self.hud_texture = None
         self.meshes: dict[str, tuple[object, object, object]] = {}
-        self.selection: SurfaceHit | None = None
+        self.selection: TriangleHit | None = None
         self.selection_pixel: tuple[int, int] | None = None
         self.set_meshes(atlas_meshes("CATARACT"))
         ring_vertices, ring_indices, _ = pack_mesh(guide_ring_mesh())
@@ -284,15 +284,21 @@ class GPUEyePreview:
                             [(vbo, "3f 3f", "in_position", "in_normal")],
                             index_buffer=ibo)
             self.meshes[name] = vao, vbo, ibo
+        # Static triangle BVHs are built only when scene meshes change,
+        # never on each pointer event or 60-Hz render cycle.
+        self.mesh_indexes = {name:build_index(meshes[name])
+                             for name in ("iris", "lens")}
 
-    def select(self, pos: tuple[int, int], view: View) -> SurfaceHit | None:
+    def select(self, pos: tuple[int, int], view: View) -> TriangleHit | None:
         """Anatomy inspection only. Mouse picks must not mutate surgery state."""
         view.check()
         w, h = self.pg.display.get_window_size()
         if len(pos) != 2:
             raise ValueError("Mouse position must contain two coordinates")
-        self.selection = pick_anatomy(pos[0], pos[1], w, h,
-                                      view.yaw, view.pitch, view.zoom, view.phase)
+        # Rigid atlas inspection uses actual triangle faces and a bounded BVH.
+        # Does not perform surgical collision, physics, or state updates.
+        self.selection = pick_indexed(self.mesh_indexes,pos[0],pos[1],w,h,
+                         view.yaw,view.pitch,view.zoom,view.phase)
         self.selection_pixel = pos if self.selection is not None else None
         return self.selection
 
@@ -460,7 +466,7 @@ class GPUEyePreview:
                  self.font, (201, 223, 236)),
                 ("LEFT CLICK: INSPECT IRIS / LENS (READ-ONLY DEPTH PICKING)",
                  self.font, (245, 202, 136)),
-                ((f"SELECTED: {self.selection.name.upper()}  DEPTH: {self.selection.distance:.2f}"
+                ((f"MESH FACE: {self.selection.face_index} | {self.selection.name.upper()} | RAY: {self.selection.distance:.2f}"
                   if self.selection is not None else "SELECTED: NONE"),
                  self.font, (128, 221, 174)),
             )
