@@ -200,3 +200,31 @@ The independent **3D anatomy atlas** (`python -m ophthosim.gl_preview`) now sele
 **Scope boundary:** the selection uses static geometry for the standalone atlas. GPU shader deformations (folded IOL), appearance offsets, patient-eye motion, scene occlusion details and the interactive 3D surgery's tool collision/force response are **not represented in this CPU collision model**. Transparent cornea and decorative sclera are excluded. A triangle hit **does not** change procedural state, tissue damage, score, alerts or replay. These are procedural synthetic meshes and not medical anatomy.
 
 [Python 3.12 and 3.13 tests: 452 passed each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423438); [Mesa OpenGL smoke with iris and optic triangle face IDs + full surgical replay](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423347). [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423347/artifacts/11788119181). Real Windows Radeon GPU performance/4K and clinical review are still unverified.
+
+
+## Deformed-IOL triangle picking parity (2026-10-13)
+
+The standalone ModernGL anatomy atlas now matches CPU read-only triangle
+selection to its **synthetic GPU IOL unfolding geometry**, IOL alignment offset,
+and bounded camera-plane visual motion. In IOL atlas view, press **F** to cycle
+the **fully unfolded → folded → halfway → unfolded** depiction. Mesh-picking
+indexes are rebuilt **on demand at selection time** only when deployment or
+alignment changes; the source 3D render mesh is not changed. A bounded
+16-entry mesh cache validates inputs **before** lookup, avoiding bool-vs-int
+cache aliasing and unhashable-input errors.
+
+The CPU deformation reproduces the explicit GPU vertex-position equations,
+not a physically accurate foldable implant. Selecting a point on the extended
+unfolded optic correctly yields an IOL face, while the same position misses
+after folding. The renderer uses the corresponding IOL shape; the unchanged
+iris remains separately pickable. Software OpenGL captures compare eye-center
+pixels, not just the changing HUD percentage. This is a **read-only atlas
+inspection** capability: the interactive simulated surgery still uses its
+existing stage-based guide and safety-state engine rather than physical
+triangle/tool force collision.
+
+**Verified** [Python 3.12/3.13: 480 tests passed per version](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38351299492)
+and [Linux Mesa OpenGL integration](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38351299510).
+**Not verified:** Windows AMD/Radeon hardware or 4K performance, corneal
+refraction/transparent occlusion parity, deforming tissue contact mechanics,
+clinical relevance, or complete 32-WP readiness.
