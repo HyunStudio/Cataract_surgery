@@ -14,6 +14,7 @@ from .engine import Phase
 from .gl_preview import View
 from .picking3d import project_point, screen_ray
 from .replay import ReplayGame
+from .contact3d import ContactGuide, contact_guide
 
 # Screen-space educational task coordinates: 0..1 on each axis.
 # 3D +Y is up, whereas the game coordinate +Y is down.
@@ -99,6 +100,7 @@ class Surgery3DController:
         self.view = View(yaw=0., pitch=0., zoom=3.6)
         self.tool_depth = STAGE_DEPTH[Phase.ENTRY]
         self.last_pose: ToolPose | None = None
+        self.last_contact: ContactGuide | None = None
         self.depth_rejections = 0
 
     @property
@@ -111,6 +113,10 @@ class Surgery3DController:
             if target is not None:
                 self.tool_depth = target
             self.last_pose = None
+            self.last_contact = None
+        if self.game.paused or self.game.patient.alert or self.game.ending:
+            self.last_pose = None
+            self.last_contact = ContactGuide("HOLD")
         self.view.phase = ("IOL" if self.game.phase in
                            (Phase.IOL, Phase.CLOSE, Phase.RECOVERY) else "CATARACT")
 
@@ -127,7 +133,30 @@ class Surgery3DController:
             raise ValueError("Depth adjustment must be -1 or +1")
         self.tool_depth = round(max(-.3, min(.2, self.tool_depth + direction * .02)), 4)
         self.last_pose = None
+        self.last_contact = None
         return self.tool_depth
+
+    def inspect(self, x: Any, y: Any, width: int, height: int) -> ContactGuide:
+        """Update ONLY visual contact preview; never issue a Game.action.
+
+        Mouse hovering is safe and does not create replay or scoring events.
+        Locked and bad-depth states are evaluated before screen picking.
+        """
+        if self.game.paused or self.game.patient.alert or self.game.ending:
+            self.last_pose = None
+            self.last_contact = ContactGuide("HOLD")
+        elif self.target_depth is None:
+            self.last_pose = None
+            self.last_contact = ContactGuide("INACTIVE")
+        elif abs(self.tool_depth - self.target_depth) > DEPTH_TOLERANCE:
+            self.last_pose = None
+            self.last_contact = ContactGuide("DEPTH")
+        else:
+            pose = pointer_to_eye(x, y, width, height, self.view, self.tool_depth)
+            self.last_contact = contact_guide(self.game, pose,
+                                               self.tool_depth, self.target_depth)
+            self.last_pose = pose if self.last_contact.location is not None else None
+        return self.last_contact
 
     def pointer(self, x: Any, y: Any, width: int, height: int,
                 *, fresh_press: bool = False) -> bool:
@@ -136,6 +165,7 @@ class Surgery3DController:
                    Phase.PHACO: "remove", Phase.CORTEX: "remove",
                    Phase.IOL: "place"}.get(phase)
         if command is None or self.game.paused or self.game.patient.alert:
+            self.inspect(x, y, width, height)
             return False
         # An IOL placement requires an explicit NEW click. Otherwise holding
         # a removal gesture through the cortex→IOL transition can accidentally
@@ -145,12 +175,17 @@ class Surgery3DController:
         target = self.target_depth
         if target is None or abs(self.tool_depth - target) > DEPTH_TOLERANCE:
             self.depth_rejections += 1
+            self.last_pose = None
+            self.last_contact = ContactGuide("DEPTH")
             return False
         pose = pointer_to_eye(x, y, width, height, self.view, self.tool_depth)
         if pose is None:
             self.last_pose = None
+            self.last_contact = ContactGuide("OUTSIDE")
             return False
-        self.last_pose = pose
+        self.last_contact = contact_guide(self.game, pose,
+                                           self.tool_depth, self.target_depth)
+        self.last_pose = pose if self.last_contact.location is not None else None
         result = self.game.action(command, pose.eye_x, pose.eye_y)
         self._sync(phase)
         return result
@@ -163,5 +198,6 @@ class Surgery3DController:
         self.game = ReplayGame(scenario, self.game.seed)
         self.tool_depth = STAGE_DEPTH[Phase.ENTRY]
         self.last_pose = None
+        self.last_contact = None
         self.depth_rejections = 0
         self._sync(Phase.ABORTED)
