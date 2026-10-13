@@ -25,6 +25,7 @@ def main() -> int:
         from .iol3d import iol_visual_deployment
         from .tool3d import visible_stylus
         from .capsule3d import capsule_display_state
+        from .vision3d import visual_feedback,VisualFeedback
     except ImportError as exc:
         print(f"Optional GL dependency missing: {exc}", file=sys.stderr)
         return 2
@@ -53,7 +54,10 @@ def main() -> int:
                                 appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment,
                                                              iol_visual_deployment(ctrl.game),
                                                              damage,capsule_on),
-                                tool_pose=visible_stylus(ctrl))
+                                tool_pose=visible_stylus(ctrl),
+                                vision=visual_feedback(ctrl.game,
+                                    reduced_motion=overlay.reduced_motion,
+                                    high_contrast=overlay.high_contrast))
             if data is None or len(data) != W*H*3:
                 raise AssertionError(f"Frame readback missing: {name}")
             if max(data[::97]) - min(data[::97]) < 20:
@@ -85,6 +89,21 @@ def main() -> int:
             pygame.image.save(surface,str(root/f"gl-surgery-{name}.png"))
         if eye_regions["capsule-intact"]==eye_regions["capsule-damaged"]:
             raise AssertionError("3D capsule tear not visible inside the eye region")
+
+        # Isolate actual scene/haze visibility while keeping all anatomy,
+        # phase and game input constant. This avoids HUD-only false positives.
+        for name,vf in (("vision-clear",VisualFeedback()),
+                        ("vision-hazy",VisualFeedback(haze=.48)),
+                        ("vision-motion",VisualFeedback(motion_x=.04,motion_y=-.026))):
+            data=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+                appearance=AnatomyAppearance(), vision=vf)
+            surf=pygame.image.fromstring(data,(W,H),"RGB",True)
+            crop=surf.subsurface((W//2-100,H//2-100,200,200))
+            eye_regions[name]=hashlib.sha256(pygame.image.tobytes(crop,"RGB")).hexdigest()
+            pygame.image.save(surf,str(root/f"gl-surgery-{name}.png"))
+        if eye_regions["vision-clear"] in (eye_regions["vision-hazy"],
+                                            eye_regions["vision-motion"]):
+            raise AssertionError("Synthetic eye motion/haze invisible in center-eye crop")
 
         ctrl.command("confirm")
         ctrl.command("prepare")
@@ -152,6 +171,13 @@ def main() -> int:
         assert ctrl.game.patient.alert == "PATIENT MOTION"
         assert not point(.5,.5,pressed=True)
         frame("safety-hold")
+        before_state=ctrl.game.snapshot()
+        overlay.reduced_motion=True
+        frame("safety-hold-reduced-motion")
+        assert eye_regions["safety-hold"]!=eye_regions["safety-hold-reduced-motion"], (
+            "Low-motion setting did not affect 3D eye displacement")
+        assert ctrl.game.snapshot()==before_state, "Display option mutated game state"
+        overlay.reduced_motion=False
         assert ctrl.command("abort")
         assert ctrl.game.phase == Phase.ABORTED
         frame("safe-abort")
@@ -184,6 +210,8 @@ def main() -> int:
             "frame_hashes": images,
             "gl_renderer": atlas.ctx.info.get("GL_RENDERER", "unknown"),
             "scenario_count": 3,
+            "motion_haze_center_crop_distinct": True,
+            "reduced_motion_preserves_safety_hold": True,
             "capsule_center_region_healthy_vs_damage_distinct": True,
             "windows_gpu_tested": False,
             "clinical_validation": False,
