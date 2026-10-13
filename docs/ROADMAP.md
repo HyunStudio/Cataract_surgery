@@ -87,3 +87,12 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - **WP04 partial:** modern OpenGL 3.3 shaders/UI composition now actually execute on GitHub-hosted Linux Mesa llvmpipe with nonblank framebuffer screenshots, separate from earlier CPU-only shader inspections. **Windows GPU gate remains OPEN**.
 - **WP08 partial:** read-only lens/IOL/iris depth picking added to a rotatable 3D atlas with camera transform inverse and safe hit boundaries. The picker does not yet drive actual surgical instrument coordinates or state actions; no production 3D surgery release claim.
 - Next: bring the GPU scene and synthetic tool pose under one stateful controller; translate guarded 3D hit events into *educational* procedural actions only after phase-specific tests, and preserve 2.5D fallback.
+
+## 2026-10-13 — integrated interactive 3D vertical slice
+
+- **WP04 partial, Windows gate OPEN:** actual GLSL scene/HUD execution passed on Linux software OpenGL; still need physical GPU benchmarking and desktop input validation.
+- **WP08 partial:** real 3D scene plus read-only surface picking, now also a separate synthetic **3D task-plane input** pipeline. Object mesh precise picking/tissue interaction remains outstanding.
+- **WP12–15 partial:** combined ray-to-task mapping with existing synthetic entry and circular task; 3D view exposes stage targets. Not medically accurate procedural simulation.
+- **WP16–23 partial:** existing lens clearing and IOL alignment states drive visible GPU appearance changes; no phaco biomechanical solver, lens fragmentation mesh physics or folded-IOL animation.
+- **WP29–30 partial:** synthetic score/endings/replay persisted unchanged under 3D mode, with safety-hold tests.
+- Regression evidence: [245 Python tests](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334178228) and [Mesa full-session frames](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433). **The 32-work-package plan remains incomplete.**
