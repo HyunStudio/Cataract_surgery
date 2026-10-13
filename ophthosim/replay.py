@@ -1,13 +1,17 @@
 """Deterministic accepted-command journal and guarded replay.
 
 Records synthetic semantic commands, not mouse trajectories or medical actions.
-It deliberately stores only accepted commands and effective simulation ticks.
+It stores only commands that changed the simulation state (accepted or not)
+and the effective simulation ticks. Commands that changed nothing - a cursor
+re-tracing a visited capsule segment, a click outside every target - are
+not journaled, because replaying them could not alter the outcome.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import math
+from pathlib import Path
 from typing import Any
 
 from .engine import Game
@@ -35,13 +39,25 @@ def _invalid_constant(value: str) -> None:
     raise ValueError(f"Invalid numeric constant in replay: {value}")
 
 
+def session_paths(root: Path, basename: str) -> tuple[Path, Path]:
+    """Return unused (trace, replay) paths; earlier sessions are never overwritten."""
+    for index in range(1, 10_000):
+        stem = basename if index == 1 else f"{basename}_{index}"
+        trace, replay = root / f"{stem}.jsonl", root / f"{stem}.replay.jsonl"
+        if not trace.exists() and not replay.exists():
+            return trace, replay
+    raise OSError("Too many saved sessions with the same case and seed")
+
+
 class ReplayGame(Game):
     """Game with bounded, deterministic command capture and integrity checks."""
 
-    REPLAY_VERSION = 1
-    MAX_RECORDS = 16000
-    MAX_TICKS = 300000
-    MAX_REPLAY_BYTES = 12_000_000
+    REPLAY_VERSION = 2
+    # Roughly 35 minutes of continuous held-instrument work at 60 commands/s
+    # and two hours of simulated time, while keeping the file well bounded.
+    MAX_RECORDS = 250_000
+    MAX_TICKS = 432_000
+    MAX_REPLAY_BYTES = 32_000_000
 
     def __init__(self, case: str = "normal", seed: int = 7) -> None:
         super().__init__(case, seed)
@@ -60,12 +76,13 @@ class ReplayGame(Game):
         # Game.action('assess') can internally call self.action('abort').
         # Only the outer command belongs to the user's command stream.
         is_outer = self._dispatch_depth == 0
+        before = self.state_key() if is_outer else None
         self._dispatch_depth += 1
         try:
             accepted = super().action(name, x, y)
         finally:
             self._dispatch_depth -= 1
-        if is_outer and isinstance(name, str):
+        if is_outer and isinstance(name, str) and self.state_key() != before:
             item: dict[str, Any] = {"kind": "action", "name": name,
                                     "accepted": accepted}
             if name == "verify" and isinstance(x, str) and len(x) <= 80:
@@ -74,8 +91,8 @@ class ReplayGame(Game):
             elif name in {"touch", "trace", "remove", "place"}:
                 point = self._xy(x, y)
                 if point is not None:
-                    # Failed in-range actions also matter. A missed 'remove'
-                    # can increment the synthetic capsule-stress counter.
+                    # Failed in-range actions can matter too: a missed
+                    # 'remove' increments the synthetic capsule stress.
                     item["x"], item["y"] = point
                     self._append(item)
             elif name in {"abort", "assess", "pause", "confirm", "prepare"}:

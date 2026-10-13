@@ -1,6 +1,7 @@
 """Deterministic, non-clinical cataract interaction simulation.
 
-Every numeric value is a synthetic game score, not clinical guidance.
+The player is the operating surgeon of a *mock* cataract procedure. Every
+numeric value is a synthetic game score, not clinical guidance.
 """
 from __future__ import annotations
 
@@ -55,9 +56,20 @@ class Patient:
 class Game:
     """A strict phase machine; callers may never change `phase` via actions."""
 
-    VERSION = 1
+    VERSION = 2
     MAX_EVENTS = 12000
     MAX_DT = 0.05
+    # Front-ends issue at most one held-instrument command per fixed 1/60 s
+    # simulation tick, so these are per-tick amounts: removal takes ~4 s and
+    # cleanup ~3 s of steady work regardless of the rendering frame rate.
+    PHACO_STEP = .004
+    CORTEX_STEP = .006
+    # Off-target instrument work strains the synthetic capsule. Strain decays
+    # while the surgeon works safely; a warning is shown before the alert.
+    STRESS_PER_MISS = .01
+    STRESS_DECAY_PER_S = .12
+    STRESS_WARNING = .5
+    STRESS_WARNING_RESET = .25
 
     def __init__(self, case: str = 'normal', seed: int = 7):
         if case not in {'normal', 'motion', 'vitals', 'capsule'}:
@@ -81,17 +93,17 @@ class Game:
         self._warning_seen = False
         self._scenario_fired = False
         self._stress = 0.0
+        self._stress_warned = False
+        self.off_target = 0
+        self.stress_warnings = 0
         self._record('start', {'case': case, 'seed': seed})
 
     @staticmethod
     def _xy(x: Any, y: Any) -> tuple[float, float] | None:
         if any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in (x, y)):
             return None
-        # Range-check *before* isfinite: huge Python ints can overflow float conversion.
-        if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
-            return None
-        if not math.isfinite(x) or not math.isfinite(y):
-            return None
+        # Range-check *before* float(): huge Python ints can overflow float
+        # conversion. NaN fails every comparison, so it is rejected here too.
         if not (0.0 <= x <= 1.0 and 0.0 <= y <= 1.0):
             return None
         return float(x), float(y)
@@ -99,6 +111,9 @@ class Game:
     def _record(self, kind: str, data: dict[str, Any] | None = None) -> None:
         if len(self.events) >= self.MAX_EVENTS:
             return
+        if len(self.events) == self.MAX_EVENTS - 1:
+            # Never truncate silently: the last slot marks the cut-off.
+            kind, data = 'events_truncated', {'limit': self.MAX_EVENTS}
         self.events.append({'schema_version': self.VERSION, 'seed': self.seed,
                             'case': self.case, 'step': self.step,
                             'sim_time_ms': round(self.time * 1000), 'phase': self.phase.value,
@@ -111,7 +126,73 @@ class Game:
                         'final_checks': sorted(self.eye.final_checks)},
                 'paused': self.paused, 'ending': self.ending,
                 'case': self.case, 'seed': self.seed, 'step': self.step,
+                'tissue_stress': round(self._stress, 6),
+                'off_target': self.off_target,
+                'stress_warnings': self.stress_warnings,
                 'score': self.score()}
+
+    @property
+    def tissue_stress(self) -> float:
+        """Synthetic 0..1 strain from off-target work; 1.0 triggers an alert."""
+        return min(1.0, max(0.0, self._stress))
+
+    @property
+    def stress_warning(self) -> bool:
+        return self._stress >= self.STRESS_WARNING
+
+    def state_key(self) -> tuple[Any, ...]:
+        """Every mutable field that an action may change, for no-op detection."""
+        e, p = self.eye, self.patient
+        return (self.phase, self.paused, self.ending, self._stress,
+                self._stress_warned, self.off_target, self.stress_warnings,
+                self._warning_seen, self._scenario_fired, len(self.events),
+                frozenset(self._entered), e.opacity, e.cortex,
+                e.capsule_integrity, e.iol_alignment, e.wound_integrity,
+                e.entry_hits, frozenset(e.capsule_points),
+                frozenset(e.final_checks), p.heart_rate, p.spo2, p.sbp, p.dbp,
+                p.cooperation, p.motion, p.alert)
+
+    def phase_durations(self) -> dict[str, float]:
+        """Simulated seconds spent in each phase, from the event trace."""
+        durations: dict[str, float] = {}
+        start, current = 0, Phase.PREOP.value
+        for event in self.events:
+            if event['kind'] == 'phase':
+                target = event['data']['to']
+            elif event['kind'] == 'ending' and event['data'].get('outcome') == 'SAFELY ABORTED':
+                target = Phase.ABORTED.value
+            else:
+                continue
+            durations[current] = durations.get(current, 0.) + (event['sim_time_ms'] - start) / 1000
+            start, current = event['sim_time_ms'], target
+        if not self.ending:
+            durations[current] = durations.get(current, 0.) + (round(self.time * 1000) - start) / 1000
+        return {k: round(v, 2) for k, v in durations.items()}
+
+    def debrief(self) -> list[tuple[str, str]]:
+        """Surgeon-facing (label, verdict) feedback lines; synthetic only."""
+        lines: list[tuple[str, str]] = []
+        alerts = [e['data'].get('kind') for e in self.events if e['kind'] == 'alert']
+        assessed = sum(1 for e in self.events if e['kind'] == 'assessed')
+        if self.phase == Phase.ABORTED:
+            if 'CAPSULE INTEGRITY' in alerts:
+                lines.append(('Decision', 'Recognised and stopped safely'))
+            else:
+                lines.append(('Decision', 'Procedure stopped by the surgeon'))
+        elif self.phase == Phase.RECOVERY:
+            lines.append(('Outcome', 'Mock procedure completed'))
+        if alerts:
+            lines.append(('Safety holds', f'{len(alerts)} raised, {assessed} assessed'))
+        lines.append(('Off-target work', f'{self.off_target / 60:.1f} s'))
+        lines.append(('Stress warnings', str(self.stress_warnings)))
+        if self.eye.iol_alignment > 0:
+            lines.append(('IOL centration', f'{self.eye.iol_alignment:.0%}'))
+        durations = self.phase_durations()
+        work = sum(durations.get(p.value, 0.) for p in (Phase.ENTRY, Phase.CAPSULE, Phase.PHACO,
+                                                        Phase.CORTEX, Phase.IOL))
+        if work:
+            lines.append(('Instrument time', f'{work:.1f} s simulated'))
+        return lines
 
     def score(self) -> int:
         completed = PHASES.index(self.phase) if self.phase in PHASES else 0
@@ -122,6 +203,8 @@ class Game:
         placement = round(20 * self.eye.iol_alignment) if completed >= 7 else 0
         progress = round(16 * (1 - self.eye.opacity) * (1 - self.eye.cortex)) if completed >= 6 else 0
         safety = 14 if self.phase == Phase.RECOVERY and not self.patient.alert else 0
+        # Each stress warning costs technique points; it never goes negative.
+        safety = max(0, safety - 4 * self.stress_warnings)
         result = max(0, min(100, phases + tissue + placement + progress + safety))
         return result
 
@@ -177,6 +260,10 @@ class Game:
         dt = min(value, self.MAX_DT)
         self.time += dt
         self.step += 1
+        if self._stress > 0:
+            self._stress = max(0.0, self._stress - self.STRESS_DECAY_PER_S * dt)
+            if self._stress_warned and self._stress < self.STRESS_WARNING_RESET:
+                self._stress_warned = False
 
     def action(self, name: str, x: Any = None, y: Any = None) -> bool:
         """Return whether the game accepted the semantic user command."""
@@ -240,19 +327,25 @@ class Game:
             return False
         if self.phase in (Phase.PHACO, Phase.CORTEX) and name == 'remove':
             if math.dist(point, (.5, .5)) >= .33:
-                self._stress += .01
+                self._stress += self.STRESS_PER_MISS
+                self.off_target += 1
+                if self._stress >= self.STRESS_WARNING and not self._stress_warned:
+                    self._stress_warned = True
+                    self.stress_warnings += 1
+                    self._record('stress_warning', {'stress': round(self._stress, 4)})
                 if self._stress >= 1.0:
                     self.eye.capsule_integrity = max(0.0, self.eye.capsule_integrity - .2)
                     self._stress = 0.0
+                    self._stress_warned = False
                     self._alert('CAPSULE INTEGRITY')
                 return False
             if self.phase == Phase.PHACO:
-                self.eye.opacity = max(0, round(self.eye.opacity - .025, 4))
+                self.eye.opacity = max(0, round(self.eye.opacity - self.PHACO_STEP, 4))
                 if self.eye.opacity <= .001:
                     self.eye.opacity = 0.0
                     self._advance(Phase.CORTEX)
             else:
-                self.eye.cortex = max(0, round(self.eye.cortex - .025, 4))
+                self.eye.cortex = max(0, round(self.eye.cortex - self.CORTEX_STEP, 4))
                 if self.eye.cortex <= .001:
                     self.eye.cortex = 0.0
                     self._advance(Phase.IOL)

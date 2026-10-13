@@ -26,6 +26,24 @@ from .vision3d import VisualFeedback
 from .contact3d import ContactGuide, guide_ring_mesh
 from .surface_probe3d import SurfaceProbe
 
+SOFTWARE_RENDERERS = ("llvmpipe", "softpipe", "swrast", "swiftshader",
+                      "software rasterizer", "lavapipe")
+
+
+def renderer_kind(renderer: object) -> str:
+    """'software' for CPU rasterisers (Mesa llvmpipe, SwiftShader...), else 'hardware'."""
+    name = str(renderer).lower()
+    return "software" if any(token in name for token in SOFTWARE_RENDERERS) else "hardware"
+
+
+def fps_label(fps: float | None) -> str:
+    """Only show a frame rate that was actually measured by the running clock."""
+    if fps is None or isinstance(fps, bool) or not isinstance(fps, (int, float)):
+        return "FPS: --"
+    if not math.isfinite(fps) or fps <= 0:
+        return "FPS: --"
+    return f"FPS: {fps:.0f}"
+
 VERTEX_SHADER = """
 #version 330
 in vec3 in_position;
@@ -346,7 +364,7 @@ class GPUEyePreview:
         self.selection = None
         self.selection_pixel = None
 
-    def render(self, view: View, fps: float, *, capture: bool = False,
+    def render(self, view: View, fps: float | None, *, capture: bool = False,
                overlay=None, appearance: AnatomyAppearance | None = None,
                tool_pose: tuple[float, float, float] | None = None,
                vision: VisualFeedback | None = None,
@@ -506,7 +524,7 @@ class GPUEyePreview:
         self.pg.display.flip()
         return image
 
-    def draw_hud(self, view: View, fps: float, w: int, h: int,
+    def draw_hud(self, view: View, fps: float | None, w: int, h: int,
                  *, overlay=None, vision: VisualFeedback | None = None) -> None:
         hud = self.pg.Surface((w, h), self.pg.SRCALPHA)
         if vision is not None:
@@ -526,7 +544,7 @@ class GPUEyePreview:
             lines = (
                 ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
                 ("EDUCATIONAL SYNTHETIC ANATOMY - NOT CLINICAL", self.font, (245, 202, 136)),
-                (f"VIEW: {view.phase}    FOLD: {view.iol_deployment:.0%}    FPS: {fps:.0f}", self.font, (125, 211, 231)),
+                (f"VIEW: {view.phase}    FOLD: {view.iol_deployment:.0%}    {fps_label(fps)}", self.font, (125, 211, 231)),
                 ("ARROWS: ORBIT   +/-: ZOOM   SPACE: LENS/IOL   F: FOLD   ESC: EXIT",
                  self.font, (201, 223, 236)),
                 ("LEFT CLICK: INSPECT IRIS / LENS (READ-ONLY DEPTH PICKING)",
@@ -537,10 +555,10 @@ class GPUEyePreview:
             )
         else:
             lines = (
-                ("OPHTHOSIM-AI  /  INTERACTIVE 3D PROTOTYPE", self.font_big, (230, 241, 250)),
-                ("SYNTHETIC EDUCATIONAL SURGERY - NOT CLINICAL TRAINING", self.font,
+                ("OPHTHOSIM-AI  /  MOCK CATARACT SURGERY", self.font_big, (230, 241, 250)),
+                ("SYNTHETIC SURGEON GAME - NOT CLINICAL TRAINING", self.font,
                  (245, 202, 136)),
-                (f"ANATOMY: {view.phase}    FPS: {fps:.0f} (measured locally)", self.font,
+                (f"ANATOMY: {view.phase}    {fps_label(fps)}", self.font,
                  (125, 211, 231)),
             )
         y = 24

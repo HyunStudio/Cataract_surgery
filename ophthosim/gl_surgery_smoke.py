@@ -1,8 +1,10 @@
-"""Automated *software OpenGL* integration exercise of the 3D cataract game.
+"""Automated OpenGL integration exercise of the 3D mock-surgery game.
 
-Runs on Xvfb/Mesa in CI. It tests the rendered scene, shared phase state,
-synthetic complication hold, GUI labels and complete replay. It is NOT a
-physical GPU, validated medical training, or manually tested desktop UX.
+Runs on Xvfb/Mesa (software) in CI and on any desktop GPU locally; the JSON
+report says which renderer was used. It tests the rendered scene, shared
+phase state, depth control, tissue-stress warning, complication holds, HUD
+labels and complete replay. It is NOT validated medical training or a
+manually tested desktop UX.
 """
 from __future__ import annotations
 
@@ -18,8 +20,8 @@ def main() -> int:
         import pygame
         import moderngl
         from .engine import Phase
-        from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
-        from .gl_surgery import SurgeryHUD, CHECKS
+        from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes, renderer_kind
+        from .gl_surgery import SurgeryHUD, CHECKS, TICK
         from .input3d import Surgery3DController, eye_to_pixel
         from .replay import ReplayGame
         from .iol3d import iol_visual_deployment
@@ -56,7 +58,7 @@ def main() -> int:
                 high_contrast=overlay.high_contrast)
             proximity=probe_surface(ctrl,vision)
             overlay.set_frame_proximity(proximity)
-            data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay,
+            data = atlas.render(ctrl.view,None, capture=True, overlay=overlay,
                                 appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment,
                                                              iol_visual_deployment(ctrl.game),
                                                              damage,capsule_on),
@@ -81,6 +83,8 @@ def main() -> int:
             pygame.image.save(surface, str(root / f"gl-surgery-{name}.png"))
 
         def point(x,y,*,pressed=False):
+            # The surgeon brings the tip to the stage depth with Q/E first.
+            ctrl.adjust_depth_to_target()
             pixel = eye_to_pixel(x,y,ctrl.tool_depth,W,H,ctrl.view)
             if pixel is None:
                 raise AssertionError("3D target not visible")
@@ -89,7 +93,7 @@ def main() -> int:
         # Isolate the actual 3D capsule layer. Identical camera and HUD,
         # only the *world-space ring* differs. Crop excludes interface text.
         for name,damage in (("capsule-intact",0.),("capsule-damaged",.45)):
-            pixels=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+            pixels=atlas.render(ctrl.view,None,capture=True,overlay=None,
                 appearance=AnatomyAppearance(capsule_damage=damage,
                                              capsule_present=True))
             surface=pygame.image.fromstring(pixels,(W,H),"RGB",True)
@@ -104,7 +108,7 @@ def main() -> int:
         for name,vf in (("vision-clear",VisualFeedback()),
                         ("vision-hazy",VisualFeedback(haze=.48)),
                         ("vision-motion",VisualFeedback(motion_x=.04,motion_y=-.026))):
-            data=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+            data=atlas.render(ctrl.view,None,capture=True,overlay=None,
                 appearance=AnatomyAppearance(), vision=vf)
             surf=pygame.image.fromstring(data,(W,H),"RGB",True)
             crop=surf.subsurface((W//2-100,H//2-100,200,200))
@@ -124,20 +128,20 @@ def main() -> int:
                 assert visible_stylus(ctrl) is not None
                 # Verify mesh draws into GL pixels, not just a HUD cursor.
                 e = ctrl.game.eye
-                raw = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                raw = atlas.render(ctrl.view,None,capture=True,overlay=overlay,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=None)
-                with_tool = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                with_tool = atlas.render(ctrl.view,None,capture=True,overlay=overlay,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=visible_stylus(ctrl))
                 assert raw != with_tool, "Synthetic 3D instrument not visible in frame"
                 assert ctrl.last_contact is not None
                 # Same game, tool and HUD; compare eye-only pixels with and
                 # without the GPU contact mesh (text label cannot pass).
-                no_guide = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                no_guide = atlas.render(ctrl.view,None,capture=True,overlay=overlay,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=visible_stylus(ctrl),contact=None)
-                guided = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                guided = atlas.render(ctrl.view,None,capture=True,overlay=overlay,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=visible_stylus(ctrl),contact=ctrl.last_contact)
                 a=pygame.image.fromstring(no_guide,(W,H),"RGB",True)
@@ -152,10 +156,10 @@ def main() -> int:
                 before=ctrl.game.snapshot()
                 nearest=probe_surface(ctrl)
                 assert nearest is not None and nearest.face_index>=0
-                no_surface=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+                no_surface=atlas.render(ctrl.view,None,capture=True,overlay=None,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     surface_probe=None)
-                with_surface=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+                with_surface=atlas.render(ctrl.view,None,capture=True,overlay=None,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     surface_probe=nearest)
                 compare=(W//2-100,H//2-100,200,200)
@@ -173,11 +177,14 @@ def main() -> int:
             point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
         assert ctrl.game.phase == Phase.PHACO
         frame("phaco")
-        for _ in range(20):
-            point(.5,.5)
+        # Held instrument: one command per fixed simulation tick.
+        for _ in range(150):
+            assert point(.5,.5)
+            ctrl.advance_clock(TICK)
         frame("phaco-mid")
-        for _ in range(62):
-            point(.5,.5)
+        while ctrl.game.phase in (Phase.PHACO, Phase.CORTEX):
+            assert point(.5,.5)
+            ctrl.advance_clock(TICK)
         assert ctrl.game.phase == Phase.IOL
         frame("iol")
         # Held mouse input must NOT silently place IOL.
@@ -202,6 +209,23 @@ def main() -> int:
         frame("recovery")
         recovered = ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl())
         assert recovered.snapshot() == ctrl.game.snapshot()
+
+        # Off-target work raises the tissue-stress warning before any alert.
+        ctrl = Surgery3DController("normal",seed=17)
+        overlay = SurgeryHUD(ctrl)
+        ctrl.command("confirm")
+        ctrl.command("prepare")
+        for x,y in ctrl.game._entry_target:
+            assert point(x,y,pressed=True)
+        for n in range(24):
+            angle=(n+.5)*math.tau/24
+            point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
+        assert ctrl.game.phase == Phase.PHACO
+        while not ctrl.game.stress_warning:
+            assert not point(.5+.36,.5)
+            ctrl.advance_clock(TICK)
+        assert not ctrl.game.patient.alert
+        frame("phaco-stress-warning")
 
         # Eventful second case proves the same renderer can draw safety holds.
         ctrl = Surgery3DController("motion",seed=17)
@@ -246,19 +270,22 @@ def main() -> int:
         frame("capsule-safe-abort")
         assert ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl()).ending=="SAFELY ABORTED"
 
+        renderer = atlas.ctx.info.get("GL_RENDERER", "unknown")
+        kind = renderer_kind(renderer)
         if len(set(images.values())) != len(images):
             raise AssertionError("Distinct states rendered identical images")
         print(json.dumps({
-            "status": "software-opengl-3d-surgery-integration-passed",
+            "status": f"{kind}-opengl-3d-surgery-integration-passed",
             "frame_hashes": images,
-            "gl_renderer": atlas.ctx.info.get("GL_RENDERER", "unknown"),
+            "gl_renderer": renderer,
+            "renderer_kind": kind,
             "scenario_count": 3,
             "motion_haze_center_crop_distinct": True,
             "reduced_motion_preserves_safety_hold": True,
             "contact_ring_center_region_distinct": True,
             "nearest_triangle_marker_center_crop_distinct": True,
             "capsule_center_region_healthy_vs_damage_distinct": True,
-            "windows_gpu_tested": False,
+            "windows_gpu_tested": sys.platform == "win32" and kind == "hardware",
             "clinical_validation": False,
         },sort_keys=True))
         return 0

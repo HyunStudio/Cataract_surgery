@@ -1,6 +1,7 @@
-"""Interactive 3D viewport for *synthetic* cataract game states.
+"""Interactive 3D viewport for a *mock* cataract surgery game.
 
-The existing strict ReplayGame remains the only authority for every phase,
+The player is the operating surgeon. The strict ReplayGame remains the only
+authority for every phase,
 alert, score and safe abort. OpenGL only renders visual anatomy; a normalized
 ray/plane adapter translates mouse input into pre-existing educational tasks.
 
@@ -15,9 +16,10 @@ import math
 from pathlib import Path
 import sys
 
-from .engine import Phase
+from .engine import PHASES, Phase
 from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
-from .input3d import Surgery3DController, eye_to_pixel
+from .input3d import DEPTH_TOLERANCE, Surgery3DController, eye_to_pixel
+from .replay import session_paths
 from .signals import sample_trace
 from .tool3d import visible_stylus
 from .iol3d import iol_visual_deployment
@@ -26,18 +28,21 @@ from .vision3d import visual_feedback
 from .surface_probe3d import SurfaceProbe, probe_surface
 
 PHASE_NAMES = {
-    Phase.PREOP: "CASE / PREOPERATIVE REVIEW",
-    Phase.ANESTHESIA: "ANESTHESIA CHECK / PREPARATION",
-    Phase.ENTRY: "SIMULATED ENTRY TARGETS",
-    Phase.CAPSULE: "CIRCULAR CAPSULE TASK",
-    Phase.PHACO: "CLOUDY LENS REMOVAL",
-    Phase.CORTEX: "RESIDUAL MATERIAL CLEANUP",
-    Phase.IOL: "IOL POSITIONING",
-    Phase.CLOSE: "FINAL VERIFICATION",
-    Phase.RECOVERY: "RESULT / RECOVERY",
-    Phase.ABORTED: "SAFE STOP",
+    Phase.PREOP: "PREOPERATIVE REVIEW",
+    Phase.ANESTHESIA: "TEAM TIME-OUT",
+    Phase.ENTRY: "ENTRY INCISIONS",
+    Phase.CAPSULE: "CAPSULE OPENING",
+    Phase.PHACO: "LENS REMOVAL",
+    Phase.CORTEX: "CORTEX CLEANUP",
+    Phase.IOL: "IOL PLACEMENT",
+    Phase.CLOSE: "FINAL CHECKS",
+    Phase.RECOVERY: "DEBRIEF",
+    Phase.ABORTED: "PROCEDURE STOPPED",
 }
 CHECKS = ("alignment", "wound", "handoff")
+TICK = 1 / 60
+# One held-instrument command per fixed simulation tick (see app.HELD_PHASES).
+HELD_PHASES = (Phase.CAPSULE, Phase.PHACO, Phase.CORTEX)
 
 
 class SurgeryHUD:
@@ -46,7 +51,7 @@ class SurgeryHUD:
     def __init__(self, controller: Surgery3DController) -> None:
         self.controller = controller
         self.last_cursor: tuple[int, int] | None = None
-        self.status = "Synthetic training experiment. No clinical use."
+        self.status = "You are the surgeon. Mock procedure - no clinical use."
         self.reduced_motion = False
         self.high_contrast = False
         # Prepared exactly once per rendered frame by the outer game loop.
@@ -70,36 +75,109 @@ class SurgeryHUD:
         self._probe_camera = ((self.controller.view.yaw, self.controller.view.pitch)
                               if result is not None else None)
 
+    # Fixed layout rows (left panel), shared with tests that sample pixels.
+    PANEL_TOP = 138
+    ROW = 27
+
+    @classmethod
+    def mesh_gap_rect(cls, width: int, height: int) -> tuple[int, int, int, int]:
+        """Screen rectangle of the 'MESH GAP' label inside the left panel."""
+        return (24, cls.PANEL_TOP + 13 * cls.ROW + 4, 228, cls.ROW)
+
     def draw(self, pg, surf, view, width: int, height: int, font, title) -> None:
         c = self.controller
         g = c.game
-        # The atlas drawing underneath remains available in all modes.
-        # The translucent HUD panels do not need an independent GL context.
-        pg.draw.rect(surf, (12, 29, 42, 224), (12, 176, 247, 270),
-                     border_radius=10)
-        pg.draw.rect(surf, (12, 29, 42, 224), (width-267, 176, 255, 270),
-                     border_radius=10)
-        def label(text, x, y, *, color=(232, 240, 247), large=False):
-            image = (title if large else font).render(str(text), True, color)
-            surf.blit(image, (x, y))
         light=(142,211,233)
         green=(126,224,176)
         amber=(247,195,109)
         red=(247,122,136)
-        label("CURRENT PROCEDURE", 24, 189, color=light)
+        muted=(150,176,190)
+        top=self.PANEL_TOP
+        row=self.ROW
+        panel_bottom=height-112
+        # Side panels never overlap the bottom status line or key help, and
+        # every label below is placed on a row inside its own panel.
+        pg.draw.rect(surf, (12, 29, 42, 224), (12, top, 252, panel_bottom-top),
+                     border_radius=10)
+        pg.draw.rect(surf, (12, 29, 42, 224), (width-268, top, 256, 12*row+14),
+                     border_radius=10)
+
+        def label(text, x, y, *, color=(232, 240, 247), large=False):
+            image = (title if large else font).render(str(text), True, color)
+            surf.blit(image, (x, y))
+
+        def meter(y, value, color, *, x=24, w=224):
+            pg.draw.rect(surf, (35, 65, 77), (x, y, w, 8), border_radius=4)
+            fill=round(w*min(1., max(0., value)))
+            if fill:
+                pg.draw.rect(surf, color, (x, y, fill, 8), border_radius=4)
+
+        def y_at(index):
+            return top + 8 + index*row
+
+        # --- Left panel: the surgeon's task ---------------------------------
+        label("YOU ARE THE SURGEON", 24, y_at(0), color=light)
         phase_label = PHASE_NAMES[g.phase]
-        # Long titles are split to avoid spilling onto the iris.
-        label(phase_label[:21], 24, 221)
+        label(phase_label[:21], 24, y_at(1))
         if len(phase_label) > 21:
-            label(phase_label[21:40], 24, 244)
-        label(f"Phase: {g.phase.value}", 24, 285)
-        label(f"Score (synthetic): {g.score():03d}", 24, 316)
-        label(f"Tool z: {c.tool_depth:+.2f}", 24, 350, color=green)
-        if c.last_contact is not None:
+            label(phase_label[21:40], 24, y_at(2))
+        step = PHASES.index(g.phase) + 1 if g.phase in PHASES else None
+        label((f"Step {step}/{len(PHASES)}" if step else "Stopped")
+              + f"   Score {g.score():03d}", 24, y_at(3), color=muted)
+
+        target = c.target_depth
+        hint = c.depth_hint()
+        if target is None:
+            label("Instrument idle", 24, y_at(4), color=muted)
+        else:
+            hint_text = {"OK": "DEPTH OK", "DEEPER": "DEPTH: Q / wheel down",
+                         "SHALLOWER": "DEPTH: E / wheel up"}[hint]
+            label(hint_text, 24, y_at(4), color=green if hint == "OK" else amber)
+            # Depth gauge: -0.30 (deep, right) .. +0.20 (shallow, left).
+            gx, gw = 24, 224
+            def gauge(z):
+                return gx + round((.2 - z) / .5 * gw)
+            gy = y_at(5) + 6
+            pg.draw.rect(surf, (35, 65, 77), (gx, gy, gw, 8), border_radius=4)
+            lo, hi = gauge(target + DEPTH_TOLERANCE), gauge(target - DEPTH_TOLERANCE)
+            pg.draw.rect(surf, (48, 120, 92), (lo, gy, max(2, hi-lo), 8), border_radius=4)
+            tx = gauge(c.tool_depth)
+            pg.draw.rect(surf, green if hint == "OK" else amber, (tx-2, gy-5, 5, 18))
+            label(f"tip {c.tool_depth:+.2f}  target {target:+.2f}", 24, y_at(6),
+                  color=muted)
+        if c.last_contact is not None and not g.ending:
             kind=c.last_contact.status
-            label(f"TOOL GUIDE: {kind}", 24, 151,
+            label(f"GUIDE: {kind}", 24, y_at(7),
                   color=green if kind=="TARGET" else amber if kind in
                         ("NEAR","VISITED") else red)
+
+        # Stage progress lives in the panel, never over the operative field.
+        if g.phase == Phase.ENTRY:
+            label(f"Entries {g.eye.entry_hits}/3", 24, y_at(8), color=light)
+            meter(y_at(9)+6, g.eye.entry_hits/3, green)
+        elif g.phase == Phase.CAPSULE:
+            done = len(g.eye.capsule_points)
+            label(f"Capsule ring {done}/20", 24, y_at(8), color=light)
+            meter(y_at(9)+6, done/20, green)
+        elif g.phase in (Phase.PHACO, Phase.CORTEX):
+            value = g.eye.opacity if g.phase == Phase.PHACO else g.eye.cortex
+            label(f"Remaining {value:.0%}", 24, y_at(8), color=light)
+            meter(y_at(9)+6, value, amber)
+            warn = g.stress_warning
+            label("TISSUE STRESS - recentre" if warn else "Tissue stress",
+                  24, y_at(10), color=red if warn else muted)
+            meter(y_at(11)+6, g.tissue_stress, red if warn else amber)
+        elif g.phase == Phase.IOL:
+            label("Click once at the centre", 24, y_at(8), color=light)
+        elif g.phase == Phase.CLOSE:
+            for i,key in enumerate(CHECKS):
+                done = key in g.eye.final_checks
+                label(f"{i+1} {key.upper()} " + ("DONE" if done else "PENDING"),
+                      24, y_at(8+i), color=green if done else amber)
+        if g.phase in (Phase.IOL, Phase.CLOSE, Phase.RECOVERY):
+            label(f"IOL unfold {iol_visual_deployment(g):.0%}", 24, y_at(12),
+                  color=green)
+
         # Proximity is visual-only, expressed in unitless model coordinates;
         # no physical contact or surgical action is inferred from this label.
         # Read the prepared frame observation; never recalculate proximity
@@ -112,32 +190,32 @@ class SurgeryHUD:
             visible_stylus(c) == self._probe_pose and
             self._probe_camera == (c.view.yaw,c.view.pitch)) else None)
         if proximity is not None:
-            label(f"MESH GAP: {proximity.status} {proximity.gap:.3f}u",
-                  width//2-155, 128, color=amber)
-        capsule_on, damage = capsule_display_state(g)
-        if capsule_on:
-            label(("CAPSULE ALERT" if damage >= .15 else "CAPSULE INTACT"),
-                  24, 433, color=red if damage >= .15 else green)
-        if g.phase in (Phase.IOL, Phase.CLOSE, Phase.RECOVERY):
-            label(f"IOL deploy (visual): {iol_visual_deployment(g):.0%}",
-                  width//2-104, height-171, color=green)
-        target = c.target_depth
-        label(f"Target z: {target:+.2f}" if target is not None
-              else "Tool inactive", 24, 378, color=light)
-        label("Q/E adjust depth", 24, 410, color=amber)
+            x, y, _, _ = self.mesh_gap_rect(width, height)
+            label(f"MESH GAP {proximity.status} {proximity.gap:.3f}u",
+                  x, y, color=amber)
 
-        label("PATIENT MONITOR", width-254, 189, color=light)
-        label("SYNTHETIC VALUES", width-254, 220, color=amber)
+        # --- Right panel: synthetic monitor and display options -------------
+        right = width-254
+        label("PATIENT MONITOR", right, y_at(0)+2, color=light)
+        label("SYNTHETIC VALUES", right, y_at(1)+2, color=amber)
         p = g.patient
-        label(f"HR {p.heart_rate}   SpO2 {p.spo2}%", width-254, 253, color=green)
-        label(f"NIBP {p.sbp}/{p.dbp}", width-254, 284, color=amber)
-        label(f"STATUS {p.alert or 'STABLE'}"[:22], width-254, 316,
+        label(f"HR {p.heart_rate}   SpO2 {p.spo2}%", right, y_at(2)+4, color=green)
+        label(f"NIBP {p.sbp}/{p.dbp}", right, y_at(3)+4, color=amber)
+        label(p.alert[:22] if p.alert else "STATUS STABLE", right, y_at(4)+4,
               color=red if p.alert else green)
         wave = sample_trace("ecg", p.heart_rate, g.time, count=170)
         left = width-255
+        base = y_at(7)
         pg.draw.lines(surf, green, False,
-                      [(left+i, 403-int(val*29)) for i,val in enumerate(wave)],2)
-        pg.draw.line(surf, (54,100,122), (left,415), (width-34,415), 1)
+                      [(left+i, base-int(val*29)) for i,val in enumerate(wave)],2)
+        pg.draw.line(surf, (54,100,122), (left,base+12), (width-34,base+12), 1)
+        capsule_on, damage = capsule_display_state(g)
+        if capsule_on:
+            label(("CAPSULE ALERT" if damage >= .15 else "CAPSULE INTACT"),
+                  right, y_at(8)+4, color=red if damage >= .15 else green)
+        if self.reduced_motion or self.high_contrast:
+            flags=("LOW MOTION  " if self.reduced_motion else "") + ("HIGH CONTRAST" if self.high_contrast else "")
+            label(flags.strip(), right, y_at(10)+4, color=(255,238,155))
 
         # Targets projected using the same GLSL camera and ray-plane scale.
         if g.phase == Phase.ENTRY:
@@ -150,47 +228,44 @@ class SurgeryHUD:
                 self._point(pg, surf, .5+.28*math.cos(a),
                             .5+.28*math.sin(a),c,width,height,
                             green if i in g.eye.capsule_points else amber,r=3)
-        elif g.phase in (Phase.PHACO,Phase.CORTEX):
-            value = g.eye.opacity if g.phase == Phase.PHACO else g.eye.cortex
-            label(f"REMAINING: {value:.0%}", width//2-92,
-                  height-114, color=amber)
         elif g.phase == Phase.IOL:
             self._point(pg,surf,.5,.5,c,width,height,green,r=15)
 
         if g.phase in (Phase.RECOVERY,Phase.ABORTED):
-            pg.draw.rect(surf,(26,58,69,243),
-                         (width//2-228,height//2-72,456,132),border_radius=12)
-            label(g.ending or "SIMULATED RESULT",width//2-187,height//2-45,
+            lines = g.debrief()[:6]
+            box_h = 150 + 26*len(lines)
+            box = (width//2-250, height//2-box_h//2, 500, box_h)
+            pg.draw.rect(surf,(18,44,56,246),box,border_radius=12)
+            pg.draw.rect(surf,(106,211,227,255),box,2,border_radius=12)
+            bx, by = box[0]+22, box[1]+12
+            label("SURGEON DEBRIEF", bx, by, color=light)
+            label(g.ending or "SIMULATED RESULT", bx, by+26, large=True,
                   color=green if g.phase==Phase.RECOVERY else amber)
-            label("S: save JSONL  R: restart",width//2-187,height//2-4)
-        if g.phase == Phase.CLOSE:
-            for i,key in enumerate(CHECKS):
-                label(f"{i+1} {key.upper()} "+("DONE" if key in g.eye.final_checks
-                      else "PENDING"),width//2-105,height-134+i*26,
-                      color=green if key in g.eye.final_checks else amber)
-        if g.patient.alert:
+            label(f"Score {g.score()}/100 (synthetic game score)", bx, by+68, color=muted)
+            for i,(name,verdict) in enumerate(lines):
+                label(name, bx, by+100+i*26, color=muted)
+                label(verdict[:34], bx+170, by+100+i*26)
+            label("S: save session   R: new case", bx, box[1]+box_h-36, color=amber)
+        if g.patient.alert and not g.ending:
             pg.draw.rect(surf,(91,35,49,245),
                          (width//2-210,height//2-39,420,84),border_radius=9)
             label("SAFETY HOLD: "+g.patient.alert,width//2-198,height//2-24,
                   color=red)
-            label("A: assess   X: safe abort",width//2-198,height//2+7)
+            label("A: assess   X: stop safely",width//2-198,height//2+7)
         elif g.paused:
             label("PAUSED - ESC TO RESUME",width//2-110,height//2+70,color=amber)
 
         # Lower instructions remain visible in small windows.
         bottom=height-69
-        pg.draw.rect(surf,(10,27,39,225),(12,bottom,width-24,58),
+        pg.draw.rect(surf, (10,27,39,225), (12,bottom,width-24,58),
                      border_radius=10)
         instructions = (
-            "SPACE next  |  MOUSE surgical task  |  1-3 final checks  |  A assess",
-            "ARROWS orbit +/- zoom Q/E depth M motion H contrast X abort R restart", 
+            "SPACE confirm | MOUSE instrument | Q/E or WHEEL depth | 1-3 checks | A assess",
+            "ARROWS orbit  +/- zoom  M low motion  H contrast  X stop  R restart  S save",
         )
         for i,msg in enumerate(instructions):
             label(msg[:90],24,bottom+6+i*25,color=green if i==0 else amber)
         label(self.status[:72], 24, height-100, color=light)
-        if self.reduced_motion or self.high_contrast:
-            flags=("LOW MOTION " if self.reduced_motion else "") + ("HIGH CONTRAST" if self.high_contrast else "")
-            label(flags.strip(), width//2-115, 110, color=(255,238,155))
         # Avoid displaying an earlier cursor after phase changes or restart.
         if self.last_cursor and c.last_pose is not None:
             pg.draw.circle(surf,green,self.last_cursor,8,2)
@@ -214,9 +289,7 @@ def save_session(controller: Surgery3DController,
     trace=controller.game.export_jsonl()
     replay=controller.game.export_replay_jsonl()
     root.mkdir(parents=True,exist_ok=True)
-    basename=f"gl3d_{controller.game.case}_{controller.game.seed}"
-    first=root/f"{basename}.jsonl"
-    second=root/f"{basename}.replay.jsonl"
+    first,second=session_paths(root,f"gl3d_{controller.game.case}_{controller.game.seed}")
     first.write_text(trace,encoding="utf-8")
     second.write_text(replay,encoding="utf-8")
     return first,second
@@ -239,8 +312,9 @@ def run(case: str="normal",seed: int=7) -> None:
         dragging=False
         cursor=(0,0)
         running=True
+        accumulator=0.
         while running:
-            dt=min(clock.tick(60)/1000., .05)
+            dt=min(clock.tick(60)/1000., .1)
             for event in pygame.event.get():
                 g=controller.game
                 if event.type==pygame.QUIT:
@@ -251,15 +325,19 @@ def run(case: str="normal",seed: int=7) -> None:
                     dragging=True
                     cursor=event.pos
                     hud.last_cursor=cursor
-                    controller.pointer(*cursor,*pygame.display.get_window_size(),
-                                       fresh_press=True)
+                    if g.phase not in HELD_PHASES:
+                        controller.pointer(*cursor,*pygame.display.get_window_size(),
+                                           fresh_press=True)
                 elif event.type==pygame.MOUSEMOTION:
+                    # Held tasks sample the cursor once per simulation tick.
                     cursor=event.pos
                     hud.last_cursor=cursor
-                    if dragging and g.phase==Phase.CAPSULE:
-                        controller.pointer(*cursor,*pygame.display.get_window_size())
-                    else:
+                    if not dragging:
                         controller.inspect(*cursor,*pygame.display.get_window_size())
+                elif event.type==pygame.MOUSEWHEEL and event.y:
+                    # Wheel up raises the tip (shallower), wheel down lowers it.
+                    controller.adjust_depth(1 if event.y > 0 else -1)
+                    controller.inspect(*cursor,*pygame.display.get_window_size())
                 elif event.type==pygame.KEYDOWN:
                     key=event.key
                     if key==pygame.K_SPACE:
@@ -307,13 +385,22 @@ def run(case: str="normal",seed: int=7) -> None:
                     elif key in (pygame.K_MINUS,pygame.K_KP_MINUS):
                         controller.view.key("zoom_out")
 
-            # Stop held gesture when a critical alert or a complete case occurs.
-            g=controller.game
-            if g.patient.alert or g.ending or g.paused:
-                dragging=False
-            if dragging and g.phase in (Phase.PHACO,Phase.CORTEX):
-                controller.pointer(*cursor,*pygame.display.get_window_size())
-            controller.advance_clock(dt)
+            # Fixed 60 Hz simulation steps: removal speed and tissue stress
+            # are the same at 30 or 144 rendered frames per second.
+            accumulator+=dt
+            steps=0
+            while accumulator>=TICK and steps<6:
+                g=controller.game
+                # Stop held gesture when a critical alert or a complete case occurs.
+                if g.patient.alert or g.ending or g.paused:
+                    dragging=False
+                if dragging and g.phase in HELD_PHASES:
+                    controller.pointer(*cursor,*pygame.display.get_window_size())
+                controller.advance_clock(TICK)
+                accumulator-=TICK
+                steps+=1
+            if steps>=6:
+                accumulator=0.
             if controller.view.phase != current_atlas:
                 current_atlas=controller.view.phase
                 atlas.set_meshes(atlas_meshes(current_atlas))
@@ -343,7 +430,7 @@ def run(case: str="normal",seed: int=7) -> None:
 
 
 def main(argv=None) -> int:
-    parser=argparse.ArgumentParser(description="Experimental 3D synthetic cataract game")
+    parser=argparse.ArgumentParser(description="Mock cataract surgery game: you are the surgeon (3D)")
     parser.add_argument("--case",choices=["normal","motion","vitals","capsule"],default="normal")
     parser.add_argument("--seed",type=int,default=7)
     ns=parser.parse_args(argv)

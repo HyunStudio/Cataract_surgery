@@ -75,6 +75,7 @@ def test_mesh_probe_gated_before_case_and_during_abort():
     assert probe_surface(ctrl) is None
     assert ctrl.command("confirm")
     assert ctrl.command("prepare")
+    ctrl.adjust_depth_to_target()
     pt=eye_to_pixel(*ctrl.game._entry_target[0],ctrl.tool_depth,1280,720,ctrl.view)
     old=ctrl.game.snapshot()
     ctrl.inspect(*pt,1280,720)
@@ -98,6 +99,7 @@ def test_motion_safety_hold_never_produces_mesh_probe():
     ctrl.command("confirm")
     ctrl.command("prepare")
     for x,y in ctrl.game._entry_target:
+        ctrl.adjust_depth_to_target()
         pt=eye_to_pixel(x,y,ctrl.tool_depth,1280,720,ctrl.view)
         ctrl.pointer(*pt,1280,720,fresh_press=True)
     assert ctrl.game.patient.alert
@@ -109,6 +111,7 @@ def test_model_shift_adjusted_for_camera_orientation_without_changing_game():
     ctrl=Surgery3DController()
     ctrl.command("confirm")
     ctrl.command("prepare")
+    ctrl.adjust_depth_to_target()
     pt=eye_to_pixel(.69,.46,ctrl.tool_depth,1280,720,ctrl.view)
     ctrl.inspect(*pt,1280,720)
     base=probe_surface(ctrl)

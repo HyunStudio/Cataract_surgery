@@ -17,7 +17,7 @@ def main() -> int:
     try:
         import pygame
         import moderngl
-        from .gl_preview import GPUEyePreview, View, atlas_meshes
+        from .gl_preview import GPUEyePreview, View, atlas_meshes, renderer_kind
         from .picking3d import project_point
     except ImportError as exc:
         print(f"GL smoke requires pygame and moderngl: {exc}",file=sys.stderr)
@@ -46,7 +46,7 @@ def main() -> int:
                 raise AssertionError("Triangle BVH did not pick the intended lens")
             if not all(-1e-9 <= b <= 1.+1e-9 for b in center.barycentric):
                 raise AssertionError("Invalid lens triangle barycentric coordinates")
-            frame = atlas.render(view, 60., capture=True)
+            frame = atlas.render(view, None, capture=True)
             if not frame or len(frame) != 800 * 600 * 3:
                 raise AssertionError("OpenGL framebuffer readback invalid")
             # Nonblank image check: a gradient/colored scene should span
@@ -102,21 +102,24 @@ def main() -> int:
                         "eye_crop_distinct":True})
         if records[0]["sha256"] == records[1]["sha256"]:
             raise AssertionError("Lens/IOL scene images were identical")
-        # Tiny render performance sample is diagnostic only (software GL,
+        # Tiny render performance sample is diagnostic only (one machine,
         # no 5-minute benchmark, no published FPS target claim).
         durations = []
         atlas.clear_selection()
         for i in range(20):
             view.yaw = -.5 + i/20
             start = time.perf_counter()
-            atlas.render(view, 60.)
+            atlas.render(view, None)
             durations.append((time.perf_counter()-start)*1000)
-        print(json.dumps({"status":"software-opengl-smoke-passed",
-                          "renderer":atlas.ctx.info.get("GL_RENDERER","unknown"),
+        renderer = atlas.ctx.info.get("GL_RENDERER","unknown")
+        kind = renderer_kind(renderer)
+        print(json.dumps({"status":f"{kind}-opengl-smoke-passed",
+                          "renderer":renderer,
+                          "renderer_kind":kind,
                           "version":atlas.ctx.version_code,
                           "frames":records,
                           "mean_frame_ms":round(statistics.mean(durations),2),
-                          "claim_windows_gpu_tested":False},
+                          "claim_windows_gpu_tested":sys.platform == "win32" and kind == "hardware"},
                          sort_keys=True))
         return 0
     except Exception as exc:

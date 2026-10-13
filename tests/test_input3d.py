@@ -16,6 +16,7 @@ W, H = 1280, 720
 
 
 def gesture(controller, x, y, *, fresh_press=False):
+    controller.adjust_depth_to_target()
     point = eye_to_pixel(x, y, controller.tool_depth, W, H, controller.view)
     assert point is not None
     return controller.pointer(*point, W, H, fresh_press=fresh_press)
@@ -42,11 +43,11 @@ def enter_phaco(controller):
 def test_full_synthetic_procedure_in_3d_input_mode_and_replay():
     c = Surgery3DController(seed=28)
     enter_phaco(c)
-    for _ in range(40):
-        gesture(c, .5, .5)
+    while c.game.phase == Phase.PHACO:
+        assert gesture(c, .5, .5)
     assert c.game.phase == Phase.CORTEX
-    for _ in range(40):
-        gesture(c, .5, .5)
+    while c.game.phase == Phase.CORTEX:
+        assert gesture(c, .5, .5)
     assert c.game.phase == Phase.IOL
     assert gesture(c, .5, .5, fresh_press=True)
     assert c.game.phase == Phase.CLOSE
@@ -90,6 +91,7 @@ def test_camera_rotation_zoom_roundtrip():
     p = (.69,.46)
     for yaw,pitch,zoom in [(0,0,3.6),(.5,.2,4.4),(-.65,-.45,2.8)]:
         c.view.yaw,c.view.pitch,c.view.zoom = yaw,pitch,zoom
+        c.adjust_depth_to_target()
         px = eye_to_pixel(*p,c.tool_depth,W,H,c.view)
         hit = pointer_to_eye(*px,W,H,c.view,c.tool_depth)
         assert hit is not None
@@ -143,6 +145,7 @@ def test_bad_screen_coordinates_are_rejected(bad):
     c = Surgery3DController()
     c.command("confirm")
     c.command("prepare")
+    c.adjust_depth_to_target()
     with pytest.raises(ValueError):
         c.pointer(bad,300,W,H)
 
@@ -182,9 +185,9 @@ def test_2000_randomized_3d_input_roundtrip_does_not_crash():
 def test_removal_hold_cannot_auto_place_iol():
     c = Surgery3DController()
     enter_phaco(c)
-    # Even if a user keeps dragging for 100 frames, the new IOL phase
-    # cannot treat a continuous hold as a deliberate placement click.
-    for _ in range(100):
+    # Even if a user keeps dragging well past the end of cleanup, the new
+    # IOL phase cannot treat a continuous hold as a deliberate placement.
+    for _ in range(500):
         gesture(c, .5, .5)
     assert c.game.phase == Phase.IOL
     assert c.game.eye.iol_alignment == 0.

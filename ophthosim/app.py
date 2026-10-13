@@ -1,7 +1,8 @@
 """Pygame presentation for OphthoSim-AI.
 
-Visuals are stylized, procedural 2.5D illustrations, NOT clinical graphics.
-Requires pygame, and is intentionally independent of the headless simulation.
+The player is the operating surgeon of a mock cataract procedure. Visuals are
+stylized, procedural 2.5D illustrations, NOT clinical graphics. Requires
+pygame, and is intentionally independent of the headless simulation.
 """
 from __future__ import annotations
 
@@ -11,7 +12,7 @@ from pathlib import Path
 import sys
 
 from .engine import Phase
-from .replay import ReplayGame as Game
+from .replay import ReplayGame as Game, session_paths
 from .preview3d import draw_preview
 from .signals import sample_trace
 
@@ -26,18 +27,24 @@ CYAN = (106, 211, 227)
 MINT = (95, 220, 167)
 AMBER = (238, 182, 106)
 RED = (239, 114, 133)
+TICK = 1 / 60
+# Held-instrument phases: one command per fixed simulation tick, never per
+# mouse event or rendered frame, so progress and stress do not depend on FPS
+# or mouse polling rate.
+HELD_PHASES = {Phase.CAPSULE, Phase.PHACO, Phase.CORTEX}
 
+# Second-person briefings: the player is the operating surgeon.
 PHASE_COPY = {
-    Phase.PREOP: ('PREOPERATIVE REVIEW', 'Confirm the simulated case before proceeding.'),
-    Phase.ANESTHESIA: ('ANESTHESIA & PREPARATION', 'Confirm anesthesia-team readiness; no real medication actions.'),
-    Phase.ENTRY: ('SURGICAL ENTRY', 'Select the three glowing abstract approach targets.'),
-    Phase.CAPSULE: ('CAPSULAR PRECISION', 'Hold left mouse button and trace the dotted circular guide.'),
-    Phase.PHACO: ('LENS FRAGMENTATION', 'Hold left mouse on the cloudy lens to reduce opacity.'),
-    Phase.CORTEX: ('RESIDUAL LENS CLEANUP', 'Hold left mouse on the inner lens to clear residual material.'),
-    Phase.IOL: ('INTRAOCULAR LENS', 'Click near the optical center to align the synthetic IOL.'),
-    Phase.CLOSE: ('FINAL SAFETY CHECKS', 'Review alignment, wound and handoff on the left panel.'),
-    Phase.RECOVERY: ('RECOVERY & RESULTS', 'Simulation completed. Press E to export a synthetic JSONL log.'),
-    Phase.ABORTED: ('SAFE ABORT', 'The simulation ended safely. Press R for a new case.'),
+    Phase.PREOP: ('PREOPERATIVE REVIEW', 'Review your mock patient and pick a case, then confirm.'),
+    Phase.ANESTHESIA: ('TEAM TIME-OUT', 'Confirm the team is ready. No real medication actions.'),
+    Phase.ENTRY: ('ENTRY INCISIONS', 'Make your three entries: click each glowing target.'),
+    Phase.CAPSULE: ('CAPSULE OPENING', 'Hold the left button and trace the dotted ring all the way round.'),
+    Phase.PHACO: ('LENS REMOVAL', 'Hold the left button on the cloudy lens. Keep the tip inside the pupil.'),
+    Phase.CORTEX: ('CORTEX CLEANUP', 'Hold on the inner lens to clear what remains. Stay central.'),
+    Phase.IOL: ('IOL PLACEMENT', 'Click once at the optical centre to seat the lens implant.'),
+    Phase.CLOSE: ('FINAL CHECKS', 'Verify alignment, wound and handoff on the left panel.'),
+    Phase.RECOVERY: ('DEBRIEF', 'Mock procedure complete. Press E to export your session.'),
+    Phase.ABORTED: ('PROCEDURE STOPPED', 'You stopped the mock procedure safely. Press R for a new case.'),
 }
 
 
@@ -102,7 +109,7 @@ def render_eye(pg, surf, model, clock_s):
             pg.draw.circle(surf,(240,237,211),pos,3)
     if model.phase == Phase.CAPSULE:
         for n in range(24):
-            a = n*math.tau/24
+            a = (n+.5)*math.tau/24  # centre of the engine's scoring segment n
             p = to_screen((.5+math.cos(a)*.28,.5+math.sin(a)*.28))
             pg.draw.circle(surf, MINT if n in model.eye.capsule_points else AMBER,p,5)
 
@@ -150,7 +157,7 @@ class App:
         self.running=True
         self.cursor=(0,0)
         self._acc=0.0
-        self.message='Educational synthetic simulation — not for clinical use.'
+        self.message='You are the surgeon. Mock procedure - not for clinical use.'
         self.drag=False
         self.quality='2.5D'
         self.view_3d=False
@@ -200,13 +207,13 @@ class App:
             self.cursor=self.mapped(event.pos)
             if event.button==1:
                 self.drag=True
-                self.pointer_action()
+                if self.game.phase not in HELD_PHASES:
+                    self.pointer_action()
         elif event.type == pg.MOUSEBUTTONUP and event.button==1:
             self.drag=False
         elif event.type==pg.MOUSEMOTION:
+            # Held tasks sample the latest cursor once per simulation tick.
             self.cursor=self.mapped(event.pos)
-            if self.drag and self.game.phase==Phase.CAPSULE:
-                self.pointer_action()
 
     def start_next(self):
         if self.game.phase==Phase.PREOP:
@@ -248,20 +255,31 @@ class App:
             elif game.phase==Phase.IOL:
                 game.action('place',a,b)
 
+    def tick_once(self):
+        """Advance one fixed simulation step, applying a held instrument first."""
+        g=self.game
+        if g.patient.alert or g.ending or g.paused:
+            self.drag=False
+        if self.drag and g.phase in HELD_PHASES:
+            self.pointer_action()
+        self.game.tick(TICK)
+
     def save(self):
         # Deliberately no personal patient identifiers; synthetic logs only.
         root=Path('session_logs')
-        root.mkdir(parents=True,exist_ok=True)
-        path=root/f'case_{self.game.case}_seed_{self.game.seed}.jsonl'
         try:
-            path.write_text(self.game.export_jsonl(),encoding='utf-8')
-            # Saved separately: one trace for analysis and one verifiable
-            # accepted-command replay. Legacy Game objects in tests may
+            # Build both exports first so a refused replay never leaves a
+            # lone trace file behind. Legacy Game objects in tests may
             # intentionally lack the replay API.
-            if hasattr(self.game, 'export_replay_jsonl'):
-                replay_path=root/f'case_{self.game.case}_seed_{self.game.seed}.replay.jsonl'
-                replay_path.write_text(self.game.export_replay_jsonl(),encoding='utf-8')
-                self.message=f'Exported trace and replay to {root}'
+            trace=self.game.export_jsonl()
+            replay=(self.game.export_replay_jsonl()
+                    if hasattr(self.game, 'export_replay_jsonl') else None)
+            root.mkdir(parents=True,exist_ok=True)
+            path,replay_path=session_paths(root,f'case_{self.game.case}_seed_{self.game.seed}')
+            path.write_text(trace,encoding='utf-8')
+            if replay is not None:
+                replay_path.write_text(replay,encoding='utf-8')
+                self.message=f'Exported {path.name} and {replay_path.name}'
             else:
                 self.message=f'Exported synthetic trace: {path}'
         except (OSError, RuntimeError, ValueError) as exc:
@@ -271,7 +289,7 @@ class App:
         pg=self.pg
         surf=self.canvas
         rounded(pg,surf,PANEL,(15,75,250,620),14)
-        draw_text(pg,surf,self.fonts,'SURGICAL TASK', (29,96),color=CYAN)
+        draw_text(pg,surf,self.fonts,'YOUR TASK, SURGEON', (29,96),color=CYAN)
         title,desc=PHASE_COPY[self.game.phase]
         draw_text(pg,surf,self.fonts,title,(29,128),size='medium',max_chars=22)
         def wrapped(text,width=27):
@@ -301,10 +319,16 @@ class App:
                 yy=281+i*66
                 draw_text(pg,surf,self.fonts,label,(29,yy),color=MUTED)
                 bar(pg,surf,30,yy+25,215,val,color)
+            if g.phase in (Phase.PHACO,Phase.CORTEX):
+                stress=g.tissue_stress
+                warn=g.stress_warning
+                draw_text(pg,surf,self.fonts,'Tissue stress',(29,545),color=RED if warn else MUTED)
+                bar(pg,surf,30,570,215,stress,RED if warn else AMBER)
         if g.phase in (Phase.PREOP,Phase.ANESTHESIA):
             rounded(pg,surf,(24,104,111),(28,573,223,59),10)
-            draw_text(pg,surf,self.fonts,'SPACE / CLICK TO NEXT',(39,590),size='base')
-        draw_text(pg,surf,self.fonts,'ESC Pause   X Safe abort',(27,653),size='tiny',color=MUTED)
+            draw_text(pg,surf,self.fonts,'SPACE / CLICK TO CONFIRM',(39,590),size='base')
+        if not g.ending:
+            draw_text(pg,surf,self.fonts,'ESC Pause   X Stop safely',(27,653),size='tiny',color=MUTED)
 
     def draw_monitor(self):
         pg=self.pg;s=self.canvas;g=self.game;p=g.patient
@@ -336,7 +360,7 @@ class App:
         pg=self.pg;s=self.canvas;g=self.game
         s.fill(BG)
         draw_text(pg,s,self.fonts,'OPHTHOSIM', (24,21),size='title',color=CYAN)
-        draw_text(pg,s,self.fonts,'AI  /  CATARACT MICROSURGERY', (237,31),color=MUTED)
+        draw_text(pg,s,self.fonts,'AI  /  MOCK CATARACT SURGERY  -  YOU ARE THE SURGEON', (237,31),color=MUTED)
         draw_text(pg,s,self.fonts,('3D MESH PREVIEW (CPU)' if self.view_3d
                                    else '2.5D EDUCATIONAL BUILD'),(1002,29),color=MINT,size='tiny')
         rounded(pg,s,(13,31,45),(275,75,690,620),16)
@@ -364,21 +388,32 @@ class App:
         self.draw_sidebar();self.draw_monitor()
         # Footer and alerts.
         draw_text(pg,s,self.fonts,f'CASE: {g.case.upper()}   |   PHASE: {g.phase.value}   |   SCORE: {g.score()}   |   SEED: {g.seed}',(291,654),size='tiny',color=MUTED)
-        if g.patient.alert:
+        if g.patient.alert and not g.ending:
             rounded(pg,s,(87,41,52),(362,548,550,67),10)
             draw_text(pg,s,self.fonts,'SAFETY HOLD — REVIEW PATIENT STATE', (382,565),color=RED,size='medium')
             draw_text(pg,s,self.fonts,'Press A to assess  ·  X to safely abort', (386,595),size='base')
         elif g.paused:
             rounded(pg,s,(35,55,75),(395,550,480,56))
             draw_text(pg,s,self.fonts,'PAUSED — ESC to continue',(424,564),size='medium')
+        elif g.stress_warning and g.phase in (Phase.PHACO,Phase.CORTEX):
+            rounded(pg,s,(78,52,36),(372,556,530,52),10)
+            draw_text(pg,s,self.fonts,'TISSUE STRESS — bring the tip back to the centre',
+                      (390,571),color=AMBER)
         if g.ending:
-            rounded(pg,s,(14,43,57),(338,222,602,274),19)
-            pg.draw.rect(s,CYAN,(338,222,602,274),2,border_radius=19)
-            draw_text(pg,s,self.fonts,g.ending,(388,267),size='title',color=MINT if g.phase==Phase.RECOVERY else AMBER)
-            draw_text(pg,s,self.fonts,f'SIMULATED SCORE   {g.score()} / 100',(393,329),size='medium')
-            draw_text(pg,s,self.fonts,'E: Export log    R: Retry    X: Safe abort',(392,387),color=MUTED)
-            draw_text(pg,s,self.fonts,'No patient outcome or clinical skill is implied.',(390,432),size='base')
-        draw_text(pg,s,self.fonts,self.message,(24,704),size='tiny',color=MUTED,max_chars=105)
+            box=(338,150,602,362)
+            rounded(pg,s,(14,43,57),box,19)
+            pg.draw.rect(s,CYAN,box,2,border_radius=19)
+            draw_text(pg,s,self.fonts,'SURGEON DEBRIEF',(372,170),color=CYAN)
+            draw_text(pg,s,self.fonts,g.ending,(370,194),size='title',color=MINT if g.phase==Phase.RECOVERY else AMBER)
+            draw_text(pg,s,self.fonts,f'SIMULATED SCORE   {g.score()} / 100',(372,244),size='medium')
+            for i,(label,verdict) in enumerate(g.debrief()[:6]):
+                yy=290+i*28
+                draw_text(pg,s,self.fonts,label,(372,yy),color=MUTED)
+                draw_text(pg,s,self.fonts,verdict,(552,yy),max_chars=40)
+            draw_text(pg,s,self.fonts,'E: Export session    R: New case',(372,460),color=MUTED)
+            draw_text(pg,s,self.fonts,'Synthetic game score. No patient outcome or clinical skill is implied.',
+                      (372,488),size='tiny',color=MUTED)
+        draw_text(pg,s,self.fonts,self.message,(24,699),size='tiny',color=MUTED,max_chars=105)
         out=pg.transform.smoothscale(s,self.screen.get_size())
         self.screen.blit(out,(0,0))
         pg.display.flip()
@@ -391,14 +426,12 @@ class App:
                 self.dispatch(event)
             self._acc+=dt
             loops=0
-            while self._acc>=1/60 and loops<6:
-                self.game.tick(1/60)
-                self._acc-=1/60
+            while self._acc>=TICK and loops<6:
+                self.tick_once()
+                self._acc-=TICK
                 loops+=1
             if loops>=6:
                 self._acc=0
-            if self.drag and self.game.phase in {Phase.PHACO,Phase.CORTEX}:
-                self.pointer_action()
             self.draw()
 
 

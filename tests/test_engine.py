@@ -24,14 +24,22 @@ def trace_capsule(game):
     assert game.phase == Phase.PHACO
 
 
+def hold_until(game, phase, limit=600):
+    """One held-instrument command per simulated tick, as the front-ends do."""
+    for _ in range(limit):
+        if game.phase != phase:
+            return
+        game.action('remove', .5, .5)
+        game.tick(1/60)
+    raise AssertionError(f'{phase} did not finish within {limit} ticks')
+
+
 def finish(game):
     enter_capsule(game)
     trace_capsule(game)
-    for _ in range(40):
-        game.action('remove', .5, .5)
+    hold_until(game, Phase.PHACO)
     assert game.phase == Phase.CORTEX
-    for _ in range(40):
-        game.action('remove', .5, .5)
+    hold_until(game, Phase.CORTEX)
     assert game.phase == Phase.IOL
     assert game.action('place',.51,.51)
     assert game.phase == Phase.CLOSE
@@ -162,7 +170,7 @@ def test_export_json_lines_valid_and_consistent():
     game=Game();finish(game)
     events=[json.loads(line) for line in game.export_jsonl().splitlines()]
     assert len(events)==game.event_count()
-    assert all(event['schema_version']==1 and event['seed']==7 for event in events)
+    assert all(event['schema_version']==Game.VERSION and event['seed']==7 for event in events)
     assert events[-1]['kind']=='ending'
     assert events[-1]['phase']=='RECOVERY'
 

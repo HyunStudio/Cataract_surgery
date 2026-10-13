@@ -21,17 +21,21 @@ def test_full_3d_session_export_validates_replay(tmp_path):
     c.command("confirm")
     c.command("prepare")
     for x,y in c.game._entry_target:
+        c.adjust_depth_to_target()
         pixel=eye_to_pixel(x,y,c.tool_depth,1280,720,c.view)
         assert c.pointer(*pixel,1280,720, fresh_press=True)
     for i in range(24):
         angle=(i+.5)*math.tau/24
+        c.adjust_depth_to_target()
         pixel=eye_to_pixel(.5+.28*math.cos(angle),.5+.28*math.sin(angle),
                            c.tool_depth,1280,720,c.view)
         c.pointer(*pixel,1280,720)
-    for _ in range(82):
+    while c.game.phase in (Phase.PHACO,Phase.CORTEX):
+        c.adjust_depth_to_target()
         pixel=eye_to_pixel(.5,.5,c.tool_depth,1280,720,c.view)
-        c.pointer(*pixel,1280,720)
+        assert c.pointer(*pixel,1280,720)
     assert c.game.phase==Phase.IOL
+    c.adjust_depth_to_target()
     pixel=eye_to_pixel(.5,.5,c.tool_depth,1280,720,c.view)
     assert c.pointer(*pixel,1280,720,fresh_press=True)
     for item in CHECKS:
@@ -49,6 +53,7 @@ def test_alert_branch_does_not_skip_safety_gate(tmp_path):
     c.command("confirm")
     c.command("prepare")
     for x,y in c.game._entry_target:
+        c.adjust_depth_to_target()
         point=eye_to_pixel(x,y,c.tool_depth,1280,720,c.view)
         c.pointer(*point,1280,720,fresh_press=True)
     assert c.game.phase==Phase.CAPSULE and c.game.patient.alert
@@ -84,6 +89,7 @@ def test_hud_render_all_surgical_phases_on_sdl_surface():
             hud.draw(pygame,image,c.view,1280,720,font,big)
             assert image.get_at((20,185)).a>0
         c.game.phase=Phase.CAPSULE
+        c.game.ending=None  # a live hold; after an ending the debrief replaces it
         c.game.patient.alert="PATIENT MOTION"
         c.game.paused=True
         image.fill((0,0,0,0))

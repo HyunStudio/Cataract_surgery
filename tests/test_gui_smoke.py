@@ -45,8 +45,8 @@ def test_export_completed_game_visual(app):
     for i in range(24):
         theta=(i+.5)*math.tau/24
         g.action('trace',.5+.28*math.cos(theta),.5+.28*math.sin(theta))
-    for _ in range(80):
-        g.action('remove',.5,.5)
+    while g.phase in (Phase.PHACO,Phase.CORTEX):
+        assert g.action('remove',.5,.5)
     assert g.action('place',.5,.5)
     for key in ('alignment','wound','handoff'):
         g.action('verify',key)

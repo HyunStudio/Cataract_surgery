@@ -32,8 +32,9 @@ def _finish(game):
     _reach_phaco(game)
     if game.patient.alert:
         assert game.action("assess")
-    for _ in range(80):
+    while game.phase in (Phase.PHACO, Phase.CORTEX):
         assert game.action("remove", .5, .5)
+        game.tick(1 / 60)
     assert game.action("place", .5, .5)
     for step in ("alignment", "wound", "handoff"):
         assert game.action("verify", step)
@@ -97,11 +98,12 @@ def test_repeated_ticks_compact():
     assert ReplayGame.replay_jsonl(game.export_replay_jsonl()).step == 500
 
 
-def test_rejected_in_range_commands_are_replayed():
+def test_no_op_commands_are_not_journaled_but_replay_exactly():
     game = ReplayGame()
     assert not game.action("remove", .5, .5)
-    assert game.journal[-1]["accepted"] is False
+    assert game.journal == []
     assert game.action("confirm")
+    assert game.journal[-1]["accepted"] is True
     assert game.phase == Phase.ANESTHESIA
     assert game.action("abort")
     assert ReplayGame.replay_jsonl(game.export_replay_jsonl()).ending == "SAFELY ABORTED"

@@ -19,6 +19,7 @@ def initial_hover():
     c=Surgery3DController(seed=19)
     assert c.command("confirm")
     assert c.command("prepare")
+    c.adjust_depth_to_target()
     p=eye_to_pixel(.69,.46,c.tool_depth,1280,720,c.view)
     assert p is not None
     c.inspect(*p,1280,720)
@@ -38,9 +39,9 @@ def _ui():
 def _label_pixels(hud,pg,surf,font,large):
     surf.fill((0,0,0,0))
     hud.draw(pg,surf,hud.controller.view,1280,720,font,large)
-    # The "MESH GAP" annotation is in this HUD-only region, outside side
-    # panels and away from the eye graphics.
-    return pg.image.tobytes(surf.subsurface((480,124,440,27)),"RGBA")
+    # The "MESH GAP" annotation has its own row in the left task panel,
+    # away from the eye graphics and every other label.
+    return pg.image.tobytes(surf.subsurface(SurgeryHUD.mesh_gap_rect(1280,720)),"RGBA")
 
 
 def test_hud_draw_reuses_prepared_surface_probe_and_never_reruns_bvh(monkeypatch):
@@ -87,6 +88,7 @@ def test_explicit_same_phase_cursor_change_invalidates_prepared_hud():
     pg,surf,font,large=_ui()
     try:
         reference=_label_pixels(hud,pg,surf,font,large)
+        c.adjust_depth_to_target()
         p=eye_to_pixel(.80,.43,c.tool_depth,1280,720,c.view)
         c.inspect(*p,1280,720)
         assert c.last_pose is not None

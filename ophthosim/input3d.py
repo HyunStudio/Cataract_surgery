@@ -27,6 +27,10 @@ STAGE_DEPTH: dict[Phase, float] = {
     Phase.IOL: -.17,
 }
 DEPTH_TOLERANCE = .055
+DEPTH_STEP = .02
+# The instrument starts held above the cornea; the surgeon must bring it
+# down to each stage's working depth with Q/E or the mouse wheel.
+APPROACH_DEPTH = .12
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,15 +94,16 @@ def pointer_to_eye(x: Any, y: Any, width: int, height: int, view: View,
 class Surgery3DController:
     """Semantic input adapter; never bypass the phase machine's safety locks.
 
-    The preview camera is retained across cases; the currently selected
-    educational depth is reset when the phase advances. Operators may offset
-    it with Q/E; inaccurate depth clicks are ignored, not penalized.
+    The preview camera is retained across cases. The instrument depth is the
+    surgeon's own control: it is NOT snapped to the next stage's working
+    depth when the phase advances, so each stage starts with re-positioning
+    the tip using Q/E. Clicks at the wrong depth are ignored, not penalized.
     """
 
     def __init__(self, case: str = "normal", seed: int = 7) -> None:
         self.game = ReplayGame(case, seed)
         self.view = View(yaw=0., pitch=0., zoom=3.6)
-        self.tool_depth = STAGE_DEPTH[Phase.ENTRY]
+        self.tool_depth = APPROACH_DEPTH
         self.last_pose: ToolPose | None = None
         self.last_contact: ContactGuide | None = None
         self.depth_rejections = 0
@@ -109,9 +114,6 @@ class Surgery3DController:
 
     def _sync(self, old_phase: Phase) -> None:
         if old_phase != self.game.phase:
-            target = self.target_depth
-            if target is not None:
-                self.tool_depth = target
             self.last_pose = None
             self.last_contact = None
         if self.game.paused or self.game.patient.alert or self.game.ending:
@@ -131,10 +133,37 @@ class Surgery3DController:
     def adjust_depth(self, direction: int) -> float:
         if type(direction) is not int or direction not in (-1, 1):
             raise ValueError("Depth adjustment must be -1 or +1")
-        self.tool_depth = round(max(-.3, min(.2, self.tool_depth + direction * .02)), 4)
+        self.tool_depth = round(max(-.3, min(.2, self.tool_depth + direction * DEPTH_STEP)), 4)
         self.last_pose = None
         self.last_contact = None
         return self.tool_depth
+
+    def depth_hint(self) -> str | None:
+        """'OK', 'DEEPER' (press Q) or 'SHALLOWER' (press E); None if idle."""
+        target = self.target_depth
+        if target is None:
+            return None
+        if abs(self.tool_depth - target) <= DEPTH_TOLERANCE:
+            return "OK"
+        return "DEEPER" if self.tool_depth > target else "SHALLOWER"
+
+    def adjust_depth_to_target(self, limit: int = 40) -> int:
+        """Scripted Q/E presses toward the stage depth (tests, smoke, demos).
+
+        Presses continue while each one brings the tip closer, so the tip
+        ends as near to the target as the 0.02 step allows. Returns the
+        number of presses a player would need for the same result.
+        """
+        target = self.target_depth
+        presses = 0
+        while target is not None and presses < limit:
+            direction = -1 if self.tool_depth > target else 1
+            step = round(max(-.3, min(.2, self.tool_depth + direction * DEPTH_STEP)), 4)
+            if abs(step - target) >= abs(self.tool_depth - target) - 1e-9:
+                break
+            self.adjust_depth(direction)
+            presses += 1
+        return presses
 
     def inspect(self, x: Any, y: Any, width: int, height: int) -> ContactGuide:
         """Update ONLY visual contact preview; never issue a Game.action.
@@ -196,7 +225,7 @@ class Surgery3DController:
     def restart(self, case: str | None = None) -> None:
         scenario = self.game.case if case is None else case
         self.game = ReplayGame(scenario, self.game.seed)
-        self.tool_depth = STAGE_DEPTH[Phase.ENTRY]
+        self.tool_depth = APPROACH_DEPTH
         self.last_pose = None
         self.last_contact = None
         self.depth_rejections = 0

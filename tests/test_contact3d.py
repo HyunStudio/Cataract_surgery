@@ -17,12 +17,15 @@ def advance_to_capsule(c):
     assert c.command("confirm")
     assert c.command("prepare")
     for x,y in c.game._entry_target:
+        c.adjust_depth_to_target()
         pt = eye_to_pixel(x,y,c.tool_depth,W,H,c.view)
         assert c.pointer(*pt,W,H,fresh_press=True)
     assert c.game.phase == Phase.CAPSULE
 
 
-def preview(c,x,y):
+def preview(c,x,y,*,align=True):
+    if align:
+        c.adjust_depth_to_target()
     p=eye_to_pixel(x,y,c.tool_depth,W,H,c.view)
     assert p is not None
     return c.inspect(*p,W,H)
@@ -52,6 +55,7 @@ def test_hover_is_read_only_and_replay_identical():
     assert c.game.export_replay_jsonl()==journal
     # Hover never advances a task; only actual pointer can advance it.
     assert c.game.eye.entry_hits==0
+    c.adjust_depth_to_target()
     p=eye_to_pixel(.69,.46,c.tool_depth,W,H,c.view)
     assert c.pointer(*p,W,H, fresh_press=True)
     assert c.game.eye.entry_hits==1
@@ -65,20 +69,23 @@ def test_capsule_and_lens_stage_targets_match_game_task_ranges():
     assert preview(c,.5,.5).status=="NEAR"
     for i in range(24):
         a=(i+.5)*math.tau/24
+        c.adjust_depth_to_target()
         p=eye_to_pixel(.5+.28*math.cos(a),.5+.28*math.sin(a),
                        c.tool_depth,W,H,c.view)
         c.pointer(*p,W,H)
     assert c.game.phase == Phase.PHACO
     assert preview(c,.5,.5).status=="TARGET"
     assert preview(c,.95,.95).status=="OUTSIDE"
-    for _ in range(80):
+    while c.game.phase in (Phase.PHACO, Phase.CORTEX):
+        c.adjust_depth_to_target()
         p=eye_to_pixel(.5,.5,c.tool_depth,W,H,c.view)
-        c.pointer(*p,W,H)
+        assert c.pointer(*p,W,H)
     assert c.game.phase == Phase.IOL
     assert preview(c,.5,.5).status=="TARGET"
     assert preview(c,.7,.5).status=="NEAR"
     # Preview is NOT an action authority. Near-alignment placement remains
     # governed by the existing game state machine.
+    c.adjust_depth_to_target()
     p=eye_to_pixel(.7,.5,c.tool_depth,W,H,c.view)
     assert c.pointer(*p,W,H,fresh_press=True)
     assert c.game.phase == Phase.IOL
@@ -93,7 +100,7 @@ def test_wrong_depth_hides_stale_guide_without_phase_change():
     c.adjust_depth(1)
     c.adjust_depth(1)
     c.adjust_depth(1)
-    assert preview(c,.69,.46).status=="DEPTH"
+    assert preview(c,.69,.46,align=False).status=="DEPTH"
     assert c.last_pose is None
     assert c.last_contact.location is None
     assert c.game.snapshot()==snapshot
@@ -141,6 +148,7 @@ def test_corrupt_world_pose_fails_without_overflow(bad):
     c=Surgery3DController()
     c.command("confirm")
     c.command("prepare")
+    c.adjust_depth_to_target()
     pose=ToolPose(.5,.5,bad,0.,c.tool_depth)
     with pytest.raises(ValueError):
         contact_guide(c.game,pose,c.tool_depth,c.target_depth)

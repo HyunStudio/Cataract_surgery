@@ -21,6 +21,7 @@ def _entry():
 
 def _touch(c):
     x, y = c.game._entry_target[0]
+    c.adjust_depth_to_target()
     pixel = eye_to_pixel(x, y, c.tool_depth, 1280, 720, c.view)
     assert pixel
     assert c.pointer(*pixel, 1280, 720, fresh_press=True)
@@ -71,6 +72,7 @@ def test_pause_abort_and_stage_transitions_hide_previous_pose():
     # earlier potentially unsafe instrument position after unpausing.
     assert visible_stylus(c) is None
     x,y=c.game._entry_target[0]
+    c.adjust_depth_to_target()
     px=eye_to_pixel(x,y,c.tool_depth,1280,720,c.view)
     before=c.game.snapshot()
     c.inspect(*px,1280,720)
@@ -87,6 +89,7 @@ def test_patient_safety_hold_hides_instrument():
     c.command("confirm")
     c.command("prepare")
     for x, y in c.game._entry_target:
+        c.adjust_depth_to_target()
         pt = eye_to_pixel(x, y, c.tool_depth, 1280, 720, c.view)
         c.pointer(*pt, 1280, 720, fresh_press=True)
     assert c.game.patient.alert == "PATIENT MOTION"
