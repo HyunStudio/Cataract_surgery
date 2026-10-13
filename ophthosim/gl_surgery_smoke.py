@@ -55,6 +55,7 @@ def main() -> int:
                 reduced_motion=overlay.reduced_motion,
                 high_contrast=overlay.high_contrast)
             proximity=probe_surface(ctrl,vision)
+            overlay.set_frame_proximity(proximity)
             data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay,
                                 appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment,
                                                              iol_visual_deployment(ctrl.game),
