@@ -105,3 +105,12 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - New boundary/dirty coverage: malformed and nonfinite patient motion, opacity, cortex, simulation time, accessibility booleans and shader inputs; 2,000 seeded valid random states; 1,000 timed samples proving bounded camera-plane offsets.
 - The motion cue freezes while patient safety is on hold; low-motion removes displacement but does not cancel the existing alert, safety pause, warning, replay or score. Visual rendering queries cannot mutate `Game.snapshot()`.
 - Limits: **Linux Mesa software GL only**, not Radeon/Windows/4K, real microscope optics, screen-reader certification, WCAG audit or clinically validated motion perception.
+
+
+## 2026-10-13 — world-space contact guide/hover safety testing
+
+- [GitHub Actions CI 38343565234](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565234): **422 tests passed on Python 3.12**; **422 tests passed on 3.13**.
+- Unit/integration coverage: read-only hovering never changes `Game.snapshot()` or replay journal; phase-specific target, visited, near/outside classification; unsafe alerts and aborts suppress marker; wrong depth clears stale pose; test coverage includes camera rotation/zoom, malformed vectors and huge/nonfinite numeric input plus seeded fuzz hover.
+- The pause/resume marker handling now requires a fresh validated mouse position, preventing restoration of stale tool geometry. The old expectation was replaced by explicit no-stale-display and hover-reacquisition assertions.
+- [Mesa llvmpipe OpenGL 38343565188](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188) passed full synthetic 3D scenario smoke and a visual **center-eye crop** comparison of otherwise identical frames with the GPU ring off/on, avoiding HUD-only false positives. [Frame captures](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188/artifacts/11788405053).
+- **Not tested:** real triangle-level anatomy picking, true tool-tissue contact pressure, mechanical surgical response, human factors/accessibility audit on 4K Windows or physical Radeon device. This is a non-clinical guide only.
