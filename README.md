@@ -191,3 +191,12 @@ Moving the mouse without pressing a button **never invokes Game.action**, change
 **Important limitation:** this is proximity feedback against **synthetic normalized task targets and a selected educational depth plane**, not a precise anatomical triangle mesh collision or force-feedback measurement. It must not be interpreted as a real surgery guidance system. Color/shape accessibility, real Windows GPU/4K, clinical review, and detailed tissue interaction remain to be tested.
 
 [CI tests Python 3.12/3.13: 422 each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565234). [Mesa OpenGL integration passed](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188), proving the GPU contact ring changes center-eye pixels with otherwise identical state and HUD. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188/artifacts/11788405053).
+
+
+## Read-only triangle-mesh inspection with bounded BVH (2026-10-13)
+
+The independent **3D anatomy atlas** (`python -m ophthosim.gl_preview`) now selects the *actual rigid triangulated iris and lens/IOL visual mesh*, rather than relying on the older analytic iris-plane/ellipsoid approximation. A Möller–Trumbore double-sided ray/triangle test and bounded **bounding-volume hierarchy (BVH)** compute the nearest triangle's number, position, ray distance, and barycentric weights. Mouse selection exposes the actual face ID and measured synthetic ray distance in the HUD. Indexes are constructed on a scene-mesh change, not once per frame or hover.
+
+**Scope boundary:** the selection uses static geometry for the standalone atlas. GPU shader deformations (folded IOL), appearance offsets, patient-eye motion, scene occlusion details and the interactive 3D surgery's tool collision/force response are **not represented in this CPU collision model**. Transparent cornea and decorative sclera are excluded. A triangle hit **does not** change procedural state, tissue damage, score, alerts or replay. These are procedural synthetic meshes and not medical anatomy.
+
+[Python 3.12 and 3.13 tests: 452 passed each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423438); [Mesa OpenGL smoke with iris and optic triangle face IDs + full surgical replay](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423347). [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423347/artifacts/11788119181). Real Windows Radeon GPU performance/4K and clinical review are still unverified.
