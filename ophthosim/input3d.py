@@ -129,12 +129,18 @@ class Surgery3DController:
         self.last_pose = None
         return self.tool_depth
 
-    def pointer(self, x: Any, y: Any, width: int, height: int) -> bool:
+    def pointer(self, x: Any, y: Any, width: int, height: int,
+                *, fresh_press: bool = False) -> bool:
         phase = self.game.phase
         command = {Phase.ENTRY: "touch", Phase.CAPSULE: "trace",
                    Phase.PHACO: "remove", Phase.CORTEX: "remove",
                    Phase.IOL: "place"}.get(phase)
         if command is None or self.game.paused or self.game.patient.alert:
+            return False
+        # An IOL placement requires an explicit NEW click. Otherwise holding
+        # a removal gesture through the cortex→IOL transition can accidentally
+        # trigger lens placement, even though the phase gate itself is correct.
+        if phase == Phase.IOL and fresh_press is not True:
             return False
         target = self.target_depth
         if target is None or abs(self.tool_depth - target) > DEPTH_TOLERANCE:
