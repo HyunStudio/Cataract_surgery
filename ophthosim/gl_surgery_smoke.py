@@ -57,7 +57,9 @@ def main() -> int:
                                 tool_pose=visible_stylus(ctrl),
                                 vision=visual_feedback(ctrl.game,
                                     reduced_motion=overlay.reduced_motion,
-                                    high_contrast=overlay.high_contrast))
+                                    high_contrast=overlay.high_contrast),
+                                contact=(ctrl.last_contact if not ctrl.game.paused
+                                         and not ctrl.game.ending else None))
             if data is None or len(data) != W*H*3:
                 raise AssertionError(f"Frame readback missing: {name}")
             if max(data[::97]) - min(data[::97]) < 20:
@@ -122,6 +124,21 @@ def main() -> int:
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=visible_stylus(ctrl))
                 assert raw != with_tool, "Synthetic 3D instrument not visible in frame"
+                assert ctrl.last_contact is not None
+                # Same game, tool and HUD; compare eye-only pixels with and
+                # without the GPU contact mesh (text label cannot pass).
+                no_guide = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                    appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
+                    tool_pose=visible_stylus(ctrl),contact=None)
+                guided = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                    appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
+                    tool_pose=visible_stylus(ctrl),contact=ctrl.last_contact)
+                a=pygame.image.fromstring(no_guide,(W,H),"RGB",True)
+                b=pygame.image.fromstring(guided,(W,H),"RGB",True)
+                rect=(W//2-100,H//2-100,200,200)
+                assert pygame.image.tobytes(a.subsurface(rect),"RGB") != (
+                    pygame.image.tobytes(b.subsurface(rect),"RGB")), (
+                    "3D contact ring did not change center-eye pixels")
                 frame("entry-stylus")
         assert ctrl.game.phase == Phase.CAPSULE
         frame("capsule")
@@ -212,6 +229,7 @@ def main() -> int:
             "scenario_count": 3,
             "motion_haze_center_crop_distinct": True,
             "reduced_motion_preserves_safety_hold": True,
+            "contact_ring_center_region_distinct": True,
             "capsule_center_region_healthy_vs_damage_distinct": True,
             "windows_gpu_tested": False,
             "clinical_validation": False,
