@@ -67,6 +67,14 @@ def test_pause_abort_and_stage_transitions_hide_previous_pose():
     assert c.command("pause")
     assert visible_stylus(c) is None
     assert c.command("pause")
+    # Clearing a paused pose is deliberate: avoid automatically reusing an
+    # earlier potentially unsafe instrument position after unpausing.
+    assert visible_stylus(c) is None
+    x,y=c.game._entry_target[0]
+    px=eye_to_pixel(x,y,c.tool_depth,1280,720,c.view)
+    before=c.game.snapshot()
+    c.inspect(*px,1280,720)
+    assert c.game.snapshot()==before
     assert visible_stylus(c) is not None
     assert c.command("abort")
     assert visible_stylus(c) is None
