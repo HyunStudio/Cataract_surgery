@@ -120,3 +120,11 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - Verified three deterministic integration scenarios and central-eye-only geometry difference under Linux Mesa software OpenGL; Python 3.12/3.13 335 tests passed.
 - WP19/WP27 are **partial**, not complete: deformable tissue and believable 3D rupture/visibility loss are not implemented; clinical review and real GPU performance are pending.
 - Next target: safer motion/haze scene cues with accessibility/flicker alternatives, richer phase-specific tool visual interactions and Windows GPU hardware gate.
+
+
+## 2026-10-13 — non-flashing motion/haze/accessibility increment
+
+- **WP11/WP26 partial:** existing synthetic patient movement value now drives bounded camera-plane eye displacement in the 3D surgical viewport; paused/alerted motion freezes, and tool interaction remains locked during unsafe states.
+- **WP06/WP31 partial:** a simple frosted cosmetic veil tracks synthetic opacity/cortex, **M** disables eye displacement and **H** adds a static high-contrast outline. This is not medical visual-field or physical optical simulation.
+- Integrated Mesa software GL tests check **center-eye** scene differences, reduced-motion hazards and state immutability. Python 3.12/3.13 CI each passed 395 tests.
+- **Open:** actual 4K UI legibility and high-contrast audit, Windows real GPU profiling, visually credible eye motion/focus system, clinical review, full WP32 release criteria.
