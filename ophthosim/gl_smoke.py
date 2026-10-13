@@ -36,8 +36,16 @@ def main() -> int:
             hit_pos = project_point((.5,0,.03),800,600,0,0,3.6)
             assert hit_pos is not None
             hit = atlas.select(tuple(int(round(v)) for v in hit_pos), view)
-            if hit is None or hit.name != "iris":
-                raise AssertionError("3D atlas ray picking did not hit the iris")
+            if hit is None or hit.name != "iris" or hit.face_index < 0:
+                raise AssertionError("Triangle BVH did not pick an actual iris face")
+            if abs(sum(hit.barycentric)-1.) > 1e-8:
+                raise AssertionError("Invalid triangle barycentric coordinates")
+            center = atlas.select((399,299), view)
+            expected = "cloudy lens" if phase == "CATARACT" else "IOL"
+            if center is None or center.name != expected or center.face_index < 0:
+                raise AssertionError("Triangle BVH did not pick the intended lens")
+            if not all(0. <= b <= 1. for b in center.barycentric):
+                raise AssertionError("Invalid lens triangle barycentric coordinates")
             frame = atlas.render(view, 60., capture=True)
             if not frame or len(frame) != 800 * 600 * 3:
                 raise AssertionError("OpenGL framebuffer readback invalid")
@@ -51,7 +59,10 @@ def main() -> int:
             pygame.image.save(picture, str(out / f"gl-{phase.lower()}.png"))
             records.append({"phase":phase,
                             "sha256":hashlib.sha256(frame).hexdigest(),
-                            "pick":hit.name})
+                            "pick":hit.name,
+                            "iris_face":hit.face_index,
+                            "optic_face":center.face_index,
+                            "optic_label":center.name})
         if records[0]["sha256"] == records[1]["sha256"]:
             raise AssertionError("Lens/IOL scene images were identical")
         # Tiny render performance sample is diagnostic only (software GL,
