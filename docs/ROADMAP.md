@@ -136,3 +136,11 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - Strict engine-based IOL fresh-click, safety alert and tool-depth guards are preserved. Paused tool poses are never automatically reinstated; operator must reacquire cursor position after resuming.
 - Python CI and Mesa GL center-eye pixel delta pass, but **WP12/WP13 remain partial** until anatomical 3D mesh collision, geometry-driven tool deformation, failure mode coverage, clinical review and real hardware verification.
 - Next: investigate triangle mesh picking with bounded CPU acceleration; preserve engine authority and conservative rejection, add depth-aware target feedback and improve 4K display adaptation. Avoid introducing real medical procedures, actual doses or procedural guidance.
+
+
+## 2026-10-13 — bounded triangle-level static mesh inspection (WP12 partial)
+
+- Standalone OpenGL atlas now uses actual visual triangle faces with prebuilt bounded BVH and nearest-hit inspection, reporting face index and synthetic ray distance. The previous analytic projection check is retained as a separate comparison/testing utility.
+- **WP12 still partial:** no validated end-to-end 3D *surgical action* based on triangle intersection and no tool-tissue force simulation. In particular, GPU shader-deformed IOL, depth/cosmetic offsets and patient-eye motion must be represented in any future interaction model before it can be considered geometry-consistent.
+- All existing stage/alert/score/replay safety authority stays with the 2.5D/3D `ReplayGame` state machine. Do not substitute triangle hits for procedural safety decisions.
+- Next: design phase-consistent GPU/CPU deformation representation and a pure read-only instrument-to-mesh proximity indicator; independently verify static and animated coordinate parity, then improve Windows/4K UX.
