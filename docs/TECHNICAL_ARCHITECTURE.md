@@ -104,3 +104,10 @@ The implemented surgery mode is *not yet a true 3D collision simulator*: no mesh
 `tool3d.stylus_mesh()` generates one cached small 3D render mesh. `tool3d.visible_stylus(controller)` checks the strict controller's last accepted pose, active depth and safety/ending states; the renderer only receives an optional validated three-component world-space offset. `GPUEyePreview` retains the stylus VAO/VBO/IBO independently from regenerated eye meshes, translates through the existing GLSL `u_offset` and releases resources in `close()`.
 
 The shader's **visual-overlay draw pass** intentionally ignores depth occlusion and face culling for legibility: it does **not** simulate tool tissue penetration, contact physics or clinical depth. Scene state remains authoritative in `ReplayGame`; no render call is allowed to issue a semantic game action. Source/dirty tests and Mesa framebuffer-delta integration are mandatory for changes in the visual tool pipeline.
+
+
+## Read-only 3D contact guide contract (2026-10-13)
+
+`contact3d.py` evaluates pre-existing **abstract normalized phase targets**, the selected educational tool depth and the immutable `ToolPose` snapshot. It exposes only `ContactGuide(status, location)`. It cannot call `Game.action`, alter case hazards or serialize new semantic events. Its bounded statuses also distinguish previous entry/capsule points from currently active targets.
+
+`Surgery3DController.inspect` computes new hover feedback separately from `pointer` (which alone may invoke `Game.action`). Unsafe phases and wrong depth clear previously cached render poses, including on pause/resume. `GPUEyePreview` keeps one reusable ring geometry on the GPU and renders it at an optional world-space offset with status text and color; this visual ring is not physical tissue collision. Mesa smoke checks a center-eye pixel difference with the HUD unchanged. The whole pipeline remains synthetic educational design, not validated surgical training.
