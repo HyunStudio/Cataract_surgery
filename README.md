@@ -160,3 +160,12 @@ The **interactive 3D synthetic cataract game** now uses `ophthosim/iol3d.py` to 
 A stricter Linux Mesa software-OpenGL test now hashes a **center-of-eye crop excluding the HUD** so changing deployment text alone cannot pass for visible unfolding. This revealed an existing bug: an opaque closed scleral globe was covering the iris and lens. The sclera now renders as a **depth-test-free background**, while iris and lens use normal scene depth testing. The repaired renders visibly show iris, pupil and simulated IOL; they are not physiologically accurate corneal optics.
 
 [Verified Python 3.12/3.13 CI (289 tests each)](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153815) and [Mesa OpenGL screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811/artifacts/11785108404). **Actual Windows Radeon GPU performance, detailed mesh realism, force interaction and clinical validation remain open.**
+
+
+## Synthetic capsule integrity visualization (2026-10-13)
+
+The interactive 3D game now displays a stylized pupil-centered **intact green/teal ring** or a **discontinuous red damaged ring**, driven exclusively by the existing `Game.eye.capsule_integrity` and appropriate stage visibility. The meshes are cached per OpenGL context; the display cannot affect progression, replay or complication decisions. In the deterministic `capsule` case, the capsule integrity event pauses surgery; assessing the warning causes a safe abort, with the damage indicator retained.
+
+**Educational illustration only:** this is not a clinically accurate capsule location, rupture geometry, mechanical tear simulation, surgical rescue guidance or medical-device validation. The indicator is deliberately positioned for visibility in the simplified pupil view.
+
+[Python 3.12/3.13 CI: 335 tests each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000372), including malformed numerical state, cache/mesh integrity and 3 scenario safety checks. [Mesa llvmpipe OpenGL CI](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377) validates different *central-eye* pixels (HUD excluded) for intact and injured capsule, and completes full normal, motion and capsule-injury scenarios. [Synthetic screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377/artifacts/11785910265). Physical Windows GPU/4K validation and medical specialist review remain open.
