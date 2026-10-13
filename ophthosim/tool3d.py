@@ -76,12 +76,12 @@ def visible_stylus(controller: Surgery3DController) -> tuple[float, float, float
     p = controller.last_pose
     coords = (p.world_x, p.world_y, p.world_z)
     if not all(isinstance(x, (int, float)) and not isinstance(x, bool)
-               and math.isfinite(x) and -1. <= x <= 1. for x in coords):
+               and -1. <= x <= 1. and math.isfinite(x) for x in coords):
         return None
     if abs(p.world_z - controller.target_depth) > .055:
         return None
     if not all(isinstance(x, (int, float)) and not isinstance(x, bool)
-               and math.isfinite(x) and 0. <= x <= 1.
+               and 0. <= x <= 1. and math.isfinite(x)
                for x in (p.eye_x, p.eye_y)):
         return None
     return coords
