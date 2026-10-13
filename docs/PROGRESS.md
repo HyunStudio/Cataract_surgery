@@ -73,3 +73,14 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - New `ophthosim/gl_surgery_smoke.py` executed under Mesa llvmpipe through CI, captured eight distinct images in normal and patient-motion cases; full normal completion and safe-abort replay reconstructed exactly.
 - Verified [Python 3.12/3.13 Tests CI 38334178228](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334178228): **245 passed on Python 3.12**. [3D software OpenGL CI 38334142433](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433) success. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433/artifacts/11783937737).
 - **Not completed:** realistic 3D mesh/force interactions, capsule tissue deformation, true IOL fold/unfold, ophthalmology expert verification, actual Windows AMD GPU performance, research outcomes.
+
+
+## 2026-10-13 — synthetic 3D instrument mesh and visual validation
+
+- Added `ophthosim/tool3d.py`: cached low-polygon tapered stylus mesh (visualization only), bounded normalized coordinates and fail-closed visibility gate. Patient alert, pause, ending, invalid tool pose or depth mismatch suppresses instrument rendering.
+- Connected a single retained GPU VAO/VBO/IBO and world-space `u_offset` shader translation to the *interactive* 3D surgical controller in `gl_preview.py` / `gl_surgery.py`. Mesh resources release on application close; pointer motion is render-only and does not create extra game events.
+- Added `tests/test_tool3d.py` including geometry/index validation, valid tool position, pause/abort/hazard hiding and malformed/NaN/Inf/giant-number cases.
+- First Mesa screenshot comparison failed because the tiny tool was visually occluded; changed to an explicit world-positioned 3D visual overlay (non-physical occlusion) and reran tests. Final OpenGL integration **passed** and confirmed the instrument changes actual framebuffer pixels.
+- [Python Tests CI 38335940393](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940393): both Python 3.12 and 3.13 jobs succeeded, **274 passed** on Python 3.12.
+- [Mesa software OpenGL run 38335940404](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404): passed 3D normal/safety-stop/replay flow, captured **nine distinct frames**, including `entry-stylus`. [Nine-screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404/artifacts/11784746740).
+- **Open:** actual Windows GPU and 4K performance; realistic procedural tool designs, depth-correct physical occlusion, force/collision with tissue, capsule deformation, IOL fold animation, expert review.
