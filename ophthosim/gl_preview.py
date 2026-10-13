@@ -24,6 +24,7 @@ from .iol_pick3d import deformed_iol_mesh
 from .capsule3d import capsule_indicator_meshes
 from .vision3d import VisualFeedback
 from .contact3d import ContactGuide, guide_ring_mesh
+from .surface_probe3d import SurfaceProbe
 
 VERTEX_SHADER = """
 #version 330
@@ -349,7 +350,8 @@ class GPUEyePreview:
                overlay=None, appearance: AnatomyAppearance | None = None,
                tool_pose: tuple[float, float, float] | None = None,
                vision: VisualFeedback | None = None,
-               contact: ContactGuide | None = None) -> bytes | None:
+               contact: ContactGuide | None = None,
+               surface_probe: SurfaceProbe | None = None) -> bytes | None:
         view.check()
         if appearance is not None:
             appearance.check()
@@ -361,6 +363,10 @@ class GPUEyePreview:
             if not isinstance(contact, ContactGuide):
                 raise ValueError("Invalid contact preview")
             contact.check()
+        if surface_probe is not None:
+            if not isinstance(surface_probe, SurfaceProbe):
+                raise ValueError("Invalid synthetic surface probe")
+            surface_probe.check()
         if tool_pose is not None:
             if not isinstance(tool_pose, (tuple, list)) or len(tool_pose) != 3:
                 raise ValueError("Tool position must have three coordinates")
@@ -473,6 +479,26 @@ class GPUEyePreview:
             self.ctx.enable(self.gl.CULL_FACE)
             self.ctx.enable(self.gl.DEPTH_TEST)
             shader["u_offset"].value = (0.,0.,0.)
+        if surface_probe is not None:
+            # A separate schematic surface marker. Unlike target-plane guide,
+            # this offset identifies the actual nearest authored 3D triangle.
+            # This has NO influence on the surgical state machine.
+            shader["u_offset"].value = surface_probe.point
+            shader["u_scene_shift"].value = ((vision.motion_x,vision.motion_y)
+                                               if vision is not None else (0.,0.))
+            shader["u_iol_mode"].value = 0.0
+            shader["u_iol_fold"].value = 1.0
+            shader["u_alpha"].value = 1.0
+            shader["u_tint"].value = ((.88,.42,.94) if surface_probe.status == "CLOSE"
+                                     else (.96,.83,.35) if surface_probe.status == "NEAR"
+                                     else (.62,.75,.82))
+            self.ctx.disable(self.gl.DEPTH_TEST)
+            self.ctx.disable(self.gl.CULL_FACE)
+            self.contact_vao.render()
+            self.ctx.enable(self.gl.CULL_FACE)
+            self.ctx.enable(self.gl.DEPTH_TEST)
+            shader["u_offset"].value = (0.,0.,0.)
+            shader["u_scene_shift"].value = (0.,0.)
         self.draw_hud(view, fps, w, h, overlay=overlay, vision=vision)
         # Optional readback must occur before swapping. CI uses Mesa software
         # GL; this cannot establish Windows GPU or display-driver correctness.
