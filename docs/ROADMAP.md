@@ -112,3 +112,11 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - Automated 3D crops distinguish the unfolding **geometry**, not merely HUD text. Existing globe-depth occlusion was fixed when tests revealed the anatomy was invisible.
 - **WP21 remains PARTIAL**: simulation has no validated IOL geometry, material, mechanical unfolding, capsular support/force modeling or ophthalmology reviewer acceptance. WP22/WP23 still rely on abstract normalized placement and existing safety gates.
 - Next milestone: tissue/capsule integrity visual feedback and a credible but explicitly non-clinical visual complication presentation; Windows AMD real GPU and accessibility tests.
+
+
+## 2026-10-13 — capsule-integrity visualization (WP19/WP27 partial)
+
+- Synthetic capsule integrity affects a distinct 3D cosmetic ring, with an opening/red color in the damaged case. Existing Game hazard, safe hold, pause, assessment and safe abort remain authoritative.
+- Verified three deterministic integration scenarios and central-eye-only geometry difference under Linux Mesa software OpenGL; Python 3.12/3.13 335 tests passed.
+- WP19/WP27 are **partial**, not complete: deformable tissue and believable 3D rupture/visibility loss are not implemented; clinical review and real GPU performance are pending.
+- Next target: safer motion/haze scene cues with accessibility/flicker alternatives, richer phase-specific tool visual interactions and Windows GPU hardware gate.
