@@ -91,3 +91,9 @@ Implemented in `ophthosim/geometry.py`: immutable mesh vertices/normals/face ind
 `ophthosim/gl_preview.py` creates a single Pygame-owned OPENGL window and requests a ModernGL 3.3 context, packs authored procedural geometry into GPU-compatible vertex and index buffers, uses per-frame yaw/pitch/zoom uniforms, and draws a GPU-textured overlay. External `moderngl` is **optional** so default `python main.py` remains 2.5D and dependency-light.
 
 The GL atlas has its own input loop and no surgical input/state mutations. Scene/HUD shaders and mesh buffers are tested **without a GPU**, but OpenGL execution and shader compilation are not validated in CI. The closed sclera renders as non-depth-writing background pending a future anatomical cutaway; do not mistake this for physical optics. See `docs/GPU_VALIDATION_CHECKLIST.md` for exact hardware gates and failure reporting.
+
+## 2026-10-13: separate interactive GPU viewport proof
+
+`gl_surgery.py` orchestrates the same authoritative `ReplayGame` state machine as the 2.5D UI. The `input3d.py` adapter reverses the GLSL camera mapping into a ray and intersects a **dimensionless educational task plane**. Guarded task actions are forwarded through semantic Game commands; all alerts, phase locks, safe aborts, score and journaling remain inside the engine. Visual progress is conveyed by immutable `AnatomyAppearance` values (synthetic opacity, residual matter, IOL centering) supplied to the renderer; the renderer does not change physics/game state.
+
+The implemented surgery mode is *not yet a true 3D collision simulator*: no mesh pressure/contact, capsule cutting mesh, fluid simulation or procedural surgical physics. Task-plane input and true mesh inspection are different intentionally labeled features. CI reproduces state through `gl_surgery_smoke.py` on Mesa llvmpipe and validates exact JSONL replay. Physical Windows OpenGL driver/device acceptance remains a required separate gate.
