@@ -14,7 +14,7 @@ from dataclasses import dataclass
 import math
 
 from .geometry import Mesh, Vec3
-from .picking3d import Ray, screen_ray
+from .picking3d import Ray, screen_ray, _unrotate
 
 _EPS = 1e-10
 
@@ -204,7 +204,8 @@ def raycast(index: MeshIndex, ray: Ray, *,
 
 def pick_indexed(meshes: dict[str,MeshIndex], x: object, y: object,
                  width: int,height: int,yaw: object,pitch: object,zoom: object,
-                 phase: str) -> TriangleHit | None:
+                 phase: str, *, scene_shift: tuple[float,float] = (0.,0.)
+                 ) -> TriangleHit | None:
     """Return nearest actual rigid iris/lens triangle from screen coordinates.
 
     No simulated sclera/cornea picking, GPU-deformed IOL or tissue collision.
@@ -217,9 +218,22 @@ def pick_indexed(meshes: dict[str,MeshIndex], x: object, y: object,
         raise ValueError("Expected precisely the two selectable mesh indexes")
     if not all(isinstance(item,MeshIndex) for item in meshes.values()):
         raise ValueError("Invalid mesh index")
+    if not isinstance(scene_shift,(tuple,list)) or len(scene_shift)!=2:
+        raise ValueError("Invalid synthetic camera-plane displacement")
+    for q in scene_shift:
+        if (isinstance(q,bool) or not isinstance(q,(float,int))
+                or not -.08<=q<=.08 or not math.isfinite(q)):
+            raise ValueError("Invalid synthetic camera-plane displacement")
     ray=screen_ray(x,y,width,height,yaw,pitch,zoom)
     if ray is None:
         return None
+    if scene_shift[0] or scene_shift[1]:
+        # The GLSL shader adds u_scene_shift AFTER 3D rotation. Move the
+        # camera-ray origin in the inverse direction and inverse-rotate it.
+        # Direction is unchanged: the synthetic eye is translated, not tilted.
+        dx,dy,dz=_unrotate((-scene_shift[0],-scene_shift[1],0.),yaw,pitch)
+        ray=Ray(tuple(ray.origin[i]+(dx,dy,dz)[i] for i in range(3)),
+                ray.direction)
     hits=[hit for hit in (raycast(index,ray,near=.5,far=16.)
                           for index in meshes.values()) if hit is not None]
     if not hits:
