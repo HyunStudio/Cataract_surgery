@@ -22,11 +22,21 @@ python main.py
 # optional: python main.py --case motion --seed 42 --scale 1.5
 ```
 
-You are the surgeon. Keys: **1–4** select a synthetic case on the first screen; **Space** confirms pre-op and team time-out; **left-click** the three entry targets; **left-drag** round the dotted ring to open the capsule; **hold left mouse** on the lens for removal (about 4 s of steady work) and cleanup (about 3 s); **left-click** the optical centre once to seat the IOL; **left-click** the three final checks. **A** assesses a safety hold, **X** stops the procedure safely, **Esc** pauses, **R** restarts, and **E** exports the session after the debrief.
+You are the surgeon, and the game follows the real order of a phaco cataract operation ([realism plan](docs/SURGERY_REALISM_PLAN_KO.md)):
+
+1. **Case brief and time-out.** Keys **1–9** pick a case. Each has realistic risk factors, such as floppy-iris risk, pseudoexfoliation or a posterior polar cataract. **Space** runs the time-out and then anaesthesia/prep.
+2. **Incisions.** Click the main incision and the two side ports, then press **V** to fill the chamber with viscoelastic.
+3. **Capsulorhexis.** Drag round the ring. Pulling outwards tears the capsule, and much sooner without viscoelastic.
+4. **Phacoemulsification.** Press **D** for hydrodissection, then hold on the nucleus (about 4 s).
+5. **Cortex I/A.** Hold on the inner lens (about 3 s).
+6. **IOL.** Press **V** to fill the bag, then click once at the centre.
+7. **Closure checks.** IOL, wound watertight, handoff (click or **1–3**).
+
+Complications appear at realistic stages: wrong-site alert, patient movement, vital alert, anterior capsule tear, zonular weakness, iris prolapse, posterior capsule rupture and wound leak. Instruments stop on a safety hold. Press **A** to assess what you see, then decide with **1** continue / **2** manage (stop, stabilise, call for help) / **3** stop and refer. Each case ends as **SUCCESS**, **COMPLICATION MANAGED**, **COMPLICATED**, **SAFE ABORT** or **CRITICAL FAILURE** (ignoring a major complication; score 0). **X** stops safely at any time, **Esc** pauses, **R** restarts, and **E** exports the session after the debrief. Management options are deliberately abstract: no device settings, drug doses or rescue techniques.
 
 Keep the instrument tip inside the pupil. Off-target work builds **tissue stress**: it decays while you work centrally, shows a warning at 50 %, and at 100 % raises a capsule complication. Stopping safely after a complication is the correct call and is credited in the debrief.
 
-**3D mode** (`python -m ophthosim.gl_surgery`): same procedure, plus instrument **depth**. The tip starts above the eye and keeps its depth between steps, so bring it to each step's working depth with **Q/E** or the **mouse wheel** (the depth gauge turns green). Arrows orbit, +/- zoom, **S** saves after the debrief.
+**3D mode** (`python -m ophthosim.gl_surgery`): same procedure, cases and keys (V, D, 1–3), plus instrument **depth**. The tip starts above the eye and keeps its depth between steps, so bring it to each step's working depth with **Q/E** or the **mouse wheel** (the depth gauge turns green). Arrows orbit, +/- zoom, **S** saves after the debrief.
 
 The game contains a procedural illustrated 2.5D eye and synthetic HR/BP/SpO2 displays. **It is not a validated surgical trainer**. For test commands and caveats see [test report](docs/TEST_REPORT.md) and [implementation progress](docs/PROGRESS.md).
 

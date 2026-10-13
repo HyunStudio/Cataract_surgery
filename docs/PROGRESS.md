@@ -193,3 +193,16 @@ The game is now framed explicitly as a **mock surgery in which the player is the
 - **Local Windows GPU run** (Windows 11 Pro, NVIDIA GeForce RTX 3070 Laptop GPU, driver 566.14, OpenGL 3.3 core, Python 3.12.10, pygame 2.6.1, moderngl 5.13.0): `gl_smoke` passed (`hardware-opengl-smoke-passed`, 6–9 ms mean over 20 frames at 800×600 across two runs) and `gl_surgery_smoke` passed all scenarios including the new stress-warning frame.
 - **Tests:** 552 passed locally (Python 3.12, SDL dummy driver), including 30 new regression tests in `tests/test_surgeon_gameplay.py`. Existing tests were updated only where behaviour intentionally changed (removal duration, depth not snapping, no-op journaling, schema v2, HUD label position).
 - **Still open:** manual 3D play-testing, resize/DPI, sustained 1080p/4K benchmark, AMD/Intel GPUs, clinical subject-matter review.
+
+## 2026-10-13 — realistic procedure, complications and outcomes (v1.3)
+
+Plan and design: [SURGERY_REALISM_PLAN_KO.md](SURGERY_REALISM_PLAN_KO.md).
+
+- **Real phaco sequence:** time-out (can catch a wrong-site mark), anaesthesia/prep, main incision + 2 side ports, viscoelastic (V), capsulorhexis, hydrodissection (D), phaco, cortex I/A, viscoelastic in the bag (V), IOL, closure checks. A per-phase checklist is shown in 2D and 3D.
+- **Technique consequences:** without viscoelastic the rhexis band narrows and tears sooner; skipping hydrodissection strains the capsule during phaco; each skipped step costs 3 technique points.
+- **Nine cases with risk-factor briefs** (`ophthosim/complications.py`), including a seeded random case drawing two complications.
+- **Complications with decisions:** wrong-site, anterior capsule tear, zonular weakness, iris prolapse, posterior capsule rupture and wound leak each require assess → continue / manage / refer. Ignored moderate complications escalate (tear → PCR, zonules → IOL decentration, iris → miosis/trauma); ignoring a major one is a critical failure. PCR can recur after management; a managed PCR places the IOL in the sulcus.
+- **Outcomes:** SUCCESS, COMPLICATION MANAGED, COMPLICATED, SAFE ABORT, CRITICAL FAILURE (safety veto, score 0), with a debrief listing each complication and the decision taken.
+- **Engine:** new `Phase.FAILED`, actions `ovd`, `hydro`, `decide`; event schema v3, replay schema v3. Held instruments release on every step change.
+- **Tests:** 607 pass (55 new in `tests/test_surgery_realism.py`). Windows RTX 3070 GPU smoke passes 6 scenarios. 2D and 3D screenshots reviewed.
+- **Open:** 3D visual effects for complications, clinical subject-matter review of complication content and decisions.
