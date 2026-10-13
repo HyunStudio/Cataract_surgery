@@ -18,6 +18,7 @@ from typing import Iterable
 
 from .geometry import Mesh, anterior_eye_meshes
 from .picking3d import SurfaceHit, pick_anatomy
+from .tool3d import stylus_mesh
 
 VERTEX_SHADER = """
 #version 330
@@ -222,6 +223,13 @@ class GPUEyePreview:
         self.selection: SurfaceHit | None = None
         self.selection_pixel: tuple[int, int] | None = None
         self.set_meshes(atlas_meshes("CATARACT"))
+        # Allocate one stylized 3D tool; motion uses a shader uniform only.
+        tool_vertices, tool_indices, _ = pack_mesh(stylus_mesh())
+        self.stylus_vbo = self.ctx.buffer(tool_vertices)
+        self.stylus_ibo = self.ctx.buffer(tool_indices)
+        self.stylus_vao = self.ctx.vertex_array(self.scene_shader,
+                 [(self.stylus_vbo, "3f 3f", "in_position", "in_normal")],
+                 index_buffer=self.stylus_ibo)
 
     def set_meshes(self, meshes: dict[str, Mesh]) -> None:
         for vao, vbo, ibo in self.meshes.values():
@@ -254,10 +262,16 @@ class GPUEyePreview:
         self.selection_pixel = None
 
     def render(self, view: View, fps: float, *, capture: bool = False,
-               overlay=None, appearance: AnatomyAppearance | None = None) -> bytes | None:
+               overlay=None, appearance: AnatomyAppearance | None = None,
+               tool_pose: tuple[float, float, float] | None = None) -> bytes | None:
         view.check()
         if appearance is not None:
             appearance.check()
+        if tool_pose is not None:
+            if not isinstance(tool_pose, (tuple, list)) or len(tool_pose) != 3:
+                raise ValueError("Tool position must have three coordinates")
+            tool_pose = tuple(bounded_float(component, -1., 1.)
+                              for component in tool_pose)
         w, h = self.pg.display.get_window_size()
         if not (w > 0 and h > 0):
             return None
@@ -313,6 +327,14 @@ class GPUEyePreview:
         self.ctx.depth_mask = True
         self.ctx.disable(self.gl.BLEND)
         self.ctx.enable(self.gl.CULL_FACE)
+        if tool_pose is not None:
+            # A visual instrument follows an already validated game input
+            # position. Rendering it is never an action on simulated tissue.
+            shader["u_offset"].value = tool_pose
+            shader["u_tint"].value = (.34, .87, .76)
+            shader["u_alpha"].value = 1.0
+            self.stylus_vao.render()
+            shader["u_offset"].value = (0., 0., 0.)
         self.draw_hud(view, fps, w, h, overlay=overlay)
         # Optional readback must occur before swapping. CI uses Mesa software
         # GL; this cannot establish Windows GPU or display-driver correctness.
@@ -380,6 +402,9 @@ class GPUEyePreview:
             vao.release()
             vbo.release()
             ibo.release()
+        self.stylus_vao.release()
+        self.stylus_vbo.release()
+        self.stylus_ibo.release()
         self.quad_vao.release()
         self.quad_buffer.release()
         if self.hud_texture is not None:
