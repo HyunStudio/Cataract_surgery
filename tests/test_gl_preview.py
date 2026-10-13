@@ -118,4 +118,9 @@ def test_synthetic_appearance_dirty_values_fail_closed(bad):
 
 def test_shader_has_declared_model_translation_for_iol():
     assert "uniform vec3 u_offset;" in VERTEX_SHADER
-    assert "in_position + u_offset" in VERTEX_SHADER
+    # The shader now deforms only the IOL local position before translating
+    # it by the existing world-space offset. Avoid pinning the old expression.
+    assert "vec3 local_pos = in_position;" in VERTEX_SHADER
+    assert "local_pos + u_offset" in VERTEX_SHADER
+    assert "u_iol_mode" in VERTEX_SHADER
+    assert "u_iol_fold" in VERTEX_SHADER
