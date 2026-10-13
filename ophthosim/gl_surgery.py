@@ -16,7 +16,7 @@ from pathlib import Path
 import sys
 
 from .engine import Phase
-from .gl_preview import GPUEyePreview, atlas_meshes
+from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
 from .input3d import Surgery3DController, eye_to_pixel
 from .signals import sample_trace
 
@@ -134,6 +134,7 @@ class SurgeryHUD:
         )
         for i,msg in enumerate(instructions):
             label(msg[:90],24,bottom+6+i*25,color=green if i==0 else amber)
+        label(self.status[:72], 24, height-100, color=light)
         # Avoid displaying an earlier cursor after phase changes or restart.
         if self.last_cursor and c.last_pose is not None:
             pg.draw.circle(surf,green,self.last_cursor,8,2)
@@ -255,7 +256,10 @@ def run(case: str="normal",seed: int=7) -> None:
                 current_atlas=controller.view.phase
                 atlas.set_meshes(atlas_meshes(current_atlas))
                 atlas.clear_selection()
-            atlas.render(controller.view,clock.get_fps(),overlay=hud)
+            eye=controller.game.eye
+            atlas.render(controller.view,clock.get_fps(),overlay=hud,
+                         appearance=AnatomyAppearance(eye.opacity,eye.cortex,
+                                                      eye.iol_alignment))
     finally:
         if atlas is not None:
             atlas.close()
