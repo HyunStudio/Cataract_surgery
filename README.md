@@ -180,3 +180,14 @@ The *separate interactive 3D prototype* now reads existing synthetic patient mot
 - Synthetic opacity/cortex clearing reduces the veil in active procedural phases. The view remains clinically unvalidated and the 2.5D fallback is unchanged.
 
 **Verified:** [Python 3.12 and 3.13, 395 tests each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531317); [Mesa Linux software OpenGL full integration](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344), showing distinct **center-eye** pixels for scene motion and haze and visual differences with reduced motion under the same patient-motion safety hold. [Captured screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344/artifacts/11785993260). Windows Radeon hardware GPU, 4K monitor testing, contrast accessibility audit and clinical review remain **unverified**.
+
+
+## Stage-aware 3D educational contact guide (2026-10-13)
+
+Interactive 3D mode now includes a **read-only hover/contact guide** with a retained GPU world-space indicator ring. It evaluates the existing normalized stage targets, controller tool depth and patient safety state. Green = active target, blue = already visited, amber = near target. The exact state also appears as text in the HUD for non-color-only feedback. Wrong depth, offscreen misses, inactive phases, alerts and paused/ended sessions suppress the 3D ring.
+
+Moving the mouse without pressing a button **never invokes Game.action**, changes the synthetic score, or adds replay events. A real click still passes through the original strict phase engine (including its existing safety assessment and IOL explicit fresh-click gate). Previously cached instrument poses are deliberately **not restored automatically after pause**; fresh hover reacquires the display position.
+
+**Important limitation:** this is proximity feedback against **synthetic normalized task targets and a selected educational depth plane**, not a precise anatomical triangle mesh collision or force-feedback measurement. It must not be interpreted as a real surgery guidance system. Color/shape accessibility, real Windows GPU/4K, clinical review, and detailed tissue interaction remain to be tested.
+
+[CI tests Python 3.12/3.13: 422 each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565234). [Mesa OpenGL integration passed](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188), proving the GPU contact ring changes center-eye pixels with otherwise identical state and HUD. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188/artifacts/11788405053).
