@@ -128,3 +128,11 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - **WP06/WP31 partial:** a simple frosted cosmetic veil tracks synthetic opacity/cortex, **M** disables eye displacement and **H** adds a static high-contrast outline. This is not medical visual-field or physical optical simulation.
 - Integrated Mesa software GL tests check **center-eye** scene differences, reduced-motion hazards and state immutability. Python 3.12/3.13 CI each passed 395 tests.
 - **Open:** actual 4K UI legibility and high-contrast audit, Windows real GPU profiling, visually credible eye motion/focus system, clinical review, full WP32 release criteria.
+
+
+## 2026-10-13 — 3D interaction precision increment (WP12/WP13 partial)
+
+- The GPU 3D surgical prototype now supports a persistent world-space, color-and-text contact indicator and read-only hover classification at the active synthetic educational depth.
+- Strict engine-based IOL fresh-click, safety alert and tool-depth guards are preserved. Paused tool poses are never automatically reinstated; operator must reacquire cursor position after resuming.
+- Python CI and Mesa GL center-eye pixel delta pass, but **WP12/WP13 remain partial** until anatomical 3D mesh collision, geometry-driven tool deformation, failure mode coverage, clinical review and real hardware verification.
+- Next: investigate triangle mesh picking with bounded CPU acceleration; preserve engine authority and conservative rejection, add depth-aware target feedback and improve 4K display adaptation. Avoid introducing real medical procedures, actual doses or procedural guidance.
