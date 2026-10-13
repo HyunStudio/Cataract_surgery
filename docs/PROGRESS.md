@@ -84,3 +84,14 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - [Python Tests CI 38335940393](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940393): both Python 3.12 and 3.13 jobs succeeded, **274 passed** on Python 3.12.
 - [Mesa software OpenGL run 38335940404](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404): passed 3D normal/safety-stop/replay flow, captured **nine distinct frames**, including `entry-stylus`. [Nine-screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404/artifacts/11784746740).
 - **Open:** actual Windows GPU and 4K performance; realistic procedural tool designs, depth-correct physical occlusion, force/collision with tissue, capsule deformation, IOL fold animation, expert review.
+
+
+## 2026-10-13 — stylized 3D IOL folding/unfolding and ocular visibility correction
+
+- Added `ophthosim/iol3d.py`: bounded and cached optic+two-support synthetic IOL render mesh. The shader selectively compresses/curves the IOL for a folded appearance, driven by `AnatomyAppearance.iol_deployment`.
+- `iol_visual_deployment()` reads the actual Game IOL→CLOSE transition event and simulation time. The 1.5-second smoothstep animation is **render-only**, pauses with simulation time, and cannot change score, stage, complications or replay.
+- Replaced the previous simple synthetic IOL ellipsoid in the GPU atlas; added deployment indicator to the 3D surgical HUD and captured IOL-placement, middle and deployed frames.
+- A stronger visual regression test excluded HUD regions and uncovered a previously masked renderer defect: an opaque closed globe hid both iris and lens. Fixed by disabling the depth test for the *background* globe pass; foreground iris and lens still use normal depth tests.
+- `tests/test_iol3d.py` covers generated geometry and bounds, stage transition timing, simulation pause, state non-mutation, bad duration/NaN/Inf/giant integer inputs and random timed ticks. The legacy shader assertion was updated for intentional IOL deformation without losing world-space translation.
+- **Verified** [Python 3.12/3.13 CI 38337153815](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153815): **289 passed per Python version**. [Mesa software OpenGL run 38337153811](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811) passed actual 3D central-eye IOL deformation test, normal/safety-stop full sessions, and generated [frame artifacts](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811/artifacts/11785108404).
+- **Next:** stable patient/eye tissue damage visuals, deeper tool/tissue interaction (currently synthetic task plane only), Windows GPU 4K frame-time profiling and anatomical subject-matter review. IOL design/material behavior is not clinically validated.
