@@ -1,6 +1,6 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
-**Status:** Playable 2.5D research prototype + read-only CPU 3D atlas + optional ModernGL GPU renderer experiment (2026-10-13). The full 32-WP game and interactive 3D surgery are **not complete**.
+**Status:** Playable 2.5D prototype + experimental *interactive* ModernGL 3D synthetic surgery mode (2026-10-13). The full 32-work-package product, medical realism and Windows GPU QA are **not complete**.
 
 An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built around Python, Pygame for UI/input, and an optional hardware-accelerated 3D renderer. The project models a complete *abstracted* cataract surgery encounter: patient preparation, topical anesthesia and monitoring, microscope navigation, corneal entry, capsular task, cataract removal, residual material cleanup, intraocular lens (IOL) placement, wound assessment, recovery, and result scoring.
 
@@ -12,6 +12,7 @@ An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built
 - [Research and evaluation plan](docs/RESEARCH_PLAN.md)
 - [Safety, realism and limitations](docs/SAFETY.md)
 - [Windows ModernGL GPU validation checklist](docs/GPU_VALIDATION_CHECKLIST.md)
+- [Interactive 3D surgical prototype setup and controls (Korean)](docs/INTERACTIVE_3D_USAGE_KO.md)
 
 ## Quick start (Windows / Python 3.12+)
 
@@ -76,7 +77,7 @@ print(session.phase.value, session.score(), session.ending)
 Integrity includes command-journal and resulting event/snapshot SHA-256 digests. These catch accidental or unsanctioned edits **but do not authenticate authorship** without digital signatures. Raw mouse trajectories, clinician assessments and real patient data are not captured. Unrepresentable replay captures fail closed rather than silently export incomplete traces.
 
 ## Next milestone
-**WP04:** Execute the experimental OpenGL atlas on an actual Windows desktop, check shader compilation and HUD/depth accuracy, and benchmark rendering before selecting the production interactive 3D viewport. CI validates source/CPU geometry and SDL dummy rendering but does not GPU-benchmark it.
+**WP04:** Execute the now-playable experimental 3D synthetic surgery viewport on an actual Windows desktop, check shader compilation and HUD/depth accuracy, and benchmark rendering before treating the 3D backend as production-ready. CI validates source/CPU geometry and SDL dummy rendering but does not GPU-benchmark it.
 
 ## License
 See repository [LICENSE](LICENSE); external assets must have their own documented provenance and compatible redistribution permissions.
@@ -126,3 +127,16 @@ An isolated GitHub Actions workflow [Software OpenGL Smoke, run 38319493162](htt
 **What it does not prove:** performance on the author's Windows AMD GPU, clinical fidelity, a finished 3D surgery game, GPU-based tissue simulation or actual operating-room training value.
 
 In the standalone 3D atlas `python -m ophthosim.gl_preview`, left-click the iris or lens/IOL to inspect its synthetic surface label and ray depth; arrow keys orbit, +/- zoom, Space switches lens/IOL. This is read-only; normal surgical tasks remain in `python main.py`. The 3D depth picking coordinates are tested against the same projection/rotation mathematics used in GLSL.
+
+## Experimental interactive 3D surgery (implemented, still non-clinical)
+
+The **separate** ModernGL game now shares the proven 2.5D surgery state machine, deterministic replay, synthetic patient monitor and safety gates. It uses camera-correct 3D ray/plane mapping, stage-specific synthetic tool depth, visual guide targets, educational cataract lens color changes and IOL offset feedback. **This is an interactive 3D educational prototype, NOT accurate tissue collision, physical optics or a validated surgery trainer.**
+
+```powershell
+python -m pip install -r requirements-3d.txt
+python -m ophthosim.gl_surgery --case normal --seed 7
+```
+
+Controls: **Space** next preop/anesthesia stage, **mouse** entry/capsular tracing/lens clearing, **a fresh click** for IOL placement, **1–3** final safety checks, **arrows** orbit, **+/-** zoom, **Q/E** tool depth, **A** acknowledge synthetic patient warning, **X** safe abort, **Esc** pause, **R** restart, **S** export results/replay after the end. The standard 2.5D game is still launched with `python main.py`. See [complete Korean guide](docs/INTERACTIVE_3D_USAGE_KO.md).
+
+**Verified in CI:** [Python tests run 38334178228](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334178228), **245 tests passed on Python 3.12 and successful Python 3.13 matrix**. [Mesa OpenGL run 38334142433](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433) exercised two synthetic cases, a complete end-to-end surgical game replay, safe abort and eight distinct rendered frames including mid-phaco visual change. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433/artifacts/11783937737). Windows physical GPU/4K performance is still unverified.
