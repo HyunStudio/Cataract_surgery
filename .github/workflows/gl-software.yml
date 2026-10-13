@@ -26,6 +26,9 @@ jobs:
       - name: Exercise OpenGL context, shaders, picking and framebuffer
         run: |
           xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy python -m ophthosim.gl_smoke
+      - name: Exercise entire interactive 3D surgical workflow in Mesa OpenGL
+        run: |
+          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy python -m ophthosim.gl_surgery_smoke
       - name: Capture GPU-path screenshot artifacts
         if: always()
         uses: actions/upload-artifact@v4
