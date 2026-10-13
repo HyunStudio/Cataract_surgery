@@ -21,6 +21,7 @@ from .picking3d import SurfaceHit, pick_anatomy
 from .tool3d import stylus_mesh
 from .iol3d import foldable_iol_mesh
 from .capsule3d import capsule_indicator_meshes
+from .vision3d import VisualFeedback
 
 VERTEX_SHADER = """
 #version 330
@@ -33,6 +34,7 @@ uniform float u_zoom;
 uniform vec3 u_offset;
 uniform float u_iol_mode;
 uniform float u_iol_fold;
+uniform vec2 u_scene_shift;
 out vec3 v_normal;
 void main() {
     float cy = cos(u_yaw), sy = sin(u_yaw);
@@ -47,6 +49,8 @@ void main() {
         local_pos.z += (1.0 - u_iol_fold) * 0.30 * abs(in_position.x);
     }
     vec3 p = rotation * (local_pos + u_offset);
+    // View-only eye motion in camera plane. This is not tool or tissue physics.
+    p.xy += u_scene_shift;
     v_normal = normalize(rotation * in_normal);
     float distance = u_zoom - p.z;
     const float near_plane = 0.5;
@@ -291,10 +295,15 @@ class GPUEyePreview:
 
     def render(self, view: View, fps: float, *, capture: bool = False,
                overlay=None, appearance: AnatomyAppearance | None = None,
-               tool_pose: tuple[float, float, float] | None = None) -> bytes | None:
+               tool_pose: tuple[float, float, float] | None = None,
+               vision: VisualFeedback | None = None) -> bytes | None:
         view.check()
         if appearance is not None:
             appearance.check()
+        if vision is not None:
+            if not isinstance(vision, VisualFeedback):
+                raise ValueError("Invalid visual feedback object")
+            vision.check()
         if tool_pose is not None:
             if not isinstance(tool_pose, (tuple, list)) or len(tool_pose) != 3:
                 raise ValueError("Tool position must have three coordinates")
@@ -316,6 +325,8 @@ class GPUEyePreview:
         shader["u_offset"].value = (0., 0., 0.)
         shader["u_iol_mode"].value = 0.0
         shader["u_iol_fold"].value = 1.0
+        shader["u_scene_shift"].value = ((vision.motion_x, vision.motion_y)
+                                          if vision is not None else (0.,0.))
         # The closed sclera is only a non-clinical *background globe*. Its
         # front-facing shell would physically occlude the iris and the lens.
         # Disable the depth TEST (not just the depth write-mask), which
@@ -380,6 +391,7 @@ class GPUEyePreview:
             # This display override is not a physically accurate occlusion.
             self.ctx.disable(self.gl.DEPTH_TEST)
             self.ctx.disable(self.gl.CULL_FACE)
+            shader["u_scene_shift"].value = (0.,0.)
             shader["u_offset"].value = tool_pose
             shader["u_tint"].value = (.43, .95, .80)
             shader["u_alpha"].value = 1.0
@@ -387,7 +399,7 @@ class GPUEyePreview:
             shader["u_offset"].value = (0., 0., 0.)
             self.ctx.enable(self.gl.CULL_FACE)
             self.ctx.enable(self.gl.DEPTH_TEST)
-        self.draw_hud(view, fps, w, h, overlay=overlay)
+        self.draw_hud(view, fps, w, h, overlay=overlay, vision=vision)
         # Optional readback must occur before swapping. CI uses Mesa software
         # GL; this cannot establish Windows GPU or display-driver correctness.
         image = self.ctx.screen.read(components=3, alignment=1) if capture else None
@@ -395,8 +407,21 @@ class GPUEyePreview:
         return image
 
     def draw_hud(self, view: View, fps: float, w: int, h: int,
-                 *, overlay=None) -> None:
+                 *, overlay=None, vision: VisualFeedback | None = None) -> None:
         hud = self.pg.Surface((w, h), self.pg.SRCALPHA)
+        if vision is not None:
+            # Frosted synthetic view veil; static and bounded, never blinking.
+            # This HUD-layer approximation does NOT reproduce tissue optics.
+            if vision.haze > 0.:
+                center=(w//2,h//2)
+                radius=max(1,min(w,h)//3)
+                for fraction,alpha_fraction in ((1.,.20),(.82,.31),(.65,.35)):
+                    alpha=min(130,round(255*vision.haze*alpha_fraction))
+                    self.pg.draw.circle(hud,(208,220,220,alpha),center,
+                                        round(radius*fraction))
+            if vision.high_contrast:
+                self.pg.draw.circle(hud,(245,236,146,235),(w//2,h//2),
+                                    max(1,min(w,h)//3)+5,3)
         if overlay is None:
             lines = (
                 ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
