@@ -37,6 +37,7 @@ def main() -> int:
         overlay = SurgeryHUD(ctrl)
         atlas_state = "CATARACT"
         images = {}
+        eye_regions = {}
         root = Path("build/screenshots")
         root.mkdir(parents=True, exist_ok=True)
 
@@ -56,6 +57,11 @@ def main() -> int:
                 raise AssertionError(f"Frame uniform/blank: {name}")
             images[name] = hashlib.sha256(data).hexdigest()
             surface = pygame.image.fromstring(data, (W,H), "RGB", True)
+            # Exclude sidebar/bottom HUD so a changed label cannot falsely
+            # pass as a genuinely unfolded 3D IOL mesh.
+            central_eye = surface.subsurface((W//2-100, H//2-100, 200, 200))
+            eye_regions[name] = hashlib.sha256(pygame.image.tobytes(
+                central_eye, "RGB")).hexdigest()
             pygame.image.save(surface, str(root / f"gl-surgery-{name}.png"))
 
         def point(x,y,*,pressed=False):
@@ -108,9 +114,9 @@ def main() -> int:
         for _ in range(15):
             ctrl.advance_clock(.05)
         frame("iol-deployed")
-        if images["iol-placement"] == images["iol-unfolding"] or (
-                images["iol-unfolding"] == images["iol-deployed"]):
-            raise AssertionError("IOL animation frames did not change")
+        if eye_regions["iol-placement"] == eye_regions["iol-unfolding"] or (
+                eye_regions["iol-unfolding"] == eye_regions["iol-deployed"]):
+            raise AssertionError("Central 3D IOL geometry did not visually unfold")
         for name in CHECKS:
             assert ctrl.command("verify",name)
         assert ctrl.game.phase == Phase.RECOVERY
