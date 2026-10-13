@@ -149,3 +149,14 @@ The interactive GPU 3D surgery prototype now draws a **cached tapered synthetic 
 The stylus is drawn as a clear **visual overlay** to avoid misleadingly disappearing behind transparent display anatomy; its occlusion therefore does not model optical or tissue physics. The existing strict ReplayGame drives tasks and records replay deterministically.
 
 [Verified 274-test CI](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940393) (Python 3.12/3.13 jobs succeeded); [Mesa OpenGL integration run](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404) confirms real framebuffer pixel change when the 3D stylus appears, nine synthetic screenshots, normal completion, motion-alert safe stop and replay consistency. This is Linux software rasterization only. Windows GPU/4K and clinical assessments are **not** validated.
+
+
+## Synthetic foldable IOL visual sequence (2026-10-13)
+
+The **interactive 3D synthetic cataract game** now uses `ophthosim/iol3d.py` to construct a cached optic with two stylized curved haptics. A vertex-shader-only deformation compresses the model during the IOL stage; after a successful simulated placement, it smoothly unfolds over **1.5 seconds of simulation time**, not wall-clock time. Pausing the game freezes the animation; finishing Recovery displays the final deployment. Scoring, safety holds, patient state and the deterministic replay format are unaffected.
+
+**Visual accuracy warning:** The model and unfolding timeline are artistic educational abstractions, not validated IOL mechanical/material behavior or clinical insertion guidance. The ophthalmic eye geometry is not a medical model.
+
+A stricter Linux Mesa software-OpenGL test now hashes a **center-of-eye crop excluding the HUD** so changing deployment text alone cannot pass for visible unfolding. This revealed an existing bug: an opaque closed scleral globe was covering the iris and lens. The sclera now renders as a **depth-test-free background**, while iris and lens use normal scene depth testing. The repaired renders visibly show iris, pupil and simulated IOL; they are not physiologically accurate corneal optics.
+
+[Verified Python 3.12/3.13 CI (289 tests each)](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153815) and [Mesa OpenGL screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811/artifacts/11785108404). **Actual Windows Radeon GPU performance, detailed mesh realism, force interaction and clinical validation remain open.**
