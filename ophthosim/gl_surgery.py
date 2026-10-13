@@ -74,6 +74,11 @@ class SurgeryHUD:
         label(f"Phase: {g.phase.value}", 24, 285)
         label(f"Score (synthetic): {g.score():03d}", 24, 316)
         label(f"Tool z: {c.tool_depth:+.2f}", 24, 350, color=green)
+        if c.last_contact is not None:
+            kind=c.last_contact.status
+            label(f"TOOL GUIDE: {kind}", 24, 151,
+                  color=green if kind=="TARGET" else amber if kind in
+                        ("NEAR","VISITED") else red)
         capsule_on, damage = capsule_display_state(g)
         if capsule_on:
             label(("CAPSULE ALERT" if damage >= .15 else "CAPSULE INTACT"),
@@ -218,6 +223,8 @@ def run(case: str="normal",seed: int=7) -> None:
                     hud.last_cursor=cursor
                     if dragging and g.phase==Phase.CAPSULE:
                         controller.pointer(*cursor,*pygame.display.get_window_size())
+                    else:
+                        controller.inspect(*cursor,*pygame.display.get_window_size())
                 elif event.type==pygame.KEYDOWN:
                     key=event.key
                     if key==pygame.K_SPACE:
@@ -286,7 +293,10 @@ def run(case: str="normal",seed: int=7) -> None:
                          tool_pose=visible_stylus(controller),
                          vision=visual_feedback(controller.game,
                             reduced_motion=hud.reduced_motion,
-                            high_contrast=hud.high_contrast))
+                            high_contrast=hud.high_contrast),
+                         contact=(controller.last_contact if not
+                                  (controller.game.paused or controller.game.ending
+                                   or controller.game.patient.alert) else None))
     finally:
         if atlas is not None:
             atlas.close()
