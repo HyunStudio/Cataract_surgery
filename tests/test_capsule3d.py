@@ -65,6 +65,8 @@ def test_seeded_capsule_integrity_alert_maps_to_red_indicator_without_mutation()
     assert capsule_display_state(g)==(True,.45)
     assert g.snapshot()==before
     assert g.action("assess")
+    assert g.awaiting_decision == "CAPSULE INTEGRITY"
+    assert g.action("decide", "refer")
     assert g.phase==Phase.ABORTED
     assert capsule_display_state(g)==(True,.45)
 

@@ -52,7 +52,7 @@ def session_paths(root: Path, basename: str) -> tuple[Path, Path]:
 class ReplayGame(Game):
     """Game with bounded, deterministic command capture and integrity checks."""
 
-    REPLAY_VERSION = 2
+    REPLAY_VERSION = 3
     # Roughly 35 minutes of continuous held-instrument work at 60 commands/s
     # and two hours of simulated time, while keeping the file well bounded.
     MAX_RECORDS = 250_000
@@ -85,7 +85,7 @@ class ReplayGame(Game):
         if is_outer and isinstance(name, str) and self.state_key() != before:
             item: dict[str, Any] = {"kind": "action", "name": name,
                                     "accepted": accepted}
-            if name == "verify" and isinstance(x, str) and len(x) <= 80:
+            if name in {"verify", "decide"} and isinstance(x, str) and len(x) <= 80:
                 item["x"] = x
                 self._append(item)
             elif name in {"touch", "trace", "remove", "place"}:
@@ -95,7 +95,7 @@ class ReplayGame(Game):
                     # 'remove' increments the synthetic capsule stress.
                     item["x"], item["y"] = point
                     self._append(item)
-            elif name in {"abort", "assess", "pause", "confirm", "prepare"}:
+            elif name in {"abort", "assess", "pause", "confirm", "prepare", "ovd", "hydro"}:
                 self._append(item)
         return accepted
 

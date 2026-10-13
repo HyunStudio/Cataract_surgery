@@ -118,6 +118,7 @@ def main() -> int:
                                             eye_regions["vision-motion"]):
             raise AssertionError("Synthetic eye motion/haze invisible in center-eye crop")
 
+        frame("case-brief")
         ctrl.command("confirm")
         ctrl.command("prepare")
         assert ctrl.game.phase == Phase.ENTRY
@@ -171,11 +172,15 @@ def main() -> int:
                 assert ctrl.game.snapshot()==before
                 frame("entry-stylus")
         assert ctrl.game.phase == Phase.CAPSULE
+        assert ctrl.command("ovd")
         frame("capsule")
         for n in range(24):
+            if ctrl.game.phase != Phase.CAPSULE:
+                break  # rhexis complete: the instrument is changed
             angle = (n+.5)*math.tau/24
             point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
         assert ctrl.game.phase == Phase.PHACO
+        assert ctrl.command("hydro")
         frame("phaco")
         # Held instrument: one command per fixed simulation tick.
         for _ in range(150):
@@ -189,6 +194,7 @@ def main() -> int:
         frame("iol")
         # Held mouse input must NOT silently place IOL.
         assert not point(.5,.5)
+        assert ctrl.command("ovd")
         assert point(.5,.5,pressed=True)
         assert ctrl.game.phase == Phase.CLOSE
         frame("iol-placement")
@@ -218,9 +224,12 @@ def main() -> int:
         for x,y in ctrl.game._entry_target:
             assert point(x,y,pressed=True)
         for n in range(24):
+            if ctrl.game.phase != Phase.CAPSULE:
+                break
             angle=(n+.5)*math.tau/24
             point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
         assert ctrl.game.phase == Phase.PHACO
+        assert ctrl.command("hydro")
         while not ctrl.game.stress_warning:
             assert not point(.5+.36,.5)
             ctrl.advance_clock(TICK)
@@ -258,6 +267,8 @@ def main() -> int:
         for x,y in ctrl.game._entry_target:
             assert point(x,y,pressed=True)
         for n in range(24):
+            if ctrl.game.phase != Phase.CAPSULE:
+                break
             angle=(n+.5)*math.tau/24
             point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
         assert ctrl.game.phase==Phase.PHACO
@@ -266,9 +277,47 @@ def main() -> int:
         assert not point(.5,.5,pressed=True)
         frame("capsule-safety-hold")
         assert ctrl.command("assess")
+        assert ctrl.game.awaiting_decision=="CAPSULE INTEGRITY"
+        frame("capsule-decision")
+        assert ctrl.command("decide","refer")
         assert ctrl.game.phase==Phase.ABORTED
         frame("capsule-safe-abort")
         assert ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl()).ending=="SAFELY ABORTED"
+
+        # Floppy-iris case: prolapse during phaco, managed, then completed.
+        ctrl=Surgery3DController("iris",seed=17)
+        overlay=SurgeryHUD(ctrl)
+        ctrl.command("confirm")
+        ctrl.command("prepare")
+        for x,y in ctrl.game._entry_target:
+            assert point(x,y,pressed=True)
+        assert ctrl.command("ovd")
+        for n in range(24):
+            if ctrl.game.phase != Phase.CAPSULE:
+                break
+            angle=(n+.5)*math.tau/24
+            point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
+        assert ctrl.command("hydro")
+        while not ctrl.game.patient.alert:
+            assert point(.5,.5)
+            ctrl.advance_clock(TICK)
+        assert ctrl.game.patient.alert=="IRIS PROLAPSE"
+        frame("iris-prolapse-hold")
+        assert ctrl.command("assess")
+        frame("iris-prolapse-decision")
+        assert ctrl.command("decide","manage")
+        assert ctrl.game.work_radius < ctrl.game.WORK_RADIUS
+
+        # Time-out case: ignoring a wrong-site alert is a critical failure.
+        ctrl=Surgery3DController("timeout",seed=17)
+        overlay=SurgeryHUD(ctrl)
+        assert ctrl.command("confirm")
+        assert ctrl.game.patient.alert=="SITE MISMATCH"
+        assert ctrl.command("assess")
+        assert ctrl.command("decide","continue")
+        assert ctrl.game.phase==Phase.FAILED and ctrl.game.score()==0
+        frame("critical-failure")
+        assert ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl()).outcome()=="CRITICAL_FAILURE"
 
         renderer = atlas.ctx.info.get("GL_RENDERER", "unknown")
         kind = renderer_kind(renderer)
@@ -279,7 +328,7 @@ def main() -> int:
             "frame_hashes": images,
             "gl_renderer": renderer,
             "renderer_kind": kind,
-            "scenario_count": 3,
+            "scenario_count": 6,
             "motion_haze_center_crop_distinct": True,
             "reduced_motion_preserves_safety_hold": True,
             "contact_ring_center_region_distinct": True,

@@ -16,7 +16,8 @@ import math
 from pathlib import Path
 import sys
 
-from .engine import PHASES, Phase
+from .complications import CASE_KEYS, CASES, DECISIONS, narrate, step_marker
+from .engine import ENDED, PHASES, Phase
 from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
 from .input3d import DEPTH_TOLERANCE, Surgery3DController, eye_to_pixel
 from .replay import session_paths
@@ -29,16 +30,33 @@ from .surface_probe3d import SurfaceProbe, probe_surface
 
 PHASE_NAMES = {
     Phase.PREOP: "PREOPERATIVE REVIEW",
-    Phase.ANESTHESIA: "TEAM TIME-OUT",
-    Phase.ENTRY: "ENTRY INCISIONS",
-    Phase.CAPSULE: "CAPSULE OPENING",
-    Phase.PHACO: "LENS REMOVAL",
-    Phase.CORTEX: "CORTEX CLEANUP",
-    Phase.IOL: "IOL PLACEMENT",
-    Phase.CLOSE: "FINAL CHECKS",
+    Phase.ANESTHESIA: "ANAESTHESIA & PREP",
+    Phase.ENTRY: "INCISIONS",
+    Phase.CAPSULE: "CAPSULORHEXIS",
+    Phase.PHACO: "PHACOEMULSIFICATION",
+    Phase.CORTEX: "CORTEX I/A",
+    Phase.IOL: "IOL IMPLANTATION",
+    Phase.CLOSE: "CLOSURE CHECKS",
     Phase.RECOVERY: "DEBRIEF",
     Phase.ABORTED: "PROCEDURE STOPPED",
+    Phase.FAILED: "CRITICAL FAILURE",
 }
+OUTCOME_COLORS = {"SUCCESS": (126,224,176), "MANAGED": (142,211,233),
+                  "COMPLICATED": (247,195,109), "SAFE_ABORT": (247,195,109),
+                  "CRITICAL_FAILURE": (247,122,136)}
+
+
+def wrap(text: str, width: int) -> list[str]:
+    words, lines, cur = str(text).split(), [], ""
+    for word in words:
+        if cur and len(cur) + len(word) + 1 > width:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = (cur + " " + word).strip()
+    if cur:
+        lines.append(cur)
+    return lines
 CHECKS = ("alignment", "wound", "handoff")
 TICK = 1 / 60
 # One held-instrument command per fixed simulation tick (see app.HELD_PHASES).
@@ -60,6 +78,19 @@ class SurgeryHUD:
         self._probe_phase: Phase | None = None
         self._probe_pose: tuple[float,float,float] | None = None
         self._probe_camera: tuple[float,float] | None = None
+        self._narrated: tuple[int, int] = (id(controller.game), 1)
+
+    def narrate(self) -> None:
+        """Show the newest game event as the status line (display only)."""
+        game = self.controller.game
+        key, seen = self._narrated
+        if key != id(game):
+            seen = 1
+        for event in game.events[seen:]:
+            text = narrate(event)
+            if text:
+                self.status = text
+        self._narrated = (id(game), len(game.events))
 
     def set_frame_proximity(self, result: SurfaceProbe | None) -> None:
         """Attach a non-mutating proximity observation to this exact phase."""
@@ -151,29 +182,18 @@ class SurgeryHUD:
                   color=green if kind=="TARGET" else amber if kind in
                         ("NEAR","VISITED") else red)
 
-        # Stage progress lives in the panel, never over the operative field.
-        if g.phase == Phase.ENTRY:
-            label(f"Entries {g.eye.entry_hits}/3", 24, y_at(8), color=light)
-            meter(y_at(9)+6, g.eye.entry_hits/3, green)
-        elif g.phase == Phase.CAPSULE:
-            done = len(g.eye.capsule_points)
-            label(f"Capsule ring {done}/20", 24, y_at(8), color=light)
-            meter(y_at(9)+6, done/20, green)
-        elif g.phase in (Phase.PHACO, Phase.CORTEX):
-            value = g.eye.opacity if g.phase == Phase.PHACO else g.eye.cortex
-            label(f"Remaining {value:.0%}", 24, y_at(8), color=light)
-            meter(y_at(9)+6, value, amber)
+        # Real procedure sub-steps of this phase, in the panel, never over
+        # the operative field.
+        for i, (step_label, done, key_hint) in enumerate(g.checklist()[:4]):
+            marker = step_marker(done, key_hint)
+            text = f"{marker} {step_label}"
+            label(text[:23], 24, y_at(8+i),
+                  color=green if done else amber if marker != "[ ]" else light)
+        if g.phase in (Phase.PHACO, Phase.CORTEX):
             warn = g.stress_warning
             label("TISSUE STRESS - recentre" if warn else "Tissue stress",
                   24, y_at(10), color=red if warn else muted)
             meter(y_at(11)+6, g.tissue_stress, red if warn else amber)
-        elif g.phase == Phase.IOL:
-            label("Click once at the centre", 24, y_at(8), color=light)
-        elif g.phase == Phase.CLOSE:
-            for i,key in enumerate(CHECKS):
-                done = key in g.eye.final_checks
-                label(f"{i+1} {key.upper()} " + ("DONE" if done else "PENDING"),
-                      24, y_at(8+i), color=green if done else amber)
         if g.phase in (Phase.IOL, Phase.CLOSE, Phase.RECOVERY):
             label(f"IOL unfold {iol_visual_deployment(g):.0%}", 24, y_at(12),
                   color=green)
@@ -221,7 +241,7 @@ class SurgeryHUD:
         if g.phase == Phase.ENTRY:
             for i,(x,y) in enumerate(g._entry_target):
                 self._point(pg, surf, x,y,c, width,height,
-                            green if i < g.eye.entry_hits else amber, r=9)
+                            green if i in g._entered else amber, r=9)
         elif g.phase == Phase.CAPSULE:
             for i in range(24):
                 a=(i+.5)*math.tau/24
@@ -231,27 +251,63 @@ class SurgeryHUD:
         elif g.phase == Phase.IOL:
             self._point(pg,surf,.5,.5,c,width,height,green,r=15)
 
-        if g.phase in (Phase.RECOVERY,Phase.ABORTED):
-            lines = g.debrief()[:6]
-            box_h = 150 + 26*len(lines)
-            box = (width//2-250, height//2-box_h//2, 500, box_h)
+        if g.phase in ENDED:
+            outcome = g.outcome()
+            headline, explain = g.outcome_title()
+            lines = []
+            for name, verdict in g.debrief():
+                if name == "Result":
+                    continue
+                for j, part in enumerate(wrap(verdict, 33) or [""]):
+                    lines.append((name if j == 0 else "", part))
+            lines = lines[:7]
+            box_h = 176 + 26*len(lines)
+            box = (width//2-280, height//2-box_h//2, 560, box_h)
             pg.draw.rect(surf,(18,44,56,246),box,border_radius=12)
             pg.draw.rect(surf,(106,211,227,255),box,2,border_radius=12)
             bx, by = box[0]+22, box[1]+12
             label("SURGEON DEBRIEF", bx, by, color=light)
-            label(g.ending or "SIMULATED RESULT", bx, by+26, large=True,
-                  color=green if g.phase==Phase.RECOVERY else amber)
-            label(f"Score {g.score()}/100 (synthetic game score)", bx, by+68, color=muted)
+            label(headline, bx, by+26, large=True, color=OUTCOME_COLORS[outcome])
+            label(explain, bx, by+68)
+            score = ("Not scored - safe stop" if outcome == "SAFE_ABORT" else
+                     "Score 0/100 (safety veto)" if outcome == "CRITICAL_FAILURE" else
+                     f"Score {g.score()}/100 (synthetic game score)")
+            label(score, bx, by+96, color=muted)
             for i,(name,verdict) in enumerate(lines):
-                label(name, bx, by+100+i*26, color=muted)
-                label(verdict[:34], bx+170, by+100+i*26)
+                label(name[:19], bx, by+128+i*26, color=muted)
+                label(verdict[:34], bx+200, by+128+i*26)
             label("S: save session   R: new case", bx, box[1]+box_h-36, color=amber)
+        elif g.phase == Phase.PREOP and not g.patient.alert:
+            brief = CASES[g.case]
+            box = (width//2-280, height//2-110, 560, 214)
+            pg.draw.rect(surf,(18,44,56,246),box,border_radius=12)
+            pg.draw.rect(surf,(106,211,227,255),box,2,border_radius=12)
+            bx, by = box[0]+22, box[1]+12
+            label("CASE BRIEF - YOU ARE THE OPERATING SURGEON", bx, by, color=light)
+            label(brief.title, bx, by+26, large=True)
+            label(brief.patient, bx, by+68)
+            for i, line in enumerate(wrap("Risk factors: " + brief.risks, 50)[:2]):
+                label(line, bx, by+96+i*26, color=amber)
+            label("SPACE time-out & begin   1-9 other case", bx, by+160, color=green)
         if g.patient.alert and not g.ending:
-            pg.draw.rect(surf,(91,35,49,245),
-                         (width//2-210,height//2-39,420,84),border_radius=9)
-            label("SAFETY HOLD: "+g.patient.alert,width//2-198,height//2-24,
-                  color=red)
-            label("A: assess   X: stop safely",width//2-198,height//2+7)
+            comp = g.complication
+            box = (width//2-290, height//2-130, 580, 262)
+            pg.draw.rect(surf,(70,30,44,248),box,border_radius=12)
+            pg.draw.rect(surf,red+(255,),box,2,border_radius=12)
+            bx, by = box[0]+20, box[1]+12
+            label("SAFETY HOLD - INSTRUMENTS STOPPED", bx, by, color=red)
+            label(comp.title if comp else g.patient.alert, bx, by+26, large=True)
+            if comp:
+                for i, line in enumerate(wrap("You see: " + comp.signs, 52)[:2]):
+                    label(line, bx, by+68+i*25, color=amber)
+            if g.awaiting_decision and comp:
+                options = ("Continue as before", comp.manage, comp.refer_result)
+                for i, text in enumerate(options):
+                    label(f"{i+1}  {text}"[:52], bx, by+130+i*28,
+                          color=(red if i == 0 else green if i == 1 else light))
+            else:
+                label("A  assess the situation", bx, by+136, color=green)
+                label("X  stop the procedure safely", bx, by+166, color=light)
         elif g.paused:
             label("PAUSED - ESC TO RESUME",width//2-110,height//2+70,color=amber)
 
@@ -260,8 +316,8 @@ class SurgeryHUD:
         pg.draw.rect(surf, (10,27,39,225), (12,bottom,width-24,58),
                      border_radius=10)
         instructions = (
-            "SPACE confirm | MOUSE instrument | Q/E or WHEEL depth | 1-3 checks | A assess",
-            "ARROWS orbit  +/- zoom  M low motion  H contrast  X stop  R restart  S save",
+            "SPACE time-out | MOUSE instrument | V OVD  D hydro | Q/E WHEEL depth | A assess",
+            "1-3 decide/checks  ARROWS orbit  +/- zoom  M motion  H contrast  X stop  R  S",
         )
         for i,msg in enumerate(instructions):
             label(msg[:90],24,bottom+6+i*25,color=green if i==0 else amber)
@@ -310,6 +366,7 @@ def run(case: str="normal",seed: int=7) -> None:
         current_atlas="CATARACT"
         clock=pygame.time.Clock()
         dragging=False
+        drag_phase=None
         cursor=(0,0)
         running=True
         accumulator=0.
@@ -323,6 +380,7 @@ def run(case: str="normal",seed: int=7) -> None:
                     dragging=False
                 elif event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
                     dragging=True
+                    drag_phase=g.phase
                     cursor=event.pos
                     hud.last_cursor=cursor
                     if g.phase not in HELD_PHASES:
@@ -340,7 +398,13 @@ def run(case: str="normal",seed: int=7) -> None:
                     controller.inspect(*cursor,*pygame.display.get_window_size())
                 elif event.type==pygame.KEYDOWN:
                     key=event.key
-                    if key==pygame.K_SPACE:
+                    if key in (pygame.K_1,pygame.K_2,pygame.K_3) and g.awaiting_decision:
+                        controller.command("decide",DECISIONS[key-pygame.K_1])
+                    elif key==pygame.K_v:
+                        controller.command("ovd")
+                    elif key==pygame.K_d:
+                        controller.command("hydro")
+                    elif key==pygame.K_SPACE:
                         if g.phase==Phase.PREOP:
                             controller.command("confirm")
                         elif g.phase==Phase.ANESTHESIA:
@@ -369,10 +433,10 @@ def run(case: str="normal",seed: int=7) -> None:
                         controller.adjust_depth(-1)
                     elif key==pygame.K_e:
                         controller.adjust_depth(1)
-                    elif key in (pygame.K_1,pygame.K_2,pygame.K_3,pygame.K_4):
+                    elif pygame.K_1<=key<=pygame.K_9:
                         number=key-pygame.K_1
-                        if g.phase==Phase.PREOP:
-                            controller.restart(("normal","motion","vitals","capsule")[number])
+                        if g.phase==Phase.PREOP and number < len(CASE_KEYS):
+                            controller.restart(CASE_KEYS[number])
                         elif g.phase==Phase.CLOSE and number < 3:
                             controller.command("verify",CHECKS[number])
                     elif key in (pygame.K_LEFT,pygame.K_RIGHT,
@@ -391,8 +455,9 @@ def run(case: str="normal",seed: int=7) -> None:
             steps=0
             while accumulator>=TICK and steps<6:
                 g=controller.game
-                # Stop held gesture when a critical alert or a complete case occurs.
-                if g.patient.alert or g.ending or g.paused:
+                # Stop held gesture on a safety hold, an ending, or a new step
+                # (instruments change between steps).
+                if g.patient.alert or g.ending or g.paused or g.phase!=drag_phase:
                     dragging=False
                 if dragging and g.phase in HELD_PHASES:
                     controller.pointer(*cursor,*pygame.display.get_window_size())
@@ -411,6 +476,7 @@ def run(case: str="normal",seed: int=7) -> None:
                 reduced_motion=hud.reduced_motion,
                 high_contrast=hud.high_contrast)
             proximity=probe_surface(controller,feedback)
+            hud.narrate()
             hud.set_frame_proximity(proximity)
             atlas.render(controller.view,clock.get_fps(),overlay=hud,
                          appearance=AnatomyAppearance(eye.opacity,eye.cortex,
@@ -431,7 +497,7 @@ def run(case: str="normal",seed: int=7) -> None:
 
 def main(argv=None) -> int:
     parser=argparse.ArgumentParser(description="Mock cataract surgery game: you are the surgeon (3D)")
-    parser.add_argument("--case",choices=["normal","motion","vitals","capsule"],default="normal")
+    parser.add_argument("--case",choices=list(CASE_KEYS),default="normal")
     parser.add_argument("--seed",type=int,default=7)
     ns=parser.parse_args(argv)
     if isinstance(ns.seed,bool) or abs(ns.seed)>2**63-1:

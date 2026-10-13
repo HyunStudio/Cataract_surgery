@@ -34,6 +34,8 @@ def enter_capsule(controller):
 def enter_phaco(controller):
     enter_capsule(controller)
     for i in range(24):
+        if controller.game.phase != Phase.CAPSULE:
+            break
         theta = (i + .5) * math.tau / 24
         gesture(controller, .5 + .28 * math.cos(theta),
                 .5 + .28 * math.sin(theta))
@@ -43,6 +45,7 @@ def enter_phaco(controller):
 def test_full_synthetic_procedure_in_3d_input_mode_and_replay():
     c = Surgery3DController(seed=28)
     enter_phaco(c)
+    assert c.command("hydro")
     while c.game.phase == Phase.PHACO:
         assert gesture(c, .5, .5)
     assert c.game.phase == Phase.CORTEX
@@ -78,6 +81,10 @@ def test_3d_scenario_safety_holds_prevent_click_bypass(case,trigger,alert):
     assert c.game.snapshot() == before
     assert c.command("assess")
     if case == "capsule":
+        # A major complication needs a decision; clicks stay blocked until then.
+        assert c.game.awaiting_decision == alert
+        assert not c.pointer(640,360,W,H)
+        assert c.command("decide", "refer")
         assert c.game.phase == Phase.ABORTED
         assert c.game.ending == "SAFELY ABORTED"
     else:
@@ -187,6 +194,7 @@ def test_removal_hold_cannot_auto_place_iol():
     enter_phaco(c)
     # Even if a user keeps dragging well past the end of cleanup, the new
     # IOL phase cannot treat a continuous hold as a deliberate placement.
+    assert c.command("hydro")
     for _ in range(500):
         gesture(c, .5, .5)
     assert c.game.phase == Phase.IOL

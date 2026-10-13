@@ -35,12 +35,16 @@ def hold_until(game, phase, limit=600):
 
 
 def finish(game):
+    """Full uncomplicated case with correct technique (OVD, hydrodissection)."""
     enter_capsule(game)
+    assert game.action('ovd')
     trace_capsule(game)
+    assert game.action('hydro')
     hold_until(game, Phase.PHACO)
     assert game.phase == Phase.CORTEX
     hold_until(game, Phase.CORTEX)
     assert game.phase == Phase.IOL
+    assert game.action('ovd')
     assert game.action('place',.51,.51)
     assert game.phase == Phase.CLOSE
     for name in ('alignment','wound','handoff'):
@@ -146,6 +150,9 @@ def test_capsule_event_recommends_abort():
     game.tick(.016)
     assert game.patient.alert=='CAPSULE INTEGRITY'
     assert game.action('assess')
+    assert game.awaiting_decision=='CAPSULE INTEGRITY'
+    assert game.paused
+    assert game.action('decide','refer')
     assert game.phase==Phase.ABORTED
     assert game.ending=='SAFELY ABORTED'
 

@@ -93,14 +93,16 @@ def contact_guide(game, pose: ToolPose | None,
         elif distance >= .18:
             status = "NEAR" if distance < .28 else "OUTSIDE"
     elif game.phase == Phase.CAPSULE:
-        if .19 < r < .37:
+        # Same safe annulus as the engine: narrower in a shallow chamber.
+        low, high = game.RHEXIS_BAND if game.ovd_chamber else game.RHEXIS_BAND_SHALLOW
+        if low < r < high:
             angle = (math.atan2(v-.5, u-.5) + math.tau) % math.tau
             bin_index = int(angle / math.tau * 24) % 24
             status = "VISITED" if bin_index in game.eye.capsule_points else "TARGET"
         elif r > .48:
             status = "OUTSIDE"
     elif game.phase in (Phase.PHACO, Phase.CORTEX):
-        status = "TARGET" if r < .33 else ("NEAR" if r < .46 else "OUTSIDE")
+        status = "TARGET" if r < game.work_radius else ("NEAR" if r < .46 else "OUTSIDE")
     elif game.phase == Phase.IOL:
         # Existing Game accepts misaligned placement and reports its score;
         # show nearby points as NEAR but never override that engine decision.

@@ -26,12 +26,14 @@ def to_capsule(game):
     assert game.phase == Phase.CAPSULE
 
 
-def to_phaco(game):
+def to_phaco(game, *, hydro=True):
     to_capsule(game)
     for i in range(24):
         a = (i + .5) * math.tau / 24
         game.action('trace', .5 + .28 * math.cos(a), .5 + .28 * math.sin(a))
     assert game.phase == Phase.PHACO
+    if hydro and not game.patient.alert:
+        assert game.action('hydro')
 
 
 # --- Held instrument work is per simulated tick ------------------------------
@@ -163,10 +165,16 @@ def test_sustained_off_target_work_still_raises_capsule_alert():
 
 def test_clean_run_keeps_full_safety_score():
     game = Game()
-    to_phaco(game)
+    to_capsule(game)
+    assert game.action('ovd')
+    for i in range(24):
+        a = (i + .5) * math.tau / 24
+        game.action('trace', .5 + .28 * math.cos(a), .5 + .28 * math.sin(a))
+    assert game.action('hydro')
     while game.phase in (Phase.PHACO, Phase.CORTEX):
         game.action('remove', .5, .5)
         game.tick(1 / 60)
+    assert game.action('ovd')
     assert game.action('place', .5, .5)
     for item in ('alignment', 'wound', 'handoff'):
         assert game.action('verify', item)
@@ -287,10 +295,11 @@ def test_debrief_credits_a_safe_stop_after_complication():
     to_phaco(game)
     assert game.patient.alert == 'CAPSULE INTEGRITY'
     assert game.action('assess')
+    assert game.action('decide', 'refer')
     assert game.phase == Phase.ABORTED
     lines = dict(game.debrief())
-    assert lines['Decision'] == 'Recognised and stopped safely'
-    assert lines['Safety holds'] == '1 raised, 1 assessed'
+    assert lines['Result'] == 'Stopped safely by the surgeon'
+    assert lines['Posterior Capsule Rupture'] == 'stopped and referred'
 
 
 def test_phase_durations_follow_simulated_time():

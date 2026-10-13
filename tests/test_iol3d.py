@@ -21,6 +21,7 @@ def _reach_iol():
         a = (n+.5)*math.tau/24
         game.action("trace", .5+.28*math.cos(a), .5+.28*math.sin(a))
     assert game.phase == Phase.PHACO
+    assert game.action("hydro")
     while game.phase in (Phase.PHACO, Phase.CORTEX):
         assert game.action("remove",.5,.5)
     assert game.phase == Phase.IOL

@@ -61,7 +61,7 @@ def capsule_visible(game) -> bool:
     if game.phase in (Phase.CAPSULE,Phase.PHACO,Phase.CORTEX,Phase.IOL,
                       Phase.CLOSE,Phase.RECOVERY):
         return True
-    if game.phase == Phase.ABORTED and game.eye.capsule_integrity < 1.:
+    if game.phase in (Phase.ABORTED, Phase.FAILED) and game.eye.capsule_integrity < 1.:
         return True
     return False
 

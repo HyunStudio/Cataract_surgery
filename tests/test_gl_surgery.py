@@ -25,11 +25,14 @@ def test_full_3d_session_export_validates_replay(tmp_path):
         pixel=eye_to_pixel(x,y,c.tool_depth,1280,720,c.view)
         assert c.pointer(*pixel,1280,720, fresh_press=True)
     for i in range(24):
+        if c.game.phase!=Phase.CAPSULE:
+            break
         angle=(i+.5)*math.tau/24
         c.adjust_depth_to_target()
         pixel=eye_to_pixel(.5+.28*math.cos(angle),.5+.28*math.sin(angle),
                            c.tool_depth,1280,720,c.view)
         c.pointer(*pixel,1280,720)
+    assert c.command("hydro")
     while c.game.phase in (Phase.PHACO,Phase.CORTEX):
         c.adjust_depth_to_target()
         pixel=eye_to_pixel(.5,.5,c.tool_depth,1280,720,c.view)

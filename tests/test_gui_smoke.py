@@ -41,12 +41,15 @@ def test_export_completed_game_visual(app):
     g.action('prepare')
     for x,y in g._entry_target:
         g.action('touch',x,y)
+    assert g.action('ovd')
     import math
     for i in range(24):
         theta=(i+.5)*math.tau/24
         g.action('trace',.5+.28*math.cos(theta),.5+.28*math.sin(theta))
+    assert g.action('hydro')
     while g.phase in (Phase.PHACO,Phase.CORTEX):
         assert g.action('remove',.5,.5)
+    assert g.action('ovd')
     assert g.action('place',.5,.5)
     for key in ('alignment','wound','handoff'):
         g.action('verify',key)

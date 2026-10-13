@@ -11,6 +11,7 @@ import math
 from pathlib import Path
 import sys
 
+from .complications import CASE_KEYS, CASES, DECISIONS, narrate, step_marker
 from .engine import Phase
 from .replay import ReplayGame as Game, session_paths
 from .preview3d import draw_preview
@@ -35,17 +36,36 @@ HELD_PHASES = {Phase.CAPSULE, Phase.PHACO, Phase.CORTEX}
 
 # Second-person briefings: the player is the operating surgeon.
 PHASE_COPY = {
-    Phase.PREOP: ('PREOPERATIVE REVIEW', 'Review your mock patient and pick a case, then confirm.'),
-    Phase.ANESTHESIA: ('TEAM TIME-OUT', 'Confirm the team is ready. No real medication actions.'),
-    Phase.ENTRY: ('ENTRY INCISIONS', 'Make your three entries: click each glowing target.'),
-    Phase.CAPSULE: ('CAPSULE OPENING', 'Hold the left button and trace the dotted ring all the way round.'),
-    Phase.PHACO: ('LENS REMOVAL', 'Hold the left button on the cloudy lens. Keep the tip inside the pupil.'),
-    Phase.CORTEX: ('CORTEX CLEANUP', 'Hold on the inner lens to clear what remains. Stay central.'),
-    Phase.IOL: ('IOL PLACEMENT', 'Click once at the optical centre to seat the lens implant.'),
-    Phase.CLOSE: ('FINAL CHECKS', 'Verify alignment, wound and handoff on the left panel.'),
+    Phase.PREOP: ('PREOPERATIVE REVIEW', 'Read the case brief, pick a case (1-9), then do the time-out.'),
+    Phase.ANESTHESIA: ('ANAESTHESIA & PREP', 'Topical anaesthesia, antiseptic prep, drape and speculum.'),
+    Phase.ENTRY: ('INCISIONS', 'Click the 3 incision sites, then inject viscoelastic (V).'),
+    Phase.CAPSULE: ('CAPSULORHEXIS', 'Inject OVD (V) if needed, then drag round the ring. Never pull out.'),
+    Phase.PHACO: ('PHACOEMULSIFICATION', 'Hydrodissect first (D), then hold on the nucleus inside the pupil.'),
+    Phase.CORTEX: ('CORTEX I/A', 'Hold on the inner lens to aspirate the cortex. Stay central.'),
+    Phase.IOL: ('IOL IMPLANTATION', 'Fill the bag with OVD (V), then click once at the optical centre.'),
+    Phase.CLOSE: ('CLOSURE CHECKS', 'Verify IOL, wound seal and handoff (click or 1-3).'),
     Phase.RECOVERY: ('DEBRIEF', 'Mock procedure complete. Press E to export your session.'),
     Phase.ABORTED: ('PROCEDURE STOPPED', 'You stopped the mock procedure safely. Press R for a new case.'),
+    Phase.FAILED: ('CRITICAL FAILURE', 'A major complication was ignored. Press R for a new case.'),
 }
+OUTCOME_COLORS = {'SUCCESS': MINT, 'MANAGED': CYAN, 'COMPLICATED': AMBER,
+                  'SAFE_ABORT': AMBER, 'CRITICAL_FAILURE': RED}
+CHECK_KEYS = ('alignment', 'wound', 'handoff')
+
+
+def wrap(text, width):
+    """Greedy word wrap by character count (fonts here are near-monospace)."""
+    words = str(text).split()
+    lines, cur = [], ''
+    for word in words:
+        if cur and len(cur) + len(word) + 1 > width:
+            lines.append(cur)
+            cur = word
+        else:
+            cur = (cur + ' ' + word).strip()
+    if cur:
+        lines.append(cur)
+    return lines
 
 
 def to_eye(pos):
@@ -79,7 +99,9 @@ def render_eye(pg, surf, model, clock_s):
         pg.draw.line(surf, (52 + (i%5)*5, 111+(i%4)*6, 114+(i%3)*4),
                      (round(EYE_CX+math.cos(a)*inner),round(EYE_CY+math.sin(a)*inner)),
                      (round(EYE_CX+math.cos(a)*outer),round(EYE_CY+math.sin(a)*outer)), 1)
-    pg.draw.circle(surf, (10, 17, 27), center, 104)
+    # Pupil: shrinks when the iris is prolapsing or traumatised (miosis).
+    pupil = round(104 * min(1., model.work_radius / model.WORK_RADIUS))
+    pg.draw.circle(surf, (10, 17, 27), center, pupil)
     # Synthetic cataract opacity. Display rings shrink smoothly with progress.
     if model.eye.opacity > 0:
         alpha = int(model.eye.opacity*188)
@@ -101,10 +123,39 @@ def render_eye(pg, surf, model, clock_s):
     pg.draw.ellipse(transparent,(240,254,255,46), (88,53,158,72))
     pg.draw.arc(transparent,(200,249,255,90),(30,35,385,380), .65, 2.35, 5)
     surf.blit(transparent,(EYE_CX-EYE_R-10,EYE_CY-EYE_R-10))
+    history = model.alert_history
+    live = model.patient.alert
+    if model.ovd_chamber and model.phase in {Phase.ENTRY, Phase.CAPSULE}:
+        sheen = pg.Surface((300,300),pg.SRCALPHA)
+        pg.draw.circle(sheen,(150,225,240,34),(150,150),148)
+        surf.blit(sheen,(EYE_CX-150,EYE_CY-150))
+    if 'RHEXIS TEAR' in history:
+        # Radial run-out of the capsulorhexis edge towards the periphery.
+        a = math.radians(300)
+        start = to_screen((.5+.28*math.cos(a), .5+.28*math.sin(a)))
+        end = to_screen((.5+.42*math.cos(a+.08), .5+.42*math.sin(a+.08)))
+        pg.draw.line(surf, RED, start, end, 3)
+    if 'CAPSULE INTEGRITY' in history and model.phase not in {Phase.PREOP}:
+        # Posterior capsule opening: dark gap with vitreous strands.
+        veil = pg.Surface((220,220),pg.SRCALPHA)
+        pg.draw.ellipse(veil,(20,24,30,150),(70,90,90,60))
+        for k in range(5):
+            pg.draw.arc(veil,(205,215,220,120),(60+k*8,70+k*6,100,80),.4,2.6,2)
+        surf.blit(veil,(EYE_CX-110,EYE_CY-110))
+    if 'IRIS PROLAPSE' in history and (live == 'IRIS PROLAPSE' or 'iris_trauma' in model.flags):
+        tip = to_screen((.80, .46))
+        pg.draw.ellipse(surf,(92,70,58),(tip[0]-8,tip[1]-16,30,30))
+        pg.draw.ellipse(surf,(120,92,70),(tip[0]-2,tip[1]-10,18,18))
+    if live == 'WOUND LEAK':
+        for k in range(4):
+            drop = to_screen((.74+k*.025, .47+k*.02))
+            pg.draw.circle(surf,(170,220,240),drop,4)
+    if live == 'ZONULAR WEAKNESS':
+        pg.draw.circle(surf,AMBER,(center[0]+6,center[1]),106,2)
     if model.phase == Phase.ENTRY:
         for i,pt in enumerate(model._entry_target):
             pos = to_screen(pt)
-            color = MINT if i < model.eye.entry_hits else AMBER
+            color = MINT if i in model._entered else AMBER
             pg.draw.circle(surf,color,pos,11,3)
             pg.draw.circle(surf,(240,237,211),pos,3)
     if model.phase == Phase.CAPSULE:
@@ -158,6 +209,9 @@ class App:
         self.cursor=(0,0)
         self._acc=0.0
         self.message='You are the surgeon. Mock procedure - not for clinical use.'
+        self._narrated=(id(self.game),1)
+        self._option_rects=[]
+        self._drag_phase=None
         self.drag=False
         self.quality='2.5D'
         self.view_3d=False
@@ -177,7 +231,10 @@ class App:
         elif event.type==pg.VIDEORESIZE:
             self.screen=pg.display.set_mode((max(640,event.w),max(360,event.h)),pg.RESIZABLE)
         elif event.type==pg.KEYDOWN:
-            if event.key==pg.K_ESCAPE:
+            if event.key in (pg.K_1,pg.K_2,pg.K_3) and self.game.awaiting_decision:
+                # Decision after assessing a complication: 1 continue, 2 manage, 3 stop.
+                self.game.action('decide',DECISIONS[event.key-pg.K_1])
+            elif event.key==pg.K_ESCAPE:
                 self.game.action('pause')
             elif event.key==pg.K_x:
                 self.game.action('abort')
@@ -200,13 +257,21 @@ class App:
                 self.save()
             elif event.key==pg.K_SPACE:
                 self.start_next()
-            elif event.key in (pg.K_1,pg.K_2,pg.K_3,pg.K_4) and self.game.phase==Phase.PREOP:
+            elif event.key==pg.K_v:
+                self.game.action('ovd')
+            elif event.key==pg.K_d:
+                self.game.action('hydro')
+            elif pg.K_1<=event.key<=pg.K_9 and self.game.phase==Phase.PREOP:
                 idx=event.key-pg.K_1
-                self.game=Game(('normal','motion','vitals','capsule')[idx],self.game.seed)
+                if idx<len(CASE_KEYS):
+                    self.game=Game(CASE_KEYS[idx],self.game.seed)
+            elif event.key in (pg.K_1,pg.K_2,pg.K_3) and self.game.phase==Phase.CLOSE:
+                self.game.action('verify',CHECK_KEYS[event.key-pg.K_1])
         elif event.type == pg.MOUSEBUTTONDOWN:
             self.cursor=self.mapped(event.pos)
             if event.button==1:
                 self.drag=True
+                self._drag_phase=self.game.phase
                 if self.game.phase not in HELD_PHASES:
                     self.pointer_action()
         elif event.type == pg.MOUSEBUTTONUP and event.button==1:
@@ -214,6 +279,18 @@ class App:
         elif event.type==pg.MOUSEMOTION:
             # Held tasks sample the latest cursor once per simulation tick.
             self.cursor=self.mapped(event.pos)
+        self.narrate()
+
+    def narrate(self):
+        """Show the newest event as a short status message (display only)."""
+        key,seen=self._narrated
+        if key!=id(self.game):
+            seen=1
+        for event in self.game.events[seen:]:
+            text=narrate(event)
+            if text:
+                self.message=text
+        self._narrated=(id(self.game),len(self.game.events))
 
     def start_next(self):
         if self.game.phase==Phase.PREOP:
@@ -229,7 +306,11 @@ class App:
         x,y=self.cursor
         game=self.game
         if game.patient.alert:
-            if x>=955 and y>=550:
+            if game.awaiting_decision:
+                for choice,(rx,ry,rw,rh) in zip(DECISIONS,self._option_rects):
+                    if rx<=x<=rx+rw and ry<=y<=ry+rh:
+                        game.action('decide',choice)
+            elif x>=955 and y>=550:
                 game.action('assess')
             return
         if game.phase in {Phase.PREOP,Phase.ANESTHESIA} and x<252 and y>554:
@@ -258,11 +339,14 @@ class App:
     def tick_once(self):
         """Advance one fixed simulation step, applying a held instrument first."""
         g=self.game
-        if g.patient.alert or g.ending or g.paused:
+        # Instruments change between steps: a held gesture never carries over
+        # into the next phase (e.g. finishing the rhexis must not start phaco).
+        if g.patient.alert or g.ending or g.paused or g.phase!=self._drag_phase:
             self.drag=False
         if self.drag and g.phase in HELD_PHASES:
             self.pointer_action()
         self.game.tick(TICK)
+        self.narrate()
 
     def save(self):
         # Deliberately no personal patient identifiers; synthetic logs only.
@@ -291,7 +375,9 @@ class App:
         rounded(pg,surf,PANEL,(15,75,250,620),14)
         draw_text(pg,surf,self.fonts,'YOUR TASK, SURGEON', (29,96),color=CYAN)
         title,desc=PHASE_COPY[self.game.phase]
-        draw_text(pg,surf,self.fonts,title,(29,128),size='medium',max_chars=22)
+        # Long step names drop to the base size so they stay inside the panel.
+        size='medium' if self.fonts['medium'].size(title)[0]<=225 else 'base'
+        draw_text(pg,surf,self.fonts,title,(29,130 if size=='base' else 128),size=size,max_chars=24)
         def wrapped(text,width=27):
             words=text.split();lines=[];cur=''
             for word in words:
@@ -305,25 +391,31 @@ class App:
         pg.draw.line(surf,(48,76,91),(29,250),(248,250),1)
         g=self.game
         if g.phase==Phase.PREOP:
-            draw_text(pg,surf,self.fonts,'SELECT CASE  [1–4]',(29,279),color=CYAN)
-            for i,name in enumerate(('1 Normal','2 Patient motion','3 Vital alert','4 Capsule alert')):
-                draw_text(pg,surf,self.fonts,name,(32,313+i*35),color=MINT if g.case==('normal','motion','vitals','capsule')[i] else TEXT)
+            draw_text(pg,surf,self.fonts,'SELECT CASE  [1-9]',(29,262),color=CYAN)
+            for i,key in enumerate(CASE_KEYS):
+                draw_text(pg,surf,self.fonts,f'{i+1} {CASES[key].title}',(32,290+i*28),
+                          color=MINT if g.case==key else TEXT,max_chars=26)
         elif g.phase==Phase.CLOSE:
-            draw_text(pg,surf,self.fonts,'FINAL CHECKS', (29,282),color=CYAN)
-            for i,(key,label) in enumerate((('alignment','IOL alignment'),('wound','Wound stability'),('handoff','Patient handoff'))):
+            draw_text(pg,surf,self.fonts,'CLOSURE CHECKS', (29,282),color=CYAN)
+            for i,(label,done,hint) in enumerate(g.checklist()):
                 yy=343+i*62
                 rounded(pg,surf,PANEL2,(27,yy,225,50))
-                draw_text(pg,surf,self.fonts,('✓  ' if key in g.eye.final_checks else '□  ')+label,(37,yy+14),color=MINT if key in g.eye.final_checks else TEXT)
+                draw_text(pg,surf,self.fonts,('✓  ' if done else '□  ')+label,(37,yy+14),color=MINT if done else TEXT)
         else:
+            draw_text(pg,surf,self.fonts,'PROCEDURE STEPS',(29,262),color=CYAN)
+            for i,(label,done,hint) in enumerate(g.checklist()[:4]):
+                marker=step_marker(done,hint)
+                draw_text(pg,surf,self.fonts,f'{marker} {label}',(32,290+i*26),
+                          color=MINT if done else AMBER if marker!='[ ]' else TEXT,max_chars=26)
             for i,(label,val,color) in enumerate((('Lens opacity',g.eye.opacity,AMBER),('Cortex remaining',g.eye.cortex,CYAN),('Capsule integrity',g.eye.capsule_integrity,MINT),('IOL alignment',g.eye.iol_alignment,CYAN))):
-                yy=281+i*66
-                draw_text(pg,surf,self.fonts,label,(29,yy),color=MUTED)
-                bar(pg,surf,30,yy+25,215,val,color)
+                yy=400+i*40
+                draw_text(pg,surf,self.fonts,label,(29,yy),color=MUTED,size='tiny')
+                bar(pg,surf,30,yy+20,215,val,color)
             if g.phase in (Phase.PHACO,Phase.CORTEX):
                 stress=g.tissue_stress
                 warn=g.stress_warning
-                draw_text(pg,surf,self.fonts,'Tissue stress',(29,545),color=RED if warn else MUTED)
-                bar(pg,surf,30,570,215,stress,RED if warn else AMBER)
+                draw_text(pg,surf,self.fonts,'Tissue stress',(29,560),color=RED if warn else MUTED,size='tiny')
+                bar(pg,surf,30,580,215,stress,RED if warn else AMBER)
         if g.phase in (Phase.PREOP,Phase.ANESTHESIA):
             rounded(pg,surf,(24,104,111),(28,573,223,59),10)
             draw_text(pg,surf,self.fonts,'SPACE / CLICK TO CONFIRM',(39,590),size='base')
@@ -349,9 +441,10 @@ class App:
         col=RED if p.alert else MINT
         rounded(pg,s,(61,32,47) if p.alert else (25,67,60),(990,531,260,97))
         draw_text(pg,s,self.fonts,'STATUS', (1004,539),color=col)
-        draw_text(pg,s,self.fonts,p.alert or 'STABLE', (1004,566),color=col,size='medium',max_chars=23)
+        draw_text(pg,s,self.fonts,p.alert or 'STABLE', (1004,566),color=col,size='medium',max_chars=20)
         if p.alert:
-            draw_text(pg,s,self.fonts,'A / CLICK  Assess or X Abort',(999,603),size='tiny',color=TEXT)
+            draw_text(pg,s,self.fonts,('1-3 / CLICK  Decide   X Stop safely' if g.awaiting_decision
+                                       else 'A / CLICK  Assess   X Stop safely'),(999,603),size='tiny',color=TEXT)
         else:
             draw_text(pg,s,self.fonts,'Cooperation: stable',(1004,604),color=MUTED,size='tiny')
         draw_text(pg,s,self.fonts,'No real patient measurements', (990,660),color=MUTED,size='tiny')
@@ -388,10 +481,11 @@ class App:
         self.draw_sidebar();self.draw_monitor()
         # Footer and alerts.
         draw_text(pg,s,self.fonts,f'CASE: {g.case.upper()}   |   PHASE: {g.phase.value}   |   SCORE: {g.score()}   |   SEED: {g.seed}',(291,654),size='tiny',color=MUTED)
+        self._option_rects=[]
+        if g.phase==Phase.PREOP and not g.patient.alert and not self.view_3d:
+            self.draw_case_brief()
         if g.patient.alert and not g.ending:
-            rounded(pg,s,(87,41,52),(362,548,550,67),10)
-            draw_text(pg,s,self.fonts,'SAFETY HOLD — REVIEW PATIENT STATE', (382,565),color=RED,size='medium')
-            draw_text(pg,s,self.fonts,'Press A to assess  ·  X to safely abort', (386,595),size='base')
+            self.draw_complication_card()
         elif g.paused:
             rounded(pg,s,(35,55,75),(395,550,480,56))
             draw_text(pg,s,self.fonts,'PAUSED — ESC to continue',(424,564),size='medium')
@@ -400,23 +494,75 @@ class App:
             draw_text(pg,s,self.fonts,'TISSUE STRESS — bring the tip back to the centre',
                       (390,571),color=AMBER)
         if g.ending:
-            box=(338,150,602,362)
+            box=(338,120,602,430)
             rounded(pg,s,(14,43,57),box,19)
             pg.draw.rect(s,CYAN,box,2,border_radius=19)
-            draw_text(pg,s,self.fonts,'SURGEON DEBRIEF',(372,170),color=CYAN)
-            draw_text(pg,s,self.fonts,g.ending,(370,194),size='title',color=MINT if g.phase==Phase.RECOVERY else AMBER)
-            draw_text(pg,s,self.fonts,f'SIMULATED SCORE   {g.score()} / 100',(372,244),size='medium')
-            for i,(label,verdict) in enumerate(g.debrief()[:6]):
-                yy=290+i*28
-                draw_text(pg,s,self.fonts,label,(372,yy),color=MUTED)
-                draw_text(pg,s,self.fonts,verdict,(552,yy),max_chars=40)
-            draw_text(pg,s,self.fonts,'E: Export session    R: New case',(372,460),color=MUTED)
+            outcome=g.outcome()
+            headline,explain=g.outcome_title()
+            draw_text(pg,s,self.fonts,'SURGEON DEBRIEF',(372,138),color=CYAN)
+            draw_text(pg,s,self.fonts,headline,(370,162),size='title',color=OUTCOME_COLORS[outcome])
+            draw_text(pg,s,self.fonts,explain,(372,204),color=TEXT)
+            score=('Not scored - safe stop' if outcome=='SAFE_ABORT' else
+                   'SCORE 0 / 100 (safety veto)' if outcome=='CRITICAL_FAILURE' else
+                   f'SIMULATED SCORE   {g.score()} / 100')
+            draw_text(pg,s,self.fonts,score,(372,234),size='medium')
+            rows=[]
+            for label,verdict in g.debrief():
+                if label=='Result':
+                    continue
+                for j,part in enumerate(wrap(verdict,38) or ['']):
+                    rows.append((label if j==0 else '',part))
+            for i,(label,verdict) in enumerate(rows[:8]):
+                yy=276+i*26
+                draw_text(pg,s,self.fonts,label,(372,yy),color=MUTED,max_chars=26)
+                draw_text(pg,s,self.fonts,verdict,(584,yy),max_chars=40)
+            draw_text(pg,s,self.fonts,'E: Export session    R: New case',(372,496),color=MUTED)
             draw_text(pg,s,self.fonts,'Synthetic game score. No patient outcome or clinical skill is implied.',
-                      (372,488),size='tiny',color=MUTED)
+                      (372,524),size='tiny',color=MUTED)
         draw_text(pg,s,self.fonts,self.message,(24,699),size='tiny',color=MUTED,max_chars=105)
         out=pg.transform.smoothscale(s,self.screen.get_size())
         self.screen.blit(out,(0,0))
         pg.display.flip()
+
+    def draw_case_brief(self):
+        pg=self.pg;s=self.canvas;g=self.game
+        brief=CASES[g.case]
+        box=(338,170,602,236)
+        rounded(pg,s,(14,43,57),box,16)
+        pg.draw.rect(s,CYAN,box,2,border_radius=16)
+        draw_text(pg,s,self.fonts,'CASE BRIEF  -  YOU ARE THE OPERATING SURGEON',(362,186),color=CYAN)
+        draw_text(pg,s,self.fonts,brief.title,(362,214),size='medium')
+        draw_text(pg,s,self.fonts,brief.patient,(362,250),color=TEXT)
+        for i,line in enumerate(wrap('Risk factors: '+brief.risks,60)[:2]):
+            draw_text(pg,s,self.fonts,line,(362,280+i*24),color=AMBER)
+        draw_text(pg,s,self.fonts,'SPACE: time-out, then begin.   1-9: choose another case',(362,344),color=MINT)
+        draw_text(pg,s,self.fonts,'Synthetic case. Not a real patient.',(362,374),size='tiny',color=MUTED)
+
+    def draw_complication_card(self):
+        pg=self.pg;s=self.canvas;g=self.game
+        comp=g.complication
+        title=comp.title if comp else g.patient.alert
+        box=(330,150,618,330)
+        rounded(pg,s,(64,30,42),box,16)
+        pg.draw.rect(s,RED,box,2,border_radius=16)
+        draw_text(pg,s,self.fonts,'SAFETY HOLD  -  INSTRUMENTS STOPPED',(354,166),color=RED)
+        draw_text(pg,s,self.fonts,title,(354,192),size='title',color=TEXT)
+        if comp:
+            draw_text(pg,s,self.fonts,f'During: {comp.stage}',(354,236),size='tiny',color=MUTED)
+            for i,line in enumerate(wrap('What you see: '+comp.signs,62)[:3]):
+                draw_text(pg,s,self.fonts,line,(354,260+i*23),color=AMBER)
+        if g.awaiting_decision and comp:
+            options=(('1','Continue as before'),('2',comp.manage),('3',comp.refer_result))
+            for i,(key,label) in enumerate(options):
+                rect=(350,336+i*40,578,34)
+                self._option_rects.append(rect)
+                rounded(pg,s,PANEL2,rect,8)
+                draw_text(pg,s,self.fonts,f'{key}   {label}',(364,343+i*40),max_chars=60)
+        else:
+            draw_text(pg,s,self.fonts,'A   Assess the situation',(364,350),color=MINT)
+            draw_text(pg,s,self.fonts,'X   Stop the procedure safely',(364,382),color=MUTED)
+            if comp and not comp.decision:
+                draw_text(pg,s,self.fonts,'The team settles the patient once you assess.',(364,420),size='tiny',color=MUTED)
 
     def run(self):
         pg=self.pg
@@ -437,7 +583,7 @@ class App:
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description='Educational 2.5D cataract surgery game')
-    parser.add_argument('--case', choices=['normal','motion','vitals','capsule'],default='normal')
+    parser.add_argument('--case', choices=list(CASE_KEYS),default='normal')
     parser.add_argument('--seed',type=int,default=7)
     parser.add_argument('--scale',type=float,default=1.0)
     ns=parser.parse_args(argv)
