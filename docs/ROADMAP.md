@@ -104,3 +104,11 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - Verified under headless Python 3.12/3.13 and Mesa software OpenGL with actual before/after frame comparison.
 - **WP12/WP13 remain partial** until 3D instrument selection, actual 3D collision/picking and full surgical feedback are developed; this geometry is an educational overlay rather than a force-controlled instrument.
 - Next recommended implementation: state-consistent capsule geometry transitions and IOL insertion/unfold animation, plus real Windows AMD GPU profiling and 4K accessibility tests.
+
+
+## 2026-10-13 — IOL fold/unfold partial milestone (WP21–23)
+
+- A stylized *visual-only* optic with curved supports and shader folding has been integrated into the synthetic 3D game. Stage IOL shows a folded IOL and successful placement triggers a deterministic visual unfolding in CLOSE, freezing on pause.
+- Automated 3D crops distinguish the unfolding **geometry**, not merely HUD text. Existing globe-depth occlusion was fixed when tests revealed the anatomy was invisible.
+- **WP21 remains PARTIAL**: simulation has no validated IOL geometry, material, mechanical unfolding, capsular support/force modeling or ophthalmology reviewer acceptance. WP22/WP23 still rely on abstract normalized placement and existing safety gates.
+- Next milestone: tissue/capsule integrity visual feedback and a credible but explicitly non-clinical visual complication presentation; Windows AMD real GPU and accessibility tests.
