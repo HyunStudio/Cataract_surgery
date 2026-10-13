@@ -152,3 +152,11 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - **QA:** Python 3.12/3.13 each 480 passed, Mesa software OpenGL eye-region screenshot comparisons and unfolded-vs-folded contact decision succeeded, dirty cache-value aliasing corrected.
 - **Still partial:** this is visual read-only inspection, not an action-authoritative 3D surgery collision model. Cornea optics, animated capsule tear/tissue, tool interaction with physical resistance, real target hardware tests and expert anatomical review are not completed.
 - Next: define an explicit nonclinical mesh/tooltip hover contract in the interactive 3D surgery display, then add geometric proximity *without* overriding ReplayGame's phase/safety decisions; profile Windows AMD GPU and 4K usability separately.
+
+
+## 2026-10-13 — read-only triangle surface proximity (WP12/WP13 still PARTIAL)
+
+- Interactive 3D game now has a point-to-actual-triangle nearest-distance display, BVH pruning, scene-motion correction, display marker on the nearest rendered synthetic surface and unitless CLOSE/NEAR/FAR text.
+- The visual query is strictly gated to active/safe phases and valid 3D tool poses. The existing `ReplayGame` remains authoritative; no geometry-based injury, force feedback, surgical action validation or actual tissue collision has been enabled.
+- Python 3.12/3.13 510 tests passed and Mesa software OpenGL eye-region visual comparison passed. This confirms implementation against synthetic meshes and regression tests, **not** clinical physical fidelity or real target GPU.
+- Next: evaluate optimized single-pass proximity calculation and actual 3D tool/tissue pose consistency; add accessible distinction beyond color and 4K visual readability checks, then Windows Radeon hardware gate and specialist anatomy assessment.
