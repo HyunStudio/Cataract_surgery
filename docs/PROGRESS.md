@@ -7,6 +7,8 @@
 - The original 32-work-package roadmap is still the product target, **not** a completion checklist for these proof-of-concept implementations.
 
 ## Verification status
+> Historical snapshot from 2026-10-12. Several items below were completed later (Pygame GUI, replay journal, 3D renderer, Windows GPU smoke); see the dated sections further down, newest last.
+
 - Headless engine and static Python compilation: executed and passed locally.
 - CI initial runs: green; check the latest Actions run before reporting latest-commit pass.
 - Pygame window launch and input interaction: **NOT EXECUTED** (pygame unavailable in runner, external package installation blocked).
@@ -174,3 +176,20 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Added `tests/test_3d_frame_proximity.py` with an instrumented `nearest_triangle` spy to prove two necessary initial mesh queries and **zero extra BVH queries** across repeated HUD paints. Also checks visual label on/off, dirty/untrusted prepared result rejection, stage/camera/pose invalidation, abort/pause/restart safety and synthetic Game snapshot/replay immutability.
 - [CI run 38355978889](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978889): **522 passed on both Python 3.12 and 3.13**. [Mesa OpenGL run 38355978911](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911): success, previous non-HUD triangle marker and three synthetic surgery safety scenarios still verified.
 - This is an observed **reduction in duplicated geometry calls**, not a demonstrated FPS increase. Real Windows/Radeon GPU and 4K sustained frame-time/legibility acceptance remain OPEN. Synthetic geometry is not clinically validated.
+
+## 2026-10-13 — review fixes: surgeon game loop, fair stress model, honest GPU reporting
+
+The game is now framed explicitly as a **mock surgery in which the player is the operating surgeon** (UI copy, debrief, docs). Changes come from a code review whose findings were reproduced with scripts before fixing.
+
+- **Replay journal overflow fixed.** Capsule tracing previously journaled every mouse-motion event (including no-op ones); 16,001 events (~16 s on a 1000 Hz mouse) made export fail. Commands that change no state are no longer journaled, held instruments are sampled once per simulation tick, and limits were raised (250,000 records, 432,000 ticks, 32 MB). Replay schema bumped to v2.
+- **Frame-rate independence.** Held instruments (capsule, removal, cleanup) act once per fixed 1/60 s tick in both 2.5D and 3D, never per rendered frame or mouse event. Removal now takes ~4 s and cleanup ~3 s of steady work instead of 0.67 s.
+- **Fair tissue-stress model.** Off-target strain now decays (0.12/s), shows a warning at 50 % (HUD meter, banner, `stress_warning` event, −4 safety points per warning) and only alerts at 100 %. Previously it never decayed, carried across phases and forced an abort without any warning.
+- **3D depth control is real.** The tip starts above the eye (+0.12) and keeps its depth between steps instead of snapping to each target. Q/E or the mouse wheel moves it; the HUD shows a depth gauge and which key to press.
+- **3D HUD layout rebuilt.** All labels live on fixed rows inside their panels: no more overflow of `CAPSULE INTACT`, overlap of `REMAINING`/status line, `LOW MOTION`/FPS line, or `MESH GAP` over the eye. The safety-hold banner no longer stays on top of the debrief after a safe stop.
+- **2.5D fixes.** Footer no longer clipped at 720 px; result screen no longer advertises a dead `X` key; capsule dots sit at the centre of their scoring segment; held instrument released on safety hold/pause/ending.
+- **Surgeon debrief** on both result screens: decision/outcome, safety holds raised vs assessed, off-target seconds, stress warnings, IOL centration, simulated instrument time. A safe stop after a capsule complication is labelled the correct decision.
+- **Saves** never overwrite earlier sessions (`_2`, `_3`... suffix) and never leave a lone trace file when the replay export is refused. The event trace marks truncation with an `events_truncated` record instead of silently dropping events.
+- **Honest renderer reporting.** Smoke tests detect software vs hardware renderers and report `windows_gpu_tested` from the actual platform and renderer; screenshots show `FPS: --` instead of a hard-coded 60.
+- **Local Windows GPU run** (Windows 11 Pro, NVIDIA GeForce RTX 3070 Laptop GPU, driver 566.14, OpenGL 3.3 core, Python 3.12.10, pygame 2.6.1, moderngl 5.13.0): `gl_smoke` passed (`hardware-opengl-smoke-passed`, 6–9 ms mean over 20 frames at 800×600 across two runs) and `gl_surgery_smoke` passed all scenarios including the new stress-warning frame.
+- **Tests:** 552 passed locally (Python 3.12, SDL dummy driver), including 30 new regression tests in `tests/test_surgeon_gameplay.py`. Existing tests were updated only where behaviour intentionally changed (removal duration, depth not snapping, no-op journaling, schema v2, HUD label position).
+- **Still open:** manual 3D play-testing, resize/DPI, sustained 1080p/4K benchmark, AMD/Intel GPUs, clinical subject-matter review.

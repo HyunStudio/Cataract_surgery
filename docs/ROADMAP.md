@@ -167,3 +167,8 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - Interactive 3D render now computes the unitless nearest-triangle `SurfaceProbe` **once** per visual frame, passes the same immutable result to GPU overlay and HUD, and invalidates old HUD observations on changed phase, pose, camera orientation or safety state. This eliminates duplicate CPU BVH queries in one frame without allowing a visual result to authorize Game actions.
 - Automated spy/counter tests, stale/hostile-input checks and Mesa software OpenGL integration pass: 522 Python tests on 3.12 and 3.13.
 - **WP12/WP31 remain PARTIAL**: need measured 4K Windows GPU frame latency, adaptive 4K HUD layout/legibility, accessible status typography, validated phase-consistent visual pose and deformed *synthetic* geometry, specialist review and full release acceptance.
+
+## 2026-10-13 — WP04 hardware smoke and surgeon-game review fixes
+
+- **WP04 partial → automated gates met on one target-class GPU:** `gl_smoke` and `gl_surgery_smoke` pass on Windows 11 / NVIDIA RTX 3070 with a hardware renderer. Manual play-testing, resize/DPI, sustained 1080p/4K frame time and AMD/Intel GPUs keep WP04 **OPEN**.
+- Review fixes delivered for the surgeon game loop: fixed-step held instruments, bounded replay journal (schema v2), decaying tissue stress with an early warning, manual 3D depth control, rebuilt 3D HUD layout, surgeon debrief, non-overwriting saves. 552 tests pass.

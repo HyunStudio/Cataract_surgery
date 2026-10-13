@@ -13,7 +13,7 @@ Updated 2026-10-12. **This report applies only to the initial build**, not compl
 - Run `python -m compileall -q ophthosim main.py` for syntax.
 
 ## Environment and limitations
-- The local execution environment has Python 3.13, numpy and pytest, **but lacks pygame**; network package installation is unavailable. GitHub Actions has successfully executed Pygame GUI smoke tests via an SDL dummy display. Actual Windows desktop input, GPU/driver compatibility, FPS, 1080p/4K visual quality and real 3D **remain unvalidated**.
+- (2026-10-12 note) The local execution environment then had Python 3.13 and pytest, **but lacked pygame**; network package installation is unavailable. GitHub Actions has successfully executed Pygame GUI smoke tests via an SDL dummy display. Actual Windows desktop input, GPU/driver compatibility, FPS, 1080p/4K visual quality and real 3D **remain unvalidated**.
 - UI implementation contains procedural 2.5D styling only; no real 3D mesh, ModernGL context, shader pipeline, medically accurate anatomy/tissue dynamics, anesthesia pharmacology or validated score model.
 - Next action: run Pygame smoke tests on a desktop with `pip install -r requirements.txt`; review source inspection and collect screenshot/trace. Implement WP04 true-3D technical spike before claiming 3D support.
 
@@ -152,3 +152,10 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Staleness checks hide a prepared observation after moving the tool in the same phase, changing camera orientation, switching phase, pausing and resuming without a new safe hover, or restarting. Invalid `SurfaceProbe` types/status/gaps fail closed; reading the HUD does not mutate `Game.snapshot()` or the replay journal.
 - [Mesa Linux software GL run 38355978911](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911) succeeded, with three synthetic scenario/replay flows and the previously established *eye-only* nearest-triangle marker framebuffer difference. [Image artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911/artifacts/11792578657).
 - **Not claimed:** wall-clock frame-rate improvement, reduced GPU draw cost, 4K performance on Windows AMD/Radeon, real tissue collision/forces or professional clinical validity. Quantitative target-device profiling remains a separate acceptance gate.
+
+## 2026-10-13 — review fixes and first Windows GPU smoke run
+
+- Local run: **552 passed** (Python 3.12.10, pygame 2.6.1, SDL dummy driver), 30 of them new in `tests/test_surgeon_gameplay.py`.
+- New regression coverage: removal measured in simulated seconds; 2.5D progress unaffected by 2,000 mouse-motion events; held instrument released on safety hold; capsule mouse spam no longer grows the replay journal; state-changing rejections still journaled; stress warning before alert, decay with time, brief slips never forcing an abort, sustained slips still alerting; clean run keeps 100/100; truncation marker; 3D tip starting above the eye and keeping depth between steps; unique save paths and no lone trace on a refused replay; software/hardware renderer detection; FPS label; debrief and phase durations.
+- Local GPU (Windows 11 Pro, NVIDIA GeForce RTX 3070 Laptop GPU, driver 566.14, OpenGL 3.3 core, Python 3.12.10, pygame 2.6.1, moderngl 5.13.0): `python -m ophthosim.gl_smoke` → `hardware-opengl-smoke-passed`, mean 6–9 ms/frame across two runs (20 frames, 800×600, diagnostic only). `python -m ophthosim.gl_surgery_smoke` → `hardware-opengl-3d-surgery-integration-passed`, all frames distinct, normal / stress-warning / patient-motion / capsule-complication flows and replays verified. Screenshots were reviewed by eye for overlapping or clipped labels.
+- Not covered: manual play-testing with a real mouse, window resize/DPI, sustained frame-time at 1080p/4K, AMD/Intel GPUs.

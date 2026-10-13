@@ -1,8 +1,8 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
-**Status:** Playable 2.5D prototype + experimental *interactive* ModernGL 3D synthetic surgery mode (2026-10-13). The full 32-work-package product, medical realism and Windows GPU QA are **not complete**.
+**Status:** Playable 2.5D surgeon game + experimental *interactive* ModernGL 3D mode (2026-10-13). The 3D mode passes its automated OpenGL smoke tests on a real Windows GPU; the full 32-work-package product, medical realism, 4K/sustained performance and manual desktop QA are **not complete**.
 
-An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built around Python, Pygame for UI/input, and an optional hardware-accelerated 3D renderer. The project models a complete *abstracted* cataract surgery encounter: patient preparation, topical anesthesia and monitoring, microscope navigation, corneal entry, capsular task, cataract removal, residual material cleanup, intraocular lens (IOL) placement, wound assessment, recovery, and result scoring.
+An open-source **mock cataract surgery game in which the player is the operating surgeon**. It is built around Python, Pygame for UI/input, and an optional hardware-accelerated 3D renderer. The project models a complete *abstracted* cataract surgery encounter: patient preparation, topical anesthesia and monitoring, microscope navigation, corneal entry, capsular task, cataract removal, residual material cleanup, intraocular lens (IOL) placement, wound assessment, recovery, and result scoring.
 
 ## Documentation
 - [Product and gameplay specification (Korean)](docs/PRODUCT_SPEC_KO.md)
@@ -22,9 +22,13 @@ python main.py
 # optional: python main.py --case motion --seed 42 --scale 1.5
 ```
 
-Keys: **1–4** select a synthetic case on the first screen; **Space** confirms pre-op/anesthesia screens; **left-click** marked approach targets; **left-drag** the guide ring for capsular task; **hold left mouse** in the lens field for removal/cleanup; **left-click** central marker for IOL alignment; **left-click** final safety checks. **A** assesses a monitor alert, **X** safe-aborts, **Esc** pauses, **R** restarts, and **E** exports synthetic JSONL data after an ending.
+You are the surgeon. Keys: **1–4** select a synthetic case on the first screen; **Space** confirms pre-op and team time-out; **left-click** the three entry targets; **left-drag** round the dotted ring to open the capsule; **hold left mouse** on the lens for removal (about 4 s of steady work) and cleanup (about 3 s); **left-click** the optical centre once to seat the IOL; **left-click** the three final checks. **A** assesses a safety hold, **X** stops the procedure safely, **Esc** pauses, **R** restarts, and **E** exports the session after the debrief.
 
-The game contains a procedural illustrated 2.5D eye and synthetic HR/BP/SpO2 displays. **It is not yet a real 3D surgical trainer**. For test commands and caveats see [test report](docs/TEST_REPORT.md) and [implementation progress](docs/PROGRESS.md).
+Keep the instrument tip inside the pupil. Off-target work builds **tissue stress**: it decays while you work centrally, shows a warning at 50 %, and at 100 % raises a capsule complication. Stopping safely after a complication is the correct call and is credited in the debrief.
+
+**3D mode** (`python -m ophthosim.gl_surgery`): same procedure, plus instrument **depth**. The tip starts above the eye and keeps its depth between steps, so bring it to each step's working depth with **Q/E** or the **mouse wheel** (the depth gauge turns green). Arrows orbit, +/- zoom, **S** saves after the debrief.
+
+The game contains a procedural illustrated 2.5D eye and synthetic HR/BP/SpO2 displays. **It is not a validated surgical trainer**. For test commands and caveats see [test report](docs/TEST_REPORT.md) and [implementation progress](docs/PROGRESS.md).
 
 ## Visual direction
 A **microscope-first** interface with a visually realistic iris/cornea/lens, coupled to a synchronized cross-sectional depth view. Patient vital signs and a small anesthesia status panel occupy the periphery, not the operative field. A 2.5D vertical slice comes first; optional 3D meshes, camera orbit and shader-based effects are introduced behind a stable renderer interface. See the visual design document for layout, typography, accessibility and feedback specifications.
@@ -44,9 +48,9 @@ Events may include patient motion/anxiety, unstable view, capsular damage, poste
 
 ## Implemented stack and proposed extensions
 - Python 3.12; Pygame (application/UI, desktop inputs)
-- NumPy for deterministic geometry and synthetic signals
+- Pure-Python deterministic geometry, BVH picking and synthetic signals (no NumPy dependency)
 - Pygame 2.5D interactive surgery and CPU 3D anatomy preview (implemented)
-- Separate **experimental** ModernGL GPU atlas demo (code implemented, real Windows GPU execution **unverified**)
+- **Experimental** ModernGL interactive 3D mode; automated GL smoke tests pass on Linux Mesa (CI) and on a Windows NVIDIA GPU (local run, 2026-10-13). Manual play-testing, AMD/Intel GPUs and 4K remain open
 - Blender-authored original assets or appropriately licensed models
 - pytest, typed models, deterministic scenario seeds, CSV/JSONL logs
 - Windows target, 1080p native UI with scalable 4K support
@@ -61,7 +65,9 @@ The reviewed specifications now define a 2.5D playable MVP before 3D polish, exp
 
 ## Deterministic test replay (implemented, educational only)
 
-When an interactive case ends, press `E`. The game saves two synthetic JSONL files in `session_logs/`: `case_<scenario>_seed_<seed>.jsonl` (state/event trace) and `case_<scenario>_seed_<seed>.replay.jsonl` (accepted and state-changing rejected semantic input commands with run-length-compressed simulation ticks). Replay is an analysis tool, not an animated playback UI.
+When an interactive case ends, press `E` (2.5D) or `S` (3D). The game saves two synthetic JSONL files in `session_logs/`: `case_<scenario>_seed_<seed>.jsonl` (state/event trace) and `case_<scenario>_seed_<seed>.replay.jsonl` (every semantic command that changed the simulation, accepted or rejected, with run-length-compressed simulation ticks). Commands that changed nothing are not journaled, so mouse-heavy sessions stay small. Earlier saves are never overwritten: later files get a `_2`, `_3`... suffix. Replay is an analysis tool, not an animated playback UI.
+
+Held instruments act once per fixed 1/60 s simulation tick, so progress, tissue stress and the replay are identical at any frame rate or mouse polling rate.
 
 A replay can be independently checked using:
 
@@ -77,7 +83,7 @@ print(session.phase.value, session.score(), session.ending)
 Integrity includes command-journal and resulting event/snapshot SHA-256 digests. These catch accidental or unsanctioned edits **but do not authenticate authorship** without digital signatures. Raw mouse trajectories, clinician assessments and real patient data are not captured. Unrepresentable replay captures fail closed rather than silently export incomplete traces.
 
 ## Next milestone
-**WP04:** Execute the now-playable experimental 3D synthetic surgery viewport on an actual Windows desktop, check shader compilation and HUD/depth accuracy, and benchmark rendering before treating the 3D backend as production-ready. CI validates source/CPU geometry and SDL dummy rendering but does not GPU-benchmark it.
+**WP04:** The automated GL smoke tests now pass on a Windows NVIDIA GPU (see [GPU checklist](docs/GPU_VALIDATION_CHECKLIST.md)). Still open: manual play-testing of the 3D mode, resize/DPI behaviour, a sustained 1080p/4K frame-time benchmark and AMD/Intel GPUs. CI validates source/CPU geometry, SDL dummy rendering and Mesa software OpenGL but does not GPU-benchmark it.
 
 ## License
 See repository [LICENSE](LICENSE); external assets must have their own documented provenance and compatible redistribution permissions.

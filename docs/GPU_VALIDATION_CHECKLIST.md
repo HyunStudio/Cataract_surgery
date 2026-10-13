@@ -1,6 +1,6 @@
 # Windows GPU validation — experimental ModernGL atlas
 
-Status: **Windows hardware gate still open**. Python CI validates geometry and input, while a separate Linux Mesa llvmpipe software-OpenGL workflow **has actually compiled shaders and rendered two framebuffers**. Do not confuse a software OpenGL context with Windows physical GPU validation.
+Status: **Automated gates GL01–GL04 passed on one Windows GPU (2026-10-13); manual and performance gates still open**. Python CI validates geometry and input, while a separate Linux Mesa llvmpipe software-OpenGL workflow **has actually compiled shaders and rendered two framebuffers**. Do not confuse a software OpenGL context with Windows physical GPU validation.
 
 ## Install and run
 
@@ -25,10 +25,10 @@ Controls: arrow keys rotate, +/- zoom, Space changes synthetic cataract lens to 
 
 | ID | Check | Expected | Status |
 |---|---|---|---|
-| GL01 | Open a Pygame OpenGL 3.3 core window and ModernGL context | Starts without exception | UNVERIFIED |
-| GL02 | Compile both scene/HUD shader programs | No GLSL compilation errors | UNVERIFIED |
-| GL03 | Iris, cloudy lens and corneal shell visibility | No missing layer or full occlusion | UNVERIFIED |
-| GL04 | Space changes scene from cataract to IOL | Visible synthetic optical state change | UNVERIFIED |
+| GL01 | Open a Pygame OpenGL 3.3 core window and ModernGL context | Starts without exception | PASS (smoke, RTX 3070) |
+| GL02 | Compile both scene/HUD shader programs | No GLSL compilation errors | PASS (smoke, RTX 3070) |
+| GL03 | Iris, cloudy lens and corneal shell visibility | No missing layer or full occlusion | PASS (screenshots reviewed) |
+| GL04 | Space changes scene from cataract to IOL | Visible synthetic optical state change | PASS (smoke: distinct frames) |
 | GL05 | Orbit, zoom, extreme camera angles | No clipping/black screen/crashes | UNVERIFIED |
 | GL06 | Window resize / DPI / repeated scale changes | Correct aspect and HUD alignment | UNVERIFIED |
 | GL07 | 5-minute run, repeated scene changes | No memory growth or context loss | UNVERIFIED |
@@ -49,3 +49,12 @@ Collect operating system, GPU, driver version, OpenGL version, display scaling, 
 ## Additional completed Linux software-OpenGL gate (2026-10-13)
 
 [GitHub Actions run 38319493162](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319493162) passed on Mesa llvmpipe OpenGL 4.5. It verified context creation, shader compilation, transparent/opaque draw calls, read-only ray hit on iris, synthetic IOL/opaque-lens state changes, two nonblank PNG readbacks. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319493162/artifacts/11779035082). These findings are for a Linux software rasterizer only; GL01–GL10 Windows statuses in the table above intentionally remain unchanged. Short 20-frame timing (2.97 ms mean) does not meet any sustained performance gate.
+
+## Windows hardware smoke run (2026-10-13)
+
+Environment: Windows 11 Pro, NVIDIA GeForce RTX 3070 Laptop GPU, driver 566.14, OpenGL 3.3 core, Python 3.12.10, pygame 2.6.1, moderngl 5.13.0.
+
+- `python -m ophthosim.gl_smoke` → `hardware-opengl-smoke-passed`; context, both shader programs, iris/lens/IOL triangle picks, folded-IOL miss and nonblank readbacks all verified. Mean 6–9 ms/frame over 20 frames at 800×600 across two runs (diagnostic, not GL08).
+- `python -m ophthosim.gl_surgery_smoke` → `hardware-opengl-3d-surgery-integration-passed`; normal procedure with manual depth control, tissue-stress warning, patient-motion hold, capsule complication and replay checks.
+- The smoke scripts now detect software rasterisers (llvmpipe, softpipe, SwiftShader...) and only report `windows_gpu_tested: true` on Windows with a hardware renderer.
+- GL05–GL08 (orbit extremes by hand, resize/DPI, 5-minute run, 1080p frame time) and AMD/Intel GPUs remain **UNVERIFIED**.
