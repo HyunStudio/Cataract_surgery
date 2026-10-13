@@ -97,3 +97,10 @@ The GL atlas has its own input loop and no surgical input/state mutations. Scene
 `gl_surgery.py` orchestrates the same authoritative `ReplayGame` state machine as the 2.5D UI. The `input3d.py` adapter reverses the GLSL camera mapping into a ray and intersects a **dimensionless educational task plane**. Guarded task actions are forwarded through semantic Game commands; all alerts, phase locks, safe aborts, score and journaling remain inside the engine. Visual progress is conveyed by immutable `AnatomyAppearance` values (synthetic opacity, residual matter, IOL centering) supplied to the renderer; the renderer does not change physics/game state.
 
 The implemented surgery mode is *not yet a true 3D collision simulator*: no mesh pressure/contact, capsule cutting mesh, fluid simulation or procedural surgical physics. Task-plane input and true mesh inspection are different intentionally labeled features. CI reproduces state through `gl_surgery_smoke.py` on Mesa llvmpipe and validates exact JSONL replay. Physical Windows OpenGL driver/device acceptance remains a required separate gate.
+
+
+## Non-physical stylus renderer contract (2026-10-13)
+
+`tool3d.stylus_mesh()` generates one cached small 3D render mesh. `tool3d.visible_stylus(controller)` checks the strict controller's last accepted pose, active depth and safety/ending states; the renderer only receives an optional validated three-component world-space offset. `GPUEyePreview` retains the stylus VAO/VBO/IBO independently from regenerated eye meshes, translates through the existing GLSL `u_offset` and releases resources in `close()`.
+
+The shader's **visual-overlay draw pass** intentionally ignores depth occlusion and face culling for legibility: it does **not** simulate tool tissue penetration, contact physics or clinical depth. Scene state remains authoritative in `ReplayGame`; no render call is allowed to issue a semantic game action. Source/dirty tests and Mesa framebuffer-delta integration are mandatory for changes in the visual tool pipeline.
