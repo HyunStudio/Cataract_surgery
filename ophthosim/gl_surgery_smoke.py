@@ -24,6 +24,7 @@ def main() -> int:
         from .replay import ReplayGame
         from .iol3d import iol_visual_deployment
         from .tool3d import visible_stylus
+        from .surface_probe3d import probe_surface
         from .capsule3d import capsule_display_state
         from .vision3d import visual_feedback,VisualFeedback
     except ImportError as exc:
@@ -50,6 +51,10 @@ def main() -> int:
                 atlas.set_meshes(atlas_meshes(atlas_state))
             e=ctrl.game.eye
             capsule_on, damage=capsule_display_state(ctrl.game)
+            vision=visual_feedback(ctrl.game,
+                reduced_motion=overlay.reduced_motion,
+                high_contrast=overlay.high_contrast)
+            proximity=probe_surface(ctrl,vision)
             data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay,
                                 appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment,
                                                              iol_visual_deployment(ctrl.game),
@@ -59,7 +64,8 @@ def main() -> int:
                                     reduced_motion=overlay.reduced_motion,
                                     high_contrast=overlay.high_contrast),
                                 contact=(ctrl.last_contact if not ctrl.game.paused
-                                         and not ctrl.game.ending else None))
+                                         and not ctrl.game.ending else None),
+                                surface_probe=proximity)
             if data is None or len(data) != W*H*3:
                 raise AssertionError(f"Frame readback missing: {name}")
             if max(data[::97]) - min(data[::97]) < 20:
@@ -139,6 +145,25 @@ def main() -> int:
                 assert pygame.image.tobytes(a.subsurface(rect),"RGB") != (
                     pygame.image.tobytes(b.subsurface(rect),"RGB")), (
                     "3D contact ring did not change center-eye pixels")
+                # Actual closest-triangle marker must modify the eye crop
+                # without creating an extra game/replay event.
+                from .surface_probe3d import probe_surface
+                before=ctrl.game.snapshot()
+                nearest=probe_surface(ctrl)
+                assert nearest is not None and nearest.face_index>=0
+                no_surface=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+                    appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
+                    surface_probe=None)
+                with_surface=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+                    appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
+                    surface_probe=nearest)
+                compare=(W//2-100,H//2-100,200,200)
+                src=pygame.image.fromstring(no_surface,(W,H),"RGB",True)
+                dst=pygame.image.fromstring(with_surface,(W,H),"RGB",True)
+                assert pygame.image.tobytes(src.subsurface(compare),"RGB") != (
+                    pygame.image.tobytes(dst.subsurface(compare),"RGB")), (
+                    "Closest triangle marker not visible in eye-only pixels")
+                assert ctrl.game.snapshot()==before
                 frame("entry-stylus")
         assert ctrl.game.phase == Phase.CAPSULE
         frame("capsule")
@@ -230,6 +255,7 @@ def main() -> int:
             "motion_haze_center_crop_distinct": True,
             "reduced_motion_preserves_safety_hold": True,
             "contact_ring_center_region_distinct": True,
+            "nearest_triangle_marker_center_crop_distinct": True,
             "capsule_center_region_healthy_vs_damage_distinct": True,
             "windows_gpu_tested": False,
             "clinical_validation": False,
