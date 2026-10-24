@@ -202,3 +202,12 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Fixed a pre-existing side-panel bug that split phase titles mid-word; `phase_title_lines` wraps between words into at most two lines.
 - Verified: 720p framebuffers unchanged; 1440p/4K HUD texture is 1280×720 and its title strip matches the 720p pixels exactly; 4K llvmpipe frame ≈56.8 → 20.4 ms. Local suite 585 passed.
 - **WP03/WP31 remain PARTIAL:** no true vector/high-DPI text, no Windows DPI-awareness handling, no human 4K legibility or contrast audit.
+
+
+## 2026-10-24 — GL07 host-memory evidence and two measurement-tool fixes
+
+- `gl_benchmark` samples resident memory every 60 frames (Linux `/proc/self/statm`, Windows working set) and reports start/end/peak, growth, whole-run slope and **late-half slope**; `--scene-switch-every N` swaps cataract/IOL GPU meshes and BVHs to stress reallocation.
+- Fix 1: a 4 s CI stress reported 28 MiB/min. A direct trace showed warm-up of ≈+2.3–3 MiB that then stays flat through 2000 switches / 20 000 frames, so GL07 triage now uses the late-half slope.
+- Fix 2: a first 5-minute scene-switch run grew 7.6 MiB; the extra growth came from the profiler's own deques of Python floats (~32 B per frame per section). Samples now live in preallocated C-double ring buffers; a test proves 240 000 recordings allocate nothing.
+- Local llvmpipe 300 s results after both fixes: 1080p (22 661 frames) +1.92 MiB, late slope 0.0 MiB/min; 960×640 with 303 scene switches +5.82 MiB, late slope 0.54 MiB/min. Both are within the triage heuristics and `game_state_unchanged: true`; GL07 stays `INSUFFICIENT_EVIDENCE` because the renderer is software.
+- CI: [Tests 40066436712](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066436712) and [Mesa 40066436664](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066436664) green for the late-slope change; earlier [40066192554](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066192554)/[40066192649](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066192649) and [40065994478](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065994478)/[40065994457](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065994457) green.

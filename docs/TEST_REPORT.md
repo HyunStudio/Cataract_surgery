@@ -181,3 +181,11 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Local: **585 passed**. New `tests/test_hud_scale.py`: 13 window sizes including 2559/2560 boundaries, 16:10 and ultrawide; invalid sizes (zero, negative, float, bool, string, None); 1440p/4K map to the 1280×720 logical layout; `set_ui_scale` bounds; the cursor ring drawn at window (2400, 1500) lands at logical (800, 500) at 3× with the Game unchanged; every phase title wraps between words in ≤2 lines of ≤21 characters; benchmark report `hud_scale`.
 - Manual GL checks under Xvfb/llvmpipe: seven 720p frames byte-identical to before; 1440p and 4K HUD textures 1280×720 with NEAREST filtering; title strip byte-identical to 720p after 1/2 and 1/3 sampling; screenshot inspection showed projected entry-target rings aligned with the 3D scene at 4K. Both GL smokes passed.
 - **Not claimed:** physical 4K monitor readability, Windows DPI scaling behaviour, GPU performance.
+
+
+## 2026-10-24 — GL07 memory measurement
+
+- Local: **594 passed**. New tests: memory trend slope/late slope/extremes and validation; Linux RSS parser on good/corrupt/missing files; GL07 triage (software/short/unmeasurable → insufficient; warm-up plateau → no growth; late rise → growth); scene-switch argument validation and report label; IOL display scene stays read-only; profiler records 240 000 samples with < 4 KiB traced allocation; ring-buffer wraparound statistics.
+- Manual: `tracemalloc` over 400 scene switches showed no Python-heap accumulation; RSS traces plateaued (2000 switches; 20 000 rendered frames with a switch every 10).
+- 300 s llvmpipe runs: see PROGRESS (1.92 MiB / 5.82 MiB growth, late slopes 0.0 / 0.54 MiB/min).
+- **Not claimed:** dedicated GPU memory behaviour or any Windows hardware result.
