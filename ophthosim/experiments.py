@@ -142,7 +142,7 @@ def run_one(case: str, difficulty: str, seed: int, policy: str) -> ReplayGame:
 def load_config(raw: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(raw, dict):
         raise ValueError('Config must be a JSON object')
-    allowed = {'name', 'cases', 'difficulties', 'seeds', 'policies'}
+    allowed = {'name', 'cases', 'difficulties', 'seeds', 'splits', 'policies'}
     if set(raw) - allowed:
         raise ValueError(f'Unknown config keys: {sorted(set(raw) - allowed)}')
     config = {'name': raw.get('name', 'experiment'),
@@ -159,10 +159,28 @@ def load_config(raw: dict[str, Any]) -> dict[str, Any]:
         values = config[key]
         if not isinstance(values, list) or not values or any(v not in valid for v in values):
             raise ValueError(f'{key} must be a non-empty list drawn from {list(valid)}')
-    seeds = config['seeds']
-    if (not isinstance(seeds, list) or not seeds or
-            any(type(s) is not int or abs(s) > 2**63 - 1 for s in seeds)):
-        raise ValueError('seeds must be a non-empty list of 64-bit integers')
+    def checked(seeds, label):
+        if (not isinstance(seeds, list) or not seeds or
+                any(type(s) is not int or abs(s) > 2**63 - 1 for s in seeds)):
+            raise ValueError(f'{label} must be a non-empty list of 64-bit integers')
+        return seeds
+    if 'splits' in raw:
+        # Research plan: practice and held-out evaluation seeds must not leak.
+        if 'seeds' in raw:
+            raise ValueError("use either 'seeds' or 'splits', not both")
+        splits = raw['splits']
+        if (not isinstance(splits, dict) or set(splits) != {'practice', 'evaluation'}):
+            raise ValueError("splits must contain exactly 'practice' and 'evaluation'")
+        practice = checked(splits['practice'], 'practice seeds')
+        evaluation = checked(splits['evaluation'], 'evaluation seeds')
+        if set(practice) & set(evaluation):
+            raise ValueError('practice and evaluation seeds overlap (leakage)')
+        config['splits'] = {'practice': practice, 'evaluation': evaluation}
+        plan = [('practice', s) for s in practice] + [('evaluation', s) for s in evaluation]
+    else:
+        plan = [('all', s) for s in checked(config['seeds'], 'seeds')]
+    config['seed_plan'] = plan
+    seeds = plan
     runs = (len(config['cases']) * len(config['difficulties']) * len(seeds)
             * len(config['policies']))
     if runs > MAX_RUNS:
@@ -177,13 +195,14 @@ def run_experiment(config: dict[str, Any], out: Path | None = None,
     for policy in config['policies']:
         for difficulty in config['difficulties']:
             for case in config['cases']:
-                for seed in config['seeds']:
+                for split, seed in config['seed_plan']:
                     game = run_one(case, difficulty, seed, policy)
                     raw = game.export_replay_jsonl()
                     verified = ReplayGame.replay_jsonl(raw).snapshot() == game.snapshot()
-                    row = {'policy': policy, **metrics_row(game), 'replay_verified': verified}
+                    row = {'policy': policy, 'split': split, **metrics_row(game),
+                           'replay_verified': verified}
                     rows.append(row)
-                    records.append({'policy': policy, 'metrics': game.metrics(),
+                    records.append({'policy': policy, 'split': split, 'metrics': game.metrics(),
                                     'replay_verified': verified})
                     if out is not None and save_replays:
                         (out / 'replays').mkdir(parents=True, exist_ok=True)
@@ -196,7 +215,7 @@ def run_experiment(config: dict[str, Any], out: Path | None = None,
     if out is not None:
         out.mkdir(parents=True, exist_ok=True)
         buffer = io.StringIO()
-        fields = ('policy', *METRIC_COLUMNS, 'replay_verified')
+        fields = ('policy', 'split', *METRIC_COLUMNS, 'replay_verified')
         writer = csv.DictWriter(buffer, fieldnames=fields, lineterminator='\n')
         writer.writeheader()
         for row in rows:
@@ -213,7 +232,10 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Per (policy, difficulty) means and ending counts."""
     groups: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
-        groups.setdefault(f"{row['policy']}/{row['difficulty']}", []).append(row)
+        key = f"{row['policy']}/{row['difficulty']}"
+        if row.get('split', 'all') != 'all':
+            key += f"/{row['split']}"
+        groups.setdefault(key, []).append(row)
     summary = {}
     for key, items in sorted(groups.items()):
         endings: dict[str, int] = {}

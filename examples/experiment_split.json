@@ -1,0 +1,7 @@
+{
+  "name": "split-demo",
+  "cases": ["normal", "motion", "vitals", "vitreous", "random"],
+  "difficulties": ["standard", "hard"],
+  "splits": {"practice": [1, 2, 3], "evaluation": [101, 102, 103, 104]},
+  "policies": ["ideal", "careless", "slow"]
+}
