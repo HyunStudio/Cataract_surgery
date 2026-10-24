@@ -184,8 +184,8 @@ cannot be done from this repository alone.
 |---|---|---|---|
 | 01 | Pygame bootstrap & settings | DONE | `main.py`, CLI case/difficulty/lang/seed/scale/resume |
 | 02 | FSM and event bus | DONE | `engine.py` strict phase machine, events, `test_engine*.py` |
-| 03 | UI shell 1080p/4K scaling | SW-DONE | resizable 2.5D canvas; 3D HUD integer magnification; physical 4K legibility check open |
-| 04 | Pygame–ModernGL spike | SW-DONE | 3D game + Mesa CI + `gl_benchmark`; **Windows GPU GL01–GL10 open** |
+| 03 | UI shell 1080p/4K scaling | SW-DONE | checked on a physical 4K display (2026-10-24): readable, 2.5D slightly soft from canvas upscaling; Korean wrap/clipping fixed |
+| 04 | Pygame–ModernGL spike | SW-DONE | GL01–GL10 run on Windows NVIDIA RTX 3070 (GL07/GL08 candidates pass, `gl_hardware_check`); sign-off and AMD Radeon open |
 | 05 | Eye anatomy logical model | DONE | typed `Eye`/`Patient` state incl. pupil and cornea clarity |
 | 06 | Layered 2.5D renderer | DONE | `app.render_eye` layers, haze veil, decentred optic |
 | 07 | Microscope camera, lighting, focus | DONE | zoom (input-mapped), focus blur, illumination; 3D orbit/zoom |

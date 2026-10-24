@@ -1,0 +1,88 @@
+{
+  "benchmark": "ophthosim-gl-surgery-frametime",
+  "clinical_validation": false,
+  "environment": {
+    "gl_renderer": "NVIDIA GeForce RTX 3070 Laptop GPU/PCIe/SSE2",
+    "gl_vendor": "NVIDIA Corporation",
+    "gl_version": "3.3.0 NVIDIA 566.14",
+    "moderngl": "5.13.0",
+    "os": "Windows-11-10.0.26200-SP0",
+    "pygame": "2.6.1",
+    "python": "3.12.10",
+    "software_renderer": false
+  },
+  "frames_measured": 10793,
+  "frames_with_proximity": 10793,
+  "game_state_unchanged": true,
+  "gl07": {
+    "heuristic_max_growth_mb": 16.0,
+    "heuristic_max_slope_mb_per_min": 1.0,
+    "host_memory_only": true,
+    "reasons": [
+      "measured duration below 300 s"
+    ],
+    "requires_human_signoff": true,
+    "status": "INSUFFICIENT_EVIDENCE",
+    "within_heuristics": true
+  },
+  "gl08": {
+    "mean_and_p95_within_target": true,
+    "reasons": [],
+    "requires_human_signoff": true,
+    "status": "CANDIDATE_WITHIN_60FPS",
+    "target_frame_ms": 16.667
+  },
+  "hud_scale": 1,
+  "mean_fps": 179.88,
+  "measured_seconds": 60.002,
+  "memory": {
+    "end_mb": 113.24,
+    "growth_mb": -0.31,
+    "late_slope_mb_per_min": 0.673,
+    "peak_mb": 113.57,
+    "samples": 181,
+    "slope_mb_per_min": 0.153,
+    "start_mb": 113.55
+  },
+  "scene_switches": 0,
+  "sections": {
+    "frame": {
+      "count": 10793,
+      "max_ms": 24.32,
+      "mean_ms": 5.559,
+      "min_ms": 4.111,
+      "over_target_fraction": 0.0004,
+      "p50_ms": 5.375,
+      "p95_ms": 7.257,
+      "p99_ms": 8.604
+    },
+    "probe": {
+      "count": 10793,
+      "max_ms": 2.686,
+      "mean_ms": 0.694,
+      "min_ms": 0.426,
+      "over_target_fraction": 0.0,
+      "p50_ms": 0.634,
+      "p95_ms": 1.125,
+      "p99_ms": 1.442
+    },
+    "render": {
+      "count": 10793,
+      "max_ms": 12.155,
+      "mean_ms": 4.645,
+      "min_ms": 3.52,
+      "over_target_fraction": 0.0,
+      "p50_ms": 4.545,
+      "p95_ms": 5.93,
+      "p99_ms": 6.884
+    }
+  },
+  "timing_basis": "CPU wall clock incl. buffer swap; not GPU time",
+  "vsync_controlled": false,
+  "warmup_frames": 30,
+  "window_size": [
+    1920,
+    1080
+  ],
+  "workload": "entry-hover-orbit"
+}
