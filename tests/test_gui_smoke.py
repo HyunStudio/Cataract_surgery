@@ -7,6 +7,7 @@ os.environ.setdefault('SDL_AUDIODRIVER','dummy')
 import pytest
 
 pygame = pytest.importorskip('pygame')
+from surgeon_helpers import use
 from ophthosim.app import App, to_eye, to_screen
 from ophthosim.engine import Game, Phase
 
@@ -43,12 +44,17 @@ def test_export_completed_game_visual(app):
     g.action('prepare')
     for x,y in g._entry_target:
         g.action('touch',x,y)
+    use(g, 'ovd_cannula')
     import math
     for i in range(24):
         theta=(i+.5)*math.tau/24
         g.action('trace',.5+.28*math.cos(theta),.5+.28*math.sin(theta))
-    for _ in range(80):
+    use(g, 'hydro_cannula')
+    for _ in range(1000):
+        if g.phase not in (Phase.PHACO, Phase.CORTEX):
+            break
         g.action('remove',.5,.5)
+    use(g, 'ovd_cannula')
     assert g.action('place',.5,.5)
     for key in ('alignment','wound','handoff'):
         g.action('verify',key)

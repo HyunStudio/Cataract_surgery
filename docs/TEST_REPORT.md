@@ -209,3 +209,23 @@ Updated `gl_surgery_smoke.py` adds a fourth Mesa scenario (decentration hold, vi
   - Python 3.12/3.13: [Tests 40068709047](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047), 707 passed on 3.12; the 3.13 job succeeded. [GUI screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047/artifacts/12549384895).
   - Mesa OpenGL: [40068709064](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709064), success with the four-scenario 3D smoke and benchmarks.
   - Earlier v2 commits were also green: [40068403280](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068403280)/[40068403263](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068403263) and [40068152868](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068152868)/[40068152833](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068152833).
+
+## 2026-10-24 — v3 regression
+
+**Local run (Windows 11, Python 3.12): 804 passed.** New or rewritten:
+
+| File | Covers |
+|---|---|
+| `test_engine_v3.py` | instrument sets; the ideal surgeon finishes every case; wrong tool/site; tool lock during a hold; tutorial-only hints; anticoagulant bleeding; hyphema growth and irrigation; SCH closure → safe stop; failure when carrying on through a major complication; profile baselines and vitals drift; stress warning and decay; no-hydro deduction; earlier rhexis tear without OVD; tear → capsule rupture, zonular → failure and iris → trauma → hyphema chains; unresolved safety = 0; KO/EN key parity |
+| `test_complication3d.py` | every complication has a 3D sign while pending; devices appear after management; read-only and quantized mapping; validation; cached meshes; hyphema level and chord closure |
+| `test_assets.py` | OBJ fan triangulation, negative indices, refusal of bad files; licence manifest required; NC/unknown licences refused; procedural fallback with a report |
+| `test_gui_v2.py` | 14 cases (1–9 and N); patient chart; every hazard and management card in EN/KO; tutorial-only tray hint; cautery from the tray; V/D/B keys; held drag released on a phase change; bleeding/SCH/iris/zonular signs; all five endings; 15-instrument tray and Shift+T |
+| `test_gl_surgery_v2.py` | 3D driver with OVD, hydro and management; every hazard and its management card; all five endings; chart card and instrument row picking; 15-tool cycling and `quick_use` |
+| `surgeon_helpers.py` | shared ideal-surgeon driver (stop at alert, leave complications unmanaged on request) |
+
+`gl_surgery_smoke.py` follows the v3 procedure. It renders 15 complication signs and
+requires each to change the frame and to be distinct. Hardware result on an RTX 3070:
+`hardware-opengl-3d-surgery-integration-passed`.
+
+**Not claimed:** AMD Radeon results, human usability, clinical validity of the
+complication chains or of the synthetic vital-sign and bleeding values.

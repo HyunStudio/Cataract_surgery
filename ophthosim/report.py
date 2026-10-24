@@ -51,15 +51,30 @@ def explain(game: Game, lang: str = 'en') -> list[dict[str, Any]]:
                     if alert['response'] in (None, 'timeout'):
                         reasons.append(t(lang, 'why.response.timeout', alert=name))
                     else:
-                        reasons.append(t(lang, 'why.response.item', alert=name,
-                                         response=t(lang, f"response.{alert['response']}"),
-                                         latency=f"{alert['latency']:.1f}",
-                                         credit=_pct(alert['fraction'])))
+                        text = t(lang, 'why.response.item', alert=name,
+                                 response=t(lang, f"response.{alert['response']}"),
+                                 latency=f"{alert['latency']:.1f}",
+                                 credit=_pct(alert['fraction']))
+                        if alert.get('managed') is True:
+                            text += t(lang, 'why.response.managed')
+                        elif alert.get('managed') is False:
+                            text += t(lang, 'why.response.unmanaged')
+                        reasons.append(text)
         else:
             if detail['ending'] is None:
                 reasons = [t(lang, 'why.safety.pending')]
+            elif detail.get('veto'):
+                reasons = [t(lang, 'why.safety.veto')]
+            elif detail.get('unresolved'):
+                reasons = [t(lang, 'why.safety.unresolved')]
             else:
-                reasons = [t(lang, 'why.safety.veto' if detail['veto'] else 'why.safety.ok')]
+                items = [t(lang, f'tech.{name}') for name in detail.get('technique', [])]
+                if detail.get('wrong_tool'):
+                    items.append(t(lang, 'deduct.wrong_tool', n=detail['wrong_tool']))
+                if detail.get('stress_warnings'):
+                    items.append(t(lang, 'deduct.stress', n=detail['stress_warnings']))
+                reasons = ([t(lang, 'why.safety.deduct', items=', '.join(items))] if items
+                           else [t(lang, 'why.safety.ok')])
         rows.append({'key': key, 'label': t(lang, f'score.{key}'),
                      'points': item['points'], 'max': item['max'], 'reasons': reasons})
     return rows
@@ -82,7 +97,14 @@ def timeline(game: Game, lang: str = 'en') -> list[dict[str, Any]]:
             text = t(lang, 'tl.assessed', alert=t(lang, f"alert.{data['alert']}"),
                      latency=f"{data.get('latency_s', 0):.1f}")
         elif kind == 'veto':
-            text = t(lang, 'tl.veto', alert=t(lang, f"alert.{data['alert']}"))
+            alert = t(lang, f"alert.{data['alert']}") if data.get('alert') else ''
+            text = (t(lang, 'tl.veto_continue', alert=alert)
+                    if str(data.get('reason', '')).startswith('continued_through')
+                    else t(lang, 'tl.veto', alert=alert))
+        elif kind == 'managed':
+            text = t(lang, 'tl.managed', alert=t(lang, f"alert.{data['alert']}"))
+        elif kind == 'stress_warning':
+            text = t(lang, 'tl.stress_warning')
         elif kind == 'ending':
             text = t(lang, 'tl.ending', ending=t(lang, f"ending.{data['outcome']}"))
         elif kind in ('preop_check', 'check'):

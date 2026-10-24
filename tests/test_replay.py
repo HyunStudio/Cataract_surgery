@@ -5,6 +5,7 @@ import random
 
 import pytest
 
+from surgeon_helpers import use
 from ophthosim.engine import Phase
 from ophthosim.replay import ReplayGame
 
@@ -33,8 +34,12 @@ def _finish(game):
     _reach_phaco(game)
     if game.patient.alert:
         assert game.action("assess")
-    for _ in range(80):
+    use(game, "hydro_cannula")
+    for _ in range(1000):
+        if game.phase not in (Phase.PHACO, Phase.CORTEX):
+            break
         assert game.action("remove", .5, .5)
+    use(game, "ovd_cannula")
     assert game.action("place", .5, .5)
     for step in ("alignment", "wound", "handoff"):
         assert game.action("verify", step)
@@ -187,6 +192,7 @@ def test_stress_from_rejected_actions_replays_exactly():
     assert any(item["kind"] == "action" and item.get("name") == "remove"
                and item["accepted"] is False for item in game.journal)
     assert game.action("assess")
+    assert game.action("abort")
     assert game.phase == Phase.ABORTED
     copy = ReplayGame.replay_jsonl(game.export_replay_jsonl())
     assert copy.snapshot() == game.snapshot()

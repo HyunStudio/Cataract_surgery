@@ -5,6 +5,7 @@ import random
 
 import pytest
 
+from surgeon_helpers import use
 from ophthosim.engine import Game, Phase
 
 
@@ -28,12 +29,18 @@ def trace_capsule(game):
 def finish(game):
     enter_capsule(game)
     trace_capsule(game)
-    for _ in range(40):
+    use(game, 'hydro_cannula')
+    for _ in range(600):
+        if game.phase != Phase.PHACO:
+            break
         game.action('remove', .5, .5)
     assert game.phase == Phase.CORTEX
-    for _ in range(40):
+    for _ in range(600):
+        if game.phase != Phase.CORTEX:
+            break
         game.action('remove', .5, .5)
     assert game.phase == Phase.IOL
+    use(game, 'ovd_cannula')
     assert game.action('place',.51,.51)
     assert game.phase == Phase.CLOSE
     for name in ('alignment','wound','handoff'):
@@ -140,6 +147,9 @@ def test_capsule_event_recommends_abort():
     game.tick(.016)
     assert game.patient.alert=='CAPSULE INTEGRITY'
     assert game.action('assess')
+    # Recognised; the surgeon now decides: call senior help or stop safely.
+    assert game.pending==['CAPSULE INTEGRITY']
+    assert game.action('abort')
     assert game.phase==Phase.ABORTED
     assert game.ending=='SAFELY ABORTED'
 
@@ -164,7 +174,7 @@ def test_export_json_lines_valid_and_consistent():
     game=Game();finish(game)
     events=[json.loads(line) for line in game.export_jsonl().splitlines()]
     assert len(events)==game.event_count()
-    assert all(event['schema_version']==Game.VERSION==2 and event['seed']==7 for event in events)
+    assert all(event['schema_version']==Game.VERSION==3 and event['seed']==7 for event in events)
     assert events[-1]['kind']=='ending'
     assert events[-1]['phase']=='RECOVERY'
 

@@ -17,8 +17,9 @@ import sys
 import textwrap
 
 from .autosave import AUTOSAVE, load_autosave, write_autosave
-from .engine import (CASES, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
-                     ENDING_MANAGED, PREOP_CHECKS, TOOL_NAMES, Phase)
+from .engine import (CASES, COMPLICATIONS, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
+                     ENDING_MANAGED, ENDING_UNRESOLVED, PREOP_CHECKS, PROFILES, TOOL_NAMES,
+                     Phase)
 from .i18n import LANGUAGES, t
 from .report import explain, save_session as save_report, timeline
 from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
@@ -27,6 +28,7 @@ from .signals import sample_trace
 from .tool3d import visible_stylus
 from .iol3d import iol_visual_deployment
 from .capsule3d import capsule_display_state
+from .complication3d import complication_visuals
 from .vision3d import visual_feedback
 from .surface_probe3d import SurfaceProbe, probe_surface
 from .frametime import FrameProfiler, FrameStats
@@ -62,7 +64,7 @@ class SurgeryHUD:
         self.controller = controller
         self.last_cursor: tuple[int, int] | None = None  # window pixels
         self.ui_scale = 1
-        self.status = "Synthetic training experiment. No clinical use."
+        self.status = ""            # empty: the localized disclaimer
         self.lang = "en"
         self.reduced_motion = False
         self.high_contrast = False
@@ -75,6 +77,21 @@ class SurgeryHUD:
         self._probe_phase: Phase | None = None
         self._probe_pose: tuple[float,float,float] | None = None
         self._probe_camera: tuple[float,float] | None = None
+
+    @staticmethod
+    def card_rect(width: int, height: int) -> tuple[int, int, int, int]:
+        """Hold / management / chart card: low in the field so the eye and
+        the complication sign stay visible while the surgeon decides."""
+        # Between the side panels (12..259 and width-267..), at most 600 wide.
+        w = max(400, min(600, width-548))
+        return (width//2-w//2, height-252, w, 114)
+
+    @staticmethod
+    def tray_slots(width: int, height: int):
+        """One instrument row above the status line (display + hit areas)."""
+        slot = (width-48)/len(TOOL_NAMES)
+        for i, name in enumerate(TOOL_NAMES):
+            yield name, (round(24+i*slot)+1, height-130, round(slot)-2, 26)
 
     def set_ui_scale(self, scale: int) -> None:
         """Logical HUD magnification chosen by the renderer for this frame."""
@@ -98,6 +115,7 @@ class SurgeryHUD:
 
     def draw(self, pg, surf, view, width: int, height: int, font, title) -> None:
         c = self.controller
+        self._font = font
         g = c.game
         # The atlas drawing underneath remains available in all modes.
         # The translucent HUD panels do not need an independent GL context.
@@ -125,17 +143,18 @@ class SurgeryHUD:
                 done = item in g.eye.preop_checks
                 label((("[x] " if done else "[ ] ") + t(lang, "check."+item))[:26],
                       24, 350+i*28, color=green if done else amber)
-            label("SPACE: next  1-9 case  D level"[:26], 24, 437, color=light)
+            label(t(lang, "hud.preop_keys")[:34], 24, 437, color=light)
         else:
-            label(f"Tool z: {c.tool_depth:+.2f}", 24, 350, color=green)
+            label(t(lang, "hud.tool_z", z=f"{c.tool_depth:+.2f}"), 24, 350, color=green)
         required = g.required_tool
-        if required is not None and not g.ending:
-            current = t(lang, "tool."+g.tool) if g.tool else "—"
-            label(f"{current} [T]"[:28], 24, 128,
-                  color=green if g.tool == required else amber)
+        if not g.ending and g.phase != Phase.PREOP:
+            current = (t(lang, "ui.in_hand", tool=t(lang, "tool."+g.tool)) if g.tool
+                       else t(lang, "ui.no_tool"))
+            label(f"{current} [T]"[:40], 24, 128,
+                  color=green if required is None or g.tool == required else amber)
         if c.last_contact is not None:
             kind=c.last_contact.status
-            label(f"TOOL GUIDE: {kind}", 24, 151,
+            label(t(lang, "hud.guide", s=kind), 24, 151,
                   color=green if kind=="TARGET" else amber if kind in
                         ("NEAR","VISITED") else red)
         # Proximity is visual-only, expressed in unitless model coordinates;
@@ -150,27 +169,28 @@ class SurgeryHUD:
             visible_stylus(c) == self._probe_pose and
             self._probe_camera == (c.view.yaw,c.view.pitch)) else None)
         if proximity is not None:
-            label(f"MESH GAP: {proximity.status} {proximity.gap:.3f}u",
+            label(t(lang, "hud.gap", s=proximity.status, gap=f"{proximity.gap:.3f}"),
                   width//2-155, 128, color=amber)
         capsule_on, damage = capsule_display_state(g)
         if capsule_on:
-            label(("CAPSULE ALERT" if damage >= .15 else "CAPSULE INTACT"),
+            label(t(lang, "hud.capsule_alert" if damage >= .15 else "hud.capsule_ok"),
                   24, 433, color=red if damage >= .15 else green)
         if g.phase in (Phase.IOL, Phase.CLOSE, Phase.RECOVERY):
-            label(f"IOL deploy (visual): {iol_visual_deployment(g):.0%}",
+            label(t(lang, "hud.iol_deploy", p=f"{iol_visual_deployment(g):.0%}"),
                   width//2-104, 152, color=green)
         target = c.target_depth
         if g.phase != Phase.PREOP:
-            label(f"Target z: {target:+.2f}" if target is not None
-                  else "Tool inactive", 24, 378, color=light)
-            label("Q/E adjust depth", 24, 410, color=amber)
+            label(t(lang, "hud.target_z", z=f"{target:+.2f}") if target is not None
+                  else t(lang, "hud.inactive"), 24, 378, color=light)
+            label(t(lang, "hud.depth_keys"), 24, 410, color=amber)
 
-        label("PATIENT MONITOR", width-254, 189, color=light)
-        label("SYNTHETIC VALUES", width-254, 220, color=amber)
+        label(t(lang, "ui.monitor").upper(), width-254, 189, color=light)
+        label(t(lang, "ui.synthetic"), width-254, 220, color=amber)
         p = g.patient
         label(f"HR {p.heart_rate}   SpO2 {p.spo2}%", width-254, 253, color=green)
         label(f"NIBP {p.sbp}/{p.dbp}", width-254, 284, color=amber)
-        label(f"STATUS {p.alert or 'STABLE'}"[:22], width-254, 316,
+        status = t(lang, "alert."+p.alert) if p.alert else t(lang, "ui.stable")
+        label(f"{t(lang, 'ui.status')}: {status}"[:22], width-254, 316,
               color=red if p.alert else green)
         wave = sample_trace("ecg", p.heart_rate, g.time, count=170)
         left = width-255
@@ -191,32 +211,27 @@ class SurgeryHUD:
                             green if i in g.eye.capsule_points else amber,r=3)
         elif g.phase in (Phase.PHACO,Phase.CORTEX):
             value = g.eye.opacity if g.phase == Phase.PHACO else g.eye.cortex
-            label(f"REMAINING: {value:.0%}", width//2-92,
-                  height-114, color=amber)
+            label(t(lang, "hud.remaining", p=f"{value:.0%}"), width//2-92,
+                  152, color=amber)
         elif g.phase == Phase.IOL or c.target_depth is not None and g.phase == Phase.CLOSE:
             self._point(pg,surf,.5,.5,c,width,height,green,r=15)
 
-        if g.phase == Phase.CLOSE:
-            if getattr(g, "_decentered", False):
-                label(t(lang, "hint.IOL DECENTRATION")[:46], width//2-180,
-                      height-232, color=amber)
-            # Kept clear of the status line and the instruction bar below.
+        if g.phase == Phase.CLOSE and not (g.patient.alert or g.pending or g.ending):
+            # Kept clear of the instrument row and the instruction bar below.
             for i,key in enumerate(CHECKS):
-                label(f"{i+1} {t(lang, 'check.'+key)} "+("DONE" if key in g.eye.final_checks
-                      else "PENDING"),width//2-105,height-204+i*26,
-                      color=green if key in g.eye.final_checks else amber)
+                done = key in g.eye.final_checks
+                label(f"{i+1} {t(lang, 'check.'+key)} "+t(lang, "hud.done" if done else "hud.pending"),
+                      width//2-105,height-222+i*26,color=green if done else amber)
 
         # Lower instructions remain visible in small windows.
         bottom=height-69
         pg.draw.rect(surf,(10,27,39,225),(12,bottom,width-24,58),
                      border_radius=10)
-        instructions = (
-            "SPACE next  |  MOUSE task  |  1-3 final checks  |  A assess  |  L language",
-            "ARROWS orbit +/- zoom Q/E depth M motion H contrast F3 perf X abort R restart",
-        )
-        for i,msg in enumerate(instructions):
-            label(msg[:90],24,bottom+6+i*25,color=green if i==0 else amber)
-        label(self.status[:72], 24, height-100, color=light)
+        for i,msg in enumerate((t(lang, "hud.keys1"), t(lang, "hud.keys2"))):
+            label(msg[:110],24,bottom+6+i*25,color=green if i==0 else amber)
+        if not g.ending and g.phase not in (Phase.PREOP, Phase.ANESTHESIA):
+            self._draw_tray(pg, surf, width, height, font, light, green, amber)
+        label((self.status or t(lang, "ui.disclaimer"))[:72], 24, height-100, color=light)
         if self.show_perf:
             perf = self.perf
             label((f"FRAME {perf.mean_ms:.1f} ms  P95 {perf.p95_ms:.1f} ms (CPU)"
@@ -231,6 +246,42 @@ class SurgeryHUD:
             pg.draw.circle(surf,green,cursor,8,2)
         self._draw_common(pg, surf, width, height, label, light, green, amber, red)
 
+    def _draw_tray(self, pg, surf, width, height, font, light, green, amber):
+        g = self.controller.game
+        # The needed instrument is highlighted only where hints are allowed.
+        required = g.required_tool if (g.rules.tool_hints or not g.pending) else None
+        for name, rect in self.tray_slots(width, height):
+            selected = name == g.tool
+            pg.draw.rect(surf, (34,82,92,235) if selected else (12,29,42,215), rect,
+                         border_radius=6)
+            if name == required:
+                pg.draw.rect(surf, green if selected else amber, rect, 2, border_radius=6)
+            text = t(self.lang, "short."+name)
+            while font.size(text)[0] > rect[2]-6 and len(text) > 2:
+                text = text[:-1]
+            image = font.render(text, True, (232,240,247) if selected else light)
+            surf.blit(image, (rect[0]+3, rect[1]+(rect[3]-image.get_height())//2))
+
+    def _draw_card(self, pg, surf, width, height, label, lines, fill, edge):
+        box = self.card_rect(width, height)
+        pg.draw.rect(surf, fill, box, border_radius=10)
+        pg.draw.rect(surf, edge, box, 2, border_radius=10)
+        font = getattr(self, "_font", None)
+        rows = []
+        for text, color in lines:
+            # Wrap by rendered width (Hangul is wider than Latin text).
+            words, line = text.split(" "), ""
+            for word in words:
+                trial = f"{line} {word}".strip()
+                if font is not None and font.size(trial)[0] > box[2]-28 and line:
+                    rows.append((line, color))
+                    line = word
+                else:
+                    line = trial
+            rows.append((line, color))
+        for i, (text, color) in enumerate(rows[:4]):
+            label(text, box[0]+14, box[1]+6+i*26, color=color)
+
     def _draw_common(self, pg, surf, width, height, label, light, green, amber, red):
         c = self.controller
         g = c.game
@@ -238,16 +289,49 @@ class SurgeryHUD:
         if g.ending:
             self._draw_results(pg, surf, width, height, label, light, green, amber, red)
         if g.patient.alert and not g.ending:
-            pg.draw.rect(surf,(91,35,49,245),
-                         (width//2-250,height//2-48,500,104),border_radius=9)
-            label(t(lang, "ui.safety_hold")[:40],width//2-238,height//2-38,color=red)
-            label((t(lang, "alert."+g.patient.alert)+" — "+
-                   t(lang, "hint."+g.patient.alert))[:52],width//2-238,height//2-10)
             limit = g.rules.alert_timeout
             timer = (t(lang, "ui.hold_timer", s=f"{g.alert_elapsed:.0f}", limit=f"{limit:.0f}")
                      if limit is not None else t(lang, "ui.hold_untimed"))
-            label((t(lang, "ui.assess_or_abort")+"  ·  "+timer)[:52],
-                  width//2-238,height//2+20,color=amber)
+            self._draw_card(pg, surf, width, height, label, (
+                ("! "+t(lang, "ui.safety_hold"), red),
+                (t(lang, "alert."+g.patient.alert), (232,240,247)),
+                (t(lang, "hint."+g.patient.alert), light),
+                (t(lang, "ui.assess_or_abort")+"  ·  "+timer, amber)),
+                (91,35,49,240), red+(255,))
+        elif g.pending and not g.ending:
+            name = g.pending[0]
+            comp = COMPLICATIONS[name]
+            if comp.remedy == "escalate":
+                how = t(lang, "manage.escalate")
+            elif g.rules.tool_hints:
+                how = t(lang, "manage.tool", tool=t(lang, "tool."+comp.remedy),
+                        site=t(lang, "site."+(comp.site or "centre")))
+            else:
+                how = t(lang, "manage.choose")
+            sub = (t(lang, "manage.major") if comp.major and comp.remedy != "escalate"
+                   else t(lang, "ui.in_hand", tool=t(lang, "tool."+g.tool)) if g.tool
+                   else t(lang, "ui.no_tool"))
+            self._draw_card(pg, surf, width, height, label, (
+                ("! "+t(lang, "manage.title", alert=t(lang, "alert."+name)),
+                 red if comp.major else amber),
+                (how, (232,240,247)), (sub, light)),
+                (70,46,40,236) if comp.major else (52,52,38,236),
+                (red if comp.major else amber)+(255,))
+        elif g.phase == Phase.PREOP and not g.ending:
+            profile = PROFILES[g.case]
+            none = t(lang, "chart.none")
+            self._draw_card(pg, surf, width, height, label, (
+                (f"{t(lang, 'chart.title')} · {t(lang, 'case.'+g.case)} · "
+                 f"{t(lang, 'chart.age', age=profile.age)}", light),
+                (f"{t(lang, 'chart.conditions')}: "
+                 + (", ".join(t(lang, "cond."+k) for k in profile.conditions) or none),
+                 (232,240,247)),
+                (f"{t(lang, 'chart.medications')}: "
+                 + (", ".join(t(lang, "med."+k) for k in profile.medications) or none),
+                 (232,240,247)),
+                (t(lang, "chart.baseline", hr=profile.heart_rate, sbp=profile.sbp,
+                   dbp=profile.dbp), green)),
+                (12,29,42,232), light+(255,))
         elif g.paused and not g.ending:
             label(t(lang, "ui.paused"),width//2-110,height//2+70,color=amber)
 
@@ -259,7 +343,7 @@ class SurgeryHUD:
         pg.draw.rect(surf,(16,44,58,246),(x,y,600,410),border_radius=14)
         pg.draw.rect(surf,light,(x,y,600,410),2,border_radius=14)
         color = (green if g.ending in (ENDING_COMPLETE, ENDING_MANAGED)
-                 else red if g.ending == ENDING_FAILED else amber)
+                 else red if g.ending in (ENDING_FAILED, ENDING_UNRESOLVED) else amber)
         label(t(lang, "ending."+g.ending)[:40], x+20, y+14, color=color)
         label(f"{t(lang, 'ui.score')}: {g.score()} / 100", x+20, y+44)
         for i, row in enumerate(explain(g, lang)):
@@ -303,11 +387,32 @@ def save_session(controller: Surgery3DController,
     return first,second
 
 
-def cycle_tool(controller: Surgery3DController) -> bool:
-    """T key: select the next synthetic instrument (engine-validated)."""
+def cycle_tool(controller: Surgery3DController, step: int = 1) -> bool:
+    """T / Shift+T: select the next / previous instrument (engine-validated)."""
     current = controller.game.tool
-    index = (TOOL_NAMES.index(current)+1) % len(TOOL_NAMES) if current in TOOL_NAMES else 0
+    index = ((TOOL_NAMES.index(current)+step) % len(TOOL_NAMES) if current in TOOL_NAMES
+             else 0 if step > 0 else len(TOOL_NAMES)-1)
     return controller.command("tool", TOOL_NAMES[index])
+
+
+def quick_use(controller: Surgery3DController, tool: str) -> bool:
+    """V (viscoelastic) / D (hydrodissection): pick `tool`, use it at the centre."""
+    if controller.game.tool != tool and not controller.command("tool", tool):
+        return False
+    return controller.command("use")
+
+
+def tray_pick(controller: Surgery3DController, x: int, y: int,
+              width: int, height: int) -> bool:
+    """Mouse click on the instrument row; False when the click is elsewhere."""
+    g = controller.game
+    if g.ending or g.phase in (Phase.PREOP, Phase.ANESTHESIA):
+        return False
+    for name, (rx, ry, rw, rh) in SurgeryHUD.tray_slots(width, height):
+        if rx <= x < rx+rw and ry <= y < ry+rh:
+            controller.command("tool", name)
+            return True
+    return False
 
 
 def resume_controller(controller: Surgery3DController,
@@ -361,6 +466,7 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
         profiler=FrameProfiler(capacity=600)
         frames=0
         dragging=False
+        drag_phase=None
         cursor=(0,0)
         running=True
         while running:
@@ -379,9 +485,12 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                 elif event.type==pygame.MOUSEBUTTONUP and event.button==1:
                     dragging=False
                 elif event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
-                    dragging=True
                     cursor=event.pos
                     hud.last_cursor=cursor
+                    if tray_pick(controller,*cursor,*pygame.display.get_window_size()):
+                        continue
+                    dragging=True
+                    drag_phase=g.phase
                     controller.pointer(*cursor,*pygame.display.get_window_size(),
                                        fresh_press=True)
                 elif event.type==pygame.MOUSEMOTION:
@@ -411,7 +520,15 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                         heard_alerts=0
                         heard_ending=False
                     elif key==pygame.K_t:
-                        cycle_tool(controller)
+                        cycle_tool(controller,-1 if event.mod & pygame.KMOD_SHIFT else 1)
+                    elif key==pygame.K_v:
+                        quick_use(controller,"ovd_cannula")
+                    elif key==pygame.K_b:
+                        controller.command("escalate")
+                    elif key==pygame.K_d and g.phase==Phase.PHACO:
+                        quick_use(controller,"hydro_cannula")
+                    elif key==pygame.K_n and g.phase==Phase.PREOP and not g.eye.preop_checks:
+                        controller.restart(CASES[(CASES.index(g.case)+1)%len(CASES)])
                     elif key==pygame.K_l:
                         hud.lang=LANGUAGES[(LANGUAGES.index(hud.lang)+1)%len(LANGUAGES)]
                     elif key==pygame.K_d and g.phase==Phase.PREOP and not g.eye.preop_checks:
@@ -465,8 +582,8 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                     write_autosave(g)
                 except OSError:
                     pass
-            if g.patient.alert or g.ending or g.paused:
-                dragging=False
+            if g.patient.alert or g.ending or g.paused or g.phase != drag_phase:
+                dragging=False    # a held gesture never carries into a new step
             if dragging and g.phase in (Phase.PHACO,Phase.CORTEX):
                 controller.pointer(*cursor,*pygame.display.get_window_size())
             controller.advance_clock(dt)
@@ -489,6 +606,7 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                          tool_pose=visible_stylus(controller),
                          vision=feedback,
                          surface_probe=proximity,
+                         complications=complication_visuals(controller.game),
                          contact=(controller.last_contact if not
                                   (controller.game.paused or controller.game.ending
                                    or controller.game.patient.alert) else None))

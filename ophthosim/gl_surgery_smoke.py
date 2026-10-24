@@ -28,6 +28,7 @@ def main() -> int:
         from .capsule3d import capsule_display_state
         from .vision3d import visual_feedback,VisualFeedback
         from .engine import PREOP_CHECKS
+        from .complication3d import ComplicationVisuals, complication_visuals
     except ImportError as exc:
         print(f"Optional GL dependency missing: {exc}", file=sys.stderr)
         return 2
@@ -67,7 +68,8 @@ def main() -> int:
                                     high_contrast=overlay.high_contrast),
                                 contact=(ctrl.last_contact if not ctrl.game.paused
                                          and not ctrl.game.ending else None),
-                                surface_probe=proximity)
+                                surface_probe=proximity,
+                                complications=complication_visuals(ctrl.game))
             if data is None or len(data) != W*H*3:
                 raise AssertionError(f"Frame readback missing: {name}")
             if max(data[::97]) - min(data[::97]) < 20:
@@ -86,6 +88,63 @@ def main() -> int:
             if pixel is None:
                 raise AssertionError("3D target not visible")
             return ctrl.pointer(*pixel,W,H,fresh_press=pressed)
+
+        def use(tool,x=.5,y=.5):
+            # Situation/cannula instrument: pick it, one fresh press at (x, y).
+            assert ctrl.command("tool",tool)
+            return point(x,y,pressed=True)
+
+        def clear_lens():
+            # Hydrodissection first, then held phaco and I/A at 60 Hz.
+            if (ctrl.game.phase==Phase.PHACO and not ctrl.game.hydro_done
+                    and not ctrl.game.patient.alert):
+                assert use("hydro_cannula")
+            for _ in range(2000):
+                if ctrl.game.phase not in (Phase.PHACO,Phase.CORTEX) or ctrl.game.patient.alert:
+                    return
+                point(.5,.5)
+                ctrl.advance_clock(1/60)
+
+        def entry_with_ovd():
+            for index,(x,y) in enumerate(ctrl.game._entry_target):
+                if ctrl.game.patient.alert:
+                    return
+                assert point(x,y,pressed=True)
+                if index==0 and not ctrl.game.patient.alert:
+                    assert use("ovd_cannula")
+
+        # Complication and bleeding signs: identical camera, no HUD, each
+        # sign must change the rendered eye and every sign must be distinct.
+        base=atlas.render(ctrl.view,None,capture=True,overlay=None,
+                          appearance=AnatomyAppearance(),complications=ComplicationVisuals())
+        signs={
+            "miosis":ComplicationVisuals(pupil_radius=.2),
+            "iris-prolapse":ComplicationVisuals(iris_prolapse=1,pupil_radius=.26),
+            "iris-trauma":ComplicationVisuals(iris_prolapse=2),
+            "wound-leak":ComplicationVisuals(wound_leak=True),
+            "capsule-rupture":ComplicationVisuals(capsule_rupture=True),
+            "rhexis-tear":ComplicationVisuals(rhexis_tear=1),
+            "rhexis-tear-extending":ComplicationVisuals(rhexis_tear=2),
+            "zonular-shift":ComplicationVisuals(lens_shift=.16),
+            "blood-film":ComplicationVisuals(blood_film=.6),
+            "hyphema-low":ComplicationVisuals(hyphema=.3),
+            "hyphema-high":ComplicationVisuals(hyphema=.7),
+            "suprachoroidal":ComplicationVisuals(reflex_loss=.8),
+            "iris-hooks":ComplicationVisuals(iris_hooks=True),
+            "ctr":ComplicationVisuals(ctr=True),
+            "sutures":ComplicationVisuals(sutures=True),
+        }
+        sign_hashes={}
+        for name,visual in signs.items():
+            data=atlas.render(ctrl.view,None,capture=True,overlay=None,
+                              appearance=AnatomyAppearance(),complications=visual)
+            if data==base:
+                raise AssertionError(f"Complication sign not visible: {name}")
+            sign_hashes[name]=hashlib.sha256(data).hexdigest()
+            pygame.image.save(pygame.image.fromstring(data,(W,H),"RGB",True),
+                              str(root/f"gl-sign-{name}.png"))
+        if len(set(sign_hashes.values()))!=len(sign_hashes):
+            raise AssertionError("Two complication signs rendered identically")
 
         # Isolate the actual 3D capsule layer. Identical camera and HUD,
         # only the *world-space ring* differs. Crop excludes interface text.
@@ -145,6 +204,7 @@ def main() -> int:
         for index, (x,y) in enumerate(ctrl.game._entry_target):
             assert point(x,y,pressed=True)
             if index == 0:
+                assert use("ovd_cannula") and ctrl.game.ovd_chamber
                 assert visible_stylus(ctrl) is not None
                 # Verify mesh draws into GL pixels, not just a HUD cursor.
                 e = ctrl.game.eye
@@ -193,17 +253,21 @@ def main() -> int:
         assert ctrl.game.phase == Phase.CAPSULE
         frame("capsule")
         for n in range(24):
+            if ctrl.game.phase!=Phase.CAPSULE:
+                break
             angle = (n+.5)*math.tau/24
             point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
         assert ctrl.game.phase == Phase.PHACO
         frame("phaco")
-        for _ in range(20):
+        assert use("hydro_cannula")
+        for _ in range(80):
             point(.5,.5)
+            ctrl.advance_clock(1/60)
         frame("phaco-mid")
-        for _ in range(62):
-            point(.5,.5)
+        clear_lens()
         assert ctrl.game.phase == Phase.IOL
         frame("iol")
+        assert use("ovd_cannula") and ctrl.game.ovd_bag
         # Held mouse input must NOT silently place IOL.
         assert not point(.5,.5)
         assert point(.5,.5,pressed=True)
@@ -257,17 +321,22 @@ def main() -> int:
         for _check in ("identity", "site", "iol_plan"): ctrl.command("verify", _check)
         ctrl.command("confirm")
         ctrl.command("prepare")
-        for x,y in ctrl.game._entry_target:
-            assert point(x,y,pressed=True)
+        entry_with_ovd()
         for n in range(24):
+            if ctrl.game.phase!=Phase.CAPSULE:
+                break
             angle=(n+.5)*math.tau/24
             point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
+        clear_lens()
         assert ctrl.game.phase==Phase.PHACO
         assert ctrl.game.patient.alert=="CAPSULE INTEGRITY"
-        assert capsule_display_state(ctrl.game)==(True,.45)
+        assert capsule_display_state(ctrl.game)[0]
         assert not point(.5,.5,pressed=True)
         frame("capsule-safety-hold")
         assert ctrl.command("assess")
+        assert ctrl.game.pending==["CAPSULE INTEGRITY"]
+        frame("capsule-call-senior")
+        assert ctrl.command("abort")
         assert ctrl.game.phase==Phase.ABORTED
         frame("capsule-safe-abort")
         assert ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl()).ending=="SAFELY ABORTED"
@@ -279,13 +348,14 @@ def main() -> int:
         for _check in PREOP_CHECKS: ctrl.command("verify", _check)
         ctrl.command("confirm")
         ctrl.command("prepare")
-        for x,y in ctrl.game._entry_target:
-            assert point(x,y,pressed=True)
+        entry_with_ovd()
         for n in range(24):
+            if ctrl.game.phase!=Phase.CAPSULE:
+                break
             angle=(n+.5)*math.tau/24
             point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
-        while ctrl.game.phase in (Phase.PHACO,Phase.CORTEX):
-            point(.5,.5)
+        clear_lens()
+        assert use("ovd_cannula")
         assert point(.5,.5,pressed=True)
         assert ctrl.game.patient.alert=="IOL DECENTRATION"
         frame("decenter-hold")
@@ -313,6 +383,7 @@ def main() -> int:
             "gl_renderer": renderer,
             "renderer_kind": kind,
             "scenario_count": 4,
+            "complication_signs_distinct": sorted(sign_hashes),
             "decenter_recentering_visible": True,
             "motion_haze_center_crop_distinct": True,
             "reduced_motion_preserves_safety_hold": True,
@@ -326,7 +397,10 @@ def main() -> int:
         },sort_keys=True))
         return 0
     except Exception as exc:
-        print(f"3D SURGERY GL TEST FAILED: {type(exc).__name__}: {exc}",
+        import traceback
+        where = "; ".join(f"line {f.lineno}: {f.line}"
+                          for f in traceback.extract_tb(exc.__traceback__)[-2:])
+        print(f"3D SURGERY GL TEST FAILED: {type(exc).__name__}: {exc} ({where})",
               file=sys.stderr)
         return 1
     finally:

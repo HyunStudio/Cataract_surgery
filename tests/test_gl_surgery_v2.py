@@ -8,11 +8,14 @@ import pytest
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
-from ophthosim.engine import ENDINGS, FINAL_CHECKS, PREOP_CHECKS, Phase
+from ophthosim.engine import (COMPLICATIONS, ENDINGS, FINAL_CHECKS, HAZARDS, PREOP_CHECKS,
+                              TOOL_NAMES, Phase)
 from ophthosim.gl_surgery import SurgeryHUD, advance_preop, main, save_session
 from ophthosim.input3d import STAGE_DEPTH, Surgery3DController, eye_to_pixel
 from ophthosim.surface_probe3d import probe_surface
 from ophthosim.tool3d import visible_stylus
+
+from surgeon_helpers import SITES, use3d
 
 W, H = 1280, 720
 
@@ -23,10 +26,12 @@ def press(c, x, y, fresh=False):
     return c.pointer(*pixel, W, H, fresh_press=fresh)
 
 
-def to_close(c, stop_on_alert=False):
-    """Drive along the ideal path to CLOSE, assessing alerts unless told not to."""
+def to_close(c, stop_on_alert=False, manage=True):
+    """Drive along the ideal path to CLOSE with 3D clicks: assess alerts
+    (unless told to stop), manage complications with their instrument, and
+    use viscoelastic and hydrodissection where a surgeon would."""
     g = c.game
-    for _ in range(400):
+    for _ in range(2000):
         if g.phase in (Phase.CLOSE,) or g.ending:
             return
         if g.patient.alert:
@@ -34,20 +39,40 @@ def to_close(c, stop_on_alert=False):
                 return
             c.command("assess")
             continue
+        if g.pending and manage:
+            comp = COMPLICATIONS[g.pending[0]]
+            if comp.remedy == "escalate":
+                c.command("escalate")
+            else:
+                use3d(c, comp.remedy, *SITES[comp.site])
+            continue
         if g.phase == Phase.PREOP:
             assert advance_preop(c)
         elif g.phase == Phase.ANESTHESIA:
             c.command("prepare")
         elif g.phase == Phase.ENTRY:
-            for x, y in g._entry_target:
+            for i, (x, y) in enumerate(g._entry_target):
+                if i in g._entered or g.patient.alert or g.phase != Phase.ENTRY:
+                    continue
                 press(c, x, y, True)
+                if not g.ovd_chamber and g.phase == Phase.ENTRY and not g.patient.alert:
+                    use3d(c, "ovd_cannula")
         elif g.phase == Phase.CAPSULE:
+            if not g.ovd_chamber:
+                use3d(c, "ovd_cannula")
             for i in range(24):
+                if g.phase != Phase.CAPSULE or g.patient.alert:
+                    break
                 a = (i + .5) * math.tau / 24
                 press(c, .5 + .28 * math.cos(a), .5 + .28 * math.sin(a))
         elif g.phase in (Phase.PHACO, Phase.CORTEX):
+            if g.phase == Phase.PHACO and not g.hydro_done and g.eye.opacity == 1.0:
+                use3d(c, "hydro_cannula")
             press(c, .5, .5)
+            c.advance_clock(1 / 60)        # held at 60 Hz: tissue stress decays
         elif g.phase == Phase.IOL:
+            if not g.ovd_bag:
+                use3d(c, "ovd_cannula")
             press(c, .5, .5, True)
 
 
@@ -102,9 +127,10 @@ def _surface():
 @pytest.mark.parametrize("lang", ["en", "ko"])
 def test_hud_renders_every_alert_and_ending(lang):
     pygame, surf, font, title = _surface()
+    card = SurgeryHUD.card_rect(W, H)
     try:
         frames = {}
-        for case in ("motion", "vitals", "pupil", "haze", "decenter", "leak", "capsule"):
+        for case in HAZARDS:
             c = Surgery3DController(case, seed=5)
             hud = SurgeryHUD(c)
             hud.lang = lang
@@ -112,26 +138,32 @@ def test_hud_renders_every_alert_and_ending(lang):
             if not c.game.patient.alert:          # leak fires on the final checks
                 for item in FINAL_CHECKS:
                     c.command("verify", item)
-            assert c.game.patient.alert, case
+            assert c.game.patient.alert == HAZARDS[case][1], case
             surf.fill((0, 0, 0, 0))
             hud.draw(pygame, surf, c.view, W, H, font, title)
-            frames[case] = pygame.image.tobytes(surf.subsurface((390, 300, 500, 110)), "RGBA")
+            frames[case] = pygame.image.tobytes(surf.subsurface(card), "RGBA")
+            c.command("assess")
+            if c.game.pending:                    # management card replaces the hold card
+                surf.fill((0, 0, 0, 0))
+                hud.draw(pygame, surf, c.view, W, H, font, title)
+                assert pygame.image.tobytes(surf.subsurface(card), "RGBA") != frames[case]
         assert len(set(frames.values())) == len(frames)
         endings = {}
         for case, action in (("normal", None), ("motion", "assess"), ("normal", "abort"),
-                             ("vitals", "timeout")):
+                             ("vitals", "timeout"), ("hyphema", "ignore")):
             c = Surgery3DController(case, seed=5)
             hud = SurgeryHUD(c)
             hud.lang = lang
             if action == "abort":
                 c.command("abort")
             else:
-                to_close(c, stop_on_alert=action == "timeout")
+                to_close(c, stop_on_alert=action in ("timeout", "ignore"))
                 if c.game.patient.alert and action == "timeout":
                     for _ in range(700):
                         c.advance_clock(.05)
                 elif c.game.patient.alert:
                     c.command("assess")
+                    to_close(c, manage=action != "ignore")
                 for item in FINAL_CHECKS:
                     c.command("verify", item)
                 if action == "timeout" and not c.game.ending:
@@ -141,7 +173,27 @@ def test_hud_renders_every_alert_and_ending(lang):
             hud.draw(pygame, surf, c.view, W, H, font, title)
             endings[c.game.ending] = pygame.image.tobytes(surf.subsurface((340, 145, 600, 410)), "RGBA")
         assert set(endings) == set(ENDINGS)
-        assert len(set(endings.values())) == 4
+        assert len(set(endings.values())) == len(ENDINGS)
+    finally:
+        pygame.quit()
+
+
+def test_preop_chart_card_and_instrument_row():
+    pygame, surf, font, title = _surface()
+    try:
+        c = Surgery3DController("bleed")
+        hud = SurgeryHUD(c)
+        hud.draw(pygame, surf, c.view, W, H, font, title)
+        card = pygame.image.tobytes(surf.subsurface(SurgeryHUD.card_rect(W, H)), "RGBA")
+        assert len(set(card[i:i + 4] for i in range(0, len(card), 4))) > 20
+        while c.game.phase in (Phase.PREOP, Phase.ANESTHESIA):
+            advance_preop(c) if c.game.phase == Phase.PREOP else c.command("prepare")
+        slots = dict(SurgeryHUD.tray_slots(W, H))
+        assert set(slots) == set(TOOL_NAMES)
+        from ophthosim.gl_surgery import tray_pick
+        x, y, w, h = slots["cautery"]
+        assert tray_pick(c, x + 3, y + 3, W, H) and c.game.tool == "cautery"
+        assert not tray_pick(c, W // 2, H // 2, W, H)
     finally:
         pygame.quit()
 
@@ -181,7 +233,7 @@ def test_cli_validation():
 
 
 def test_t_key_cycles_tools_and_hard_requires_choice():
-    from ophthosim.gl_surgery import cycle_tool
+    from ophthosim.gl_surgery import cycle_tool, quick_use
     c = Surgery3DController(difficulty="hard")
     while c.game.phase == Phase.PREOP:
         advance_preop(c)
@@ -189,13 +241,16 @@ def test_t_key_cycles_tools_and_hard_requires_choice():
     x, y = c.game._entry_target[0]
     assert not press(c, x, y, True) and c.game.wrong_tool == 1
     seen = []
-    for _ in range(5):
+    for _ in TOOL_NAMES:
         assert cycle_tool(c)
         seen.append(c.game.tool)
-    assert sorted(seen) == sorted(("blade", "forceps", "phaco", "aspirator", "injector"))
-    while c.game.tool != "blade":
+    assert seen == list(TOOL_NAMES)
+    assert c.game.tool == TOOL_NAMES[-1]
+    assert cycle_tool(c, -1) and c.game.tool == TOOL_NAMES[-2]
+    while c.game.tool != "keratome":
         cycle_tool(c)
     assert press(c, x, y, True)
+    assert quick_use(c, "ovd_cannula") and c.game.ovd_chamber
 
 
 def test_resume_controller_restores_verified_autosave(tmp_path):

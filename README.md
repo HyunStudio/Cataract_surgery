@@ -3,12 +3,14 @@
 An open-source, **educational and research** cataract microsurgery game written in
 Python. You play a complete *abstracted* encounter from pre-operative verification to
 the explained results screen, in a 2.5D microscope view or an experimental
-hardware-accelerated 3D view, with a synthetic patient monitor, nine deterministic
-scenarios, three difficulty levels, Korean/English UI and replayable research logs.
+hardware-accelerated 3D view, with a synthetic patient chart and monitor, fifteen
+instruments chosen for the situation, bleeding, thirteen deterministic scenarios, three
+difficulty levels, Korean/English UI and replayable research logs.
 
 > **Not a medical device and not surgical training.** Every value, waveform,
-> complication and score is synthetic game feedback. There are no clinical
-> instructions, drug doses or device settings. See [Safety](docs/SAFETY.md).
+> complication and score is synthetic game feedback. The procedure order and the
+> instrument for each situation follow real cataract surgery, but there are no drug
+> doses or device energy/vacuum/flow settings. See [Safety](docs/SAFETY.md).
 
 Screenshots of every screen are produced by CI (`build/screenshots/` artifacts of the
 *Tests* and *Software OpenGL Smoke* workflows).
@@ -29,33 +31,56 @@ Korean step-by-step guide: [사용자 가이드](docs/USER_GUIDE_KO.md).
 
 ## The encounter
 
-1. **Pre-op review** — tick patient identity, operative site and planned IOL; the case
-   cannot start until all three are verified.
+1. **Pre-op review** — read the synthetic patient chart (age, conditions, drug classes,
+   baseline vitals) and tick identity, operative site and planned IOL.
 2. **Anesthesia & preparation** — confirm readiness (no medication actions).
-3. **Entry** — select the three approach targets.
-4. **Capsular task** — trace the circular guide.
-5. **Lens removal** and 6. **cortex cleanup** — clear opacity inside the working field.
-7. **IOL** — place the synthetic lens near the optical centre (3D: folded → unfolding).
-8. **Final checks** — alignment, wound stability, handoff.
+3. **Entry** — main incision with the keratome, two side ports with the side-port knife,
+   then viscoelastic (OVD, `V`) to deepen the chamber.
+4. **Capsulorhexis** — cystotome/forceps along the circular guide. Without OVD the safe
+   band narrows; pulling outwards makes the rhexis run out (**rhexis tear**).
+5. **Hydrodissection** (`D`) and **phaco**, then 6. **I/A cortex cleanup** — work inside
+   the working field; skipping hydrodissection or working at the edge builds *tissue
+   stress* that can tear the posterior capsule.
+7. **IOL** — viscoelastic in the bag, then the injector near the optical centre.
+8. **Final checks** — alignment, wound, handoff.
 9. **Results** — explained score, ending and event timeline.
 
-Each task stage needs its instrument (entry blade, capsule forceps, phaco handpiece,
-I/A aspirator, IOL injector). It is selected automatically in tutorial/standard; in
-hard you pick it from the tray (`T`), and using the wrong one is rejected and logged.
+### Instruments
 
-### Scenarios (keys 1–9 on the pre-op screen)
+Nine procedure instruments (keratome, side-port knife, OVD cannula, cystotome, forceps,
+hydrodissection cannula, phaco, I/A, IOL injector) and six situation instruments (IOL
+hook, iris hooks, capsular tension ring, cautery, irrigation, suture). In tutorial and
+standard the scrub nurse hands you the stage instrument; situation instruments are
+always your choice (tray or `T` / `Shift+T`). Using an instrument that does not fit
+the situation is rejected and costs safety points.
 
-| # | Case | What happens (synthetic) | Expected response |
+### Complications and how they are managed
+
+A complication first raises a **safety hold** (`A` assess or `X` stop safely). After
+assessing it stays *pending* until you manage it with the right instrument at the
+right place. Only the tutorial names that instrument. Continuing the task through a
+**major** complication is a failure.
+
+| # | Case | Synthetic event | Manage with |
 |---|---|---|---|
-| 1 | normal | no complication | complete safely |
-| 2 | motion | patient motion on capsular entry | stop, assess (A) |
-| 3 | vitals | monitor alarm during lens removal | hold, assess |
-| 4 | capsule | capsule integrity event | assessment ends in a **safe stop** |
-| 5 | pupil | pupil constriction | assess; working field shrinks |
-| 6 | haze | corneal haze | assess; view clears partially |
-| 7 | decenter | IOL decentration in final checks | assess, re-centre, then check |
-| 8 | leak | wound-leak risk holds the ending | assess, re-check the wound |
-| 9 | random | one of the above, drawn from the seed and logged | — |
+| 1 | normal | none | — |
+| 2 | motion | patient moves during the rhexis | assess (vitals settle) |
+| 3 | vitals | monitor alarm during phaco | assess |
+| 4 | capsule | posterior capsule rupture (**major**) | `B` call senior (sulcus IOL) or `X` |
+| 5 | pupil | pupil constriction (diabetes) | iris hooks at the pupil margin |
+| 6 | haze | corneal haze (Fuchs) | assess |
+| 7 | decenter | IOL decentration | IOL hook at the centre |
+| 8 | leak | wound leak at the final check | suture at the main incision |
+| 9 | iris | iris prolapse (alpha-blocker) | iris hooks; ignored → iris trauma → hyphema |
+| N | zonules | zonular weakness (pseudoexfoliation) | CTR; ignored → dialysis → capsule rupture |
+| N | bleed | incision bleeding (anticoagulant) | cautery at the incision |
+| N | hyphema | blood layering in the chamber, grows while ignored | irrigation |
+| N | sch | suprachoroidal haemorrhage (**major**): red reflex lost | suture the wound; the case stops safely |
+| N | random | one of the above, drawn from the seed and logged | — |
+
+Technique can also cause complications: a run-out rhexis (**rhexis tear**, managed
+with OVD) that extends into a capsule rupture if you carry on. Anticoagulated patients
+bleed more. Vital signs drift towards each patient's baseline.
 
 ### Difficulty (`D` on the pre-op screen)
 
@@ -63,17 +88,17 @@ hard you pick it from the tray (`T`), and using the wrong one is rejected and lo
 |---|---|---|---|
 | Target tolerances | wide | baseline | narrow |
 | Guides (ghost rings) | yes | yes | no |
-| Instrument | automatic | automatic | choose (`T`) |
+| Stage instrument | handed over | handed over | choose (`T`) |
+| Managing instrument named | yes | no | no |
 | IOL acceptance | ≥ 55 % | ≥ 65 % | ≥ 75 % |
 | Unattended alert limit | none | 30 s | 15 s |
 
 ### Endings and score
 
-Four endings: **Simulation complete**, **Complication recognised and managed**,
-**Safely aborted** (a positive outcome, not a failure) and **Critical failure**. The
-last one is a *safety veto*: it happens only when a safety hold is left unattended past
-the difficulty's limit. Pausing cannot freeze that timer, while assessing (`A`) or a
-safe abort (`X`) always stops it.
+Five endings: **Simulation complete**, **Complication managed**, **Complication
+unresolved** (the case finished with a complication left unmanaged), **Safely aborted**
+(a positive outcome, not a failure) and **Critical failure** (an unattended safety hold
+past the limit, or carrying on through a major complication).
 
 The 100-point score is explained on the results screen. Each category is earned only
 once that part has been evaluated:
@@ -83,8 +108,8 @@ once that part has been evaluated:
 | Stage completion | 20 | stages completed of 7 |
 | Tissue protection | 25 | capsule integrity minus near-miss penalty |
 | IOL position | 20 | final alignment |
-| Complication response | 20 | recognition latency per alert (full credit ≤ 3 s) |
-| Patient safety | 15 | no safety veto |
+| Complication response | 20 | recognition latency per alert (full credit ≤ 3 s), halved if left unmanaged |
+| Patient safety | 15 | 0 on failure or an unresolved complication; deductions for technique (no OVD / hydrodissection), wrong instruments and stress warnings |
 
 The weights are game-design hypotheses, not a validated skill measure.
 
@@ -92,10 +117,11 @@ The weights are game-design hypotheses, not a validated skill measure.
 
 | 2.5D (`python main.py`) | |
 |---|---|
-| Mouse | task / checklists / instrument tray |
+| Mouse | stage task, or use the held situation instrument / checklists / instrument tray |
 | Space | next pre-op item → start → prepare |
-| 1–9, D | case, difficulty (pre-op only) |
-| T | cycle instrument |
+| 1–9, N, D | case, next case, difficulty (pre-op only) |
+| T / Shift+T | next / previous instrument |
+| V, D, B | viscoelastic, hydrodissection (phaco), call senior help |
 | A / X / Esc | assess alert / safe abort / pause |
 | Wheel or + −, [ ], , . | microscope zoom (locked while dragging), focus, illumination |
 | L, H, C, M, S, F1 | language, high contrast, colour-safe palette, reduced motion, sound, help |
@@ -104,6 +130,9 @@ The weights are game-design hypotheses, not a validated skill measure.
 
 The 3D game (`python -m ophthosim.gl_surgery`) uses the same engine and keys for the
 procedure, plus arrows to orbit, Q/E for tool depth, F3 for frame time and S to export.
+Complications, bleeding and the devices used to manage them are drawn in both views.
+Licensed OBJ models in `assets/models/` can replace the procedural eye
+([format](assets/models/README.md)).
 
 ## Research and data
 
@@ -167,9 +196,9 @@ evidence. The HUD texture is uploaded zero-copy. See the
 
 | Area | State |
 |---|---|
-| Full 2.5D game: 9 scenarios, 3 difficulties, 4 endings, explained score, KO/EN, accessibility, autosave | **Implemented and tested** (707 automated tests, Python 3.12/3.13 CI) |
-| Experimental 3D game with the same engine | Implemented; verified on Linux Mesa software OpenGL in CI |
-| Windows GPU (GL01–GL10) and physical 4K legibility | **Open** — needs a run on the target PC ([checklist](docs/GPU_VALIDATION_CHECKLIST.md)) |
+| Full 2.5D game: 13 scenarios, 15 instruments, bleeding, patient profiles, 3 difficulties, 5 endings, explained score, KO/EN, accessibility, autosave | **Implemented and tested** (804 automated tests on Windows) |
+| 3D game with the same engine, complication/bleeding signs | Implemented; GPU smoke passed on Windows 11 / RTX 3070 |
+| Windows GPU (GL01–GL10) | NVIDIA RTX 3070: automated checks pass; AMD Radeon target and human sign-off **open** ([checklist](docs/GPU_VALIDATION_CHECKLIST.md)) |
 | Clinical plausibility and educational value | **Open** — needs subject-matter-expert review |
 | Vitreous event, deformable tissue physics | Out of scope for v1.x (spec "advanced") |
 
@@ -181,17 +210,18 @@ See the [32-work-package status](docs/ROADMAP.md#implementation-status-2026-10-2
 ```
 ophthosim/
   engine.py           phase machine, rules, hazards, endings, score breakdown, metrics
-  replay.py           deterministic command journal + integrity-checked replay (schema v2)
+  replay.py           deterministic command journal + integrity-checked replay (schema v3)
   report.py           explained report, timeline, CSV/JSON export
   experiments.py      scripted synthetic agents and batch runs
   autosave.py         verified recovery points
   i18n.py             Korean/English strings
   app.py              2.5D Pygame game
   gl_surgery.py       experimental ModernGL 3D game (+ input3d, contact3d, tool3d,
-                      iol3d, capsule3d, vision3d, surface_probe3d, mesh_raycast …)
+                      iol3d, capsule3d, complication3d, vision3d, surface_probe3d …)
+  assets.py           optional licensed OBJ models (licence manifest required)
   gl_preview.py       3D anatomy atlas and renderer
   gl_benchmark.py     frame-time / memory benchmark; frametime.py statistics
-tests/                707 headless, SDL-dummy and GUI tests
+tests/                804 headless, SDL-dummy and GUI tests
 docs/                 specs (KO), architecture, roadmap, safety, research, GPU checklist
 ```
 

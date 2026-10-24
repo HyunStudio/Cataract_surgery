@@ -6,6 +6,7 @@ import random
 
 import pytest
 
+from surgeon_helpers import use3d
 from ophthosim.engine import Phase
 from ophthosim.input3d import (DEPTH_TOLERANCE, STAGE_DEPTH,
                                Surgery3DController, eye_to_pixel,
@@ -34,20 +35,28 @@ def enter_capsule(controller):
 def enter_phaco(controller):
     enter_capsule(controller)
     for i in range(24):
+        if controller.game.phase != Phase.CAPSULE:
+            break
         theta = (i + .5) * math.tau / 24
         gesture(controller, .5 + .28 * math.cos(theta),
                 .5 + .28 * math.sin(theta))
     assert controller.game.phase == Phase.PHACO
+    if not controller.game.patient.alert:
+        assert use3d(controller, "hydro_cannula")
 
 
 def test_full_synthetic_procedure_in_3d_input_mode_and_replay():
     c = Surgery3DController(seed=28)
     enter_phaco(c)
-    for _ in range(40):
-        gesture(c, .5, .5)
+    for _ in range(600):
+        if c.game.phase != Phase.PHACO:
+            break
+        assert gesture(c, .5, .5)
     assert c.game.phase == Phase.CORTEX
-    for _ in range(40):
-        gesture(c, .5, .5)
+    for _ in range(600):
+        if c.game.phase != Phase.CORTEX:
+            break
+        assert gesture(c, .5, .5)
     assert c.game.phase == Phase.IOL
     assert gesture(c, .5, .5, fresh_press=True)
     assert c.game.phase == Phase.CLOSE
@@ -78,6 +87,8 @@ def test_3d_scenario_safety_holds_prevent_click_bypass(case,trigger,alert):
     assert c.game.snapshot() == before
     assert c.command("assess")
     if case == "capsule":
+        assert c.game.pending == ["CAPSULE INTEGRITY"]
+        assert c.command("abort")
         assert c.game.phase == Phase.ABORTED
         assert c.game.ending == "SAFELY ABORTED"
     else:
@@ -188,9 +199,9 @@ def test_2000_randomized_3d_input_roundtrip_does_not_crash():
 def test_removal_hold_cannot_auto_place_iol():
     c = Surgery3DController()
     enter_phaco(c)
-    # Even if a user keeps dragging for 100 frames, the new IOL phase
+    # Even if a user keeps dragging well past cleanup, the new IOL phase
     # cannot treat a continuous hold as a deliberate placement click.
-    for _ in range(100):
+    for _ in range(600):
         gesture(c, .5, .5)
     assert c.game.phase == Phase.IOL
     assert c.game.eye.iol_alignment == 0.

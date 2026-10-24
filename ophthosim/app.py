@@ -10,11 +10,14 @@ from __future__ import annotations
 from array import array
 import argparse
 import math
+import random
 import sys
 
 from .autosave import AUTOSAVE, load_autosave, write_autosave
-from .engine import (CASES, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
-                     ENDING_MANAGED, FINAL_CHECKS, PREOP_CHECKS, TOOL_NAMES, Phase)
+from .engine import (CASES, COMPLICATIONS, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
+                     ENDING_MANAGED, ENDING_UNRESOLVED, FINAL_CHECKS, MAIN_INCISION,
+                     PREOP_CHECKS, PROFILES, SITUATION_TOOLS, STEP_TOOLS, TOOL_NAMES,
+                     USE_TOOLS, Phase)
 from .i18n import LANGUAGES, t
 from .preview3d import draw_preview
 from .replay import ReplayGame as Game
@@ -24,7 +27,8 @@ from .signals import sample_trace
 WIDTH, HEIGHT = 1280, 720
 EYE_CX, EYE_CY, EYE_R = 640, 366, 222
 FIELD = (275, 75, 690, 620)
-TRAY = (292, 612, 656, 32)     # instrument tray inside the field, under the eye
+TRAY = (292, 597, 656, 50)     # instrument tray: procedure row + situation row
+TRAY_ROWS = (STEP_TOOLS, SITUATION_TOOLS)
 BG = (7, 18, 30)
 PANEL = (16, 32, 47)
 PANEL2 = (20, 42, 58)
@@ -71,55 +75,245 @@ def to_screen(point):
             round(EYE_CY + (point[1] - .5) * EYE_R * 2))
 
 
+_TEXTURES: dict[tuple[int, int], object] = {}
+LIMBUS_R = 152            # cornea/limbus radius in canvas pixels
+
+
+def _polar(r, a):
+    return (round(EYE_CX + r * math.cos(a)), round(EYE_CY + r * math.sin(a)))
+
+
+def eye_texture(pg):
+    """Static procedural eye: sclera with conjunctival vessels, limbus, iris
+    stroma with crypts and collarette. Built once per pygame session."""
+    key = (id(pg), EYE_R)
+    if key in _TEXTURES:
+        return _TEXTURES[key]
+    size = EYE_R * 2 + 30
+    tex = pg.Surface((size, size), pg.SRCALPHA)
+    cx = cy = size // 2
+    rng = random.Random(1307)            # fixed: identical texture every run
+    for r in range(EYE_R, LIMBUS_R - 2, -3):
+        blend = (EYE_R - r) / (EYE_R - LIMBUS_R)
+        v = int(206 + 26 * blend)
+        pg.draw.circle(tex, (v, v - 6, v - 14), (cx, cy), r)
+    # Conjunctival / episcleral vessels: fine, slowly curving and fading
+    # towards the limbus, with a few short side branches.
+    vessels = pg.Surface((size, size), pg.SRCALPHA)
+    for _ in range(18):
+        a = rng.uniform(0, math.tau)
+        r = EYE_R - 1
+        bend = rng.uniform(-.012, .012)
+        points = []
+        while r > LIMBUS_R + 14:
+            points.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+            r -= 4
+            a += bend + rng.uniform(-.006, .006)
+        for k in range(1, len(points)):
+            fade = 1 - k / len(points)
+            pg.draw.aaline(vessels, (168, 70, 72, round(40 + 90 * fade)), points[k - 1], points[k])
+        if len(points) > 6 and rng.random() < .6:
+            k = rng.randrange(2, len(points) // 2)
+            side = rng.choice((-1, 1)) * .5
+            bx, by = points[k]
+            pg.draw.aaline(vessels, (168, 70, 72, 70), (bx, by),
+                           (bx + 16 * math.cos(a + side + math.pi), by + 16 * math.sin(a + side + math.pi)))
+    tex.blit(vessels, (0, 0))
+    # Limbus: soft grey-blue transition ring.
+    for i, r in enumerate(range(LIMBUS_R + 6, LIMBUS_R - 4, -1)):
+        pg.draw.circle(tex, (96 - i * 3, 118 - i * 2, 128 - i, 255), (cx, cy), r)
+    # Iris stroma: radial fibres in two tones, crypts and a collarette ring.
+    for r in range(LIMBUS_R - 4, 98, -3):
+        tt = (LIMBUS_R - 4 - r) / (LIMBUS_R - 102)
+        pg.draw.circle(tex, (int(30 + 26 * tt), int(84 + 30 * tt), int(88 + 22 * tt)), (cx, cy), r)
+    for i in range(240):
+        a = i * math.tau / 240
+        inner = 104 + 3 * math.sin(i * 1.73)
+        outer = LIMBUS_R - 6 + 3 * math.sin(i * .67)
+        tone = (60 + (i % 5) * 7, 118 + (i % 4) * 7, 116 + (i % 3) * 6)
+        pg.draw.line(tex, tone, (cx + inner * math.cos(a), cy + inner * math.sin(a)),
+                     (cx + outer * math.cos(a), cy + outer * math.sin(a)), 1)
+    for _ in range(34):
+        a = rng.uniform(0, math.tau)
+        r = rng.uniform(116, 140)
+        w, h = rng.uniform(5, 11), rng.uniform(3, 6)
+        crypt = pg.Surface((24, 24), pg.SRCALPHA)
+        pg.draw.ellipse(crypt, (22, 52, 58, 170), (12 - w / 2, 12 - h / 2, w, h))
+        tex.blit(pg.transform.rotate(crypt, -math.degrees(a)),
+                 (cx + r * math.cos(a) - 12, cy + r * math.sin(a) - 12))
+    collarette = [(cx + (124 + 3 * math.sin(k * .9)) * math.cos(k * math.tau / 90),
+                   cy + (124 + 3 * math.sin(k * .9)) * math.sin(k * math.tau / 90)) for k in range(90)]
+    pg.draw.lines(tex, (128, 172, 156), True, collarette, 2)
+    _TEXTURES[key] = tex
+    return tex
+
+
+def draw_drape(pg, surf, palette=None):
+    """Sterile drape and lid speculum around the operative eye (synthetic)."""
+    fx, fy, fw, fh = FIELD
+    drape = pg.Surface((fw, fh), pg.SRCALPHA)
+    drape.fill((36, 92, 104, 255))
+    for k in range(0, fw + 60, 22):
+        pg.draw.line(drape, (44, 104, 116, 255), (k, 0), (k - 60, fh), 1)
+    mask = pg.Surface((fw, fh), pg.SRCALPHA)
+    pg.draw.rect(mask, (255, 255, 255, 255), (0, 0, fw, fh), border_radius=16)
+    pg.draw.circle(mask, (0, 0, 0, 0), (EYE_CX - fx, EYE_CY - fy), EYE_R + 34)
+    drape.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MIN)
+    surf.blit(drape, (fx, fy))
+    # Lid margins retracted by the speculum (pink skin edge).
+    pg.draw.circle(surf, (186, 128, 124), (EYE_CX, EYE_CY), EYE_R + 30, 10)
+    # Wire lid speculum: blades hooked over the upper and lower lid margins,
+    # arms running out to the nasal side under the drape.
+    surf.set_clip(pg.Rect(FIELD))
+    steel = (196, 204, 212)
+    ring = (EYE_CX - EYE_R - 34, EYE_CY - EYE_R - 34, (EYE_R + 34) * 2, (EYE_R + 34) * 2)
+    for mid in (math.pi / 2, -math.pi / 2):          # pygame arcs: y axis up
+        pg.draw.arc(surf, steel, ring, mid - .55, mid + .55, 4)
+        for end in (mid - .55, mid + .55):
+            x = EYE_CX + (EYE_R + 32) * math.cos(end)
+            y = EYE_CY - (EYE_R + 32) * math.sin(end)
+            if x < EYE_CX:
+                pg.draw.line(surf, steel, (x, y), (fx + 14, EYE_CY + (y - EYE_CY) * .35), 3)
+    surf.set_clip(None)
+
+
+def _incision_point(r=LIMBUS_R):
+    a = math.atan2(MAIN_INCISION[1] - .5, MAIN_INCISION[0] - .5)
+    return _polar(r, a), a
+
+
 def render_eye(pg, surf, model, clock_s, palette=None, *, animate=True):
-    """Procedural pseudo-depth: cornea highlights, iris, pupil and lens layers."""
+    """Procedural operative field: textured eye, lens layers, blood and
+    complication signs. Synthetic illustration, not clinical imagery."""
     c = palette or PALETTES['default']
     center = (EYE_CX, EYE_CY)
     eye = model.eye
+    kinds = {a['kind'] for a in model.alerts}
+    live = model.patient.alert
+    pending = set(model.pending)
+    flags = model.flags
+    # Zonular weakness: the whole lens/bag sits off-centre.
+    shift = 0
+    if 'zonular_dialysis' in flags:
+        shift = 22
+    elif live == 'ZONULAR WEAKNESS' or 'ZONULAR WEAKNESS' in pending:
+        shift = 14
     pg.draw.circle(surf, (5, 10, 18), (center[0]+7, center[1]+10), EYE_R+15)
-    # Sclera with diffuse illumination shading.
-    for r in range(EYE_R, 135, -4):
-        blend = (EYE_R-r)/(EYE_R-135)
-        value = int(123+70*blend)
-        pg.draw.circle(surf, (value, value+7, min(255, value+13)), center, r)
-    pg.draw.circle(surf, (48, 79, 85), center, 153)
-    # Radial iris fibers with depth cues.
-    for r in range(151, 98, -3):
-        tt = (151-r)/53
-        pg.draw.circle(surf, (int(21+18*tt), int(73+37*tt), int(80+20*tt)), center, r)
-    for i in range(180):
-        a = i*math.tau/180
-        inner = 104 + 4*math.sin(i*1.73)
-        outer = 145 + 4*math.sin(i*.67)
-        pg.draw.line(surf, (52 + (i%5)*5, 111+(i%4)*6, 114+(i%3)*4),
-                     (round(EYE_CX+math.cos(a)*inner),round(EYE_CY+math.sin(a)*inner)),
-                     (round(EYE_CX+math.cos(a)*outer),round(EYE_CY+math.sin(a)*outer)), 1)
+    tex = eye_texture(pg)
+    surf.blit(tex, (EYE_CX - tex.get_width() // 2, EYE_CY - tex.get_height() // 2))
     # A constricted pupil narrows the visible (and usable) lens field.
     pupil = max(.3, min(1.0, eye.pupil))
     pupil_r = round(104 * (.25 + .75 * pupil))
     if pupil < 1:
-        pg.draw.circle(surf, (40, 92, 96), center, 104)
+        pg.draw.circle(surf, (52, 104, 106), center, 104)
     pg.draw.circle(surf, (10, 17, 27), center, pupil_r)
+    # Red reflex: the fundus glow through the clearing lens (lost with SCH).
+    glow = (1 - eye.opacity * .85) * eye.red_reflex
+    if glow > .05 and model.phase not in (Phase.PREOP, Phase.ANESTHESIA):
+        reflex = pg.Surface((pupil_r * 2, pupil_r * 2), pg.SRCALPHA)
+        for k in range(pupil_r, 0, -4):
+            alpha = round(150 * glow * (1 - k / pupil_r * .6))
+            pg.draw.circle(reflex, (196, 82, 44, alpha), (pupil_r + shift, pupil_r), k)
+        surf.blit(reflex, (EYE_CX - pupil_r, EYE_CY - pupil_r))
+    if eye.red_reflex < .5 and model.phase not in (Phase.PREOP, Phase.ANESTHESIA):
+        # Suprachoroidal haemorrhage: dark dome rising behind the lens.
+        dome = pg.Surface((pupil_r * 2, pupil_r * 2), pg.SRCALPHA)
+        pg.draw.circle(dome, (70, 22, 26, 210), (round(pupil_r * .6), round(pupil_r * 1.4)),
+                       round(pupil_r * 1.05))
+        mask = pg.Surface((pupil_r * 2, pupil_r * 2), pg.SRCALPHA)
+        pg.draw.circle(mask, (255, 255, 255, 255), (pupil_r, pupil_r), pupil_r)
+        dome.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MIN)
+        surf.blit(dome, (EYE_CX - pupil_r, EYE_CY - pupil_r))
     # Synthetic cataract opacity. Display rings shrink smoothly with progress.
     if eye.opacity > 0:
         alpha = int(eye.opacity*188)
         overlay = pg.Surface((420,420),pg.SRCALPHA)
-        pg.draw.circle(overlay, (200,187,136,alpha), (210,210), round(99*pupil_r/104))
+        pg.draw.circle(overlay, (200,187,136,alpha), (210+shift,210), round(99*pupil_r/104))
         spin = clock_s*.005 if animate else 0.
         for i in range(12):
             a = i*math.tau/12 + spin
-            p = (round(210+70*pupil_r/104*math.cos(a)),round(210+70*pupil_r/104*math.sin(a)))
+            p = (round(210+shift+70*pupil_r/104*math.cos(a)),round(210+70*pupil_r/104*math.sin(a)))
             pg.draw.circle(overlay,(227,219,166,int(alpha*.7)),p,14+i%4*3)
         surf.blit(overlay, (EYE_CX-210,EYE_CY-210))
+    if shift:
+        # Equator of the subluxated lens shows in the pupil.
+        pg.draw.arc(surf, (210, 214, 190), (EYE_CX - 96 + shift, EYE_CY - 96, 192, 192),
+                    math.radians(120), math.radians(240), 2)
+    if 'CAPSULE INTEGRITY' in kinds and model.phase not in (Phase.PREOP,):
+        # Posterior capsule opening: dark gap with vitreous strands.
+        veil = pg.Surface((220,220),pg.SRCALPHA)
+        pg.draw.ellipse(veil,(20,24,30,160),(70,90,90,60))
+        for k in range(5):
+            pg.draw.arc(veil,(205,215,220,130),(60+k*8,70+k*6,100,80),.4,2.6,2)
+        surf.blit(veil,(EYE_CX-110,EYE_CY-110))
+    if 'RHEXIS TEAR' in kinds:
+        a = math.radians(300)
+        long = 'tear_extending' in flags
+        start = to_screen((.5+.28*math.cos(a), .5+.28*math.sin(a)))
+        end = to_screen((.5+(.46 if long else .40)*math.cos(a+.08), .5+(.46 if long else .40)*math.sin(a+.08)))
+        pg.draw.line(surf, c['bad'], start, end, 3)
+    if 'ctr_inserted' in flags:
+        pg.draw.circle(surf, (214, 226, 232), (EYE_CX + shift, EYE_CY), 88, 1)
     if model.phase in {Phase.IOL, Phase.CLOSE, Phase.RECOVERY} and (
             eye.iol_alignment > 0 or model.phase == Phase.IOL):
         # Decentration is shown as a visible offset of the synthetic optic.
-        shift = round(70 * (1 - eye.iol_alignment)) if model.phase != Phase.IOL else 0
+        dshift = round(70 * (1 - eye.iol_alignment)) if model.phase != Phase.IOL else 0
         overlay = pg.Surface((260,260),pg.SRCALPHA)
         pg.draw.circle(overlay,(150,231,239,72),(130,130),105)
         pg.draw.circle(overlay,(215,253,255,145),(130,130),102,2)
         pg.draw.ellipse(overlay,(180,240,246,170), (54,28,152,204),2)
-        surf.blit(overlay,(EYE_CX-130+shift,EYE_CY-130))
+        surf.blit(overlay,(EYE_CX-130+dshift+shift,EYE_CY-130))
+    if 'iris_hooks_placed' in flags:
+        for k in range(4):
+            a = math.radians(45 + 90 * k)
+            tip = _polar(pupil_r + 2, a)
+            pg.draw.line(surf, (226, 232, 238), _polar(LIMBUS_R + 8, a), tip, 2)
+            pg.draw.circle(surf, (226, 232, 238), tip, 3, 1)
+    # Hyphema: blood layering at the bottom of the anterior chamber.
+    if eye.hyphema > .02:
+        layer = pg.Surface((LIMBUS_R * 2, LIMBUS_R * 2), pg.SRCALPHA)
+        height = round(LIMBUS_R * 2 * min(.85, eye.hyphema * 1.1))
+        top = LIMBUS_R * 2 - height
+        pg.draw.rect(layer, (150, 24, 32, 185), (0, top, LIMBUS_R * 2, height))
+        pg.draw.rect(layer, (110, 14, 22, 220), (0, top + height * .55, LIMBUS_R * 2, height))
+        pg.draw.line(layer, (190, 60, 64, 200), (0, top), (LIMBUS_R * 2, top), 2)   # meniscus
+        mask = pg.Surface((LIMBUS_R * 2, LIMBUS_R * 2), pg.SRCALPHA)
+        pg.draw.circle(mask, (255, 255, 255, 255), (LIMBUS_R, LIMBUS_R), LIMBUS_R - 2)
+        layer.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MIN)
+        surf.blit(layer, (EYE_CX - LIMBUS_R, EYE_CY - LIMBUS_R))
+    # Iris prolapse at the main incision (darker once traumatised).
+    if live == 'IRIS PROLAPSE' or 'IRIS PROLAPSE' in pending or 'iris_trauma' in flags:
+        (px, py), a = _incision_point(LIMBUS_R + 12)
+        tone = (98, 58, 50) if 'iris_trauma' in flags else (58, 112, 108)
+        # Pupil peaked towards the wound, iris knuckle bulging out of it.
+        pg.draw.polygon(surf, (10, 17, 27), [_polar(pupil_r - 6, a - .22), _polar(pupil_r + 26, a),
+                                             _polar(pupil_r - 6, a + .22)])
+        knuckle = pg.Surface((52, 34), pg.SRCALPHA)
+        pg.draw.ellipse(knuckle, (*tone, 255), (0, 0, 52, 34))
+        for k in range(7):
+            pg.draw.line(knuckle, (tone[0] + 30, tone[1] + 30, tone[2] + 24, 255),
+                         (8 + k * 6, 5), (12 + k * 5, 29), 1)
+        pg.draw.ellipse(knuckle, (20, 40, 44, 255), (0, 0, 52, 34), 2)
+        knuckle = pg.transform.rotate(knuckle, -math.degrees(a) - 90)
+        surf.blit(knuckle, knuckle.get_rect(center=(px, py)))
+    # Blood from the incision spreading over the cornea.
+    if eye.blood_film > .02:
+        (bx, by), a = _incision_point()
+        film = pg.Surface((EYE_R * 2, EYE_R * 2), pg.SRCALPHA)
+        ox, oy = bx - (EYE_CX - EYE_R), by - (EYE_CY - EYE_R)
+        for k in range(7):
+            radius = round((14 + k * 9) * (.5 + eye.blood_film))
+            alpha = round(170 * eye.blood_film * (1 - k / 8))
+            pg.draw.circle(film, (156, 24, 32, alpha), (round(ox - k * 9), round(oy + k * 13)), radius)
+        surf.blit(film, (EYE_CX - EYE_R, EYE_CY - EYE_R))
+    if live == 'WOUND LEAK RISK' or 'WOUND LEAK RISK' in pending:
+        (wx, wy), _ = _incision_point(LIMBUS_R - 4)
+        for k in range(4):
+            pg.draw.circle(surf, (190, 228, 246), (wx + 6 + k * 6, wy + 8 + k * 10), 5 - k // 2)
+    if 'wound_sutured' in flags or 'wound_closed_emergently' in flags:
+        (sx, sy), a = _incision_point()
+        for k in (-1, 1):
+            pg.draw.line(surf, (24, 26, 30), (sx - 7, sy + k * 5 - 6), (sx + 7, sy + k * 5 + 6), 2)
     # Reflection and anterior corneal specular glint.
     transparent = pg.Surface((EYE_R*2+20,EYE_R*2+20),pg.SRCALPHA)
     pg.draw.ellipse(transparent,(240,254,255,46), (88,53,158,72))
@@ -147,10 +341,33 @@ def render_eye(pg, surf, model, clock_s, palette=None, *, animate=True):
             pg.draw.circle(surf, c['ok'] if n in eye.capsule_points else c['warn'],p,5)
         if rules.guides:
             low, high = rules.capsule_band
+            if not model.ovd_chamber:
+                low, high = low + .03, high - .03
             pg.draw.circle(surf, c['muted'], center, round(low*EYE_R*2), 1)
             pg.draw.circle(surf, c['muted'], center, round(high*EYE_R*2), 1)
     if model.phase in (Phase.PHACO, Phase.CORTEX) and rules.guides:
         pg.draw.circle(surf, c['muted'], center, round(model.work_radius*EYE_R*2), 1)
+
+
+TOOL_STYLE = {   # (shaft colour, width, tip radius) for the cursor glyph
+    'keratome': ((214, 220, 226), 3, 0), 'sideport': ((214, 220, 226), 2, 0),
+    'ovd_cannula': ((180, 206, 230), 2, 2), 'cystotome': ((214, 220, 226), 2, 0),
+    'forceps': ((200, 206, 214), 2, 3), 'hydro_cannula': ((170, 210, 236), 2, 2),
+    'phaco': ((226, 232, 238), 6, 5), 'ia': ((200, 222, 238), 5, 4),
+    'injector': ((150, 210, 226), 7, 4), 'iol_hook': ((214, 220, 226), 2, 3),
+    'iris_hooks': ((226, 232, 238), 2, 3), 'ctr': ((214, 226, 232), 3, 6),
+    'cautery': ((236, 170, 120), 3, 3), 'irrigation': ((170, 210, 236), 3, 3),
+    'suture': ((40, 44, 52), 2, 2),
+}
+
+
+def draw_tool(pg, surf, tool, point):
+    """Instrument held at the cursor (shaft entering from the temporal side)."""
+    colour, width, tip = TOOL_STYLE.get(tool, ((219, 245, 241), 2, 3))
+    x, y = round(point[0]), round(point[1])
+    pg.draw.line(surf, colour, (x + 70, y + 60), (x, y), width)
+    if tip:
+        pg.draw.circle(surf, colour, (x, y), tip, 0 if tool in ('phaco', 'ia') else 1)
 
 
 def draw_text(pg, surf, fonts, text, xy, *, color=TEXT, size='base', max_chars=None):
@@ -245,6 +462,7 @@ class App:
         self.clock=pg.time.Clock()
         self.fonts={
             'tiny': pg.font.SysFont(FONT_NAMES,14),
+            'micro': pg.font.SysFont(FONT_NAMES,13),
             'base': pg.font.SysFont(FONT_NAMES,17),
             'medium': pg.font.SysFont(FONT_NAMES,22,bold=True),
             'title': pg.font.SysFont(FONT_NAMES,30,bold=True),
@@ -273,6 +491,7 @@ class App:
         self.autosave_path=AUTOSAVE
         self._saved_phase=self.game.phase
         self._wrong_seen=0
+        self._drag_phase=None
 
     def resume(self, path=None):
         """Replace the current case with a verified autosave (if any)."""
@@ -387,7 +606,15 @@ class App:
             elif key in (pg.K_MINUS,pg.K_KP_MINUS):
                 self.set_zoom(self.zoom-.1)
             elif key==pg.K_t:
-                self.cycle_tool()
+                self.cycle_tool(-1 if getattr(event,'mod',0) & pg.KMOD_SHIFT else 1)
+            elif key==pg.K_v:
+                self.quick_use('ovd_cannula')
+            elif key==pg.K_b:
+                g.action('escalate')
+            elif key==pg.K_d and g.phase==Phase.PHACO:
+                self.quick_use('hydro_cannula')
+            elif key==pg.K_n and g.phase==Phase.PREOP and not g.eye.preop_checks:
+                self.new_game(case=CASES[(CASES.index(g.case)+1)%len(CASES)])
             elif key==pg.K_COMMA:
                 self.light=round(max(.5,self.light-.1),2)
             elif key==pg.K_PERIOD:
@@ -413,18 +640,48 @@ class App:
             self.cursor=self.mapped(event.pos)
             if event.button==1:
                 self.drag=True
+                self._drag_phase=self.game.phase
                 self.pointer_action()
         elif event.type == pg.MOUSEBUTTONUP and event.button==1:
             self.drag=False
         elif event.type==pg.MOUSEMOTION:
             self.cursor=self.mapped(event.pos)
-            if self.drag and self.game.phase==Phase.CAPSULE:
+            if self.drag and self.held_ok() and self.game.phase==Phase.CAPSULE:
                 self.pointer_action()
 
-    def cycle_tool(self):
+    def cycle_tool(self, step=1):
         current=self.game.tool
-        index=(TOOL_NAMES.index(current)+1)%len(TOOL_NAMES) if current in TOOL_NAMES else 0
+        index=((TOOL_NAMES.index(current)+step)%len(TOOL_NAMES) if current in TOOL_NAMES
+               else 0 if step > 0 else len(TOOL_NAMES)-1)
         self.game.action('tool',TOOL_NAMES[index])
+
+    def quick_use(self, tool):
+        """Key shortcut: pick `tool` and use it once at the centre of the field."""
+        g=self.game
+        if g.tool != tool and not g.action('tool',tool):
+            return False
+        return g.action('use',.5,.5)
+
+    def held_ok(self):
+        """A held drag stops at a phase change or a safety hold; the surgeon
+        must press again, so a stage action never carries into the next one."""
+        g=self.game
+        if g.patient.alert or g.ending or g.phase != self._drag_phase:
+            self.drag=False
+        return self.drag and not self.view_3d and g.tool not in USE_TOOLS
+
+    def held_input(self):
+        """Fixed-step (1/60 s) held instrument work in phaco and I/A."""
+        if self.drag and self.held_ok() and self.game.phase in {Phase.PHACO,Phase.CORTEX}:
+            self.pointer_action()
+
+    def tray_slots(self):
+        tx,ty,tw,th=TRAY
+        row_h=(th-4)//2
+        for row,names in enumerate(TRAY_ROWS):
+            width=tw/len(names)
+            for i,name in enumerate(names):
+                yield name,(round(tx+i*width)+2,ty+row*(row_h+4),round(width)-4,row_h)
 
     def set_zoom(self, value):
         # Zoom is locked while a tool drag is in progress.
@@ -474,11 +731,15 @@ class App:
             return
         tx,ty,tw,th=TRAY
         if tx<=x<tx+tw and ty<=y<ty+th:
-            game.action('tool',TOOL_NAMES[min(len(TOOL_NAMES)-1,int((x-tx)//(tw/len(TOOL_NAMES))))])
+            for name,(rx,ry,rw,rh) in self.tray_slots():
+                if rx-2<=x<rx+rw+2 and ry-2<=y<ry+rh+2:
+                    game.action('tool',name)
             return
         if 280<=x<=962 and 88<=y<=638:
             a,b=to_eye(self.unzoom((x,y)))
-            if game.phase==Phase.ENTRY:
+            if game.tool in USE_TOOLS:
+                game.action('use',a,b)
+            elif game.phase==Phase.ENTRY:
                 game.action('touch',a,b)
             elif game.phase==Phase.CAPSULE:
                 game.action('trace',a,b)
@@ -509,7 +770,7 @@ class App:
         draw_text(pg,surf,self.fonts,f"{self.text('ui.difficulty')}: {self.text('difficulty.'+g.difficulty)}",
                   (29,234),size='tiny',color=c['muted'])
         if g.phase==Phase.PREOP:
-            draw_text(pg,surf,self.fonts,f"{self.text('ui.select_case')} [1-9] · D",(29,256),size='tiny',color=c['accent'])
+            draw_text(pg,surf,self.fonts,f"{self.text('ui.select_case')} [1-9 / N] · D",(29,256),size='tiny',color=c['accent'])
             draw_text(pg,surf,self.fonts,self.text('case.'+g.case),(29,276),size='base',color=c['ok'],max_chars=26)
             self.checklist(PREOP_CHECKS,g.eye.preop_checks)
         elif g.phase==Phase.CLOSE:
@@ -521,11 +782,15 @@ class App:
             rows=((self.text('bar.opacity'),g.eye.opacity,c['warn']),
                   (self.text('bar.cortex'),g.eye.cortex,c['accent']),
                   (self.text('bar.capsule'),g.eye.capsule_integrity,c['ok']),
-                  (self.text('bar.iol'),g.eye.iol_alignment,c['accent']))
+                  (self.text('bar.iol'),g.eye.iol_alignment,c['accent']),
+                  (self.text('bar.visibility'),g.eye.visibility,
+                   c['ok'] if g.eye.visibility>=.75 else c['warn']),
+                  (self.text('bar.stress'),g.tissue_stress,
+                   c['bad'] if g.stress_warning else c['muted']))
             for i,(label,val,color) in enumerate(rows):
-                yy=262+i*56
+                yy=256+i*38
                 draw_text(pg,surf,self.fonts,f'{label}  {round(val*100)}%',(29,yy),color=c['muted'],size='tiny')
-                bar(pg,surf,30,yy+22,215,val,color)
+                bar(pg,surf,30,yy+19,215,val,color)
             self.cross_section(pg,surf,(27,492,225,148))
         if g.phase in (Phase.PREOP,Phase.ANESTHESIA):
             rounded(pg,surf,(24,104,111),(28,573,223,59),10)
@@ -606,6 +871,7 @@ class App:
             draw_preview(pg,s,g.phase.value,g.eye.opacity,g.eye.iol_alignment,
                          self.view_yaw,self.view_pitch)
             return
+        draw_drape(pg,s,c)
         render_eye(pg,s,g,g.time,c,animate=not self.reduced_motion)
         fx,fy,fw,fh=FIELD
         if self.zoom > 1.0:
@@ -630,18 +896,66 @@ class App:
 
     def draw_tray(self):
         pg=self.pg;s=self.canvas;g=self.game;c=self.palette
-        tx,ty,tw,th=TRAY
-        width=tw/len(TOOL_NAMES)
-        required=g.required_tool
-        for i,name in enumerate(TOOL_NAMES):
-            rect=(round(tx+i*width)+2,ty,round(width)-4,th)
+        # Highlight the needed instrument only where hints are allowed.
+        required=g.required_tool if (g.rules.tool_hints or not g.pending) else None
+        for name,rect in self.tray_slots():
             selected=name==g.tool
-            rounded(pg,s,(30,74,84) if selected else c['panel2'],rect,7)
+            rounded(pg,s,(30,74,84) if selected else c['panel2'],rect,6)
             if name==required:
-                pg.draw.rect(s,c['ok'] if selected else c['warn'],rect,2,border_radius=7)
-            label=('> ' if selected else '')+self.text('tool.'+name)
-            draw_text(pg,s,self.fonts,label,(rect[0]+8,ty+7),size='tiny',
-                      color=c['text'] if selected else c['muted'],max_chars=18)
+                pg.draw.rect(s,c['ok'] if selected else c['warn'],rect,2,border_radius=6)
+            label=('>' if selected else '')+self.text('short.'+name)
+            font=self.fonts['micro']
+            while font.size(label)[0] > rect[2]-6 and len(label) > 2:
+                label=label[:-1]
+            draw_text(pg,s,self.fonts,label,(rect[0]+3,rect[1]+4),size='micro',
+                      color=c['text'] if selected else c['muted'])
+
+    def draw_pending(self):
+        """Assessed complication still awaiting management (no timer)."""
+        pg=self.pg;s=self.canvas;g=self.game;c=self.palette
+        label=g.pending[0]
+        comp=COMPLICATIONS[label]
+        rounded(pg,s,(70,46,40) if comp.major else (52,52,38),(352,516,570,76),10)
+        draw_text(pg,s,self.fonts,'! '+self.text('manage.title',alert=self.text('alert.'+label)),
+                  (372,523),color=c['bad'] if comp.major else c['warn'],size='medium',max_chars=46)
+        if comp.remedy=='escalate':
+            line=self.text('manage.escalate')
+        elif g.rules.tool_hints:
+            line=self.text('manage.tool',tool=self.text('tool.'+comp.remedy),
+                           site=self.text('site.'+(comp.site or 'centre')))
+        else:
+            line=self.text('manage.choose')
+        draw_text(pg,s,self.fonts,line,(374,551),size='base',max_chars=64)
+        sub=(self.text('manage.major') if comp.major and comp.remedy!='escalate'
+             else self.text('ui.in_hand',tool=self.text('tool.'+g.tool)) if g.tool
+             else self.text('ui.no_tool'))
+        draw_text(pg,s,self.fonts,sub,(374,572),size='tiny',color=c['text'],max_chars=90)
+
+    def draw_chart(self):
+        """Pre-operative synthetic patient chart (no real person)."""
+        pg=self.pg;s=self.canvas;g=self.game;c=self.palette
+        profile=PROFILES[g.case]
+        card=pg.Surface((300,170),pg.SRCALPHA)
+        pg.draw.rect(card,(*c['panel'],232),(0,0,300,170),border_radius=10)
+        s.blit(card,(292,108))
+        pg.draw.rect(s,c['accent'],(292,108,300,170),1,border_radius=10)
+        draw_text(pg,s,self.fonts,self.text('chart.title'),(304,116),size='tiny',color=c['accent'])
+        draw_text(pg,s,self.fonts,f"{self.text('case.'+g.case)} · {self.text('chart.age',age=profile.age)}",
+                  (304,136),size='base',max_chars=30)
+        none=self.text('chart.none')
+        rows=((self.text('chart.conditions'),
+               ', '.join(self.text('cond.'+k) for k in profile.conditions) or none),
+              (self.text('chart.medications'),
+               ', '.join(self.text('med.'+k) for k in profile.medications) or none))
+        yy=162
+        for label,value in rows:
+            draw_text(pg,s,self.fonts,label,(304,yy),size='tiny',color=c['muted'])
+            for line in wrapped(value,font=self.fonts['tiny'],max_px=276)[:2]:
+                yy+=17
+                draw_text(pg,s,self.fonts,line,(312,yy),size='tiny')
+            yy+=21
+        draw_text(pg,s,self.fonts,self.text('chart.baseline',hr=profile.heart_rate,
+                  sbp=profile.sbp,dbp=profile.dbp),(304,254),size='tiny',color=c['ok'],max_chars=44)
 
     def draw_alert(self):
         pg=self.pg;s=self.canvas;g=self.game;c=self.palette
@@ -661,7 +975,7 @@ class App:
         rounded(pg,s,(14,43,57),(300,92,650,580),19)
         pg.draw.rect(s,c['accent'],(300,92,650,580),2,border_radius=19)
         color=(c['ok'] if g.ending in (ENDING_COMPLETE,ENDING_MANAGED)
-               else c['bad'] if g.ending==ENDING_FAILED else c['warn'])
+               else c['bad'] if g.ending in (ENDING_FAILED,ENDING_UNRESOLVED) else c['warn'])
         title=self.text('ending.'+g.ending)
         size='title' if self.fonts['title'].size(title)[0] <= 600 else 'medium'
         draw_text(pg,s,self.fonts,title,(326,112 if size=='title' else 118),size=size,color=color,max_chars=48)
@@ -699,7 +1013,9 @@ class App:
             self.sounds.play('end')
         if g.wrong_tool > self._wrong_seen:
             self._wrong_seen=g.wrong_tool
-            self.message=t(self.lang,'ui.wrong_tool',tool=t(self.lang,'tool.'+(g.required_tool or 'blade')))
+            needed=g.required_tool or g.stage_tool
+            self.message=(t(self.lang,'ui.wrong_tool',tool=t(self.lang,'tool.'+needed)) if needed
+                          else t(self.lang,'ui.disclaimer'))
         if g.phase != self._saved_phase:
             self.autosave()
         s.fill(c['bg'])
@@ -719,11 +1035,14 @@ class App:
         if self.view_3d:
             draw_text(pg,s,self.fonts,'J/L Orbit  I/K Tilt  G Return to surgery',
                       (372,609),size='base',color=c['accent'])
-        if not self.view_3d and g.phase in (Phase.PHACO,Phase.CORTEX):
-            pt=(round(self.cursor[0]),round(self.cursor[1]))
+        if not self.view_3d and g.phase==Phase.PREOP and not g.ending:
+            self.draw_chart()
+        x,y=self.cursor
+        if (not self.view_3d and g.tool and not g.ending and 280<=x<=962 and 88<=y<=590
+                and g.phase not in (Phase.PREOP,Phase.ANESTHESIA)):
+            draw_tool(pg,s,g.tool,self.cursor)
             if self.drag:
-                pg.draw.line(s,(156,206,217),(973,650),pt,5)
-                pg.draw.circle(s,(219,245,241),pt,8,2)
+                pg.draw.circle(s,(219,245,241),(round(x),round(y)),8,2)
         if not self.view_3d and (g.phase==Phase.IOL or (g.phase==Phase.CLOSE and g._decentered)):
             pg.draw.circle(s,c['accent'],(EYE_CX,EYE_CY),26,1)
             pg.draw.line(s,c['accent'],(EYE_CX-38,EYE_CY),(EYE_CX+38,EYE_CY),1)
@@ -738,6 +1057,8 @@ class App:
                   (291,654),size='tiny',color=c['muted'],max_chars=100)
         if g.patient.alert:
             self.draw_alert()
+        elif g.pending and not g.ending:
+            self.draw_pending()
         elif g.paused:
             rounded(pg,s,(35,55,75),(395,550,480,56))
             draw_text(pg,s,self.fonts,self.text('ui.paused'),(424,564),size='medium')
@@ -760,13 +1081,12 @@ class App:
             self._acc+=dt
             loops=0
             while self._acc>=1/60 and loops<6:
+                self.held_input()
                 self.game.tick(1/60)
                 self._acc-=1/60
                 loops+=1
             if loops>=6:
                 self._acc=0
-            if self.drag and self.game.phase in {Phase.PHACO,Phase.CORTEX}:
-                self.pointer_action()
             self.draw()
 
 

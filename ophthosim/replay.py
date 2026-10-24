@@ -38,10 +38,12 @@ def _invalid_constant(value: str) -> None:
 class ReplayGame(Game):
     """Game with bounded, deterministic command capture and integrity checks."""
 
-    REPLAY_VERSION = 2
-    MAX_RECORDS = 16000
-    MAX_TICKS = 300000
-    MAX_REPLAY_BYTES = 12_000_000
+    REPLAY_VERSION = 3
+    # Held instruments issue one command per 1/60 s tick; these limits allow
+    # about 35 minutes of continuous work and two hours of simulated time.
+    MAX_RECORDS = 250_000
+    MAX_TICKS = 432_000
+    MAX_REPLAY_BYTES = 32_000_000
 
     def __init__(self, case: str = "normal", seed: int = 7,
                  difficulty: str = "standard") -> None:
@@ -61,25 +63,29 @@ class ReplayGame(Game):
         # Game.action('assess') can internally call self.action('abort').
         # Only the outer command belongs to the user's command stream.
         is_outer = self._dispatch_depth == 0
+        before = self.state_key() if is_outer else None
         self._dispatch_depth += 1
         try:
             accepted = super().action(name, x, y)
         finally:
             self._dispatch_depth -= 1
-        if is_outer and isinstance(name, str):
+        # Commands that changed nothing (a cursor re-tracing a visited
+        # segment, a click outside every target) cannot alter a replay, so
+        # they are not journaled; mouse-heavy sessions stay bounded.
+        if is_outer and isinstance(name, str) and self.state_key() != before:
             item: dict[str, Any] = {"kind": "action", "name": name,
                                     "accepted": accepted}
             if name in ("verify", "tool") and isinstance(x, str) and len(x) <= 80:
                 item["x"] = x
                 self._append(item)
-            elif name in {"touch", "trace", "remove", "place"}:
+            elif name in {"touch", "trace", "remove", "place", "use"}:
                 point = self._xy(x, y)
                 if point is not None:
                     # Failed in-range actions also matter. A missed 'remove'
                     # can increment the synthetic capsule-stress counter.
                     item["x"], item["y"] = point
                     self._append(item)
-            elif name in {"abort", "assess", "pause", "confirm", "prepare"}:
+            elif name in {"abort", "assess", "pause", "confirm", "prepare", "escalate"}:
                 self._append(item)
         return accepted
 

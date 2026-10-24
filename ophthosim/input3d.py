@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import math
 from typing import Any
 
-from .engine import Phase
+from .engine import COMPLICATIONS, USE_TOOLS, Phase
 from .gl_preview import View
 from .picking3d import project_point, screen_ray
 from .replay import ReplayGame
@@ -27,6 +27,7 @@ STAGE_DEPTH: dict[Phase, float] = {
     Phase.IOL: -.17,
 }
 DEPTH_TOLERANCE = .055
+# Instruments used by clicking a site rather than performing the stage task.
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,10 +107,15 @@ class Surgery3DController:
 
     @property
     def target_depth(self) -> float | None:
+        g = self.game
+        # A complication managed at the incision (cautery, suture) is worked
+        # at the corneal depth, wherever the procedure currently is.
+        if g.pending and COMPLICATIONS[g.pending[0]].site == "incision":
+            return STAGE_DEPTH[Phase.ENTRY]
         # A decentered IOL is re-centred in CLOSE at the IOL stage depth.
-        if self.game.phase == Phase.CLOSE and getattr(self.game, "_decentered", False):
+        if g.phase == Phase.CLOSE and (getattr(g, "_decentered", False) or g.pending):
             return STAGE_DEPTH[Phase.IOL]
-        return STAGE_DEPTH.get(self.game.phase)
+        return STAGE_DEPTH.get(g.phase)
 
     def _sync(self, old_phase: Phase) -> None:
         if old_phase != self.game.phase:
@@ -125,10 +131,15 @@ class Surgery3DController:
                            (Phase.IOL, Phase.CLOSE, Phase.RECOVERY) else "CATARACT")
 
     def command(self, action: str, value: str | None = None) -> bool:
-        if action not in {"confirm", "prepare", "assess", "pause", "abort", "verify", "tool"}:
+        if action not in {"confirm", "prepare", "assess", "pause", "abort", "verify", "tool",
+                          "escalate", "use"}:
             return False
         before = self.game.phase
-        result = self.game.action(action, value if action in ("verify", "tool") else None)
+        if action == "use":
+            # Keyboard shortcut (V/D): the held instrument at the field centre.
+            result = self.game.action("use", .5, .5)
+        else:
+            result = self.game.action(action, value if action in ("verify", "tool") else None)
         self._sync(before)
         return result
 
@@ -170,13 +181,16 @@ class Surgery3DController:
                    Phase.IOL: "place"}.get(phase)
         if phase == Phase.CLOSE and self.target_depth is not None:
             command = "place"     # reposition a decentered synthetic IOL
+        if self.game.tool in USE_TOOLS:
+            # Cannulas and situation instruments act where they are clicked.
+            command = "use"
         if command is None or self.game.paused or self.game.patient.alert:
             self.inspect(x, y, width, height)
             return False
         # An IOL placement requires an explicit NEW click. Otherwise holding
         # a removal gesture through the cortex→IOL transition can accidentally
         # trigger lens placement, even though the phase gate itself is correct.
-        if command == "place" and fresh_press is not True:
+        if command in ("place", "use") and fresh_press is not True:
             return False
         target = self.target_depth
         if target is None or abs(self.tool_depth - target) > DEPTH_TOLERANCE:

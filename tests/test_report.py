@@ -114,7 +114,10 @@ def test_save_session_refuses_overflowed_replay(tmp_path):
 # --- experiments ----------------------------------------------------------------
 def test_agents_reach_expected_endings():
     assert played('normal').ending == 'SIMULATION COMPLETE'
-    assert played('capsule').ending == 'SAFELY ABORTED'
+    # An ideal surgeon calls senior help and completes with a sulcus IOL.
+    capsule = played('capsule')
+    assert capsule.ending == 'COMPLICATION MANAGED' and 'senior_called' in capsule.flags
+    assert played('sch').ending == 'SAFELY ABORTED'
     assert played('motion', policy='unresponsive').ending == ENDING_FAILED
     abandoned = played('motion', 'tutorial', 'unresponsive')
     assert abandoned.ending is None and abandoned.patient.alert

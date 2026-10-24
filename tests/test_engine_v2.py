@@ -9,69 +9,12 @@ import math
 import pytest
 
 from ophthosim.engine import (CASES, DIFFICULTIES, ENDING_ABORTED, ENDING_COMPLETE,
-                              ENDING_FAILED, ENDING_MANAGED, FINAL_CHECKS, HAZARDS,
-                              PREOP_CHECKS, SCORE_WEIGHTS, Game, Phase)
+                              ENDING_FAILED, ENDING_MANAGED, ENDING_UNRESOLVED, FINAL_CHECKS,
+                              HAZARDS, PREOP_CHECKS, SCORE_WEIGHTS, Game, Phase)
 from ophthosim.replay import ReplayGame
 
 
-def preop(game):
-    for item in PREOP_CHECKS:
-        assert game.action('verify', item)
-    assert game.action('confirm')
-    assert game.action('prepare')
-
-
-def arm(game):
-    """Pick the stage instrument (hard mode does not auto-select it)."""
-    if game.required_tool and game.tool != game.required_tool:
-        assert game.action('tool', game.required_tool)
-
-
-def entry(game):
-    arm(game)
-    for x, y in game._entry_target:
-        assert game.action('touch', x, y)
-
-
-def capsule(game):
-    arm(game)
-    for i in range(24):
-        a = (i + .5) * math.tau / 24
-        game.action('trace', .5 + .28 * math.cos(a), .5 + .28 * math.sin(a))
-
-
-def clear(game, phase):
-    arm(game)
-    for _ in range(60):
-        if game.phase != phase:
-            break
-        game.action('remove', .5, .5)
-
-
-def run_to(game, target):
-    """Drive a game along the ideal path, assessing alerts immediately."""
-    steps = {Phase.PREOP: lambda: preop(game), Phase.ENTRY: lambda: entry(game),
-             Phase.CAPSULE: lambda: capsule(game),
-             Phase.PHACO: lambda: clear(game, Phase.PHACO),
-             Phase.CORTEX: lambda: clear(game, Phase.CORTEX),
-             Phase.IOL: lambda: (arm(game), game.action('place', .5, .5))}
-    for _ in range(40):
-        if game.phase == target or game.ending:
-            return
-        if game.patient.alert:
-            game.action('assess')
-            continue
-        if game.phase == Phase.CLOSE:
-            if game._decentered:
-                arm(game)
-                game.action('place', .5, .5)
-                continue
-            for item in FINAL_CHECKS:
-                if game.patient.alert:
-                    break
-                game.action('verify', item)
-            continue
-        steps[game.phase]()
+from surgeon_helpers import SITES, arm, capsule, clear, entry, manage, preop, run_to, use
 
 
 # --- pre-op gate -------------------------------------------------------
@@ -171,10 +114,36 @@ def test_assessed_complication_ends_as_managed(case):
     assert game.alerts[0]['kind'] == HAZARDS[case][1]
 
 
-def test_capsule_complication_still_ends_in_safe_abort():
+def _ruptured():
     game = Game('capsule')
-    run_to(game, Phase.RECOVERY)
+    run_to(game, Phase.PHACO)
+    assert game.patient.alert == 'CAPSULE INTEGRITY'
+    assert game.action('assess')
+    assert game.pending == ['CAPSULE INTEGRITY']
+    return game
+
+
+def test_posterior_capsule_rupture_can_be_stopped_safely():
+    game = _ruptured()
+    assert game.action('abort')
     assert game.phase == Phase.ABORTED and game.ending == ENDING_ABORTED
+
+
+def test_posterior_capsule_rupture_escalated_then_completed_with_sulcus_iol():
+    game = _ruptured()
+    assert game.action('escalate')
+    assert not game.pending and 'senior_called' in game.flags
+    run_to(game, Phase.RECOVERY)
+    assert game.ending == ENDING_MANAGED and 'sulcus_iol' in game.flags
+
+
+def test_continuing_through_a_posterior_capsule_rupture_is_a_critical_failure():
+    game = _ruptured()
+    arm(game)
+    assert not game.action('remove', .5, .5)
+    assert game.phase == Phase.FAILED and game.ending == ENDING_FAILED
+    assert any(e['kind'] == 'veto' and e['data']['reason'].startswith('continued_through')
+               for e in game.events)
 
 
 def test_unattended_alert_is_a_critical_failure_veto():
@@ -291,6 +260,9 @@ def test_wound_leak_holds_the_ending_until_rechecked():
     assert 'wound' not in game.eye.final_checks
     assert game.action('assess')
     assert game.phase == Phase.CLOSE
+    assert not game.action('verify', 'wound')           # still leaking
+    assert use(game, 'suture', *SITES['incision'])
+    assert 'wound_sutured' in game.flags
     assert game.action('verify', 'wound')
     assert game.phase == Phase.RECOVERY and game.ending == ENDING_MANAGED
 
@@ -311,7 +283,7 @@ def test_every_case_reaches_an_ending():
         for level in DIFFICULTIES:
             game = Game(case, 3, level)
             run_to(game, Phase.RECOVERY)
-            assert game.ending in (ENDING_COMPLETE, ENDING_MANAGED, ENDING_ABORTED)
+            assert game.ending in (ENDING_COMPLETE, ENDING_MANAGED, ENDING_ABORTED), (case, level)
 
 
 # --- metrics ---------------------------------------------------------------
@@ -339,7 +311,7 @@ def test_replay_round_trip_includes_difficulty(case, level):
     run_to(game, Phase.RECOVERY)
     raw = game.export_replay_jsonl()
     header = json.loads(raw.splitlines()[0])
-    assert header['schema_version'] == 2 and header['difficulty'] == level
+    assert header['schema_version'] == 3 and header['difficulty'] == level
     again = ReplayGame.replay_jsonl(raw)
     assert again.snapshot() == game.snapshot()
     assert again.score_breakdown() == game.score_breakdown()
@@ -375,22 +347,25 @@ def test_replay_rejects_v1_header_and_edited_difficulty():
 def test_standard_auto_selects_and_hard_requires_the_stage_tool():
     standard = Game()
     preop(standard)
-    assert standard.tool == 'blade' and standard.required_tool == 'blade'
+    assert standard.tool == 'keratome' and standard.required_tool == 'keratome'
     hard = Game(difficulty='hard')
     preop(hard)
-    assert hard.tool is None and hard.required_tool == 'blade'
+    assert hard.tool is None and hard.required_tool == 'keratome'
     x, y = hard._entry_target[0]
     assert not hard.action('touch', x, y)
     assert hard.wrong_tool == 1 and hard.rejected_inputs == 1
     assert hard.action('tool', 'phaco')
     assert not hard.action('touch', x, y) and hard.wrong_tool == 2
-    assert hard.action('tool', 'blade') and hard.action('touch', x, y)
+    assert hard.action('tool', 'sideport')            # wrong blade for the main incision
+    assert not hard.action('touch', x, y) and hard.wrong_tool == 3
+    assert hard.action('tool', 'keratome') and hard.action('touch', x, y)
+    assert hard.required_tool == 'sideport'
     reasons = [e['data'] for e in hard.events if e['kind'] == 'rejected']
     assert reasons[-1] == {'action': 'touch', 'reason': 'wrong_tool',
-                           'tool': 'phaco', 'required': 'blade'}
+                           'tool': 'sideport', 'required': ['keratome']}
 
 
-@pytest.mark.parametrize('bad', ['scalpel', '', None, 3, 'BLADE'])
+@pytest.mark.parametrize('bad', ['scalpel', '', None, 3, 'KERATOME', 'blade'])
 def test_unknown_tools_rejected(bad):
     game = Game()
     assert not game.action('tool', bad)

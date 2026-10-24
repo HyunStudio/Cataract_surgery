@@ -245,3 +245,37 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
   - physical 4K legibility
   - expert review of content plausibility
   - ethics/IRB determination before any participant study
+
+## 2026-10-24 — v3: real instruments, bleeding, patient and eye model
+
+- **Plan / design:** [V3 plan](V3_INSTRUMENTS_BLEEDING_MODEL_PLAN_KO.md) and the owner decision in [SAFETY](SAFETY.md).
+- **Engine v3 (schema v3):**
+  - 15 instruments: 9 for the procedure steps, 6 chosen for the situation
+  - assess → pending → manage with the right instrument at the right site (wrong ones are logged)
+  - `B` calls senior help; carrying on through a major complication fails
+  - viscoelastic and hydrodissection steps
+  - tissue stress
+  - technique-driven rhexis tear and its chains (tear → capsule rupture; iris prolapse → iris trauma → hyphema; zonular weakness → dialysis)
+  - bleeding: incision blood, hyphema that grows while unmanaged, suprachoroidal haemorrhage
+  - synthetic patient profiles with drifting vital signs
+  - a fifth ending, *Complication unresolved*
+- **2D:**
+  - procedural eye: textured iris, limbus, conjunctival vessels, drape and speculum, red reflex
+  - bleeding layers and complication/device signs
+  - instrument glyph at the cursor
+  - two-row tray with 15 instruments
+  - management card and pre-op patient chart
+  - fixed-step held input that releases on a phase change or a hold
+- **3D:** `complication3d.py` (ported from the surgeon-gameplay branch and extended) adds 15 cached signs: blood film, layered hyphema, red-reflex loss, iris hooks, CTR and sutures. The HUD has an instrument row, management and chart cards, and Korean strings.
+- **Assets:** `assets.py` loads OBJ models only with a licence manifest; otherwise the procedural meshes are used.
+- **Local result (Windows 11, RTX 3070):**
+  - 804 tests passed
+  - `gl_surgery_smoke` passed on hardware, and all 15 signs render distinctly
+  - `gl_hardware_check` GL01–GL06 + KO font: AUTOMATED_PASS
+  - 20 s 1080p benchmark: 166 fps mean
+  - experiment demo extended to the 13 cases: 312 sessions, every replay verified; standard mean scores: ideal 96.9 > slow 87.4 > careless 78.7 > unresponsive 25.8
+- **Remaining:**
+  - AMD Radeon target run
+  - human sign-off of GL01–GL10
+  - expert review of the clinical plausibility of the complication chains
+  - licensed anatomy models (none are committed)

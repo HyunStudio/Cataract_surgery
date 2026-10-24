@@ -23,6 +23,9 @@ from .tool3d import stylus_mesh
 from .iol3d import foldable_iol_mesh
 from .iol_pick3d import deformed_iol_mesh
 from .capsule3d import capsule_indicator_meshes
+from .assets import default_assets
+from .complication3d import (LEVELS, ComplicationVisuals, PUPIL_RADIUS, STYLE as COMPLICATION_STYLE,
+                             complication_meshes, hyphema_mesh, miosis_ring)
 from .vision3d import VisualFeedback
 from .contact3d import ContactGuide, guide_ring_mesh
 from .surface_probe3d import SurfaceProbe
@@ -246,12 +249,16 @@ def atlas_meshes(phase: str) -> dict[str, Mesh]:
     if phase not in {"CATARACT", "IOL"}:
         raise ValueError("Invalid atlas phase")
     all_meshes = anterior_eye_meshes()
-    return {
+    meshes = {
         "sclera": all_meshes["sclera"],
         "iris": all_meshes["iris"],
         "lens": all_meshes["lens"] if phase == "CATARACT" else foldable_iol_mesh(),
         "cornea": all_meshes["cornea"],
     }
+    # Licensed models in assets/models/ replace procedural meshes (visual only).
+    loaded, _report = default_assets(phase)
+    meshes.update(loaded)
+    return meshes
 
 
 def offline_check() -> dict[str, object]:
@@ -336,6 +343,12 @@ class GPUEyePreview:
                      [(vb, "3f 3f", "in_position", "in_normal")],
                      index_buffer=ib)
             self.capsule_buffers[key] = (vao, vb, ib)
+        # Complication signs: allocated once, drawn only when the Game shows
+        # that complication. The miosis ring and the hyphema level depend on
+        # state and are cached per (quantized) size: a bounded handful.
+        self.complication_buffers = {key: self._upload(mesh)
+                                     for key, mesh in complication_meshes().items()}
+        self.sized_buffers: dict[tuple[str, float], tuple[object, object, object]] = {}
         # Allocate one stylized 3D tool; motion uses a shader uniform only.
         tool_vertices, tool_indices, _ = pack_mesh(stylus_mesh())
         self.stylus_vbo = self.ctx.buffer(tool_vertices)
@@ -412,13 +425,83 @@ class GPUEyePreview:
         self.selection = None
         self.selection_pixel = None
 
+    def _upload(self, mesh: Mesh) -> tuple[object, object, object]:
+        vertex_bytes, index_bytes, _ = pack_mesh(mesh)
+        vb = self.ctx.buffer(vertex_bytes)
+        ib = self.ctx.buffer(index_bytes)
+        vao = self.ctx.vertex_array(self.scene_shader,
+                 [(vb, "3f 3f", "in_position", "in_normal")], index_buffer=ib)
+        return vao, vb, ib
+
+    def _sized(self, kind: str, size: float, build) -> tuple[object, object, object]:
+        key = (kind, size)
+        if key not in self.sized_buffers:
+            if len(self.sized_buffers) >= 2 * (LEVELS + 2):
+                for vao, vb, ib in self.sized_buffers.values():
+                    vao.release(); vb.release(); ib.release()
+                self.sized_buffers.clear()
+            self.sized_buffers[key] = self._upload(build(size))
+        return self.sized_buffers[key]
+
+    def _draw_complications(self, signs: ComplicationVisuals) -> None:
+        """Cosmetic complication signs in model space (no tissue physics)."""
+        shader = self.scene_shader
+
+        def draw(buffers, style: str, *, blend: bool = False, alpha: float = 1.) -> None:
+            color, base = COMPLICATION_STYLE[style]
+            shader["u_tint"].value = color
+            shader["u_alpha"].value = base * alpha
+            if blend:
+                self.ctx.enable(self.gl.BLEND)
+                self.ctx.blend_func = self.gl.SRC_ALPHA, self.gl.ONE_MINUS_SRC_ALPHA
+            buffers[0].render()
+            if blend:
+                self.ctx.disable(self.gl.BLEND)
+
+        meshes = self.complication_buffers
+        shader["u_offset"].value = (0., 0., 0.)
+        shader["u_iol_mode"].value = 0.0
+        shader["u_iol_fold"].value = 1.0
+        self.ctx.disable(self.gl.CULL_FACE)
+        if signs.pupil_radius < PUPIL_RADIUS:
+            draw(self._sized("miosis", signs.pupil_radius, miosis_ring), "miosis")
+        if signs.reflex_loss > 0:
+            draw(meshes["sch_dome"], "sch_dome", blend=True, alpha=min(1., .3 + signs.reflex_loss))
+        if signs.capsule_rupture:
+            draw(meshes["pcr_gap"], "pcr_gap")
+            draw(meshes["vitreous"], "vitreous", blend=True)
+        if signs.rhexis_tear:
+            draw(meshes["rhexis_tear_long" if signs.rhexis_tear == 2 else "rhexis_tear"],
+                 "rhexis_tear")
+        if signs.ctr:
+            draw(meshes["ctr"], "ctr")
+        if signs.iris_hooks:
+            draw(meshes["iris_hooks"], "iris_hooks")
+        if signs.iris_prolapse:
+            draw(meshes["iris_prolapse"], "iris_trauma" if signs.iris_prolapse == 2
+                 else "iris_prolapse")
+        if signs.hyphema > 0:
+            draw(self._sized("hyphema", signs.hyphema, hyphema_mesh), "hyphema", blend=True)
+        if signs.blood_film > 0:
+            draw(meshes["blood_film"], "blood_film", blend=True, alpha=.35 + .65 * signs.blood_film)
+        if signs.wound_leak:
+            draw(meshes["wound_leak"], "wound_leak", blend=True)
+        if signs.sutures:
+            draw(meshes["sutures"], "sutures")
+        self.ctx.enable(self.gl.CULL_FACE)
+
     def render(self, view: View, fps: float, *, capture: bool = False,
                overlay=None, appearance: AnatomyAppearance | None = None,
                tool_pose: tuple[float, float, float] | None = None,
                vision: VisualFeedback | None = None,
                contact: ContactGuide | None = None,
-               surface_probe: SurfaceProbe | None = None) -> bytes | None:
+               surface_probe: SurfaceProbe | None = None,
+               complications: ComplicationVisuals | None = None) -> bytes | None:
         view.check()
+        if complications is not None:
+            if not isinstance(complications, ComplicationVisuals):
+                raise ValueError("Invalid complication visuals")
+            complications.check()
         if appearance is not None:
             appearance.check()
         if vision is not None:
@@ -472,6 +555,9 @@ class GPUEyePreview:
             # communicate *simulated* progress, not biological tissue effects.
             color = self.TINTS[name]
             offset = (0., 0., 0.)
+            if name == "lens" and complications is not None and view.phase == "CATARACT":
+                # Weak zonules: the whole lens/bag sits off-centre.
+                offset = (complications.lens_shift, 0., 0.)
             if name == "lens" and appearance is not None:
                 if view.phase == "IOL":
                     displacement = .18 * (1. - appearance.iol_alignment)
@@ -502,6 +588,8 @@ class GPUEyePreview:
                                       else (.22, .82, .72))
             shader["u_alpha"].value = 1.0
             self.capsule_buffers[key][0].render()
+        if complications is not None and complications.any:
+            self._draw_complications(complications)
         self.ctx.enable(self.gl.BLEND)
         self.ctx.blend_func = self.gl.SRC_ALPHA, self.gl.ONE_MINUS_SRC_ALPHA
         self.ctx.disable(self.gl.CULL_FACE)
@@ -676,7 +764,9 @@ class GPUEyePreview:
         self.contact_vao.release()
         self.contact_vbo.release()
         self.contact_ibo.release()
-        for vao, vbo, ibo in self.capsule_buffers.values():
+        for vao, vbo, ibo in (*self.capsule_buffers.values(),
+                              *self.complication_buffers.values(),
+                              *self.sized_buffers.values()):
             vao.release()
             vbo.release()
             ibo.release()

@@ -22,7 +22,8 @@ import random
 import sys
 from typing import Any
 
-from .engine import CASES, DIFFICULTIES, FINAL_CHECKS, PREOP_CHECKS, TOOL_NAMES, Phase
+from .engine import (CASES, COMPLICATIONS, DIFFICULTIES, FINAL_CHECKS, MAIN_INCISION,
+                     PREOP_CHECKS, SITUATION_TOOLS, TOOL_NAMES, Phase)
 from .replay import ReplayGame
 from .report import METRIC_COLUMNS, metrics_row
 
@@ -33,11 +34,16 @@ MAX_RUNS = 5000
 POLICIES: dict[str, dict[str, float]] = {
     # jitter: target noise; miss: probability of an off-target removal;
     # delay: seconds before assessing an alert (None = never assesses).
-    'ideal': {'jitter': 0.0, 'miss': 0.0, 'delay': 1.0, 'think': 2, 'wrong_tool': 0.0},
-    'careless': {'jitter': .03, 'miss': .12, 'delay': 6.0, 'think': 1, 'wrong_tool': .3},
-    'slow': {'jitter': .01, 'miss': .02, 'delay': 14.0, 'think': 8, 'wrong_tool': 0.0},
+    # manage: chance of managing a moderate complication with the right
+    # instrument; technique: chance of doing the OVD/hydrodissection steps.
+    'ideal': {'jitter': 0.0, 'miss': 0.0, 'delay': 1.0, 'think': 2, 'wrong_tool': 0.0,
+              'manage': 1.0, 'technique': 1.0},
+    'careless': {'jitter': .03, 'miss': .12, 'delay': 6.0, 'think': 1, 'wrong_tool': .3,
+                 'manage': .5, 'technique': .5},
+    'slow': {'jitter': .01, 'miss': .02, 'delay': 14.0, 'think': 8, 'wrong_tool': 0.0,
+             'manage': 1.0, 'technique': 1.0},
     'unresponsive': {'jitter': .01, 'miss': .02, 'delay': math.inf, 'think': 2,
-                     'wrong_tool': 0.0},
+                     'wrong_tool': 0.0, 'manage': 1.0, 'technique': 1.0},
 }
 
 
@@ -52,6 +58,8 @@ class Agent:
         self.rng = random.Random(f'{policy}:{seed}')
         self.frames = 0
         self._capsule_bin = 0
+        self._ignored: set[str] = set()
+        self._steps: dict[str, bool] = {}
 
     def wait(self, frames: int) -> None:
         for _ in range(frames):
@@ -78,9 +86,64 @@ class Agent:
         if not self.game.ending:
             self.game.action('assess')
 
+    SITES = {'incision': MAIN_INCISION, 'pupil': (.76, .5), 'centre': (.5, .5), None: (.5, .5)}
+
+    def decide(self, key: str, chance: float) -> bool:
+        """One seeded decision per technique step / complication."""
+        if key not in self._steps:
+            self._steps[key] = self.rng.random() < chance
+        return self._steps[key]
+
+    def use(self, tool: str, x: float, y: float) -> None:
+        g = self.game
+        if g.tool != tool:
+            g.action('tool', tool)
+        g.action('use', *self.aim(x, y))
+        self.wait(int(self.p['think']))
+
+    def manage(self) -> bool:
+        """Handle the first pending complication; False = carry on instead."""
+        g = self.game
+        label = g.pending[0]
+        comp = COMPLICATIONS[label]
+        if comp.remedy == 'escalate':
+            g.action('escalate')
+            self.wait(int(self.p['think']))
+            return True
+        if label in self._ignored:
+            return False
+        # A leaking wound or a decentred IOL blocks the end of the case, so
+        # even a careless operator has to deal with it eventually.
+        blocking = label in ('WOUND LEAK RISK', 'IOL DECENTRATION')
+        if not comp.major and not blocking and not self.decide('manage:' + label, self.p['manage']):
+            self._ignored.add(label)
+            return False
+        if self.rng.random() < self.p['wrong_tool']:
+            wrong = next(t for t in SITUATION_TOOLS if t != comp.remedy)
+            self.use(wrong, *self.SITES[comp.site])
+        self.use(comp.remedy, *self.SITES[comp.site])
+        return True
+
+    def technique(self) -> bool:
+        """OVD and hydrodissection steps; True if one was performed."""
+        g = self.game
+        if g.phase in (Phase.ENTRY, Phase.CAPSULE) and g._entered and not g.ovd_chamber:
+            if self.decide('ovd_chamber', self.p['technique']):
+                self.use('ovd_cannula', .5, .5)
+                return True
+        if g.phase == Phase.PHACO and not g.hydro_done and g.eye.opacity == 1.0:
+            if self.decide('hydro', self.p['technique']):
+                self.use('hydro_cannula', .5, .5)
+                return True
+        if g.phase == Phase.IOL and not g.ovd_bag:
+            if self.decide('ovd_bag', self.p['technique']):
+                self.use('ovd_cannula', .5, .5)
+                return True
+        return False
+
     def arm(self) -> None:
         g = self.game
-        required = g.required_tool
+        required = g.stage_tool
         if required is None or g.tool == required:
             return
         if self.rng.random() < self.p['wrong_tool']:
@@ -95,6 +158,10 @@ class Agent:
         g = self.game
         if g.patient.alert:
             self.handle_alert()
+            return
+        if g.pending and self.manage():
+            return
+        if self.technique():
             return
         self.arm()
         phase = g.phase

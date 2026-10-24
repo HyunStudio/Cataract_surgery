@@ -4,6 +4,7 @@ import random
 
 import pytest
 
+from surgeon_helpers import use3d
 from ophthosim.contact3d import ContactGuide, contact_guide, guide_ring_mesh
 from ophthosim.engine import Phase
 from ophthosim.gl_preview import GPUEyePreview, View, pack_mesh
@@ -66,14 +67,19 @@ def test_capsule_and_lens_stage_targets_match_game_task_ranges():
     assert preview(c,.5+.28,.5).status=="TARGET"
     assert preview(c,.5,.5).status=="NEAR"
     for i in range(24):
+        if c.game.phase != Phase.CAPSULE:
+            break
         a=(i+.5)*math.tau/24
         p=eye_to_pixel(.5+.28*math.cos(a),.5+.28*math.sin(a),
                        c.tool_depth,W,H,c.view)
         c.pointer(*p,W,H)
     assert c.game.phase == Phase.PHACO
+    assert use3d(c,"hydro_cannula")
     assert preview(c,.5,.5).status=="TARGET"
     assert preview(c,.95,.95).status=="OUTSIDE"
-    for _ in range(80):
+    for _ in range(600):
+        if c.game.phase not in (Phase.PHACO, Phase.CORTEX):
+            break
         p=eye_to_pixel(.5,.5,c.tool_depth,W,H,c.view)
         c.pointer(*p,W,H)
     assert c.game.phase == Phase.IOL

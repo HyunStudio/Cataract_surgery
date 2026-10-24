@@ -15,7 +15,10 @@ import pytest
 
 pygame = pytest.importorskip('pygame')
 from ophthosim.app import FIELD, FOCUS_TARGET, App, to_screen
-from ophthosim.engine import CASES, DIFFICULTIES, ENDINGS, FINAL_CHECKS, PREOP_CHECKS, Phase
+from ophthosim.engine import (CASES, DIFFICULTIES, ENDINGS, FINAL_CHECKS, HAZARDS, PREOP_CHECKS,
+                              TOOL_NAMES, Phase)
+
+import surgeon_helpers as H
 
 SHOTS = os.path.abspath('build/screenshots')   # tests may chdir
 
@@ -63,9 +66,12 @@ def pixels(app, rect):
 
 
 # --- menus & checklists ---------------------------------------------------------
-def test_number_keys_select_all_nine_cases_and_d_cycles_difficulty(app):
-    for index, case in enumerate(CASES):
+def test_number_keys_n_and_d_select_cases_and_difficulty(app):
+    for index, case in enumerate(CASES[:9]):
         key(app, pygame.K_1 + index)
+        assert app.game.case == case
+    for case in CASES[9:] + CASES[:1]:       # N walks the rest and wraps
+        key(app, pygame.K_n)
         assert app.game.case == case
     seen = []
     for _ in DIFFICULTIES:
@@ -73,9 +79,21 @@ def test_number_keys_select_all_nine_cases_and_d_cycles_difficulty(app):
         seen.append(app.game.difficulty)
     assert sorted(seen) == sorted(DIFFICULTIES)
     key(app, pygame.K_SPACE)            # first check locks the case selection
-    key(app, pygame.K_1)
+    key(app, pygame.K_2)
+    key(app, pygame.K_n)
     key(app, pygame.K_d)
-    assert app.game.case == CASES[-1] and app.game.eye.preop_checks
+    assert app.game.case == CASES[0] and app.game.eye.preop_checks
+
+
+def test_preop_chart_shows_the_synthetic_patient(app):
+    app.draw()
+    plain = pixels(app, (292, 108, 300, 170))
+    app.new_game(case='bleed')          # anticoagulated, atrial fibrillation
+    app.draw()
+    assert pixels(app, (292, 108, 300, 170)) != plain
+    shot(app, 'v3-preop-chart-en')
+    app.lang = 'ko'
+    shot(app, 'v3-preop-chart-ko')
 
 
 def test_preop_checklist_items_are_clickable(app):
@@ -89,17 +107,7 @@ def test_preop_checklist_items_are_clickable(app):
 
 def test_close_checklist_number_keys(app):
     g = app.game
-    for item in PREOP_CHECKS:
-        g.action('verify', item)
-    g.action('confirm'); g.action('prepare')
-    for x, y in g._entry_target:
-        g.action('touch', x, y)
-    for i in range(24):
-        a = (i + .5) * math.tau / 24
-        g.action('trace', .5 + .28 * math.cos(a), .5 + .28 * math.sin(a))
-    for _ in range(80):
-        g.action('remove', .5, .5)
-    g.action('place', .5, .5)
+    H.run_to(g, Phase.CLOSE)
     assert g.phase == Phase.CLOSE
     for index in range(3):
         key(app, pygame.K_1 + index)
@@ -147,48 +155,111 @@ def test_focus_blur_is_visual_only_and_tutorial_autofocuses(app):
 
 
 # --- hazards, alerts, endings ----------------------------------------------------------
-def drive(app, target=None):
+def drive(app, target=None, **kw):
+    """Ideal surgeon up to `target`, the ending, or the next alert."""
     g = app.game
-    for _ in range(60):
-        if g.ending or g.phase == target:
-            return
-        if g.patient.alert:
-            return
-        if g.phase in (Phase.PREOP, Phase.ANESTHESIA):
-            key(app, pygame.K_SPACE)
-        elif g.phase == Phase.ENTRY:
-            for p in g._entry_target:
-                g.action('touch', *p)
-        elif g.phase == Phase.CAPSULE:
-            for i in range(24):
-                a = (i + .5) * math.tau / 24
-                g.action('trace', .5 + .28 * math.cos(a), .5 + .28 * math.sin(a))
-        elif g.phase in (Phase.PHACO, Phase.CORTEX):
-            phase = g.phase
-            while g.phase == phase and not g.patient.alert:
-                g.action('remove', .5, .5)
-        elif g.phase == Phase.IOL or (g.phase == Phase.CLOSE and g._decentered):
-            g.action('place', .5, .5)
-        elif g.phase == Phase.CLOSE:
-            for item in FINAL_CHECKS:
-                if not g.patient.alert:
-                    g.action('verify', item)
+    while g.phase in (Phase.PREOP, Phase.ANESTHESIA) and not g.ending:
+        key(app, pygame.K_SPACE)
+    H.run_to(g, target, stop_at_alert=True, **kw)
 
 
-@pytest.mark.parametrize('case', ['motion', 'vitals', 'capsule', 'pupil', 'haze', 'decenter', 'leak'])
+@pytest.mark.parametrize('case', list(HAZARDS))
 @pytest.mark.parametrize('lang', ['en', 'ko'])
 def test_every_hazard_screen_renders_with_timer(app, case, lang):
     app.lang = lang
     app.new_game(case=case)
     drive(app)
-    assert app.game.patient.alert
+    assert app.game.patient.alert == HAZARDS[case][1]
     app.game.tick(.5)
     shot(app, f'v2-alert-{case}-{lang}')
     assert len(app.game.alerts) == app._alerts_heard == 1
     key(app, pygame.K_a)
-    drive(app)
+    if app.game.pending:
+        shot(app, f'v3-manage-{case}-{lang}')
+    for _ in range(4):
+        drive(app)
+        if app.game.ending or not app.game.patient.alert:
+            break
+        key(app, pygame.K_a)
     app.draw()
     assert app.game.ending is not None or app.game.patient.alert == ''
+
+
+def test_pending_banner_hints_the_instrument_only_in_tutorial(app):
+    for difficulty, hinted in (('tutorial', True), ('standard', False)):
+        app.new_game(case='bleed', difficulty=difficulty)
+        drive(app)
+        key(app, pygame.K_a)
+        assert app.game.pending == ['INCISION BLEEDING']
+        app.draw()
+        assert len(set(pixels(app, (352, 516, 570, 76)))) > 10
+        slot = dict(app.tray_slots())['cautery']
+        border = pixels(app, (slot[0] + 8, slot[1], slot[2] - 16, 1))
+        assert (bytes(app.palette['warn']) in border) == hinted
+        shot(app, f'v3-pending-bleed-{difficulty}')
+
+
+def test_situation_instrument_from_the_tray_manages_bleeding(app):
+    app.new_game(case='bleed')
+    drive(app)
+    key(app, pygame.K_a)
+    g = app.game
+    assert g.eye.blood_film > 0
+    shot(app, 'v3-bleeding')
+    slot = dict(app.tray_slots())['cautery']
+    click(app, (slot[0] + 5, slot[1] + 5))
+    assert g.tool == 'cautery'
+    click(app, to_screen(H.SITES['incision']))
+    assert not g.pending
+    shot(app, 'v3-bleeding-managed')
+
+
+def test_v_d_and_b_shortcuts(app):
+    g = app.game
+    drive(app, Phase.ENTRY)
+    H.arm(g)
+    g.action('touch', *g._entry_target[0])
+    key(app, pygame.K_v)
+    assert g.ovd_chamber and g.tool == 'sideport'   # standard mode hands the blade back
+    H.run_to(g, Phase.PHACO)
+    key(app, pygame.K_d)
+    assert g.hydro_done
+    app.new_game(case='capsule')
+    drive(app)
+    key(app, pygame.K_a)
+    assert app.game.pending == ['CAPSULE INTEGRITY']
+    key(app, pygame.K_b)
+    assert not app.game.pending
+
+
+def test_held_drag_stops_at_phase_change(app):
+    g = app.game
+    drive(app, Phase.PHACO)
+    H.use(g, 'hydro_cannula')
+    H.arm(g)
+    app.dispatch(pygame.event.Event(pygame.MOUSEBUTTONDOWN, {'button': 1, 'pos': to_screen((.5, .5))}))
+    before = g.eye.opacity
+    for _ in range(30):
+        app.held_input()
+        g.tick(1 / 60)
+    assert g.eye.opacity < before and app.drag
+    app._drag_phase = Phase.CAPSULE      # as if the phase had changed under the drag
+    app.held_input()
+    assert not app.drag
+
+
+def test_bleeding_and_complication_signs_render(app):
+    seen = {}
+    for case in ('hyphema', 'sch', 'iris', 'zonules'):
+        app.new_game(case=case)
+        drive(app)
+        key(app, pygame.K_a)
+        shot(app, f'v3-sign-{case}')
+        seen[case] = app.game
+    assert seen['hyphema'].eye.hyphema > 0
+    assert seen['sch'].ending or seen['sch'].eye.red_reflex < 1
+    assert seen['iris'].pending == ['IRIS PROLAPSE']
+    assert seen['zonules'].pending == ['ZONULAR WEAKNESS']
 
 
 def test_decentration_requires_repositioning_click(app):
@@ -199,6 +270,8 @@ def test_decentration_requires_repositioning_click(app):
     shot(app, 'v2-decentered')
     click(app, (100, 343 + 25))          # alignment check blocked while decentered
     assert 'alignment' not in app.game.eye.final_checks
+    slot = dict(app.tray_slots())['iol_hook']
+    click(app, (slot[0] + 5, slot[1] + 5))
     click(app, to_screen((.5, .5)))
     assert not app.game._decentered
     click(app, (100, 343 + 25))
@@ -206,24 +279,28 @@ def test_decentration_requires_repositioning_click(app):
 
 
 @pytest.mark.parametrize('lang', ['en', 'ko'])
-def test_all_four_ending_screens(app, lang, tmp_path, monkeypatch):
+def test_all_five_ending_screens(app, lang, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     app.lang = lang
     seen = set()
     for case, finish in (('normal', None), ('motion', 'assess'), ('normal', 'abort'),
-                         ('vitals', 'timeout')):
+                         ('vitals', 'timeout'), ('hyphema', 'ignore')):
         app.new_game(case=case)
         drive(app, Phase.CAPSULE if finish == 'abort' else None)
         if finish == 'assess':
-            key(app, pygame.K_a); drive(app)
+            key(app, pygame.K_a)
+            drive(app)
         elif finish == 'abort':
             key(app, pygame.K_x)
         elif finish == 'timeout':
             for _ in range(700):
                 app.game.tick(.05)
+        elif finish == 'ignore':
+            key(app, pygame.K_a)
+            drive(app, manage_pending=False)
         assert app.game.ending
         seen.add(app.game.ending)
-        shot(app, f"v2-ending-{app.game.ending.split()[0].lower()}-{lang}")
+        shot(app, f"v2-ending-{app.game.ending.split()[-1].lower()}-{lang}")
         key(app, pygame.K_e)
         report = next(tmp_path.glob(f'session_logs/case_{case}_standard_seed_7.report.json'))
         assert json.loads(report.read_text('utf-8'))['language'] == lang
@@ -299,16 +376,21 @@ def test_cli_rejects_bad_arguments():
 def test_tray_click_and_t_key_select_instruments(app):
     app.new_game(difficulty='hard')
     start(app)
-    assert app.game.tool is None and app.game.required_tool == 'blade'
+    assert app.game.tool is None and app.game.required_tool == 'keratome'
     click(app, to_screen(app.game._entry_target[0]))
     app.draw()
-    assert app.game.wrong_tool == 1 and 'Entry blade' in app.message
-    tx, ty, tw, th = (292, 612, 656, 32)
-    click(app, (tx + 3 * tw // 5 + 10, ty + 10))          # aspirator
-    assert app.game.tool == 'aspirator'
-    key(app, pygame.K_t)                                    # -> injector
-    key(app, pygame.K_t)                                    # -> blade (wraps)
-    assert app.game.tool == 'blade'
+    assert app.game.wrong_tool == 1 and 'keratome' in app.message.lower()
+    slots = dict(app.tray_slots())
+    assert set(slots) == set(TOOL_NAMES) and len({r[1] for r in slots.values()}) == 2
+    click(app, (slots['phaco'][0] + 5, slots['phaco'][1] + 5))
+    assert app.game.tool == 'phaco'
+    key(app, pygame.K_t)                                    # -> I/A
+    assert app.game.tool == 'ia'
+    app.dispatch(pygame.event.Event(pygame.KEYDOWN, {'key': pygame.K_t, 'mod': pygame.KMOD_LSHIFT}))
+    assert app.game.tool == 'phaco'
+    app.game.action('tool', 'suture')
+    key(app, pygame.K_t)                                    # wraps to the first blade
+    assert app.game.tool == 'keratome'
     shot(app, 'v2-tool-tray-hard')
     click(app, to_screen(app.game._entry_target[0]))
     assert app.game.eye.entry_hits == 1
