@@ -193,3 +193,12 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - `GPUEyePreview` now reuses its HUD surface, uploads the raw surface buffer with a mask-derived texture swizzle (`hud_swizzle`), and flips the HUD quad's v coordinate instead of the bytes. Unsupported layouts fall back to the RGBA copy.
 - Verified pixel-identical framebuffers (7 frames, both paths) against the previous implementation; Mesa smoke asserts zero-copy == copy and surface reuse. Local llvmpipe 1080p: mean 14.2 → 10.0 ms, P95 16.0 → 11.4 ms.
 - **Still open:** Windows Radeon GL08 run, 4K, HUD legibility at 4K, clinical review.
+
+
+## 2026-10-24 — 1440p/4K HUD magnification (WP03/WP31 partial)
+
+- CI for the zero-copy upload: [Tests 40065756237](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756237) and [Mesa GL 40065756219](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756219) succeeded.
+- Added `gl_preview.hud_scale` (integer 1–3 from the 1280×720 authored layout) and logical-resolution HUD painting with nearest-filtered GPU magnification. `SurgeryHUD.set_ui_scale` converts the window-pixel cursor ring; atlas selection markers are converted the same way. The benchmark report records `hud_scale`.
+- Fixed a pre-existing side-panel bug that split phase titles mid-word; `phase_title_lines` wraps between words into at most two lines.
+- Verified: 720p framebuffers unchanged; 1440p/4K HUD texture is 1280×720 and its title strip matches the 720p pixels exactly; 4K llvmpipe frame ≈56.8 → 20.4 ms. Local suite 585 passed.
+- **WP03/WP31 remain PARTIAL:** no true vector/high-DPI text, no Windows DPI-awareness handling, no human 4K legibility or contrast audit.

@@ -32,6 +32,9 @@ jobs:
       - name: Short frame-time benchmark at 1920x1080 (software GL, diagnostic only)
         run: |
           xvfb-run -a -s "-screen 0 1920x1080x24" env LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy python -m ophthosim.gl_benchmark --frames 300 --size 1920x1080 --out build/benchmark/gl-frametime-mesa.json
+      - name: Short frame-time benchmark at 3840x2160 with 3x HUD magnification
+        run: |
+          xvfb-run -a -s "-screen 0 3840x2160x24" env LIBGL_ALWAYS_SOFTWARE=1 SDL_VIDEODRIVER=x11 SDL_AUDIODRIVER=dummy python -m ophthosim.gl_benchmark --frames 120 --size 3840x2160 --out build/benchmark/gl-frametime-mesa-4k.json
       - name: Upload frame-time report
         if: always()
         uses: actions/upload-artifact@v4

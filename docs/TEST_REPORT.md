@@ -173,3 +173,11 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - `gl_surgery_smoke` now renders the same HUD frame through the zero-copy path and a forced copy fallback and requires identical framebuffer bytes, plus HUD surface reuse across frames. Local llvmpipe reports swizzle `BGRA`.
 - Manual A/B before commit: seven captured frames byte-identical to the previous implementation for both paths; 1080p llvmpipe mean frame 14.2 → 10.0 ms (two runs each).
 - **Not claimed:** any Windows GPU or 4K speedup.
+
+
+## 2026-10-24 — 4K HUD magnification
+
+- CI for the zero-copy upload commit: [Python 40065756237](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756237) and [Mesa GL 40065756219](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756219) succeeded.
+- Local: **585 passed**. New `tests/test_hud_scale.py`: 13 window sizes including 2559/2560 boundaries, 16:10 and ultrawide; invalid sizes (zero, negative, float, bool, string, None); 1440p/4K map to the 1280×720 logical layout; `set_ui_scale` bounds; the cursor ring drawn at window (2400, 1500) lands at logical (800, 500) at 3× with the Game unchanged; every phase title wraps between words in ≤2 lines of ≤21 characters; benchmark report `hud_scale`.
+- Manual GL checks under Xvfb/llvmpipe: seven 720p frames byte-identical to before; 1440p and 4K HUD textures 1280×720 with NEAREST filtering; title strip byte-identical to 720p after 1/2 and 1/3 sampling; screenshot inspection showed projected entry-target rings aligned with the 3D scene at 4K. Both GL smokes passed.
+- **Not claimed:** physical 4K monitor readability, Windows DPI scaling behaviour, GPU performance.

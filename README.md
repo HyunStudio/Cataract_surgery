@@ -338,3 +338,28 @@ for both the zero-copy and fallback paths, and the Mesa smoke now asserts that
 equality on every CI run. Local llvmpipe 1920×1080, 300 frames: mean frame
 14.2 → 10.0 ms, P95 16.0 → 11.4 ms. This is a **software-rasterizer
 measurement**; Windows GPU gains are unmeasured and GL08 remains UNVERIFIED.
+
+**CI for the zero-copy upload:** [Python run 40065756237](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756237) and [Mesa OpenGL run 40065756219](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756219), both successful, including the new zero-copy == RGBA-copy framebuffer assertion.
+
+
+## 1440p/4K HUD magnification (2026-10-24)
+
+The 3D HUD is authored for roughly 1280×720 with 20 px text; drawn at native
+4K it shrank to a third of its intended size. `hud_scale(width, height)` now
+picks an integer magnification (1 up to 2559×1439, 2 from 2560×1440, 3 from
+3840×2160; ultrawide windows are limited by height). The HUD is painted at
+`window // scale` logical pixels and magnified by the GPU with **nearest**
+sampling, so glyphs stay sharp and keep the authored layout. Projected task
+markers, the cursor ring and atlas selection markers are converted into the
+same logical pixels. Windows below 2560×1440 are unchanged (byte-identical
+framebuffers at 1280×720). Long phase titles in the side panel now wrap
+between words ("SIMULATED ENTRY / TARGETS") instead of mid-word.
+
+Verified locally: at 2560×1440 and 3840×2160 the HUD texture is 1280×720 and
+the title strip, sampled back to logical pixels, is byte-identical to the
+720p frame. Software llvmpipe 4K benchmark (120 frames): mean frame
+≈56.8 → 20.4 ms versus the commit before both HUD changes, mainly because the
+4K HUD upload is 9× smaller. The Mesa workflow now also runs a 4K benchmark.
+**Limits:** nearest magnification is blocky rather than true high-DPI text,
+Windows display scaling (DPI virtualization) is not handled, and 4K
+readability has not been checked by a person on a physical monitor.

@@ -129,3 +129,7 @@ Regression spies prove two expected triangle-mesh lookups at probe preparation a
 ## HUD texture upload path (2026-10-24)
 
 `GPUEyePreview.draw_hud` paints into one cached `SRCALPHA` surface (reallocated only on window resize) and uploads it with `Texture.write(surface.get_view("1"))`. `hud_swizzle(bitsize, pitch, width, masks, byteorder)` maps each RGBA channel to its byte position in surface memory and sets `texture.swizzle` accordingly; it returns None for padded rows, non-32-bit surfaces or non-byte masks, which selects the explicit `tobytes(..., "RGBA", False)` copy. Because surface rows are top-first, the HUD quad's v coordinate is 1 at the bottom of the screen and 0 at the top. Both paths are required to produce identical framebuffers in the Mesa smoke test.
+
+## Logical-resolution HUD (2026-10-24)
+
+`draw_hud(view, fps, w, h)` receives window pixels, computes `scale = hud_scale(w, h)` and paints everything (veil, labels, `SurgeryHUD.draw`, selection marker) on a `(w // scale, h // scale)` surface. The HUD texture has that logical size; its sampling is LINEAR at scale 1 (unchanged output) and NEAREST when magnified. Overlays that hold window-pixel state implement `set_ui_scale(scale)`; `SurgeryHUD` divides its cursor position by it. 3D-projected HUD markers use `eye_to_pixel` with the logical width/height, which preserves aspect within one window pixel per scale step.

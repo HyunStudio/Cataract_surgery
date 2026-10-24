@@ -123,6 +123,25 @@ def hud_swizzle(bitsize: int, pitch: int, width: int,
     return "".join("RGBA"[index] for index in positions)
 
 
+HUD_BASE_SIZE = (1280, 720)
+HUD_MAX_SCALE = 3
+
+
+def hud_scale(width: int, height: int) -> int:
+    """Integer HUD magnification for large windows (1 at 1080p, 3 at 4K).
+
+    The HUD layout is authored for roughly 1280x720. Larger windows paint it
+    at ``window // scale`` logical pixels and the GPU magnifies it with
+    nearest filtering, keeping glyphs sharp and the relative text size of the
+    authored layout instead of shrinking it on 1440p/4K displays.
+    """
+    if (type(width) is not int or type(height) is not int
+            or width < 1 or height < 1):
+        raise ValueError("HUD size must be positive integers")
+    fit = min(width // HUD_BASE_SIZE[0], height // HUD_BASE_SIZE[1])
+    return max(1, min(HUD_MAX_SCALE, fit))
+
+
 def bounded_float(value: object, lower: float, upper: float) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("A finite numeric value is required")
@@ -540,8 +559,15 @@ class GPUEyePreview:
 
     def draw_hud(self, view: View, fps: float, w: int, h: int,
                  *, overlay=None, vision: VisualFeedback | None = None) -> None:
-        # One reusable full-window surface: allocating ~8 MB per frame at
-        # 1080p showed up in software-GL profiles.
+        # Large windows paint the HUD at a logical size and magnify it on the
+        # GPU; every coordinate below is in logical HUD pixels.
+        scale = hud_scale(w, h)
+        window_w = w
+        w, h = w // scale, h // scale
+        if hasattr(overlay, "set_ui_scale"):
+            overlay.set_ui_scale(scale)
+        # One reusable surface: allocating ~8 MB per frame at 1080p showed up
+        # in software-GL profiles.
         if self.hud_surface is None or self.hud_surface.get_size() != (w, h):
             self.hud_surface = self.pg.Surface((w, h), self.pg.SRCALPHA)
         hud = self.hud_surface
@@ -590,7 +616,7 @@ class GPUEyePreview:
             # paints into this one shared GPU-uploaded Pygame HUD texture.
             overlay.draw(self.pg, hud, view, w, h, self.font, self.font_big)
         if self.selection_pixel is not None:
-            px, py = self.selection_pixel
+            px, py = (v // scale for v in self.selection_pixel)
             self.pg.draw.circle(hud, (110, 230, 195), (px, py), 12, 2)
             self.pg.draw.line(hud, (110, 230, 195), (px-18,py), (px-5,py), 2)
             self.pg.draw.line(hud, (110, 230, 195), (px+5,py), (px+18,py), 2)
@@ -600,7 +626,9 @@ class GPUEyePreview:
             if self.hud_texture is not None:
                 self.hud_texture.release()
             self.hud_texture = self.ctx.texture((w, h), 4)
-            self.hud_texture.filter = (self.gl.LINEAR, self.gl.LINEAR)
+        # Integer magnification uses nearest sampling so text is not blurred.
+        sampling = self.gl.LINEAR if w == window_w else self.gl.NEAREST
+        self.hud_texture.filter = (sampling, sampling)
         swizzle = hud_swizzle(hud.get_bitsize(), hud.get_pitch(), w,
                               tuple(hud.get_masks()))
         if swizzle is not None:

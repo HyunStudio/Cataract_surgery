@@ -24,6 +24,7 @@ import sys
 import time
 
 from .frametime import FrameProfiler, gl08_assessment, is_software_renderer
+from .gl_preview import hud_scale
 from .input3d import Surgery3DController, eye_to_pixel
 from .surface_probe3d import SurfaceProbe, probe_surface
 from .tool3d import visible_stylus
@@ -111,6 +112,7 @@ def build_report(profiler: FrameProfiler, *, size: tuple[int, int],
         "benchmark": "ophthosim-gl-surgery-frametime",
         "workload": WORKLOAD,
         "window_size": list(size),
+        "hud_scale": hud_scale(*size),
         "warmup_frames": warmup,
         "frames_measured": profiler.count("frame"),
         "frames_with_proximity": probes,

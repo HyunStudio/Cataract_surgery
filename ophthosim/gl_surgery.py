@@ -14,6 +14,7 @@ import argparse
 import math
 from pathlib import Path
 import sys
+import textwrap
 
 from .engine import Phase
 from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
@@ -41,12 +42,19 @@ PHASE_NAMES = {
 CHECKS = ("alignment", "wound", "handoff")
 
 
+def phase_title_lines(phase: Phase, width: int = 21) -> tuple[str, ...]:
+    """At most two side-panel lines, broken between words, never mid-word."""
+    lines = textwrap.wrap(PHASE_NAMES[phase], width, break_long_words=False)
+    return tuple(lines[:2])
+
+
 class SurgeryHUD:
     """Visual-only overlay; it may never modify the Game or change a score."""
 
     def __init__(self, controller: Surgery3DController) -> None:
         self.controller = controller
-        self.last_cursor: tuple[int, int] | None = None
+        self.last_cursor: tuple[int, int] | None = None  # window pixels
+        self.ui_scale = 1
         self.status = "Synthetic training experiment. No clinical use."
         self.reduced_motion = False
         self.high_contrast = False
@@ -59,6 +67,12 @@ class SurgeryHUD:
         self._probe_phase: Phase | None = None
         self._probe_pose: tuple[float,float,float] | None = None
         self._probe_camera: tuple[float,float] | None = None
+
+    def set_ui_scale(self, scale: int) -> None:
+        """Logical HUD magnification chosen by the renderer for this frame."""
+        if type(scale) is not int or not 1 <= scale <= 8:
+            raise ValueError("HUD scale must be a small positive integer")
+        self.ui_scale = scale
 
     def set_frame_proximity(self, result: SurfaceProbe | None) -> None:
         """Attach a non-mutating proximity observation to this exact phase."""
@@ -91,11 +105,9 @@ class SurgeryHUD:
         amber=(247,195,109)
         red=(247,122,136)
         label("CURRENT PROCEDURE", 24, 189, color=light)
-        phase_label = PHASE_NAMES[g.phase]
-        # Long titles are split to avoid spilling onto the iris.
-        label(phase_label[:21], 24, 221)
-        if len(phase_label) > 21:
-            label(phase_label[21:40], 24, 244)
+        # Long titles wrap at word boundaries to avoid spilling onto the iris.
+        for i, line in enumerate(phase_title_lines(g.phase)):
+            label(line, 24, 221+23*i)
         label(f"Phase: {g.phase.value}", 24, 285)
         label(f"Score (synthetic): {g.score():03d}", 24, 316)
         label(f"Tool z: {c.tool_depth:+.2f}", 24, 350, color=green)
@@ -202,7 +214,8 @@ class SurgeryHUD:
             label(flags.strip(), width//2-115, 110, color=(255,238,155))
         # Avoid displaying an earlier cursor after phase changes or restart.
         if self.last_cursor and c.last_pose is not None:
-            pg.draw.circle(surf,green,self.last_cursor,8,2)
+            cursor=tuple(v//self.ui_scale for v in self.last_cursor)
+            pg.draw.circle(surf,green,cursor,8,2)
 
     @staticmethod
     def _point(pg,surf,x,y,c,width,height,color,r=6):
