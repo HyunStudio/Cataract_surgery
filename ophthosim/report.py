@@ -89,6 +89,8 @@ def timeline(game: Game, lang: str = 'en') -> list[dict[str, Any]]:
             text = t(lang, f'tl.{kind}', item=t(lang, f"check.{data['item']}"))
         elif kind == 'scenario_draw':
             text = t(lang, 'tl.scenario_draw', hazard=t(lang, f"case.{data['hazard']}"))
+        elif kind == 'help_requested':
+            text = t(lang, 'tl.help_requested')
         else:
             continue
         rows.append({'t': round(seconds, 2), 'step': event['step'], 'kind': kind,
@@ -127,7 +129,8 @@ def events_csv(game: Game) -> str:
 
 METRIC_COLUMNS = ('case', 'hazard', 'difficulty', 'seed', 'ending', 'score', 'sim_time_s',
                   'near_misses', 'rejected_inputs', 'wrong_tool', 'iol_attempts', 'pauses',
-                  'alert_count', 'first_alert_latency_s', 'first_alert_response',
+                  'help_requests', 'capsule_misses', 'endpoint_error_entry',
+                  'endpoint_error_capsule', 'endpoint_error_iol', 'alert_count', 'first_alert_latency_s', 'first_alert_response',
                   'score_stages', 'score_tissue', 'score_iol', 'score_response',
                   'score_safety')
 
@@ -139,6 +142,8 @@ def metrics_row(game: Game) -> dict[str, Any]:
     row['alert_count'] = len(alerts)
     row['first_alert_latency_s'] = alerts[0]['latency'] if alerts else None
     row['first_alert_response'] = alerts[0]['response'] if alerts else None
+    for task, value in metrics['endpoint_error'].items():
+        row[f'endpoint_error_{task.lower()}'] = value
     for item in game.score_breakdown():
         row[f"score_{item['key']}"] = item['points']
     return {key: row.get(key) for key in METRIC_COLUMNS}

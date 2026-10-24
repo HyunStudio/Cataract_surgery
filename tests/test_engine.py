@@ -164,7 +164,7 @@ def test_export_json_lines_valid_and_consistent():
     game=Game();finish(game)
     events=[json.loads(line) for line in game.export_jsonl().splitlines()]
     assert len(events)==game.event_count()
-    assert all(event['schema_version']==Game.VERSION==2 and event['seed']==7 for event in events)
+    assert all(event['schema_version']==Game.VERSION==3 and event['seed']==7 for event in events)
     assert events[-1]['kind']=='ending'
     assert events[-1]['phase']=='RECOVERY'
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+import hashlib
 import json
 import math
 import random
@@ -79,11 +80,21 @@ HAZARDS: dict[str, tuple[Phase, str]] = {
     'pupil': (Phase.PHACO, 'PUPIL CONSTRICTION'),
     'haze': (Phase.CORTEX, 'CORNEAL HAZE'),
     'decenter': (Phase.CLOSE, 'IOL DECENTRATION'),
+    # High-risk branch: assessment escalates to a safe stop (no rescue taught).
+    'vitreous': (Phase.CORTEX, 'VITREOUS EVENT'),
     # Fires when the final checklist would complete, holding the ending.
     'leak': (Phase.CLOSE, 'WOUND LEAK RISK'),
 }
 CASES = ('normal', *HAZARDS, 'random')
-ALERT_KINDS = tuple(label for _, label in HAZARDS.values())
+# Organic event: repeated off-path capsule tracing distorts the rim.
+RIM_ALERT = 'CAPSULE RIM IRREGULAR'
+ALERT_KINDS = (*(label for _, label in HAZARDS.values()), RIM_ALERT)
+# Alerts whose assessment ends the case in a safe stop (escalation).
+ESCALATING_ALERTS = frozenset(('CAPSULE INTEGRITY', 'VITREOUS EVENT'))
+# Off-path capsule traces that trigger the rim alert, per difficulty.
+RIM_MISS_LIMIT = {'tutorial': 30, 'standard': 16, 'hard': 10}
+# Target radius used to normalize endpoint error (research primary metric).
+CAPSULE_RADIUS = .28
 
 
 @dataclass(slots=True)
@@ -115,7 +126,7 @@ class Patient:
 class Game:
     """A strict phase machine; callers may never change `phase` via actions."""
 
-    VERSION = 2
+    VERSION = 3
     MAX_EVENTS = 12000
     MAX_DT = 0.05
     RESPONSE_GRACE = 3.0          # seconds of full response credit
@@ -161,14 +172,35 @@ class Game:
         self.tool: str | None = None
         self.wrong_tool = 0
         self._last_point: tuple[float, float] | None = None
+        self.help_requests = 0
+        self.capsule_misses = 0
+        self.irreversible: set[str] = set()
+        self._stress_gain = 1.0
+        self._rim_fired = False
+        self.endpoint_errors: dict[str, list[float]] = {}
         self.hazard = case
+        # Deterministic synthetic identifiers: never derived from a person.
+        digest = hashlib.sha256(f'{case}:{difficulty}:{seed}'.encode()).hexdigest()
+        self.session_id = f'SIM-{digest[:10]}'
+        self.scenario_id = f'{case}/{difficulty}'
+        card_rng = random.Random(f'patient-card:{seed}')
+        self.patient_card = {
+            'patient_id': f'SYN-{card_rng.randrange(1000, 10000)}',
+            'eye': card_rng.choice(('OD', 'OS')),
+            'opacity_grade': card_rng.randint(2, 4),
+            'pupil': 'small' if case == 'pupil' else 'normal',
+            'iol_plan': card_rng.choice(('Synthetic IOL A', 'Synthetic IOL B')),
+        }
         self._record('start', {'case': case, 'seed': seed,
-                               'difficulty': difficulty})
+                               'difficulty': difficulty,
+                               'card': dict(self.patient_card)})
         if case == 'random':
             # Seeded draw; the trigger source is logged for reproducibility.
-            self.hazard = self.rng.choice(sorted(HAZARDS))
+            options = sorted(HAZARDS)
+            self.hazard = self.rng.choice(options)
             self._record('scenario_draw', {'hazard': self.hazard,
-                                           'source': 'seeded_rng'})
+                                           'source': 'seeded_rng',
+                                           'probability': round(1 / len(options), 4)})
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -188,7 +220,8 @@ class Game:
         if len(self.events) >= self.MAX_EVENTS:
             return
         self.events.append({'schema_version': self.VERSION, 'seed': self.seed,
-                            'case': self.case, 'step': self.step,
+                            'case': self.case, 'session_id': self.session_id,
+                            'scenario_id': self.scenario_id, 'step': self.step,
                             'sim_time_ms': round(self.time * 1000), 'phase': self.phase.value,
                             'kind': kind, 'data': data or {}})
 
@@ -205,6 +238,16 @@ class Game:
         return STAGE_TOOLS.get(self.phase)
 
     @property
+    def fragments(self) -> int:
+        """Visible synthetic nucleus fragments (display state, 0-12)."""
+        return math.ceil(12 * self.eye.opacity - 1e-9) if self.eye.opacity > 0 else 0
+
+    @property
+    def stress(self) -> float:
+        """Accumulated synthetic capsule stress (1.0 triggers an alert)."""
+        return self._stress
+
+    @property
     def alert_elapsed(self) -> float:
         return self._alert_elapsed
 
@@ -218,7 +261,13 @@ class Game:
                 'case': self.case, 'hazard': self.hazard,
                 'difficulty': self.difficulty, 'seed': self.seed,
                 'step': self.step, 'alert_elapsed': round(self._alert_elapsed, 3),
-                'tool': self.tool,
+                'tool': self.tool, 'schema_version': self.VERSION,
+                'session_id': self.session_id, 'patient_card': dict(self.patient_card),
+                'phase_time': round(self.time - self._phase_started, 3),
+                'safety_hold': bool(self.patient.alert),
+                'irreversible': sorted(self.irreversible),
+                'stress': round(self._stress, 4), 'fragments': self.fragments,
+                'help_requests': self.help_requests,
                 'score': self.score()}
 
     # ------------------------------------------------------------------
@@ -286,7 +335,11 @@ class Game:
             'sim_time_s': round(self.time, 3), 'phase_time_s': times,
             'near_misses': self.near_misses, 'rejected_inputs': self.rejected_inputs,
             'iol_attempts': self.iol_attempts, 'pauses': self.pauses,
-            'wrong_tool': self.wrong_tool,
+            'wrong_tool': self.wrong_tool, 'help_requests': self.help_requests,
+            'capsule_misses': self.capsule_misses,
+            'endpoint_error': {k: round(sum(v) / len(v), 4)
+                               for k, v in sorted(self.endpoint_errors.items()) if v},
+            'irreversible': sorted(self.irreversible),
             'action_path': {k: round(v, 4) for k, v in self.action_path.items()},
             'alerts': [dict(a) for a in self.alerts],
         }
@@ -324,6 +377,10 @@ class Game:
             self.patient.heart_rate = 99
         elif hazard == 'capsule':
             self.eye.capsule_integrity = .55
+            self.irreversible.add('capsule_damage')
+        elif hazard == 'vitreous':
+            self.eye.capsule_integrity = min(self.eye.capsule_integrity, .4)
+            self.irreversible.update(('capsule_damage', 'vitreous'))
         elif hazard == 'pupil':
             self.eye.pupil = .62
         elif hazard == 'haze':
@@ -383,6 +440,7 @@ class Game:
                 self.alerts[-1]['latency'] = None
                 kind = self.patient.alert
                 self._record('veto', {'reason': 'alert_unaddressed', 'alert': kind})
+                self.irreversible.add('veto')
                 self._advance(Phase.FAILED)
                 self._finish(ENDING_FAILED)
             return
@@ -401,6 +459,13 @@ class Game:
         """Return whether the game accepted the semantic user command."""
         if not isinstance(name, str) or len(name) > 80:
             return False
+        if name == 'help':
+            # Asking for help is always allowed and never penalized.
+            if self.ending:
+                return False
+            self.help_requests += 1
+            self._record('help_requested', {'alert': self.patient.alert or None})
+            return True
         if name == 'abort' and self.phase not in TERMINAL:
             self._respond('abort')
             self.phase_times[self.phase.value] = round(
@@ -421,9 +486,11 @@ class Game:
             self._respond('assess')
             self._record('assessed', {'alert': alert,
                                       'latency_s': round(self._alert_elapsed, 3)})
-            if alert == 'CAPSULE INTEGRITY':
+            if alert in ESCALATING_ALERTS:
                 # Unsafe procedural continuation is intentionally not taught.
                 return self.action('abort')
+            if alert == RIM_ALERT:
+                self._stress_gain = 1.5      # added risk for the rest of the case
             self.patient.alert = ''
             self.patient.motion = 0.0
             self.patient.cooperation = 1.0
@@ -485,6 +552,9 @@ class Game:
     def _procedure(self, name: str, point, x: Any) -> bool:
         rules = self.rules
         if self.phase == Phase.ENTRY and name == 'touch':
+            nearest = min(math.dist(point, t) for i, t in enumerate(self._entry_target)
+                          if i not in self._entered)
+            self._error('ENTRY', nearest / rules.entry_radius)
             for index, target in enumerate(self._entry_target):
                 if index not in self._entered and math.dist(point, target) < rules.entry_radius:
                     self._entered.add(index)
@@ -498,19 +568,28 @@ class Game:
             angle = (math.atan2(point[1] - .5, point[0] - .5) + 2 * math.pi) % (2 * math.pi)
             radius = math.dist(point, (.5, .5))
             low, high = rules.capsule_band
+            self._error('CAPSULE', abs(radius - CAPSULE_RADIUS) / ((high - low) / 2))
             if low < radius < high:
                 self.eye.capsule_points.add(int(angle / (2 * math.pi) * 24) % 24)
                 if len(self.eye.capsule_points) >= rules.capsule_bins:
                     self._record('capsule_completed', {'bins': len(self.eye.capsule_points)})
                     self._advance(Phase.PHACO)
                 return True
+            self.capsule_misses += 1
+            if (not self._rim_fired and
+                    self.capsule_misses >= RIM_MISS_LIMIT[self.difficulty]):
+                self._rim_fired = True
+                self.irreversible.add('capsule_rim')
+                self._alert(RIM_ALERT)
             return False
         if self.phase in (Phase.PHACO, Phase.CORTEX) and name == 'remove':
             if math.dist(point, (.5, .5)) >= self.work_radius:
                 self.near_misses += 1
-                self._stress += rules.stress_step
+                self._record('near_miss', {'x': round(point[0], 4), 'y': round(point[1], 4)})
+                self._stress += rules.stress_step * self._stress_gain
                 if self._stress >= 1.0:
                     self.eye.capsule_integrity = max(0.0, self.eye.capsule_integrity - .2)
+                    self.irreversible.add('capsule_damage')
                     self._stress = 0.0
                     self._alert('CAPSULE INTEGRITY')
                 return False
@@ -529,6 +608,7 @@ class Game:
         if name == 'place' and (self.phase == Phase.IOL or
                                 (self.phase == Phase.CLOSE and self._decentered)):
             distance = math.dist(point, (.5, .5))
+            self._error('IOL', distance / ((1 - rules.iol_threshold) / 3))
             self.iol_attempts += 1
             self.eye.iol_alignment = round(max(0.0, 1 - distance * 3), 4)
             self._record('placed', {'alignment': self.eye.iol_alignment,
@@ -558,6 +638,12 @@ class Game:
                 self._advance(Phase.RECOVERY)
             return True
         return False
+
+    def _error(self, task: str, value: float) -> None:
+        """Endpoint error normalized to the task's target radius (1 = edge)."""
+        errors = self.endpoint_errors.setdefault(task, [])
+        if len(errors) < 5000:
+            errors.append(round(value, 4))
 
     def export_jsonl(self) -> str:
         return '\n'.join(json.dumps(event, sort_keys=True, ensure_ascii=False)

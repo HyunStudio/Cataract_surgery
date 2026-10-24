@@ -303,7 +303,8 @@ def test_random_case_draw_is_seeded_and_logged():
         game = Game('random', seed)
         assert game.hazard == hazard
         assert game.events[1]['kind'] == 'scenario_draw'
-        assert game.events[1]['data'] == {'hazard': hazard, 'source': 'seeded_rng'}
+        assert game.events[1]['data'] == {'hazard': hazard, 'source': 'seeded_rng',
+                                          'probability': round(1 / len(HAZARDS), 4)}
 
 
 def test_every_case_reaches_an_ending():
@@ -339,7 +340,7 @@ def test_replay_round_trip_includes_difficulty(case, level):
     run_to(game, Phase.RECOVERY)
     raw = game.export_replay_jsonl()
     header = json.loads(raw.splitlines()[0])
-    assert header['schema_version'] == 2 and header['difficulty'] == level
+    assert header['schema_version'] == 3 and header['difficulty'] == level
     again = ReplayGame.replay_jsonl(raw)
     assert again.snapshot() == game.snapshot()
     assert again.score_breakdown() == game.score_breakdown()

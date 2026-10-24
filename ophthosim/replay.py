@@ -38,7 +38,7 @@ def _invalid_constant(value: str) -> None:
 class ReplayGame(Game):
     """Game with bounded, deterministic command capture and integrity checks."""
 
-    REPLAY_VERSION = 2
+    REPLAY_VERSION = 3
     MAX_RECORDS = 16000
     MAX_TICKS = 300000
     MAX_REPLAY_BYTES = 12_000_000
@@ -79,7 +79,7 @@ class ReplayGame(Game):
                     # can increment the synthetic capsule-stress counter.
                     item["x"], item["y"] = point
                     self._append(item)
-            elif name in {"abort", "assess", "pause", "confirm", "prepare"}:
+            elif name in {"abort", "assess", "pause", "confirm", "prepare", "help"}:
                 self._append(item)
         return accepted
 

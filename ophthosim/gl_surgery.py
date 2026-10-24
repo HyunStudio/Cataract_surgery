@@ -434,8 +434,8 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                         controller.adjust_depth(-1)
                     elif key==pygame.K_e:
                         controller.adjust_depth(1)
-                    elif pygame.K_1<=key<=pygame.K_9:
-                        number=key-pygame.K_1
+                    elif pygame.K_0<=key<=pygame.K_9:
+                        number=9 if key==pygame.K_0 else key-pygame.K_1
                         if g.phase==Phase.PREOP and not g.eye.preop_checks:
                             if number < len(CASES):
                                 controller.restart(CASES[number])

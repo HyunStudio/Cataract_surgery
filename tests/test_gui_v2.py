@@ -64,8 +64,10 @@ def pixels(app, rect):
 
 # --- menus & checklists ---------------------------------------------------------
 def test_number_keys_select_all_nine_cases_and_d_cycles_difficulty(app):
-    for index, case in enumerate(CASES):
-        key(app, pygame.K_1 + index)
+    keys = [pygame.K_1 + i for i in range(9)] + [pygame.K_0]
+    assert len(CASES) == 10
+    for k, case in zip(keys, CASES):
+        key(app, k)
         assert app.game.case == case
     seen = []
     for _ in DIFFICULTIES:

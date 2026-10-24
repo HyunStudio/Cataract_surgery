@@ -403,8 +403,8 @@ class App:
             elif key==pg.K_d and g.phase==Phase.PREOP and not g.eye.preop_checks:
                 levels=tuple(DIFFICULTIES)
                 self.new_game(difficulty=levels[(levels.index(g.difficulty)+1)%len(levels)])
-            elif pg.K_1<=key<=pg.K_9 and g.phase==Phase.PREOP and not g.eye.preop_checks:
-                index=key-pg.K_1
+            elif pg.K_0<=key<=pg.K_9 and g.phase==Phase.PREOP and not g.eye.preop_checks:
+                index=9 if key==pg.K_0 else key-pg.K_1
                 if index < len(CASES):
                     self.new_game(case=CASES[index])
             elif pg.K_1<=key<=pg.K_3 and g.phase==Phase.CLOSE:
