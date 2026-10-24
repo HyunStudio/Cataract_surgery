@@ -24,6 +24,7 @@ from .iol3d import iol_visual_deployment
 from .capsule3d import capsule_display_state
 from .vision3d import visual_feedback
 from .surface_probe3d import SurfaceProbe, probe_surface
+from .frametime import FrameProfiler, FrameStats
 
 PHASE_NAMES = {
     Phase.PREOP: "CASE / PREOPERATIVE REVIEW",
@@ -49,6 +50,9 @@ class SurgeryHUD:
         self.status = "Synthetic training experiment. No clinical use."
         self.reduced_motion = False
         self.high_contrast = False
+        # F3 frame-time readout: CPU wall-clock statistics, display only.
+        self.show_perf = False
+        self.perf: FrameStats | None = None
         # Prepared exactly once per rendered frame by the outer game loop.
         # HUD painting must never trigger a second expensive BVH query.
         self.frame_proximity: SurfaceProbe | None = None
@@ -183,11 +187,16 @@ class SurgeryHUD:
                      border_radius=10)
         instructions = (
             "SPACE next  |  MOUSE surgical task  |  1-3 final checks  |  A assess",
-            "ARROWS orbit +/- zoom Q/E depth M motion H contrast X abort R restart", 
+            "ARROWS orbit +/- zoom Q/E depth M motion H contrast F3 perf X abort R restart",
         )
         for i,msg in enumerate(instructions):
             label(msg[:90],24,bottom+6+i*25,color=green if i==0 else amber)
         label(self.status[:72], 24, height-100, color=light)
+        if self.show_perf:
+            perf = self.perf
+            label((f"FRAME {perf.mean_ms:.1f} ms  P95 {perf.p95_ms:.1f} ms (CPU)"
+                   if perf is not None else "FRAME TIME: measuring..."),
+                  width-420, height-100, color=light)
         if self.reduced_motion or self.high_contrast:
             flags=("LOW MOTION " if self.reduced_motion else "") + ("HIGH CONTRAST" if self.high_contrast else "")
             label(flags.strip(), width//2-115, 110, color=(255,238,155))
@@ -236,11 +245,19 @@ def run(case: str="normal",seed: int=7) -> None:
         hud=SurgeryHUD(controller)
         current_atlas="CATARACT"
         clock=pygame.time.Clock()
+        profiler=FrameProfiler(capacity=600)
+        frames=0
         dragging=False
         cursor=(0,0)
         running=True
         while running:
-            dt=min(clock.tick(60)/1000., .05)
+            elapsed_ms=clock.tick(60)
+            dt=min(elapsed_ms/1000., .05)
+            if frames:
+                profiler.record("frame",min(elapsed_ms,10_000))
+            frames+=1
+            if hud.show_perf and frames%30==0:
+                hud.perf=profiler.stats("frame")
             for event in pygame.event.get():
                 g=controller.game
                 if event.type==pygame.QUIT:
@@ -287,6 +304,9 @@ def run(case: str="normal",seed: int=7) -> None:
                         hud.reduced_motion=not hud.reduced_motion
                     elif key==pygame.K_h:
                         hud.high_contrast=not hud.high_contrast
+                    elif key==pygame.K_F3:
+                        hud.show_perf=not hud.show_perf
+                        hud.perf=profiler.stats("frame")
                     elif key==pygame.K_q:
                         controller.adjust_depth(-1)
                     elif key==pygame.K_e:

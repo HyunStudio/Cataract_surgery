@@ -220,7 +220,10 @@ class GPUEyePreview:
         "cornea": (.66, .87, .96),
     }
 
-    def __init__(self, pygame, moderngl, size=(1280, 720)):
+    def __init__(self, pygame, moderngl, size=(1280, 720), *,
+                 fullscreen: bool = False):
+        if type(fullscreen) is not bool:
+            raise ValueError("Fullscreen flag must be a boolean")
         self.pg = pygame
         self.gl = moderngl
         self.size = size
@@ -229,8 +232,9 @@ class GPUEyePreview:
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK,
                                         pygame.GL_CONTEXT_PROFILE_CORE)
-        self.window = pygame.display.set_mode(size, pygame.OPENGL | pygame.DOUBLEBUF |
-                                              pygame.RESIZABLE)
+        flags = pygame.OPENGL | pygame.DOUBLEBUF
+        flags |= pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE
+        self.window = pygame.display.set_mode(size, flags)
         pygame.display.set_caption("OphthoSim-AI | Experimental 3D GPU Atlas")
         self.ctx = moderngl.create_context(require=330)
         self.ctx.enable(moderngl.DEPTH_TEST)
