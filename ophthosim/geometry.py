@@ -101,6 +101,50 @@ def ellipsoid(name: str, radii: Vec3, center: Vec3 = (0, 0, 0),
     return mesh
 
 
+def sclera_cutaway(name: str = "sclera", radii: Vec3 = (1, 1, .88),
+                   center: Vec3 = (0, 0, -.25), opening: float = .76,
+                   slices: int = 48, stacks: int = 16) -> Mesh:
+    """Globe with an anterior (+Z) opening at the limbus: a cutaway shell.
+
+    Unlike the closed background globe it replaces, the shell never covers
+    the iris or lens, so it can be depth-tested like the rest of the scene.
+    ``opening`` is the polar angle (radians) of the cut rim from +Z.
+    """
+    _quality(slices, stacks)
+    if len(radii) != 3 or len(center) != 3:
+        raise ValueError("Expected three dimensional vectors")
+    rx, ry, rz = map(_positive, radii)
+    ox, oy, oz = map(_coordinate, center)
+    cut = _positive(opening)
+    if not .2 <= cut <= 1.4:
+        raise ValueError("Scleral opening angle out of range")
+    vertices: list[Vec3] = []
+    normals: list[Vec3] = []
+    faces: list[Face] = []
+    for i in range(stacks + 1):
+        theta = cut + (math.pi - cut) * i / stacks
+        st, ct = math.sin(theta), math.cos(theta)
+        for j in range(slices + 1):
+            phi = math.tau * j / slices
+            ux, uy, uz = st * math.cos(phi), st * math.sin(phi), ct
+            vertices.append((ox + rx * ux, oy + ry * uy, oz + rz * uz))
+            nx, ny, nz = ux / rx, uy / ry, uz / rz
+            norm = math.sqrt(nx * nx + ny * ny + nz * nz)
+            normals.append((nx / norm, ny / norm, nz / norm))
+    stride = slices + 1
+    for i in range(stacks):
+        for j in range(slices):
+            a = i * stride + j
+            b, c = a + 1, a + stride
+            d = c + 1
+            faces.append((a, c, b))
+            if i < stacks - 1:          # the last ring is the posterior pole
+                faces.append((b, c, d))
+    mesh = Mesh(name, tuple(vertices), tuple(normals), tuple(faces))
+    mesh.validate()
+    return mesh
+
+
 def iris_annulus(inner: float = .29, outer: float = .66,
                  depth: float = .03, slices: int = 64) -> Mesh:
     """Flat eye-facing ring with an unobstructed pupil opening."""
@@ -157,7 +201,8 @@ def cornea_dome(radius: float = .74, cap_angle: float = .95,
 def anterior_eye_meshes() -> dict[str, Mesh]:
     """Deterministic normalized visual-geometry bundle for a future renderer."""
     return {
-        "sclera": ellipsoid("sclera", (1, 1, .88), center=(0, 0, -.25)),
+        # Anterior cutaway: the limbus opening exposes iris, lens and IOL.
+        "sclera": sclera_cutaway(),
         "iris": iris_annulus(),
         "lens": ellipsoid("lens", (.43, .43, .18), center=(0, 0, -.19)),
         "iol": ellipsoid("iol", (.41, .41, .06), center=(0, 0, -.19)),

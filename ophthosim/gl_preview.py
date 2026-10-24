@@ -456,17 +456,15 @@ class GPUEyePreview:
         shader["u_iol_fold"].value = 1.0
         shader["u_scene_shift"].value = ((vision.motion_x, vision.motion_y)
                                           if vision is not None else (0.,0.))
-        # The closed sclera is only a non-clinical *background globe*. Its
-        # front-facing shell would physically occlude the iris and the lens.
-        # Disable the depth TEST (not just the depth write-mask), which
-        # guarantees it cannot populate the depth buffer. Re-enable both
-        # tests and normal culling for the actual iris/lens scene.
-        # An anterior globe cutaway would replace this shortcut later.
-        self.ctx.disable(self.gl.DEPTH_TEST)
+        # Anterior scleral cutaway: an open shell, depth-tested like the rest
+        # of the scene (it no longer needs the depth-test-free background
+        # shortcut). Culling is off so the inner wall shows through the
+        # limbus opening behind the iris.
+        self.ctx.disable(self.gl.CULL_FACE)
         shader["u_tint"].value = self.TINTS["sclera"]
         shader["u_alpha"].value = 1.0
         self.meshes["sclera"][0].render()
-        self.ctx.enable(self.gl.DEPTH_TEST)
+        self.ctx.enable(self.gl.CULL_FACE)
         for name in ("iris", "lens"):
             # Actual 3D geometry is deliberately simple: appearance changes
             # communicate *simulated* progress, not biological tissue effects.

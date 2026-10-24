@@ -125,7 +125,10 @@ class SurgeryHUD:
                 done = item in g.eye.preop_checks
                 label((("[x] " if done else "[ ] ") + t(lang, "check."+item))[:26],
                       24, 350+i*28, color=green if done else amber)
-            label("SPACE: next  1-9 case  D level"[:26], 24, 437, color=light)
+            label("SPACE: next  1-9,0 case  D"[:26], 24, 437, color=light)
+            card = g.patient_card
+            label(f"{card['patient_id']} · {t(lang, 'card.eye.'+card['eye'])}"[:30], 24, 128,
+                  color=light)
         else:
             label(f"Tool z: {c.tool_depth:+.2f}", 24, 350, color=green)
         required = g.required_tool
@@ -332,7 +335,7 @@ def advance_preop(controller: Surgery3DController) -> bool:
 
 
 def run(case: str="normal",seed: int=7,difficulty: str="standard",
-        lang: str="en",resume: str | None=None) -> None:
+        lang: str="en",resume: str | None=None,confirm_abort: bool=False) -> None:
     try:
         import pygame
         import moderngl
@@ -353,6 +356,7 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                 hud.status=t(hud.lang,"ui.resumed")
             except (OSError,ValueError) as exc:
                 hud.status=t(hud.lang,"ui.resume_failed",error=type(exc).__name__)
+        abort_armed_until=0
         heard_alerts=len(controller.game.alerts)
         heard_ending=bool(controller.game.ending)
         saved_phase=controller.game.phase
@@ -384,6 +388,13 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                     hud.last_cursor=cursor
                     controller.pointer(*cursor,*pygame.display.get_window_size(),
                                        fresh_press=True)
+                elif event.type==pygame.MOUSEWHEEL and not dragging:
+                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        # Shift+wheel: tool depth (visual design contract).
+                        if event.y:
+                            controller.adjust_depth(1 if event.y>0 else -1)
+                    else:
+                        controller.view.key("zoom_in" if event.y>0 else "zoom_out")
                 elif event.type==pygame.MOUSEMOTION:
                     cursor=event.pos
                     hud.last_cursor=cursor
@@ -401,7 +412,22 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                     elif key==pygame.K_a:
                         controller.command("assess")
                     elif key==pygame.K_x:
-                        controller.command("abort")
+                        if not confirm_abort or abort_armed_until>pygame.time.get_ticks():
+                            controller.command("abort")
+                            abort_armed_until=0
+                        else:
+                            abort_armed_until=pygame.time.get_ticks()+3000
+                            hud.status=t(hud.lang,"ui.confirm_abort")
+                    elif key in (pygame.K_SLASH,pygame.K_QUESTION,pygame.K_F1):
+                        if controller.command("help"):
+                            hud.status=t(hud.lang,"ui.help_sent")+" "+t(
+                                hud.lang,("hint."+g.patient.alert) if g.patient.alert
+                                else "goal."+g.phase.value)
+                    elif key==pygame.K_F11:
+                        try:
+                            pygame.display.toggle_fullscreen()
+                        except pygame.error:
+                            hud.status="Fullscreen toggle not supported by this driver"
                     elif key==pygame.K_ESCAPE:
                         controller.command("pause")
                     elif key==pygame.K_r:
@@ -506,10 +532,11 @@ def main(argv=None) -> int:
     parser.add_argument("--seed",type=int,default=7)
     parser.add_argument("--resume",nargs="?",const=str(AUTOSAVE),default=None,
                         help="continue a verified autosave")
+    parser.add_argument("--confirm-abort",action="store_true",help="X must be pressed twice")
     ns=parser.parse_args(argv)
     if isinstance(ns.seed,bool) or abs(ns.seed)>2**63-1:
         parser.error("seed must fit in bounded signed 64-bit range")
-    run(ns.case,ns.seed,ns.difficulty,ns.lang,ns.resume)
+    run(ns.case,ns.seed,ns.difficulty,ns.lang,ns.resume,ns.confirm_abort)
     return 0
 
 

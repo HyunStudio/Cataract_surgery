@@ -215,3 +215,33 @@ def test_resume_controller_restores_verified_autosave(tmp_path):
         resume_controller(Surgery3DController(), path)
     c.command("abort")
     assert write_autosave(c.game, path) is None and not path.exists()
+
+
+def test_help_command_and_patient_card_in_3d():
+    pygame, surf, font, title = _surface()
+    try:
+        c = Surgery3DController("vitreous", seed=9)
+        assert c.command("help") and c.game.help_requests == 1
+        hud = SurgeryHUD(c)
+        hud.draw(pygame, surf, c.view, W, H, font, title)
+        card = pygame.image.tobytes(surf.subsurface((20, 126, 300, 24)), "RGBA")
+        assert any(card[3::4])                       # card text drawn on pre-op
+        to_close(c, stop_on_alert=True)
+        assert c.game.patient.alert == "VITREOUS EVENT"
+        assert c.command("help") and c.game.help_requests == 2
+        surf.fill((0, 0, 0, 0))
+        hud.draw(pygame, surf, c.view, W, H, font, title)
+        assert c.command("assess") and c.game.ending == "SAFELY ABORTED"
+    finally:
+        pygame.quit()
+
+
+def test_scleral_cutaway_is_open_at_the_limbus():
+    from ophthosim.geometry import anterior_eye_meshes, sclera_cutaway
+    sclera = anterior_eye_meshes()["sclera"]
+    front = max(v[2] for v in sclera.vertices)
+    rim = [v for v in sclera.vertices if abs(v[2] - front) < 1e-9]
+    assert min(math.hypot(v[0], v[1]) for v in rim) > .6    # opening wider than iris pupil
+    assert front < .88 - .25                               # no closed anterior cap
+    with pytest.raises(ValueError):
+        sclera_cutaway(opening=0.05)

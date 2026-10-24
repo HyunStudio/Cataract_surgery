@@ -125,7 +125,8 @@ class Surgery3DController:
                            (Phase.IOL, Phase.CLOSE, Phase.RECOVERY) else "CATARACT")
 
     def command(self, action: str, value: str | None = None) -> bool:
-        if action not in {"confirm", "prepare", "assess", "pause", "abort", "verify", "tool"}:
+        if action not in {"confirm", "prepare", "assess", "pause", "abort", "verify", "tool",
+                          "help"}:
             return False
         before = self.game.phase
         result = self.game.action(action, value if action in ("verify", "tool") else None)
