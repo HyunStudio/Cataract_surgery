@@ -1,0 +1,187 @@
+"""Korean/English user-interface strings (the engine stays language-neutral).
+
+Missing Korean entries fall back to English, then to the key itself, so a
+gap can never crash a screen. All wording describes a synthetic educational
+game; none of it is clinical instruction.
+"""
+from __future__ import annotations
+
+LANGUAGES = ('en', 'ko')
+
+EN: dict[str, str] = {
+    # phases
+    'phase.PREOP': 'Preoperative review', 'phase.ANESTHESIA': 'Anesthesia & preparation',
+    'phase.ENTRY': 'Surgical entry', 'phase.CAPSULE': 'Capsular precision',
+    'phase.PHACO': 'Lens fragmentation', 'phase.CORTEX': 'Residual lens cleanup',
+    'phase.IOL': 'Intraocular lens', 'phase.CLOSE': 'Final safety checks',
+    'phase.RECOVERY': 'Recovery & results', 'phase.ABORTED': 'Safe abort',
+    'phase.FAILED': 'Critical failure',
+    # phase goals
+    'goal.PREOP': 'Verify identity, operative site and IOL plan, then start.',
+    'goal.ANESTHESIA': 'Confirm anesthesia-team readiness; no medication actions.',
+    'goal.ENTRY': 'Select the three glowing abstract approach targets.',
+    'goal.CAPSULE': 'Hold the left button and trace the dotted circular guide.',
+    'goal.PHACO': 'Hold the left button on the cloudy lens to reduce opacity.',
+    'goal.CORTEX': 'Hold the left button inside the lens to clear residue.',
+    'goal.IOL': 'Click near the optical centre to place the synthetic IOL.',
+    'goal.CLOSE': 'Review alignment, wound and handoff in the left panel.',
+    'goal.RECOVERY': 'Review the explained score and timeline; E exports logs.',
+    'goal.ABORTED': 'The case stopped safely. Review the report; R restarts.',
+    'goal.FAILED': 'A safety alert was left unattended. Review; R retries.',
+    # checklists
+    'check.identity': 'Patient identity (synthetic)', 'check.site': 'Operative eye / site',
+    'check.iol_plan': 'Planned IOL', 'check.alignment': 'IOL alignment',
+    'check.wound': 'Wound stability', 'check.handoff': 'Patient handoff',
+    # endings
+    'ending.SIMULATION COMPLETE': 'Simulation complete',
+    'ending.COMPLICATION MANAGED': 'Complication recognised and managed',
+    'ending.SAFELY ABORTED': 'Safely aborted',
+    'ending.CRITICAL FAILURE': 'Critical failure (safety veto)',
+    # alerts
+    'alert.PATIENT MOTION': 'Patient motion', 'alert.PATIENT MONITOR': 'Monitor alarm',
+    'alert.CAPSULE INTEGRITY': 'Capsule integrity', 'alert.PUPIL CONSTRICTION': 'Pupil constriction',
+    'alert.CORNEAL HAZE': 'Corneal haze', 'alert.IOL DECENTRATION': 'IOL decentration',
+    'alert.WOUND LEAK RISK': 'Wound leak risk',
+    # alert guidance (game actions only)
+    'hint.PATIENT MOTION': 'Stop and assess the patient before continuing.',
+    'hint.PATIENT MONITOR': 'Hold the procedure; request the anesthesia team review.',
+    'hint.CAPSULE INTEGRITY': 'Assessment ends the case in a safe stop.',
+    'hint.PUPIL CONSTRICTION': 'Working field is smaller after assessment.',
+    'hint.CORNEAL HAZE': 'View re-evaluated; it clears only partially.',
+    'hint.IOL DECENTRATION': 'Re-centre the IOL before the alignment check.',
+    'hint.WOUND LEAK RISK': 'Ending is held; re-check wound stability.',
+    # score
+    'score.stages': 'Stage completion', 'score.tissue': 'Tissue protection',
+    'score.iol': 'IOL position', 'score.response': 'Complication response',
+    'score.safety': 'Patient safety',
+    'why.stages': 'Completed {completed} of {of} procedure stages.',
+    'why.tissue': 'Capsule integrity {integrity}%, {near} near miss(es).',
+    'why.tissue.pending': 'Evaluated after lens removal.',
+    'why.iol': 'Alignment {alignment}% after {attempts} placement(s).',
+    'why.iol.pending': 'Evaluated after IOL placement.',
+    'why.response.none': 'No complication occurred.',
+    'why.response.item': '{alert}: {response} after {latency}s ({credit}% credit).',
+    'why.response.timeout': '{alert}: left unattended (no credit).',
+    'why.response.pending': 'Evaluated when the case ends.',
+    'why.safety.ok': 'No safety veto.', 'why.safety.veto': 'Safety veto: alert left unattended.',
+    'why.safety.pending': 'Evaluated when the case ends.',
+    'response.assess': 'assessed', 'response.abort': 'safe abort',
+    # timeline
+    'tl.start': 'Case started ({case}, {difficulty})', 'tl.phase': 'Entered {phase}',
+    'tl.alert': 'ALERT: {alert}', 'tl.assessed': 'Assessed {alert} after {latency}s',
+    'tl.veto': 'Safety veto: {alert} unattended', 'tl.ending': 'Ending: {ending}',
+    'tl.preop_check': 'Checked: {item}', 'tl.check': 'Final check: {item}',
+    'tl.scenario_draw': 'Random scenario drawn: {hazard}',
+    # cases / difficulty
+    'case.normal': 'Normal', 'case.motion': 'Patient motion', 'case.vitals': 'Vital alarm',
+    'case.capsule': 'Capsule event', 'case.pupil': 'Small pupil', 'case.haze': 'Corneal haze',
+    'case.decenter': 'IOL decentration', 'case.leak': 'Wound leak', 'case.random': 'Random (seeded)',
+    'difficulty.tutorial': 'Tutorial', 'difficulty.standard': 'Standard', 'difficulty.hard': 'Hard',
+    # UI
+    'ui.disclaimer': 'Educational synthetic simulation — not for clinical use.',
+    'ui.score': 'Simulated score', 'ui.not_clinical': 'No patient outcome or clinical skill is implied.',
+    'ui.select_case': 'Select case', 'ui.difficulty': 'Difficulty', 'ui.language': 'Language',
+    'ui.next': 'SPACE / click: next', 'ui.pause_abort': 'ESC pause   X safe abort',
+    'ui.safety_hold': 'SAFETY HOLD — review patient state',
+    'ui.assess_or_abort': 'A assess · X safe abort', 'ui.paused': 'PAUSED — ESC to continue',
+    'ui.hold_timer': 'Unattended for {s}s of {limit}s', 'ui.hold_untimed': 'Tutorial: hold is untimed',
+    'ui.export': 'E export', 'ui.retry': 'R retry', 'ui.timeline': 'Timeline',
+    'ui.breakdown': 'Why this score', 'ui.monitor': 'Patient monitor',
+    'ui.synthetic': 'Synthetic / non-clinical', 'ui.stable': 'Stable', 'ui.status': 'Status',
+    'ui.options': 'F1 help · L language · H contrast · C colour-safe · M motion · S sound',
+    'ui.depth': 'Depth cross-section (synthetic)', 'ui.zoom': 'Zoom', 'ui.focus': 'Focus',
+    'ui.sound_on': 'Sound on', 'ui.sound_off': 'Sound off', 'ui.exported': 'Exported to {path}',
+    'ui.export_failed': 'Export failed: {error}', 'ui.new_case': 'New synthetic case started.',
+    'ui.preview3d': '3D mesh preview: J/L orbit, I/K tilt, G return.',
+    'ui.back_2d': 'Returned to the 2.5D surgical view.',
+    'ui.help': 'Help', 'ui.help.body': 'Mouse: task · Space: next checklist item · '
+               '1-9 case · Q/W/E difficulty · Wheel/+/- zoom · [ ] focus · G 3D preview',
+}
+
+KO: dict[str, str] = {
+    'phase.PREOP': '수술 전 확인', 'phase.ANESTHESIA': '마취 및 준비', 'phase.ENTRY': '수술 진입',
+    'phase.CAPSULE': '전낭 정밀 과제', 'phase.PHACO': '수정체 분쇄·제거', 'phase.CORTEX': '잔여 피질 정리',
+    'phase.IOL': '인공수정체 삽입', 'phase.CLOSE': '최종 안전 확인', 'phase.RECOVERY': '회복 및 결과',
+    'phase.ABORTED': '안전 중단', 'phase.FAILED': '중대한 실패',
+    'goal.PREOP': '환자 식별·수술 부위·IOL 계획을 확인한 뒤 시작합니다.',
+    'goal.ANESTHESIA': '마취팀 준비를 확인합니다. 약물 조작은 없습니다.',
+    'goal.ENTRY': '빛나는 세 개의 추상적 접근 목표를 선택합니다.',
+    'goal.CAPSULE': '왼쪽 버튼을 누른 채 점선 원형 가이드를 따라 그립니다.',
+    'goal.PHACO': '혼탁한 수정체 위에서 왼쪽 버튼을 눌러 혼탁도를 줄입니다.',
+    'goal.CORTEX': '수정체 안쪽에서 왼쪽 버튼을 눌러 잔여물을 정리합니다.',
+    'goal.IOL': '광학 중심 근처를 클릭해 가상 IOL을 배치합니다.',
+    'goal.CLOSE': '왼쪽 패널에서 정렬·절개부·인계를 확인합니다.',
+    'goal.RECOVERY': '점수 근거와 타임라인을 확인합니다. E로 로그 저장.',
+    'goal.ABORTED': '안전하게 중단되었습니다. 보고서를 확인하고 R로 재시작합니다.',
+    'goal.FAILED': '안전 경보가 방치되었습니다. 검토 후 R로 다시 시도합니다.',
+    'check.identity': '환자 식별 (가상)', 'check.site': '수술 눈 / 부위', 'check.iol_plan': 'IOL 계획',
+    'check.alignment': 'IOL 정렬', 'check.wound': '절개부 안정성', 'check.handoff': '환자 인계',
+    'ending.SIMULATION COMPLETE': '시뮬레이션 완료',
+    'ending.COMPLICATION MANAGED': '합병증 인지 및 관리 완료',
+    'ending.SAFELY ABORTED': '안전 중단', 'ending.CRITICAL FAILURE': '중대한 실패 (안전 거부권)',
+    'alert.PATIENT MOTION': '환자 움직임', 'alert.PATIENT MONITOR': '모니터 경보',
+    'alert.CAPSULE INTEGRITY': '수정체낭 손상', 'alert.PUPIL CONSTRICTION': '동공 축소',
+    'alert.CORNEAL HAZE': '각막 혼탁', 'alert.IOL DECENTRATION': 'IOL 편위',
+    'alert.WOUND LEAK RISK': '절개부 누출 위험',
+    'hint.PATIENT MOTION': '진행을 멈추고 환자 상태를 평가하세요.',
+    'hint.PATIENT MONITOR': '진행을 보류하고 마취팀 평가를 요청하세요.',
+    'hint.CAPSULE INTEGRITY': '평가하면 안전 중단으로 종료됩니다.',
+    'hint.PUPIL CONSTRICTION': '평가 후 작업 범위가 좁아집니다.',
+    'hint.CORNEAL HAZE': '시야를 재평가합니다. 일부만 맑아집니다.',
+    'hint.IOL DECENTRATION': '정렬 확인 전에 IOL을 다시 중심에 맞추세요.',
+    'hint.WOUND LEAK RISK': '종료가 보류됩니다. 절개부 안정성을 다시 확인하세요.',
+    'score.stages': '단계 완수', 'score.tissue': '조직 보호', 'score.iol': 'IOL 위치',
+    'score.response': '합병증 대응', 'score.safety': '환자 안전',
+    'why.stages': '수술 단계 {of}개 중 {completed}개 완료.',
+    'why.tissue': '수정체낭 보존 {integrity}%, 근접 실수 {near}회.',
+    'why.tissue.pending': '수정체 제거 후 평가됩니다.',
+    'why.iol': '{attempts}회 배치 후 정렬 {alignment}%.', 'why.iol.pending': 'IOL 배치 후 평가됩니다.',
+    'why.response.none': '합병증이 발생하지 않았습니다.',
+    'why.response.item': '{alert}: {latency}초 후 {response} (인정 {credit}%).',
+    'why.response.timeout': '{alert}: 방치됨 (인정 없음).',
+    'why.response.pending': '종료 시 평가됩니다.',
+    'why.safety.ok': '안전 거부권 없음.', 'why.safety.veto': '안전 거부권: 경보 방치.',
+    'why.safety.pending': '종료 시 평가됩니다.',
+    'response.assess': '평가', 'response.abort': '안전 중단',
+    'tl.start': '케이스 시작 ({case}, {difficulty})', 'tl.phase': '{phase} 진입',
+    'tl.alert': '경보: {alert}', 'tl.assessed': '{latency}초 후 {alert} 평가',
+    'tl.veto': '안전 거부권: {alert} 방치', 'tl.ending': '종료: {ending}',
+    'tl.preop_check': '확인: {item}', 'tl.check': '최종 확인: {item}',
+    'tl.scenario_draw': '무작위 시나리오: {hazard}',
+    'case.normal': '정상', 'case.motion': '환자 움직임', 'case.vitals': '바이탈 경보',
+    'case.capsule': '수정체낭 이벤트', 'case.pupil': '작은 동공', 'case.haze': '각막 혼탁',
+    'case.decenter': 'IOL 편위', 'case.leak': '절개부 누출', 'case.random': '무작위 (시드)',
+    'difficulty.tutorial': '튜토리얼', 'difficulty.standard': '표준', 'difficulty.hard': '고난도',
+    'ui.disclaimer': '교육용 합성 시뮬레이션 — 임상 사용 금지.',
+    'ui.score': '모의 점수', 'ui.not_clinical': '환자 결과나 임상 술기를 의미하지 않습니다.',
+    'ui.select_case': '케이스 선택', 'ui.difficulty': '난이도', 'ui.language': '언어',
+    'ui.next': 'SPACE / 클릭: 다음', 'ui.pause_abort': 'ESC 일시정지   X 안전 중단',
+    'ui.safety_hold': '안전 보류 — 환자 상태를 평가하세요',
+    'ui.assess_or_abort': 'A 평가 · X 안전 중단', 'ui.paused': '일시정지 — ESC로 계속',
+    'ui.hold_timer': '방치 {s}초 / 제한 {limit}초', 'ui.hold_untimed': '튜토리얼: 보류 시간 제한 없음',
+    'ui.export': 'E 저장', 'ui.retry': 'R 재시도', 'ui.timeline': '타임라인',
+    'ui.breakdown': '점수 근거', 'ui.monitor': '환자 모니터', 'ui.synthetic': '합성 / 비임상',
+    'ui.stable': '안정', 'ui.status': '상태',
+    'ui.options': 'F1 도움말 · L 언어 · H 고대비 · C 색각 · M 움직임 · S 소리',
+    'ui.depth': '깊이 단면도 (가상)', 'ui.zoom': '확대', 'ui.focus': '초점',
+    'ui.sound_on': '소리 켬', 'ui.sound_off': '소리 끔', 'ui.exported': '{path}에 저장했습니다',
+    'ui.export_failed': '저장 실패: {error}', 'ui.new_case': '새 가상 케이스를 시작했습니다.',
+    'ui.preview3d': '3D 메시 미리보기: J/L 회전, I/K 기울기, G 복귀.',
+    'ui.back_2d': '2.5D 수술 화면으로 돌아왔습니다.',
+    'ui.help': '도움말', 'ui.help.body': '마우스: 과제 · Space: 다음 체크 항목 · '
+               '1-9 케이스 · Q/W/E 난이도 · 휠/+/- 확대 · [ ] 초점 · G 3D 미리보기',
+}
+
+_TABLES = {'en': EN, 'ko': KO}
+
+
+def t(lang: str, key: str, **values: object) -> str:
+    """Translate ``key``; unknown languages use English, unknown keys echo."""
+    table = _TABLES.get(lang, EN)
+    text = table.get(key, EN.get(key, key))
+    if values:
+        try:
+            return text.format(**values)
+        except (KeyError, IndexError, ValueError):
+            return text
+    return text

@@ -1,0 +1,7 @@
+{
+  "name": "demo",
+  "cases": ["normal", "motion", "vitals", "pupil", "haze", "decenter", "leak", "capsule"],
+  "difficulties": ["tutorial", "standard", "hard"],
+  "seeds": [1, 2],
+  "policies": ["ideal", "careless", "slow", "unresponsive"]
+}
