@@ -133,3 +133,15 @@ Regression spies prove two expected triangle-mesh lookups at probe preparation a
 ## Logical-resolution HUD (2026-10-24)
 
 `draw_hud(view, fps, w, h)` receives window pixels, computes `scale = hud_scale(w, h)` and paints everything (veil, labels, `SurgeryHUD.draw`, selection marker) on a `(w // scale, h // scale)` surface. The HUD texture has that logical size; its sampling is LINEAR at scale 1 (unchanged output) and NEAREST when magnified. Overlays that hold window-pixel state implement `set_ui_scale(scale)`; `SurgeryHUD` divides its cursor position by it. 3D-projected HUD markers use `eye_to_pixel` with the logical width/height, which preserves aspect within one window pixel per scale step.
+
+## v2 architecture (2026-10-24)
+
+`engine.Game` is still the only authority. Everything else reads its state or sends it semantic actions:
+
+- `Rules` (difficulty) sets tolerances, the IOL threshold, the alert timeout, guides and automatic instrument choice.
+- `HAZARDS` maps scenarios to the phase whose entry triggers them (the leak hold fires on checklist completion).
+- `score_breakdown()` and `metrics()` are pure reads.
+- `ReplayGame` (schema v2) journals verify, tool and positional commands plus timed-hold ticks, so replays reproduce vetoes exactly.
+- `report.py` derives all user-facing explanations, timelines and CSV files from engine events, so screens and exports cannot disagree.
+- `autosave.py` reuses the verified replay as the recovery point.
+- `app.py` (2.5D) and `gl_surgery.py` (3D) share `i18n.py` strings and the same engine rules. 3D picking for IOL re-centring uses the IOL stage depth, gated by the engine's `_decentered` state.

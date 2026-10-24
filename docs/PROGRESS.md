@@ -211,3 +211,31 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Fix 2: a first 5-minute scene-switch run grew 7.6 MiB; the extra growth came from the profiler's own deques of Python floats (~32 B per frame per section). Samples now live in preallocated C-double ring buffers; a test proves 240 000 recordings allocate nothing.
 - Local llvmpipe 300 s results after both fixes: 1080p (22 661 frames) +1.92 MiB, late slope 0.0 MiB/min; 960×640 with 303 scene switches +5.82 MiB, late slope 0.54 MiB/min. Both are within the triage heuristics and `game_state_unchanged: true`; GL07 stays `INSUFFICIENT_EVIDENCE` because the renderer is software.
 - CI: [Tests 40066436712](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066436712) and [Mesa 40066436664](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066436664) green for the late-slope change; earlier [40066192554](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066192554)/[40066192649](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066192649) and [40065994478](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065994478)/[40065994457](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065994457) green.
+
+
+## 2026-10-24 — v2: complete planned game loop
+
+- **Engine v2:**
+  - tutorial/standard/hard rules
+  - mandatory pre-op checklist
+  - four endings with a safety veto on unattended alerts
+  - explained 20/25/20/20/15 score
+  - pupil, haze, decentration, wound-leak and seeded random scenarios
+  - stage instruments, which must be chosen in hard
+  - research metrics
+  - replay schema v2 with difficulty and timed holds
+- **Report / research:** `report.py` builds the explained breakdown, timeline and CSV/JSON export. `experiments.py` runs scripted agents (192-session demo, all replays verified). `i18n.py` holds the KO/EN strings.
+- **2.5D app:**
+  - case/difficulty menus and checklist UI
+  - instrument tray
+  - alert panel with hold timer
+  - results screen
+  - KO/EN
+  - high contrast, colour-safe palette and reduced motion
+  - sound cues
+  - microscope zoom, focus and illumination
+  - depth cross-section
+  - autosave/resume
+- **3D app parity:** checklist flow, instruments, decentration re-centring in 3D, localized hold/results panels, sounds and autosave/resume. The Mesa smoke has a fourth scenario.
+- **Docs:** README rewritten as the product document (history moved to `docs/CHANGELOG.md`), Korean user guide, 32-WP status table.
+- **Local result:** 707 tests passed. Both Mesa smokes and the benchmark passed.

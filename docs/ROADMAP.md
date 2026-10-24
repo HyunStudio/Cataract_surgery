@@ -173,3 +173,49 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - `python -m ophthosim.gl_benchmark` produces the GL08 evidence (mean/P95 at ≥1920×1080 for ≥60 s, renderer strings) needed for the WP04 renderer decision. It refuses to call software GL evidence and leaves the final pass to a human reviewer.
 - Software-GL profiling shows render/HUD upload dominating over the proximity query; partial-region or cached HUD upload is the next candidate optimization once hardware numbers exist.
 - **WP04 remains IN PROGRESS** until a physical Windows Radeon report is attached.
+
+## Implementation status (2026-10-24)
+
+DONE = implemented with automated tests. SW-DONE = done in software, but an
+acceptance step needs a person or the target hardware. OPEN = needs work that
+cannot be done from this repository alone.
+
+| WP | Scope | Status | Evidence / remaining |
+|---|---|---|---|
+| 01 | Pygame bootstrap & settings | DONE | `main.py`, CLI case/difficulty/lang/seed/scale/resume |
+| 02 | FSM and event bus | DONE | `engine.py` strict phase machine, events, `test_engine*.py` |
+| 03 | UI shell 1080p/4K scaling | SW-DONE | resizable 2.5D canvas; 3D HUD integer magnification; physical 4K legibility check open |
+| 04 | Pygame–ModernGL spike | SW-DONE | 3D game + Mesa CI + `gl_benchmark`; **Windows GPU GL01–GL10 open** |
+| 05 | Eye anatomy logical model | DONE | typed `Eye`/`Patient` state incl. pupil and cornea clarity |
+| 06 | Layered 2.5D renderer | DONE | `app.render_eye` layers, haze veil, decentred optic |
+| 07 | Microscope camera, lighting, focus | DONE | zoom (input-mapped), focus blur, illumination; 3D orbit/zoom |
+| 08 | Optional 3D eye mesh, pick/depth | DONE | ModernGL atlas/game, BVH picking, CPU/GPU parity tests |
+| 09 | Patient/anesthesia abstract state | DONE | synthetic patient model, anesthesia confirmation |
+| 10 | Synthetic ECG/BP/SpO2 UI | DONE | state-driven waveforms (both apps) |
+| 11 | Patient cooperation, motion, alarms | DONE | motion/vitals hazards, timed safety hold |
+| 12 | Tool tray & input normalization | DONE | instrument tray (manual in hard), normalized/zoomed input mapping |
+| 13 | Microsurgical interaction/hit testing | DONE | difficulty tolerances, 3D ray/plane + depth gates, read-only proximity |
+| 14 | Preparation & entry task | DONE | pre-op checklist gate, entry targets |
+| 15 | Capsular path challenge | DONE | bin coverage per difficulty, action-path metric |
+| 16 | Lens state & fragmentation visuals | DONE | opacity visuals 2.5D/3D, cross-section |
+| 17 | Phaco abstract controls | DONE | no numeric device settings by design |
+| 18 | Fragment cleanup actions | DONE | cortex stage |
+| 19 | Capsular stress/integrity model | DONE | near-miss stress → capsule alert → safe stop |
+| 20 | Cortex cleanup & completion gates | DONE | residue must reach zero; no hidden acceptance |
+| 21 | Folded IOL animation | DONE | 3D shader fold → unfold on simulation time |
+| 22 | IOL centering and positioning | DONE | alignment thresholds per difficulty |
+| 23 | IOL safety/complication checks | DONE | decentration blocks the alignment check until re-centred |
+| 24 | Wound and final inspection | DONE | wound-leak hold re-requires the wound check |
+| 25 | Recovery/handoff UI | DONE | explained results screens (2.5D/3D) |
+| 26 | Patient movement, pupil, haze events | DONE | motion, pupil, haze, seeded random case |
+| 27 | Capsule/visual loss complications | DONE | capsule event, corneal haze; vitreous event out of v1.x scope |
+| 28 | Vital alert and emergency abort | DONE | vitals hazard, safe abort, safety veto on inaction |
+| 29 | Scoring, endings, feedback | DONE | 4 endings, 20/25/20/20/15 breakdown with reasons |
+| 30 | JSONL/CSV logging & experiment configs | DONE | report/CSV export, `experiments.py`, replay schema v2 |
+| 31 | Visual/audio polish and accessibility | SW-DONE | KO/EN, contrast, colour-safe, reduced motion, tones; human audit open |
+| 32 | Full regression, performance, release docs | SW-DONE | 707 tests, Mesa smoke/benchmarks, docs; Windows performance open |
+
+**Open items needing the owner:** run the GL01–GL10 checklist and the benchmarks
+on the Windows Radeon PC; check legibility on a physical 4K monitor; and get
+subject-matter-expert review of content plausibility. Before any study with
+participants, an ethics/IRB determination is required.

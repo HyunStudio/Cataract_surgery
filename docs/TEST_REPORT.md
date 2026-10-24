@@ -189,3 +189,19 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Manual: `tracemalloc` over 400 scene switches showed no Python-heap accumulation; RSS traces plateaued (2000 switches; 20 000 rendered frames with a switch every 10).
 - 300 s llvmpipe runs: see PROGRESS (1.92 MiB / 5.82 MiB growth, late slopes 0.0 / 0.54 MiB/min).
 - **Not claimed:** dedicated GPU memory behaviour or any Windows hardware result.
+
+
+## 2026-10-24 — v2 regression
+
+**Local run: 707 passed.** The new test files are:
+
+| File | Covers |
+|---|---|
+| `test_engine_v2.py` | pre-op gate; difficulty tolerances, thresholds and timeouts; every case reaching an ending at every difficulty; endings and veto (pausing cannot freeze the hold); response credit vs latency; pupil, haze, decentration, leak and random-case behaviour; metrics; instrument rules; replay v2 round-trips, including timed-out failure; rejection of v1 headers and edited difficulty |
+| `test_report.py` | KO/EN key parity and fallbacks; report/engine score agreement; explanations; chronological timeline; events/metrics CSV; session files; refusal of overflowed replays; agent endings; deterministic experiments with verified replays; config validation; CLI |
+| `test_gui_v2.py` | all nine cases and the difficulty cycle; clickable pre-op checklist; zoomed clicks mapping to eye coordinates; zoom lock while dragging; focus blur (visual only); every hazard screen in EN/KO; decentration re-centring; all four ending screens with KO/EN export; language, palette and reduced-motion pixel changes; cross-section synchronization; help and sound; instrument tray; illumination; autosave/resume, including tamper rejection |
+| `test_gl_surgery_v2.py` | checklist advance; 3D re-centring with a fresh click (held drag rejected); CLOSE without decentration has no tool; HUD for every alert and ending in EN/KO; report export; CLI; instrument cycling in hard; autosave restore |
+
+Updated `gl_surgery_smoke.py` adds a fourth Mesa scenario (decentration hold, visible 3D re-centring, managed-complication result) to the existing zero-copy HUD and capsule/vision checks.
+
+**Not claimed:** Windows GPU, physical 4K legibility, human usability or clinical validity.
