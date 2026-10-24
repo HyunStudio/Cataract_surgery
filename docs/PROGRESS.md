@@ -245,3 +245,34 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
   - physical 4K legibility
   - expert review of content plausibility
   - ethics/IRB determination before any participant study
+
+
+## 2026-10-24 — engine v3: every design document reflected
+
+- Pulled the owner's Windows RTX 3070 validation (GL01–GL06 automated pass, GL07/GL08 candidates, Hangul HUD, memory-probe and capture fixes).
+- **Engine v3:**
+  - snapshot contract fields (phase_time, safety_hold, irreversible flags, stress, fragments, schema version)
+  - session_id and scenario_id on every event
+  - vitreous scenario that escalates to a safe stop
+  - organic capsule-rim irregularity, after which stress accrues ×1.5
+  - help action
+  - synthetic patient card
+  - normalized endpoint-error metrics and near-miss coordinates
+- **2.5D:**
+  - keyboard play
+  - tool depth with gating
+  - pan, UI scale and enlarged cross-section
+  - help and anesthesia-call buttons
+  - patient card, drape and progress timeline
+  - capsule curve, particles and IOL unfold
+  - damage rim, motion displacement, near-miss marks and stress warning
+  - tutorial-only guides
+  - results action map and before/after
+  - escalating tone
+  - confirm-abort, break reminder and tremor damping
+  - research condition and UI-condition logging
+  - `--replay` viewer
+- **3D:** anterior scleral cutaway (no depth-test bypass), help, Shift+wheel depth, F11 fullscreen, confirm-abort, patient card.
+- **Research:** event migration, practice/evaluation splits with a leakage check, data dictionary.
+- **Docs:** traceability tables in the product, visual, architecture and research documents.
+- **Local result:** 762 passed + 1 Windows-only skip. Mesa smokes passed.

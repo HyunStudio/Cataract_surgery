@@ -209,3 +209,17 @@ Updated `gl_surgery_smoke.py` adds a fourth Mesa scenario (decentration hold, vi
   - Python 3.12/3.13: [Tests 40068709047](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047), 707 passed on 3.12; the 3.13 job succeeded. [GUI screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047/artifacts/12549384895).
   - Mesa OpenGL: [40068709064](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709064), success with the four-scenario 3D smoke and benchmarks.
   - Earlier v2 commits were also green: [40068403280](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068403280)/[40068403263](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068403263) and [40068152868](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068152868)/[40068152833](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068152833).
+
+
+## 2026-10-24 — engine v3 / design-completion regression
+
+**Local run: 762 passed, 1 skipped (Windows-only).** The new test files are:
+
+| File | Covers |
+|---|---|
+| `test_engine_v3.py` | 10 cases; vitreous escalation and irreversible flags; rim alert per difficulty (fires once); stress ×1.5; help always available and free; snapshot contract; deterministic session/scenario ids; seeded patient card that does not disturb hazard draws; normalized endpoint error; near-miss coordinates; replay v3 with help and rejection of v2 |
+| `test_gui_v3.py` | keyboard-only entry task; depth gating and per-stage reset; Shift+wheel vs wheel; middle-drag pan with mapped clicks; F2 scale mapping; help by key, F1 and click; card, drape and progress rendering; bounded particles (off in reduced motion); near-miss mark and stress warning; tutorial-only guides; results heatmap; confirm-abort window; damping; enlarged cross-section; low-visibility condition logged in the report; break reminder; replay viewer (play, step, speed, final-state match, no commands); playback unit/speed/finish; CLI validation |
+| `test_gl_surgery_v2.py` | adds 3D help and patient card, and checks that the scleral cutaway is open at the limbus |
+| `test_research_data.py` | v1/v2 → v3 migration without content change; pass-through and invalid events; migrate CLI; practice/evaluation splits with leakage and shape validation; data dictionary covering every metrics column and event kind |
+
+Mesa `gl_smoke` and `gl_surgery_smoke` pass with the cutaway sclera.

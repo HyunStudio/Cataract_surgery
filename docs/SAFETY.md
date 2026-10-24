@@ -25,3 +25,10 @@ OphthoSim-AI is an **educational interactive simulation**. It is not a medical d
 - New events (pupil constriction, corneal haze, IOL decentration, wound-leak hold) present recognition tasks only. Their hints name game actions ("assess", "re-centre", "re-check"), never clinical procedures.
 - Instrument names are labels for stage-bound game tools; no device behaviour, energy or flow settings exist.
 - Score weights, tolerances and timers are design hypotheses. The results screen states that no patient outcome or clinical skill is implied.
+
+## v3 additions (2026-10-24)
+
+- The vitreous event and the capsule events are recognition tasks only: assessing them escalates to a safe stop. No rescue procedure is modelled or taught.
+- Help requests are always available, logged, and never change the score.
+- The `low_visibility` research condition is a study manipulation, kept separate from accessibility aids. It is recorded with every export.
+- The synthetic patient card uses seeded identifiers (`SYN-####`) and labels ("Synthetic IOL A/B"). It contains no real names, measurements or lens powers.

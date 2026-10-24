@@ -188,13 +188,13 @@ cannot be done from this repository alone.
 | 04 | Pygame–ModernGL spike | SW-DONE | GL01–GL10 run on Windows NVIDIA RTX 3070 (GL07/GL08 candidates pass, `gl_hardware_check`); sign-off and AMD Radeon open |
 | 05 | Eye anatomy logical model | DONE | typed `Eye`/`Patient` state incl. pupil and cornea clarity |
 | 06 | Layered 2.5D renderer | DONE | `app.render_eye` layers, haze veil, decentred optic |
-| 07 | Microscope camera, lighting, focus | DONE | zoom (input-mapped), focus blur, illumination; 3D orbit/zoom |
+| 07 | Microscope camera, lighting, focus | DONE | zoom + middle-drag pan (input-mapped), focus blur, illumination; 3D orbit/zoom/fullscreen |
 | 08 | Optional 3D eye mesh, pick/depth | DONE | ModernGL atlas/game, BVH picking, CPU/GPU parity tests |
 | 09 | Patient/anesthesia abstract state | DONE | synthetic patient model, anesthesia confirmation |
 | 10 | Synthetic ECG/BP/SpO2 UI | DONE | state-driven waveforms (both apps) |
 | 11 | Patient cooperation, motion, alarms | DONE | motion/vitals hazards, timed safety hold |
-| 12 | Tool tray & input normalization | DONE | instrument tray (manual in hard), normalized/zoomed input mapping |
-| 13 | Microsurgical interaction/hit testing | DONE | difficulty tolerances, 3D ray/plane + depth gates, read-only proximity |
+| 12 | Tool tray & input normalization | DONE | instrument tray (manual in hard), 2.5D tool depth (Q/E, Shift+wheel), keyboard cursor, tremor damping, normalized/zoomed/panned mapping |
+| 13 | Microsurgical interaction/hit testing | DONE | difficulty tolerances, depth gates (2.5D and 3D), read-only proximity, normalized endpoint error |
 | 14 | Preparation & entry task | DONE | pre-op checklist gate, entry targets |
 | 15 | Capsular path challenge | DONE | bin coverage per difficulty, action-path metric |
 | 16 | Lens state & fragmentation visuals | DONE | opacity visuals 2.5D/3D, cross-section |
@@ -206,16 +206,28 @@ cannot be done from this repository alone.
 | 22 | IOL centering and positioning | DONE | alignment thresholds per difficulty |
 | 23 | IOL safety/complication checks | DONE | decentration blocks the alignment check until re-centred |
 | 24 | Wound and final inspection | DONE | wound-leak hold re-requires the wound check |
-| 25 | Recovery/handoff UI | DONE | explained results screens (2.5D/3D) |
+| 25 | Recovery/handoff UI | DONE | explained results, action map, before/after, `--replay` viewer |
 | 26 | Patient movement, pupil, haze events | DONE | motion, pupil, haze, seeded random case |
-| 27 | Capsule/visual loss complications | DONE | capsule event, corneal haze; vitreous event out of v1.x scope |
+| 27 | Capsule/visual loss complications | DONE | capsule event, capsule-rim irregularity, corneal haze, vitreous event (escalates to safe stop) |
 | 28 | Vital alert and emergency abort | DONE | vitals hazard, safe abort, safety veto on inaction |
 | 29 | Scoring, endings, feedback | DONE | 4 endings, 20/25/20/20/15 breakdown with reasons |
-| 30 | JSONL/CSV logging & experiment configs | DONE | report/CSV export, `experiments.py`, replay schema v2 |
-| 31 | Visual/audio polish and accessibility | SW-DONE | KO/EN, contrast, colour-safe, reduced motion, tones; human audit open |
+| 30 | JSONL/CSV logging & experiment configs | DONE | report/CSV export, experiments with practice/evaluation splits, schema v3 + migration, data dictionary |
+| 31 | Visual/audio polish and accessibility | SW-DONE | KO/EN, contrast, colour-safe, reduced motion, keyboard play, UI scale, break reminder, escalating non-flashing tones; human audit open |
 | 32 | Full regression, performance, release docs | SW-DONE | 707 tests, Mesa smoke/benchmarks, docs; Windows performance open |
 
 **Open items needing the owner:** run the GL01–GL10 checklist and the benchmarks
 on the Windows Radeon PC; check legibility on a physical 4K monitor; and get
 subject-matter-expert review of content plausibility. Before any study with
 participants, an ethics/IRB determination is required.
+
+### Update (2026-10-24, engine v3)
+
+Every requirement in the product, visual, architecture and research documents is now
+mapped to an implementation in a traceability table at the end of each document. The
+open items are only these:
+
+- sign-off of the Windows GPU run (done on an NVIDIA RTX 3070 by the owner) and the AMD Radeon target
+- non-100 % display scaling
+- physical 4K legibility
+- expert content review
+- ethics/IRB approval before any participant study

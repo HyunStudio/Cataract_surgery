@@ -3,7 +3,7 @@
 An open-source, **educational and research** cataract microsurgery game written in
 Python. You play a complete *abstracted* encounter from pre-operative verification to
 the explained results screen, in a 2.5D microscope view or an experimental
-hardware-accelerated 3D view, with a synthetic patient monitor, nine deterministic
+hardware-accelerated 3D view, with a synthetic patient monitor, ten deterministic
 scenarios, three difficulty levels, Korean/English UI and replayable research logs.
 
 > **Not a medical device and not surgical training.** Every value, waveform,
@@ -43,7 +43,7 @@ Each task stage needs its instrument (entry blade, capsule forceps, phaco handpi
 I/A aspirator, IOL injector). It is selected automatically in tutorial/standard; in
 hard you pick it from the tray (`T`), and using the wrong one is rejected and logged.
 
-### Scenarios (keys 1–9 on the pre-op screen)
+### Scenarios (keys 1–9 and 0 on the pre-op screen)
 
 | # | Case | What happens (synthetic) | Expected response |
 |---|---|---|---|
@@ -55,14 +55,21 @@ hard you pick it from the tray (`T`), and using the wrong one is rejected and lo
 | 6 | haze | corneal haze | assess; view clears partially |
 | 7 | decenter | IOL decentration in final checks | assess, re-centre, then check |
 | 8 | leak | wound-leak risk holds the ending | assess, re-check the wound |
-| 9 | random | one of the above, drawn from the seed and logged | — |
+| 9 | vitreous | vitreous event during cleanup | assessment escalates to a **safe stop** |
+| 0 | random | one of the above, drawn from the seed and logged | — |
+
+Repeatedly tracing off the capsule guide raises a one-time **capsule rim
+irregular** alert in any case. After it, later stages accrue capsule stress
+1.5× faster. Help (`?`) is always available and never costs points. The pre-op
+screen shows a synthetic patient card: ID, operative eye, opacity grade, pupil
+and IOL plan.
 
 ### Difficulty (`D` on the pre-op screen)
 
 | | tutorial | standard | hard |
 |---|---|---|---|
 | Target tolerances | wide | baseline | narrow |
-| Guides (ghost rings) | yes | yes | no |
+| Ghost guides (tolerance rings, IOL crosshair) | yes | no | no |
 | Instrument | automatic | automatic | choose (`T`) |
 | IOL acceptance | ≥ 55 % | ≥ 65 % | ≥ 75 % |
 | Unattended alert limit | none | 30 s | 15 s |
@@ -92,18 +99,24 @@ The weights are game-design hypotheses, not a validated skill measure.
 
 | 2.5D (`python main.py`) | |
 |---|---|
-| Mouse | task / checklists / instrument tray |
+| Mouse, or arrows + Enter | task / checklists / instrument tray (fully keyboard-playable) |
 | Space | next pre-op item → start → prepare |
-| 1–9, D | case, difficulty (pre-op only) |
-| T | cycle instrument |
-| A / X / Esc | assess alert / safe abort / pause |
-| Wheel or + −, [ ], , . | microscope zoom (locked while dragging), focus, illumination |
-| L, H, C, M, S, F1 | language, high contrast, colour-safe palette, reduced motion, sound, help |
+| 1–9, 0, D | case, difficulty (pre-op only) |
+| T, Q/E or Shift+wheel | cycle instrument, tool depth (must match the stage's depth band) |
+| A / X / Esc / ? | assess (call anesthesia team) / safe abort / pause / help request |
+| Wheel or + −, middle drag, [ ], , . | microscope zoom, pan (both locked while operating), focus, illumination |
+| L, H, C, M, S, K | language, high contrast, colour-safe palette, reduced motion, sound, tremor damping |
+| F1, F2, V | help, UI scale 100–200 %, enlarged depth cross-section |
 | G | CPU 3D mesh preview (read-only) |
 | E, R | export logs, restart |
 
+Options: `--confirm-abort` (X twice), `--condition low_visibility` (logged research view),
+`--replay FILE` (step-by-step replay viewer: Space, →, +/−, End, Esc).
+
 The 3D game (`python -m ophthosim.gl_surgery`) uses the same engine and keys for the
-procedure, plus arrows to orbit, Q/E for tool depth, F3 for frame time and S to export.
+procedure, plus arrows to orbit, Q/E or Shift+wheel for tool depth, ? for help,
+F3 for frame time, F11 for fullscreen and S to export. Its eye uses an anterior
+scleral cutaway mesh.
 
 ## Research and data
 
@@ -117,8 +130,16 @@ Every session is deterministic for a given case, seed and difficulty. **E** (2.5
 
 ```bash
 python -m ophthosim.verify_replay session_logs/case_normal_standard_seed_7.replay.jsonl
+python main.py --replay session_logs/case_normal_standard_seed_7.replay.jsonl   # watch it
 python -m ophthosim.experiments examples/experiment_demo.json --out build/experiments/demo
+python -m ophthosim.experiments examples/experiment_split.json                  # practice/evaluation
+python -m ophthosim.migrate old_trace.jsonl new_trace.jsonl                     # v1/v2 -> v3 events
 ```
+
+Field-by-field documentation: [data dictionary](docs/DATA_DICTIONARY.md). The primary
+research metric is endpoint error normalized to each task's target radius. Exports
+record the UI condition: language, palettes, motion, zoom/focus/light, scale, window
+and research condition.
 
 The experiment runner plays scripted synthetic agents (ideal, careless, slow,
 unresponsive) over case × difficulty × seed grids. It writes a metrics CSV, a JSONL
@@ -167,11 +188,12 @@ evidence. The HUD texture is uploaded zero-copy. See the
 
 | Area | State |
 |---|---|
-| Full 2.5D game: 9 scenarios, 3 difficulties, 4 endings, explained score, KO/EN, accessibility, autosave | **Implemented and tested** (707 automated tests, Python 3.12/3.13 CI) |
-| Experimental 3D game with the same engine | Implemented; verified on Linux Mesa software OpenGL in CI |
-| Windows GPU (GL01–GL10) and physical 4K legibility | **Open** — needs a run on the target PC ([checklist](docs/GPU_VALIDATION_CHECKLIST.md)) |
+| Full 2.5D game: 10 scenarios, 3 difficulties, 4 endings, explained score, KO/EN, accessibility, keyboard play, autosave, replay viewer | **Implemented and tested** (762 tests pass + 1 Windows-only, Python 3.12/3.13 CI) |
+| Experimental 3D game with the same engine | Implemented; Mesa software OpenGL in CI and a **Windows RTX 3070 run**: GL01–GL06 automated pass, 1080p mean 5.56 ms / P95 7.26 ms, GL07 no growth ([evidence](docs/GPU_VALIDATION_CHECKLIST.md#windows-hardware-run-2026-10-24)) |
+| AMD Radeon target, non-100 % display scaling, human sign-off of GL01–GL10 | **Open** — needs the owner |
 | Clinical plausibility and educational value | **Open** — needs subject-matter-expert review |
-| Vitreous event, deformable tissue physics | Out of scope for v1.x (spec "advanced") |
+| Design-document coverage | Requirement-by-requirement tables in each design doc |
+| Deformable tissue physics, physical optics | Out of scope by spec (explicit non-scope) |
 
 See the [32-work-package status](docs/ROADMAP.md#implementation-status-2026-10-24) and the
 [development log](docs/CHANGELOG.md).
@@ -183,7 +205,9 @@ ophthosim/
   engine.py           phase machine, rules, hazards, endings, score breakdown, metrics
   replay.py           deterministic command journal + integrity-checked replay (schema v2)
   report.py           explained report, timeline, CSV/JSON export
-  experiments.py      scripted synthetic agents and batch runs
+  experiments.py      scripted synthetic agents, batch runs, practice/evaluation splits
+  playback.py         step-by-step viewer over a verified replay
+  migrate.py          event-trace schema migration (v1/v2 -> v3)
   autosave.py         verified recovery points
   i18n.py             Korean/English strings
   app.py              2.5D Pygame game
@@ -191,7 +215,7 @@ ophthosim/
                       iol3d, capsule3d, vision3d, surface_probe3d, mesh_raycast …)
   gl_preview.py       3D anatomy atlas and renderer
   gl_benchmark.py     frame-time / memory benchmark; frametime.py statistics
-tests/                707 headless, SDL-dummy and GUI tests
+tests/                763 headless, SDL-dummy and GUI tests (1 Windows-only)
 docs/                 specs (KO), architecture, roadmap, safety, research, GPU checklist
 ```
 
@@ -207,6 +231,7 @@ docs/                 specs (KO), architecture, roadmap, safety, research, GPU c
 - [Progress](docs/PROGRESS.md)
 - [Safety](docs/SAFETY.md)
 - [Research plan](docs/RESEARCH_PLAN.md)
+- [Data dictionary](docs/DATA_DICTIONARY.md)
 - [GPU validation checklist](docs/GPU_VALIDATION_CHECKLIST.md)
 - [Development log](docs/CHANGELOG.md)
 

@@ -145,3 +145,24 @@ Regression spies prove two expected triangle-mesh lookups at probe preparation a
 - `report.py` derives all user-facing explanations, timelines and CSV files from engine events, so screens and exports cannot disagree.
 - `autosave.py` reuses the verified replay as the recovery point.
 - `app.py` (2.5D) and `gl_surgery.py` (3D) share `i18n.py` strings and the same engine rules. 3D picking for IOL re-centring uses the IOL stage depth, gated by the engine's `_decentered` state.
+
+## Design-document traceability (2026-10-24, engine v3)
+
+| Architecture requirement | Implementation |
+|---|---|
+| Pygame shell + two renderer backends | `app.py` (2.5D layered) and `gl_surgery.py`/`gl_preview.py` (ModernGL), one engine |
+| Headless deterministic simulation, fixed timestep, renderer never mutates state | `engine.Game`, 1/60 s steps with bounded catch-up; tests assert read-only rendering |
+| Event bus with time-stamped, seed-reproducible actions | event trace + `ReplayGame` journal (schema v3) |
+| Coordinate contracts (screen ↔ UI ↔ eye ↔ camera ray) | `App.mapped/unzoom/_crop` (zoom + pan), `input3d.pointer_to_eye`, `hud_scale` |
+| Instruments: input adapter, tip pose, proximity, cursor damping, per-task actions | stage instruments, 2.5D depth gate, 3D depth/contact/proximity, K cursor damping |
+| Procedure FSM with guards, retry/abort/help paths | pre-op gate, help action, safe abort everywhere, leak/decentration holds |
+| Complications: seeded scenarios, risk accumulation, reversible/terminal branches | 10 cases, stress accrual (×1.5 after rim irregularity), escalating vitreous/capsule branches, permanent `irreversible` flags |
+| Assessment: transparent scoring, safety vetoes, action trace, task metrics | `score_breakdown()`, veto, `metrics()` incl. normalized endpoint error |
+| Profiling: mean/P95, memory | `gl_benchmark` (GL08/GL07), RTX 3070 evidence in `docs/evidence/` |
+| Data schema: schema_version, session_id, scenario_id, step, sim_time_ms, type, payload; migration; dictionary | event fields (`kind`/`data` are type/payload), `ophthosim.migrate`, `docs/DATA_DICTIONARY.md` |
+| Bounded particle pool; collisions in the domain, never in shaders | `MAX_PARTICLES` pool (visual only); proximity/collision in `surface_distance3d`/engine |
+| Anterior globe cutaway instead of the closed background globe | `geometry.sclera_cutaway`, depth-tested |
+| Fullscreen toggle, resize, DPI | F11 (3D), resizable windows, integer HUD scale; non-100 % DPI still a manual check |
+
+The flat `ophthosim/` package is kept instead of the suggested `src/` tree; the module
+boundaries above provide the same separation.

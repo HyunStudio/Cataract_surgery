@@ -37,3 +37,18 @@ Document participant inclusion/exclusion, missingness, effect sizes and uncertai
 
 ### IRB and privacy
 Seek research ethics determination before recruiting participants or collecting behavioral study data where required; do not assume public GitHub, anonymous telemetry or student status bypasses review. Local-only logs by default, opt-in study collection only after approvals and consent. Avoid collecting real medical histories.
+
+## Implementation status (2026-10-24)
+
+| Plan item | Implementation |
+|---|---|
+| Deterministic tasks, seeds, action logs | event traces, verified replays, `experiments.py` |
+| Metrics | Normalized path length (`action_path`), target error (`endpoint_error_*`, normalized to target radius = **primary metric**), task time (`phase_time_s`), near misses, recognition latency, pause decisions, IOL alignment |
+| Conditions | baseline vs enlarged (zoom/UI scale), high contrast, reduced motion, and the research condition `low_visibility`; all logged in `ui_conditions` |
+| Practice vs evaluation, held-out seeds | `splits` in experiment configs, overlap rejected as leakage |
+| Logging of UI condition, scaling, resolution, scenario version | `report.json → ui_conditions`, `scenario_version`, `session_id` |
+| Instrument reliability (step 1) | every batch run verifies every replay; `examples/experiment_split.json` |
+| Dataset dictionary | `docs/DATA_DICTIONARY.md` |
+| Baseline strategies | scripted agents: ideal, careless, slow, unresponsive |
+
+Not done (needs people): expert content review, IRB determination, any participant study.
