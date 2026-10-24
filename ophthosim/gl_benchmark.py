@@ -66,6 +66,7 @@ def hover_at(index: int) -> tuple[float, float]:
 
 def prepare_controller(case: str = "normal", seed: int = 7) -> Surgery3DController:
     controller = Surgery3DController(case, seed)
+    for _check in ("identity", "site", "iol_plan"): controller.command("verify", _check)
     if not (controller.command("confirm") and controller.command("prepare")):
         raise RuntimeError("Benchmark case did not reach the entry phase")
     return controller

@@ -95,8 +95,9 @@ class Surgery3DController:
     it with Q/E; inaccurate depth clicks are ignored, not penalized.
     """
 
-    def __init__(self, case: str = "normal", seed: int = 7) -> None:
-        self.game = ReplayGame(case, seed)
+    def __init__(self, case: str = "normal", seed: int = 7,
+                 difficulty: str = "standard") -> None:
+        self.game = ReplayGame(case, seed, difficulty)
         self.view = View(yaw=0., pitch=0., zoom=3.6)
         self.tool_depth = STAGE_DEPTH[Phase.ENTRY]
         self.last_pose: ToolPose | None = None
@@ -193,9 +194,11 @@ class Surgery3DController:
     def advance_clock(self, delta: float) -> None:
         self.game.tick(delta)
 
-    def restart(self, case: str | None = None) -> None:
+    def restart(self, case: str | None = None,
+                difficulty: str | None = None) -> None:
         scenario = self.game.case if case is None else case
-        self.game = ReplayGame(scenario, self.game.seed)
+        level = self.game.difficulty if difficulty is None else difficulty
+        self.game = ReplayGame(scenario, self.game.seed, level)
         self.tool_depth = STAGE_DEPTH[Phase.ENTRY]
         self.last_pose = None
         self.last_contact = None

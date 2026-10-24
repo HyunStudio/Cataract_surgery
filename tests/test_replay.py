@@ -10,6 +10,7 @@ from ophthosim.replay import ReplayGame
 
 
 def _reach_capsule(game):
+    for _check in ("identity", "site", "iol_plan"): game.action("verify", _check)
     assert game.action("confirm")
     assert game.action("prepare")
     for xy in game._entry_target:
@@ -101,6 +102,7 @@ def test_rejected_in_range_commands_are_replayed():
     game = ReplayGame()
     assert not game.action("remove", .5, .5)
     assert game.journal[-1]["accepted"] is False
+    for _check in ("identity", "site", "iol_plan"): game.action("verify", _check)
     assert game.action("confirm")
     assert game.phase == Phase.ANESTHESIA
     assert game.action("abort")
@@ -155,6 +157,7 @@ def test_dirty_timing_and_large_count_rejected():
 def test_journal_overflow_refuses_incomplete_export():
     game = ReplayGame()
     game.MAX_RECORDS = 2
+    for _check in ("identity", "site", "iol_plan"): game.action("verify", _check)
     game.action("confirm")
     game.action("prepare")
     game.action("pause")
@@ -192,6 +195,7 @@ def test_stress_from_rejected_actions_replays_exactly():
 
 def test_replay_rejects_changed_acceptance_bit():
     game = ReplayGame()
+    for _check in ("identity", "site", "iol_plan"): game.action("verify", _check)
     game.action("confirm")
     rows = [json.loads(line) for line in game.export_replay_jsonl().splitlines()]
     rows[1]["accepted"] = False
@@ -202,6 +206,7 @@ def test_standalone_verify_cli(tmp_path, capsys):
     from ophthosim.verify_replay import main
 
     game = ReplayGame()
+    for _check in ("identity", "site", "iol_plan"): game.action("verify", _check)
     game.action("confirm")
     game.action("abort")
     target = tmp_path / "session.replay.jsonl"

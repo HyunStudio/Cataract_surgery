@@ -9,6 +9,7 @@ from ophthosim.engine import Game, Phase
 
 
 def enter_capsule(game):
+    for _check in ('identity', 'site', 'iol_plan'): game.action('verify', _check)
     assert game.action('confirm')
     assert game.action('prepare')
     assert game.phase == Phase.ENTRY
@@ -105,6 +106,7 @@ def test_safe_abort_is_available():
     assert game.action('abort')
     assert game.ending=='SAFELY ABORTED'
     assert game.phase==Phase.ABORTED
+    for _check in ('identity', 'site', 'iol_plan'): game.action('verify', _check)
     assert not game.action('confirm')
 
 
@@ -162,7 +164,7 @@ def test_export_json_lines_valid_and_consistent():
     game=Game();finish(game)
     events=[json.loads(line) for line in game.export_jsonl().splitlines()]
     assert len(events)==game.event_count()
-    assert all(event['schema_version']==1 and event['seed']==7 for event in events)
+    assert all(event['schema_version']==Game.VERSION==2 and event['seed']==7 for event in events)
     assert events[-1]['kind']=='ending'
     assert events[-1]['phase']=='RECOVERY'
 
@@ -230,6 +232,7 @@ def test_case_boundary_invariants_and_extreme_invalid_actions():
 def test_score_starts_at_zero_and_requires_completion():
     game=Game()
     assert game.score()==0
+    for _check in ('identity', 'site', 'iol_plan'): game.action('verify', _check)
     game.action('confirm')
     assert game.score() < 20
     completed=Game()

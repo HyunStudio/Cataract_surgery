@@ -38,13 +38,14 @@ def _invalid_constant(value: str) -> None:
 class ReplayGame(Game):
     """Game with bounded, deterministic command capture and integrity checks."""
 
-    REPLAY_VERSION = 1
+    REPLAY_VERSION = 2
     MAX_RECORDS = 16000
     MAX_TICKS = 300000
     MAX_REPLAY_BYTES = 12_000_000
 
-    def __init__(self, case: str = "normal", seed: int = 7) -> None:
-        super().__init__(case, seed)
+    def __init__(self, case: str = "normal", seed: int = 7,
+                 difficulty: str = "standard") -> None:
+        super().__init__(case, seed, difficulty)
         self.journal: list[dict[str, Any]] = []
         self.journal_overflow = False
         self._dispatch_depth = 0
@@ -83,7 +84,9 @@ class ReplayGame(Game):
         return accepted
 
     def tick(self, dt: float) -> None:
-        was_running = not self.paused and not self.ending
+        # A safety hold is timed (unattended alerts end in a veto), so its
+        # ticks are part of the deterministic command stream too.
+        was_running = not self.ending and (not self.paused or bool(self.patient.alert))
         super().tick(dt)
         if not was_running or dt == 0:
             return
@@ -105,7 +108,8 @@ class ReplayGame(Game):
         if self.journal_overflow:
             raise RuntimeError("Replay capture exceeded safety limits")
         header = {"kind": "session", "schema_version": self.REPLAY_VERSION,
-                  "case": self.case, "seed": self.seed}
+                  "case": self.case, "seed": self.seed,
+                  "difficulty": self.difficulty}
         footer = {"kind": "integrity",
                   "journal_sha256": _digest("\n".join(_canonical(row) for row in [header, *self.journal])),
                   "events_sha256": _digest(self.export_jsonl()),
@@ -128,7 +132,7 @@ class ReplayGame(Game):
         except (TypeError, json.JSONDecodeError, RecursionError) as exc:
             raise ValueError("Malformed replay JSON") from exc
         header, footer = records[0], records[-1]
-        if not isinstance(header, dict) or set(header) != {"kind", "schema_version", "case", "seed"}:
+        if not isinstance(header, dict) or set(header) != {"kind", "schema_version", "case", "seed", "difficulty"}:
             raise ValueError("Invalid replay header")
         if header["kind"] != "session" or header["schema_version"] != cls.REPLAY_VERSION:
             raise ValueError("Unsupported replay version")
@@ -142,7 +146,8 @@ class ReplayGame(Game):
         if footer["journal_sha256"] != _digest("\n".join(_canonical(row) for row in records[:-1])):
             raise ValueError("Replay command journal was modified")
         try:
-            game = cls(case=header["case"], seed=header["seed"])
+            game = cls(case=header["case"], seed=header["seed"],
+                       difficulty=header["difficulty"])
         except (ValueError, TypeError, OverflowError) as exc:
             raise ValueError("Invalid case or seed") from exc
         count = 0

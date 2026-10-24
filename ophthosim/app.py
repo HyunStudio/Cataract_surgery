@@ -38,6 +38,7 @@ PHASE_COPY = {
     Phase.CLOSE: ('FINAL SAFETY CHECKS', 'Review alignment, wound and handoff on the left panel.'),
     Phase.RECOVERY: ('RECOVERY & RESULTS', 'Simulation completed. Press E to export a synthetic JSONL log.'),
     Phase.ABORTED: ('SAFE ABORT', 'The simulation ended safely. Press R for a new case.'),
+    Phase.FAILED: ('CRITICAL FAILURE', 'A safety alert was left unattended. Review the timeline; press R to retry.'),
 }
 
 

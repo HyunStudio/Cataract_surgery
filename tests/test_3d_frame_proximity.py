@@ -17,6 +17,7 @@ from ophthosim.vision3d import visual_feedback
 
 def initial_hover():
     c=Surgery3DController(seed=19)
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     assert c.command("confirm")
     assert c.command("prepare")
     p=eye_to_pixel(.69,.46,c.tool_depth,1280,720,c.view)

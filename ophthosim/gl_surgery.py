@@ -38,6 +38,7 @@ PHASE_NAMES = {
     Phase.CLOSE: "FINAL VERIFICATION",
     Phase.RECOVERY: "RESULT / RECOVERY",
     Phase.ABORTED: "SAFE STOP",
+    Phase.FAILED: "CRITICAL FAILURE / REVIEW",
 }
 CHECKS = ("alignment", "wound", "handoff")
 

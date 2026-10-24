@@ -10,6 +10,7 @@ from ophthosim.gl_preview import AnatomyAppearance, pack_mesh
 
 
 def reach_phaco(game):
+    for _check in ("identity", "site", "iol_plan"): game.action("verify", _check)
     assert game.action("confirm")
     assert game.action("prepare")
     for x,y in game._entry_target:
@@ -42,6 +43,7 @@ def test_capsule_visual_meshes_cache_contain_true_open_arc():
 def test_capsule_state_only_visible_at_relevant_stages():
     g=Game()
     assert capsule_display_state(g)==(False,0.)
+    for _check in ("identity", "site", "iol_plan"): g.action("verify", _check)
     g.action("confirm")
     g.action("prepare")
     assert capsule_display_state(g)==(False,0.)

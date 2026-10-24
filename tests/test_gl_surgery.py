@@ -18,6 +18,7 @@ from ophthosim.replay import ReplayGame
 
 def test_full_3d_session_export_validates_replay(tmp_path):
     c=Surgery3DController(seed=12)
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     for x,y in c.game._entry_target:
@@ -46,6 +47,7 @@ def test_full_3d_session_export_validates_replay(tmp_path):
 
 def test_alert_branch_does_not_skip_safety_gate(tmp_path):
     c=Surgery3DController("motion")
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     for x,y in c.game._entry_target:

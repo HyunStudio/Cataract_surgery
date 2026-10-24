@@ -70,7 +70,12 @@ def visual_feedback(game, *, reduced_motion: bool = False,
                              Phase.CORTEX)
     # Veil scales down as the simulated lens is cleared. It has no diagnostic
     # meaning, and no invasive/real-world values are represented.
+    clarity = _bounded(getattr(game.eye, "cornea_clarity", 1.), 0., 1.,
+                       "synthetic corneal clarity")
     haze = (.08 + .26 * opacity + .08 * cortex) if visible else 0.
+    # Corneal-haze event: an extra veil until the view is re-evaluated.
+    if game.phase not in (Phase.RECOVERY, Phase.ABORTED, Phase.FAILED):
+        haze = min(.48, haze + .5 * (1. - clarity))
     if reduced_motion or motion == 0.:
         dx = dy = 0.
     elif game.paused or game.patient.alert:

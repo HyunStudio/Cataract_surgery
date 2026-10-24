@@ -136,6 +136,7 @@ def main() -> int:
         hud_zero_copy=original_swizzle(reused.get_bitsize(),reused.get_pitch(),
                                        reused.get_width(),tuple(reused.get_masks()))
 
+        for _check in ("identity", "site", "iol_plan"): ctrl.command("verify", _check)
         ctrl.command("confirm")
         ctrl.command("prepare")
         assert ctrl.game.phase == Phase.ENTRY
@@ -228,6 +229,7 @@ def main() -> int:
         # Eventful second case proves the same renderer can draw safety holds.
         ctrl = Surgery3DController("motion",seed=17)
         overlay = SurgeryHUD(ctrl)
+        for _check in ("identity", "site", "iol_plan"): ctrl.command("verify", _check)
         ctrl.command("confirm")
         ctrl.command("prepare")
         for x,y in ctrl.game._entry_target:
@@ -251,6 +253,7 @@ def main() -> int:
         # Third deterministic scenario triggers an irreversible capsule hold.
         ctrl=Surgery3DController("capsule",seed=17)
         overlay=SurgeryHUD(ctrl)
+        for _check in ("identity", "site", "iol_plan"): ctrl.command("verify", _check)
         ctrl.command("confirm")
         ctrl.command("prepare")
         for x,y in ctrl.game._entry_target:

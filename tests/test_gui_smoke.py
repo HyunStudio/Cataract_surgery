@@ -37,6 +37,7 @@ def test_all_phase_screens_render(app):
 def test_export_completed_game_visual(app):
     app.game=Game('normal')
     g=app.game
+    for _check in ('identity', 'site', 'iol_plan'): g.action('verify', _check)
     g.action('confirm')
     g.action('prepare')
     for x,y in g._entry_target:
@@ -101,6 +102,7 @@ def test_gui_exports_verifiable_replay(app, tmp_path, monkeypatch):
     from ophthosim.replay import ReplayGame
 
     monkeypatch.chdir(tmp_path)
+    for _check in ('identity', 'site', 'iol_plan'): app.game.action('verify', _check)
     assert app.game.action('confirm')
     assert app.game.action('prepare')
     assert app.game.action('abort')
@@ -116,6 +118,7 @@ def test_gui_exports_verifiable_replay(app, tmp_path, monkeypatch):
 def test_gui_replay_overflow_is_reported_not_crash(app, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     app.game.MAX_RECORDS=0
+    for _check in ('identity', 'site', 'iol_plan'): app.game.action('verify', _check)
     app.game.action('confirm')
     app.game.action('abort')
     app.save()
@@ -124,6 +127,7 @@ def test_gui_replay_overflow_is_reported_not_crash(app, tmp_path, monkeypatch):
 
 def test_3d_mesh_preview_is_interactive_but_cannot_apply_surgical_actions(app):
     """CPU mesh rotates; surgical interactions remain disabled in preview mode."""
+    for _check in ('identity', 'site', 'iol_plan'): app.game.action('verify', _check)
     app.game.action('confirm')
     app.game.action('prepare')
     assert app.game.phase == Phase.ENTRY

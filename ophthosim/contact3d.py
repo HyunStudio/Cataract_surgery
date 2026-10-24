@@ -83,28 +83,34 @@ def contact_guide(game, pose: ToolPose | None,
         return ContactGuide("DEPTH")
     u, v = pose.eye_x, pose.eye_y
     r = math.hypot(u - .5, v - .5)
+    rules = game.rules   # same difficulty tolerances the engine applies
     status = "NEAR"
     if game.phase == Phase.ENTRY:
         distances = tuple((math.hypot(u-tx, v-ty), i)
                           for i, (tx,ty) in enumerate(game._entry_target))
         distance, nearest = min(distances)
-        if distance < .09:
+        if distance < rules.entry_radius:
             status = "VISITED" if nearest in game._entered else "TARGET"
         elif distance >= .18:
             status = "NEAR" if distance < .28 else "OUTSIDE"
     elif game.phase == Phase.CAPSULE:
-        if .19 < r < .37:
+        low, high = rules.capsule_band
+        if low < r < high:
             angle = (math.atan2(v-.5, u-.5) + math.tau) % math.tau
             bin_index = int(angle / math.tau * 24) % 24
             status = "VISITED" if bin_index in game.eye.capsule_points else "TARGET"
         elif r > .48:
             status = "OUTSIDE"
     elif game.phase in (Phase.PHACO, Phase.CORTEX):
-        status = "TARGET" if r < .33 else ("NEAR" if r < .46 else "OUTSIDE")
-    elif game.phase == Phase.IOL:
+        # A constricted pupil shrinks the engine's usable work radius.
+        work = game.work_radius
+        status = "TARGET" if r < work else ("NEAR" if r < work + .13 else "OUTSIDE")
+    elif game.phase in (Phase.IOL, Phase.CLOSE):
         # Existing Game accepts misaligned placement and reports its score;
         # show nearby points as NEAR but never override that engine decision.
-        status = "TARGET" if r < .116 else ("NEAR" if r < .28 else "OUTSIDE")
+        # TARGET means the placement would pass the difficulty threshold.
+        target = (1. - rules.iol_threshold) / 3.
+        status = "TARGET" if r < target else ("NEAR" if r < .28 else "OUTSIDE")
     location = (pose.world_x, pose.world_y, pose.world_z)
     result = ContactGuide(status, location if status not in {"OUTSIDE"} else None)
     result.check()

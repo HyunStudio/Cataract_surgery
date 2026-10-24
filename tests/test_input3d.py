@@ -22,6 +22,7 @@ def gesture(controller, x, y, *, fresh_press=False):
 
 
 def enter_capsule(controller):
+    for _check in ("identity", "site", "iol_plan"): controller.command("verify", _check)
     assert controller.command("confirm")
     assert controller.command("prepare")
     assert controller.game.phase == Phase.ENTRY
@@ -85,6 +86,7 @@ def test_3d_scenario_safety_holds_prevent_click_bypass(case,trigger,alert):
 
 def test_camera_rotation_zoom_roundtrip():
     c = Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     p = (.69,.46)
@@ -99,6 +101,7 @@ def test_camera_rotation_zoom_roundtrip():
 
 def test_wrong_depth_cannot_mutate_surgery_state():
     c = Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     c.tool_depth = c.target_depth + DEPTH_TOLERANCE + .01
@@ -141,6 +144,7 @@ def test_abort_while_alerted_from_3d_and_restart():
                                   float("inf"), 10**400, [], {}])
 def test_bad_screen_coordinates_are_rejected(bad):
     c = Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     with pytest.raises(ValueError):
@@ -156,6 +160,7 @@ def test_invalid_eye_coordinates_rejected(bad):
 
 def test_screen_miss_and_rejected_commands_do_not_mutate_game():
     c = Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     before = c.game.snapshot()
@@ -168,6 +173,7 @@ def test_screen_miss_and_rejected_commands_do_not_mutate_game():
 def test_2000_randomized_3d_input_roundtrip_does_not_crash():
     rng = random.Random(404)
     c = Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     for _ in range(2000):

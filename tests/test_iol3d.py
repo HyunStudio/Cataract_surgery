@@ -12,6 +12,7 @@ from ophthosim.iol3d import foldable_iol_mesh, iol_visual_deployment
 
 def _reach_iol():
     game = Game(seed=17)
+    for _check in ("identity", "site", "iol_plan"): game.action("verify", _check)
     assert game.action("confirm")
     assert game.action("prepare")
     for x, y in game._entry_target:

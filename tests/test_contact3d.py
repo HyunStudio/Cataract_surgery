@@ -14,6 +14,7 @@ W,H = 1280,720
 
 
 def advance_to_capsule(c):
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     assert c.command("confirm")
     assert c.command("prepare")
     for x,y in c.game._entry_target:
@@ -41,6 +42,7 @@ def test_guide_cache_closed_ring_and_gpu_packing():
 
 def test_hover_is_read_only_and_replay_identical():
     c=Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     snapshot=c.game.snapshot()
@@ -86,6 +88,7 @@ def test_capsule_and_lens_stage_targets_match_game_task_ranges():
 
 def test_wrong_depth_hides_stale_guide_without_phase_change():
     c=Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     assert preview(c,.69,.46).status=="TARGET"
@@ -118,6 +121,7 @@ def test_safety_alert_forces_hold_and_no_hover_action():
 
 def test_camera_rotated_hover_matches_same_world_position():
     c=Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     for yaw,pitch,zoom in ((0,0,3.6),(.55,.22,4.),(-.8,-.45,2.8)):
@@ -139,6 +143,7 @@ def test_corrupt_depth_fails_without_overflow(bad):
                                10**400,-10**400,"0"])
 def test_corrupt_world_pose_fails_without_overflow(bad):
     c=Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     pose=ToolPose(.5,.5,bad,0.,c.tool_depth)
@@ -165,6 +170,7 @@ def test_renderer_checks_bad_guide_before_gl_context():
 def test_seeded_1500_hover_points_cannot_change_game():
     rng=random.Random(261)
     c=Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     prior=c.game.export_replay_jsonl()
