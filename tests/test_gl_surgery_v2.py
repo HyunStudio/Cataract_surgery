@@ -178,3 +178,40 @@ def test_cli_validation():
                  ["--seed", str(2**64)]):
         with pytest.raises(SystemExit):
             main(argv)
+
+
+def test_t_key_cycles_tools_and_hard_requires_choice():
+    from ophthosim.gl_surgery import cycle_tool
+    c = Surgery3DController(difficulty="hard")
+    while c.game.phase == Phase.PREOP:
+        advance_preop(c)
+    c.command("prepare")
+    x, y = c.game._entry_target[0]
+    assert not press(c, x, y, True) and c.game.wrong_tool == 1
+    seen = []
+    for _ in range(5):
+        assert cycle_tool(c)
+        seen.append(c.game.tool)
+    assert sorted(seen) == sorted(("blade", "forceps", "phaco", "aspirator", "injector"))
+    while c.game.tool != "blade":
+        cycle_tool(c)
+    assert press(c, x, y, True)
+
+
+def test_resume_controller_restores_verified_autosave(tmp_path):
+    from ophthosim.autosave import write_autosave
+    from ophthosim.gl_surgery import resume_controller
+    c = Surgery3DController("vitals", seed=4)
+    to_close(c, stop_on_alert=True)
+    for _ in range(30):
+        c.advance_clock(.05)
+    path = write_autosave(c.game, tmp_path / "a.replay.jsonl")
+    other = Surgery3DController()
+    assert resume_controller(other, path)
+    assert other.game.snapshot() == c.game.snapshot()
+    assert other.view.phase == c.view.phase
+    path.write_text("broken", encoding="utf-8")
+    with pytest.raises(ValueError):
+        resume_controller(Surgery3DController(), path)
+    c.command("abort")
+    assert write_autosave(c.game, path) is None and not path.exists()

@@ -69,7 +69,7 @@ class ReplayGame(Game):
         if is_outer and isinstance(name, str):
             item: dict[str, Any] = {"kind": "action", "name": name,
                                     "accepted": accepted}
-            if name == "verify" and isinstance(x, str) and len(x) <= 80:
+            if name in ("verify", "tool") and isinstance(x, str) and len(x) <= 80:
                 item["x"] = x
                 self._append(item)
             elif name in {"touch", "trace", "remove", "place"}:

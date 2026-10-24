@@ -22,7 +22,7 @@ import random
 import sys
 from typing import Any
 
-from .engine import CASES, DIFFICULTIES, FINAL_CHECKS, PREOP_CHECKS, Phase
+from .engine import CASES, DIFFICULTIES, FINAL_CHECKS, PREOP_CHECKS, TOOL_NAMES, Phase
 from .replay import ReplayGame
 from .report import METRIC_COLUMNS, metrics_row
 
@@ -33,10 +33,11 @@ MAX_RUNS = 5000
 POLICIES: dict[str, dict[str, float]] = {
     # jitter: target noise; miss: probability of an off-target removal;
     # delay: seconds before assessing an alert (None = never assesses).
-    'ideal': {'jitter': 0.0, 'miss': 0.0, 'delay': 1.0, 'think': 2},
-    'careless': {'jitter': .03, 'miss': .12, 'delay': 6.0, 'think': 1},
-    'slow': {'jitter': .01, 'miss': .02, 'delay': 14.0, 'think': 8},
-    'unresponsive': {'jitter': .01, 'miss': .02, 'delay': math.inf, 'think': 2},
+    'ideal': {'jitter': 0.0, 'miss': 0.0, 'delay': 1.0, 'think': 2, 'wrong_tool': 0.0},
+    'careless': {'jitter': .03, 'miss': .12, 'delay': 6.0, 'think': 1, 'wrong_tool': .3},
+    'slow': {'jitter': .01, 'miss': .02, 'delay': 14.0, 'think': 8, 'wrong_tool': 0.0},
+    'unresponsive': {'jitter': .01, 'miss': .02, 'delay': math.inf, 'think': 2,
+                     'wrong_tool': 0.0},
 }
 
 
@@ -77,11 +78,25 @@ class Agent:
         if not self.game.ending:
             self.game.action('assess')
 
+    def arm(self) -> None:
+        g = self.game
+        required = g.required_tool
+        if required is None or g.tool == required:
+            return
+        if self.rng.random() < self.p['wrong_tool']:
+            wrong = next(t for t in TOOL_NAMES if t != required)
+            g.action('tool', wrong)
+            self.wait(int(self.p['think']))
+            # One mistaken attempt is rejected before the right tool is picked.
+            g.action('touch', .5, .5)
+        g.action('tool', required)
+
     def step(self) -> None:
         g = self.game
         if g.patient.alert:
             self.handle_alert()
             return
+        self.arm()
         phase = g.phase
         if phase == Phase.PREOP:
             for item in PREOP_CHECKS:

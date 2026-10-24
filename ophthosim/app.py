@@ -12,8 +12,9 @@ import argparse
 import math
 import sys
 
+from .autosave import AUTOSAVE, load_autosave, write_autosave
 from .engine import (CASES, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
-                     ENDING_MANAGED, FINAL_CHECKS, PREOP_CHECKS, Phase)
+                     ENDING_MANAGED, FINAL_CHECKS, PREOP_CHECKS, TOOL_NAMES, Phase)
 from .i18n import LANGUAGES, t
 from .preview3d import draw_preview
 from .replay import ReplayGame as Game
@@ -23,6 +24,7 @@ from .signals import sample_trace
 WIDTH, HEIGHT = 1280, 720
 EYE_CX, EYE_CY, EYE_R = 640, 366, 222
 FIELD = (275, 75, 690, 620)
+TRAY = (292, 612, 656, 32)     # instrument tray inside the field, under the eye
 BG = (7, 18, 30)
 PANEL = (16, 32, 47)
 PANEL2 = (20, 42, 58)
@@ -259,6 +261,31 @@ class App:
         self.sounds=Sounds(pg)
         self._alerts_heard=0
         self._ending_heard=False
+        self.light=1.0
+        self.autosave_path=AUTOSAVE
+        self._saved_phase=self.game.phase
+        self._wrong_seen=0
+
+    def resume(self, path=None):
+        """Replace the current case with a verified autosave (if any)."""
+        try:
+            self.game=load_autosave(path or self.autosave_path)
+        except (OSError, ValueError) as exc:
+            self.message=t(self.lang,'ui.resume_failed',error=exc.__class__.__name__)
+            return False
+        self._alerts_heard=len(self.game.alerts)
+        self._ending_heard=bool(self.game.ending)
+        self._saved_phase=self.game.phase
+        self._wrong_seen=self.game.wrong_tool
+        self.message=t(self.lang,'ui.resumed')
+        return True
+
+    def autosave(self):
+        try:
+            write_autosave(self.game,self.autosave_path)
+        except OSError:
+            pass
+        self._saved_phase=self.game.phase
 
     # --- state helpers -------------------------------------------------
     @property
@@ -271,6 +298,7 @@ class App:
         self.game=Game(case or self.game.case,self.game.seed,difficulty or self.game.difficulty)
         self._alerts_heard=0
         self._ending_heard=False
+        self._wrong_seen=0
         self.zoom=1.0
         self.message=t(self.lang,'ui.new_case')
 
@@ -307,6 +335,7 @@ class App:
         pg=self.pg
         g=self.game
         if event.type==pg.QUIT:
+            self.autosave()
             self.running=False
         elif event.type==pg.VIDEORESIZE:
             self.screen=pg.display.set_mode((max(640,event.w),max(360,event.h)),pg.RESIZABLE)
@@ -349,6 +378,12 @@ class App:
                 self.set_zoom(self.zoom+.1)
             elif key in (pg.K_MINUS,pg.K_KP_MINUS):
                 self.set_zoom(self.zoom-.1)
+            elif key==pg.K_t:
+                self.cycle_tool()
+            elif key==pg.K_COMMA:
+                self.light=round(max(.5,self.light-.1),2)
+            elif key==pg.K_PERIOD:
+                self.light=round(min(1.3,self.light+.1),2)
             elif key==pg.K_LEFTBRACKET:
                 self.focus=round(max(0.,self.focus-.05),2)
             elif key==pg.K_RIGHTBRACKET:
@@ -377,6 +412,11 @@ class App:
             self.cursor=self.mapped(event.pos)
             if self.drag and self.game.phase==Phase.CAPSULE:
                 self.pointer_action()
+
+    def cycle_tool(self):
+        current=self.game.tool
+        index=(TOOL_NAMES.index(current)+1)%len(TOOL_NAMES) if current in TOOL_NAMES else 0
+        self.game.action('tool',TOOL_NAMES[index])
 
     def set_zoom(self, value):
         # Zoom is locked while a tool drag is in progress.
@@ -423,6 +463,10 @@ class App:
         if game.ending:
             if x>975 and y>595:
                 self.save()
+            return
+        tx,ty,tw,th=TRAY
+        if tx<=x<tx+tw and ty<=y<ty+th:
+            game.action('tool',TOOL_NAMES[min(len(TOOL_NAMES)-1,int((x-tx)//(tw/len(TOOL_NAMES))))])
             return
         if 280<=x<=962 and 88<=y<=638:
             a,b=to_eye(self.unzoom((x,y)))
@@ -559,6 +603,15 @@ class App:
         if self.zoom > 1.0:
             crop=pg.Rect(*map(round,self._crop()))
             s.blit(pg.transform.smoothscale(s.subsurface(crop).copy(),(fw,fh)),(fx,fy))
+        if self.light != 1.0:
+            # Synthetic microscope illumination (visual only).
+            field=s.subsurface(FIELD)
+            if self.light < 1.0:
+                v=round(255*self.light)
+                field.fill((v,v,v),special_flags=pg.BLEND_MULT)
+            else:
+                v=round(255*(self.light-1.0)*.6)
+                field.fill((v,v,v),special_flags=pg.BLEND_ADD)
         error=self.focus_error()
         if error > .12:
             # Out-of-focus microscope: low-pass by down/up sampling (visual only).
@@ -566,6 +619,21 @@ class App:
             area=s.subsurface(FIELD).copy()
             small=pg.transform.smoothscale(area,(max(1,round(fw/factor)),max(1,round(fh/factor))))
             s.blit(pg.transform.smoothscale(small,(fw,fh)),(fx,fy))
+
+    def draw_tray(self):
+        pg=self.pg;s=self.canvas;g=self.game;c=self.palette
+        tx,ty,tw,th=TRAY
+        width=tw/len(TOOL_NAMES)
+        required=g.required_tool
+        for i,name in enumerate(TOOL_NAMES):
+            rect=(round(tx+i*width)+2,ty,round(width)-4,th)
+            selected=name==g.tool
+            rounded(pg,s,(30,74,84) if selected else c['panel2'],rect,7)
+            if name==required:
+                pg.draw.rect(s,c['ok'] if selected else c['warn'],rect,2,border_radius=7)
+            label=('> ' if selected else '')+self.text('tool.'+name)
+            draw_text(pg,s,self.fonts,label,(rect[0]+8,ty+7),size='tiny',
+                      color=c['text'] if selected else c['muted'],max_chars=18)
 
     def draw_alert(self):
         pg=self.pg;s=self.canvas;g=self.game;c=self.palette
@@ -620,6 +688,11 @@ class App:
         if g.ending and not self._ending_heard:
             self._ending_heard=True
             self.sounds.play('end')
+        if g.wrong_tool > self._wrong_seen:
+            self._wrong_seen=g.wrong_tool
+            self.message=t(self.lang,'ui.wrong_tool',tool=t(self.lang,'tool.'+(g.required_tool or 'blade')))
+        if g.phase != self._saved_phase:
+            self.autosave()
         s.fill(c['bg'])
         draw_text(pg,s,self.fonts,'OPHTHOSIM', (24,21),size='title',color=c['accent'])
         draw_text(pg,s,self.fonts,'AI  /  CATARACT MICROSURGERY', (237,31),color=c['muted'])
@@ -631,7 +704,9 @@ class App:
         focus='—' if FOCUS_TARGET.get(g.phase) is None else ('OK' if self.focus_error()<=.12 else '~')
         draw_text(pg,s,self.fonts,('ROTATABLE 3D MESH PREVIEW - NON-INTERACTIVE' if self.view_3d
                                    else f"MICROSCOPE • {self.text('ui.zoom')} {self.zoom:.1f}x • "
-                                        f"{self.text('ui.focus')} {focus}"),(289,90),size='tiny',color=c['accent'])
+                                        f"{self.text('ui.focus')} {focus} • "
+                                        f"{self.text('ui.light')} {round(self.light*100)}%"),
+                  (289,90),size='tiny',color=c['accent'])
         if self.view_3d:
             draw_text(pg,s,self.fonts,'J/L Orbit  I/K Tilt  G Return to surgery',
                       (372,609),size='base',color=c['accent'])
@@ -643,6 +718,8 @@ class App:
         if not self.view_3d and (g.phase==Phase.IOL or (g.phase==Phase.CLOSE and g._decentered)):
             pg.draw.circle(s,c['accent'],(EYE_CX,EYE_CY),26,1)
             pg.draw.line(s,c['accent'],(EYE_CX-38,EYE_CY),(EYE_CX+38,EYE_CY),1)
+        if not self.view_3d:
+            self.draw_tray()
         self.draw_sidebar();self.draw_monitor()
         modes=' '.join(m for m,on in (('HC',self.high_contrast),('CVD',self.colour_safe),
                                          ('LOW-MOTION',self.reduced_motion),
@@ -690,6 +767,8 @@ def main(argv=None):
     parser.add_argument('--lang', choices=list(LANGUAGES),default='en')
     parser.add_argument('--seed',type=int,default=7)
     parser.add_argument('--scale',type=float,default=1.0)
+    parser.add_argument('--resume',nargs='?',const=str(AUTOSAVE),default=None,
+                        help='continue a verified autosave (default session_logs/autosave.replay.jsonl)')
     ns=parser.parse_args(argv)
     if not math.isfinite(ns.scale) or not .5<=ns.scale<=3:
         parser.error('--scale must be between 0.5 and 3')
@@ -702,6 +781,9 @@ def main(argv=None):
         raise SystemExit(2)
     pygame.init()
     try:
-        App(pygame,ns.case,ns.seed,ns.scale,ns.difficulty,ns.lang).run()
+        app=App(pygame,ns.case,ns.seed,ns.scale,ns.difficulty,ns.lang)
+        if ns.resume:
+            app.resume(ns.resume)
+        app.run()
     finally:
         pygame.quit()

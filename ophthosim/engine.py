@@ -33,6 +33,10 @@ PHASES = (Phase.PREOP, Phase.ANESTHESIA, Phase.ENTRY, Phase.CAPSULE,
 TERMINAL = frozenset((Phase.RECOVERY, Phase.ABORTED, Phase.FAILED))
 
 PREOP_CHECKS = ('identity', 'site', 'iol_plan')
+# Stage-bound synthetic instruments (names only; no device behaviour/settings).
+TOOL_NAMES = ('blade', 'forceps', 'phaco', 'aspirator', 'injector')
+STAGE_TOOLS = {Phase.ENTRY: 'blade', Phase.CAPSULE: 'forceps', Phase.PHACO: 'phaco',
+               Phase.CORTEX: 'aspirator', Phase.IOL: 'injector'}
 FINAL_CHECKS = ('alignment', 'wound', 'handoff')
 
 ENDING_COMPLETE = 'SIMULATION COMPLETE'
@@ -58,12 +62,13 @@ class Rules:
     iol_threshold: float
     alert_timeout: float | None   # seconds of unattended alert before veto
     guides: bool                   # ghost guides are a tutorial/standard aid
+    auto_tool: bool = True         # stage instrument picked automatically
 
 
 DIFFICULTIES: dict[str, Rules] = {
-    'tutorial': Rules('tutorial', .12, (.17, .39), 18, .36, .005, .55, None, True),
-    'standard': Rules('standard', .09, (.19, .37), 20, .33, .01, .65, 30., True),
-    'hard': Rules('hard', .07, (.21, .35), 22, .30, .015, .75, 15., False),
+    'tutorial': Rules('tutorial', .12, (.17, .39), 18, .36, .005, .55, None, True, True),
+    'standard': Rules('standard', .09, (.19, .37), 20, .33, .01, .65, 30., True, True),
+    'hard': Rules('hard', .07, (.21, .35), 22, .30, .015, .75, 15., False, False),
 }
 
 # Scenario hazards: (phase that triggers it on entry, alert label).
@@ -153,6 +158,8 @@ class Game:
         self.iol_attempts = 0
         self.pauses = 0
         self.action_path: dict[str, float] = {}
+        self.tool: str | None = None
+        self.wrong_tool = 0
         self._last_point: tuple[float, float] | None = None
         self.hazard = case
         self._record('start', {'case': case, 'seed': seed,
@@ -191,6 +198,13 @@ class Game:
         return round(self.rules.work_radius * min(1.0, .25 + .75 * self.eye.pupil), 4)
 
     @property
+    def required_tool(self) -> str | None:
+        """Instrument the current task expects (None outside instrument tasks)."""
+        if self.phase == Phase.CLOSE and self._decentered:
+            return 'injector'
+        return STAGE_TOOLS.get(self.phase)
+
+    @property
     def alert_elapsed(self) -> float:
         return self._alert_elapsed
 
@@ -204,6 +218,7 @@ class Game:
                 'case': self.case, 'hazard': self.hazard,
                 'difficulty': self.difficulty, 'seed': self.seed,
                 'step': self.step, 'alert_elapsed': round(self._alert_elapsed, 3),
+                'tool': self.tool,
                 'score': self.score()}
 
     # ------------------------------------------------------------------
@@ -271,6 +286,7 @@ class Game:
             'sim_time_s': round(self.time, 3), 'phase_time_s': times,
             'near_misses': self.near_misses, 'rejected_inputs': self.rejected_inputs,
             'iol_attempts': self.iol_attempts, 'pauses': self.pauses,
+            'wrong_tool': self.wrong_tool,
             'action_path': {k: round(v, 4) for k, v in self.action_path.items()},
             'alerts': [dict(a) for a in self.alerts],
         }
@@ -283,6 +299,7 @@ class Game:
         self._phase_started = self.time
         self.phase = to
         self._last_point = None
+        self.tool = STAGE_TOOLS.get(to) if self.rules.auto_tool else None
         if to in PHASES:
             self._furthest = max(self._furthest, PHASES.index(to))
         self._record('phase', {'from': previous.value, 'to': to.value})
@@ -314,6 +331,7 @@ class Game:
         elif hazard == 'decenter':
             self.eye.iol_alignment = round(min(self.eye.iol_alignment, .42), 4)
             self._decentered = True
+            self.tool = 'injector' if self.rules.auto_tool else None
         elif hazard == 'leak':
             self.eye.final_checks.discard('wound')
             self.eye.wound_integrity = round(len(self.eye.final_checks) / 3, 4)
@@ -418,6 +436,12 @@ class Game:
             return True
         if self.paused or self.patient.alert:
             return False
+        if name == 'tool':
+            if not isinstance(x, str) or x not in TOOL_NAMES:
+                return False
+            self.tool = x
+            self._record('tool', {'tool': x})
+            return True
         if self.phase == Phase.PREOP and name == 'verify':
             if not isinstance(x, str) or x not in PREOP_CHECKS:
                 return False
@@ -436,6 +460,19 @@ class Game:
             return True
         point = self._xy(x, y)
         if point is None and name not in {'verify'}:
+            return False
+        required = self.required_tool
+        stage_action = {Phase.ENTRY: 'touch', Phase.CAPSULE: 'trace', Phase.PHACO: 'remove',
+                        Phase.CORTEX: 'remove', Phase.IOL: 'place',
+                        Phase.CLOSE: 'place'}.get(self.phase)
+        # Only the stage's own action is an instrument use; any other command
+        # is simply not applicable here and is handled (rejected) below.
+        if (point is not None and required is not None and self.tool != required
+                and name == stage_action):
+            self.wrong_tool += 1
+            self.rejected_inputs += 1
+            self._record('rejected', {'action': name, 'reason': 'wrong_tool',
+                                      'tool': self.tool, 'required': required})
             return False
         accepted = self._procedure(name, point, x)
         if point is not None:

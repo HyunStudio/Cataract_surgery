@@ -21,18 +21,27 @@ def preop(game):
     assert game.action('prepare')
 
 
+def arm(game):
+    """Pick the stage instrument (hard mode does not auto-select it)."""
+    if game.required_tool and game.tool != game.required_tool:
+        assert game.action('tool', game.required_tool)
+
+
 def entry(game):
+    arm(game)
     for x, y in game._entry_target:
         assert game.action('touch', x, y)
 
 
 def capsule(game):
+    arm(game)
     for i in range(24):
         a = (i + .5) * math.tau / 24
         game.action('trace', .5 + .28 * math.cos(a), .5 + .28 * math.sin(a))
 
 
 def clear(game, phase):
+    arm(game)
     for _ in range(60):
         if game.phase != phase:
             break
@@ -45,7 +54,7 @@ def run_to(game, target):
              Phase.CAPSULE: lambda: capsule(game),
              Phase.PHACO: lambda: clear(game, Phase.PHACO),
              Phase.CORTEX: lambda: clear(game, Phase.CORTEX),
-             Phase.IOL: lambda: game.action('place', .5, .5)}
+             Phase.IOL: lambda: (arm(game), game.action('place', .5, .5))}
     for _ in range(40):
         if game.phase == target or game.ending:
             return
@@ -54,6 +63,7 @@ def run_to(game, target):
             continue
         if game.phase == Phase.CLOSE:
             if game._decentered:
+                arm(game)
                 game.action('place', .5, .5)
                 continue
             for item in FINAL_CHECKS:
@@ -116,6 +126,7 @@ def test_capsule_bins_required_by_difficulty():
         game = Game(difficulty=level)
         preop(game)
         entry(game)
+        arm(game)
         for i in range(rules.capsule_bins - 1):
             a = (i + .5) * math.tau / 24
             game.action('trace', .5 + .28 * math.cos(a), .5 + .28 * math.sin(a))
@@ -131,6 +142,7 @@ def test_iol_threshold_depends_on_difficulty():
     for level in DIFFICULTIES:
         game = Game(difficulty=level)
         run_to(game, Phase.IOL)
+        arm(game)
         game.action('place', *point)
         outcomes[level] = game.phase
     assert outcomes == {'tutorial': Phase.CLOSE, 'standard': Phase.CLOSE,
@@ -357,3 +369,40 @@ def test_replay_rejects_v1_header_and_edited_difficulty():
     with pytest.raises(ValueError):
         ReplayGame.replay_jsonl('\n'.join([json.dumps(header, separators=(',', ':'),
                                                       sort_keys=True), *lines[1:]]))
+
+
+# --- instruments --------------------------------------------------------------
+def test_standard_auto_selects_and_hard_requires_the_stage_tool():
+    standard = Game()
+    preop(standard)
+    assert standard.tool == 'blade' and standard.required_tool == 'blade'
+    hard = Game(difficulty='hard')
+    preop(hard)
+    assert hard.tool is None and hard.required_tool == 'blade'
+    x, y = hard._entry_target[0]
+    assert not hard.action('touch', x, y)
+    assert hard.wrong_tool == 1 and hard.rejected_inputs == 1
+    assert hard.action('tool', 'phaco')
+    assert not hard.action('touch', x, y) and hard.wrong_tool == 2
+    assert hard.action('tool', 'blade') and hard.action('touch', x, y)
+    reasons = [e['data'] for e in hard.events if e['kind'] == 'rejected']
+    assert reasons[-1] == {'action': 'touch', 'reason': 'wrong_tool',
+                           'tool': 'phaco', 'required': 'blade'}
+
+
+@pytest.mark.parametrize('bad', ['scalpel', '', None, 3, 'BLADE'])
+def test_unknown_tools_rejected(bad):
+    game = Game()
+    assert not game.action('tool', bad)
+
+
+def test_tool_choice_blocked_during_alert_and_journaled_in_replay():
+    game = ReplayGame('motion', 2, 'hard')
+    run_to(game, Phase.CAPSULE)
+    assert game.patient.alert
+    assert not game.action('tool', 'forceps')
+    run_to(game, Phase.RECOVERY)
+    raw = game.export_replay_jsonl()
+    assert '"name":"tool"' in raw
+    assert ReplayGame.replay_jsonl(raw).snapshot() == game.snapshot()
+    assert game.metrics()['wrong_tool'] == 0

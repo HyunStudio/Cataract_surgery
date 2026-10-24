@@ -21,9 +21,10 @@ SHOTS = os.path.abspath('build/screenshots')   # tests may chdir
 
 
 @pytest.fixture
-def app():
+def app(tmp_path):
     pygame.init()
     instance = App(pygame, scale=1)
+    instance.autosave_path = tmp_path / 'autosave.replay.jsonl'
     yield instance
     pygame.quit()
 
@@ -292,3 +293,69 @@ def test_cli_rejects_bad_arguments():
                  ['--scale', '9'], ['--seed', str(2**70)]):
         with pytest.raises(SystemExit):
             main(argv)
+
+
+# --- instruments, illumination, autosave ----------------------------------------
+def test_tray_click_and_t_key_select_instruments(app):
+    app.new_game(difficulty='hard')
+    start(app)
+    assert app.game.tool is None and app.game.required_tool == 'blade'
+    click(app, to_screen(app.game._entry_target[0]))
+    app.draw()
+    assert app.game.wrong_tool == 1 and 'Entry blade' in app.message
+    tx, ty, tw, th = (292, 612, 656, 32)
+    click(app, (tx + 3 * tw // 5 + 10, ty + 10))          # aspirator
+    assert app.game.tool == 'aspirator'
+    key(app, pygame.K_t)                                    # -> injector
+    key(app, pygame.K_t)                                    # -> blade (wraps)
+    assert app.game.tool == 'blade'
+    shot(app, 'v2-tool-tray-hard')
+    click(app, to_screen(app.game._entry_target[0]))
+    assert app.game.eye.entry_hits == 1
+
+
+def test_illumination_is_visual_only(app):
+    start(app)
+    app.draw(); normal = pixels(app, FIELD)
+    snapshot = app.game.snapshot()
+    for _ in range(3):
+        key(app, pygame.K_COMMA)
+    app.draw()
+    assert app.light == .7 and pixels(app, FIELD) != normal
+    for _ in range(10):
+        key(app, pygame.K_PERIOD)
+    assert app.light == 1.3
+    app.draw()
+    assert app.game.snapshot() == snapshot
+
+
+def test_autosave_on_phase_change_and_quit_then_resume(app):
+    app.new_game(case='motion')
+    start(app)
+    app.draw()                                              # phase changed -> saved
+    assert app.autosave_path.is_file()
+    for p in app.game._entry_target:
+        app.game.action('touch', *p)
+    for _ in range(40):
+        app.game.tick(.05)                                  # timed hold in progress
+    app.dispatch(pygame.event.Event(pygame.QUIT, {}))
+    saved = app.game.snapshot()
+    other = App(pygame, scale=1)
+    assert other.resume(app.autosave_path)
+    assert other.game.snapshot() == saved
+    assert other.game.patient.alert == 'PATIENT MOTION'
+    assert other.game.alert_elapsed == pytest.approx(2.0)
+    assert other._alerts_heard == 1                       # no repeated alert tone
+    app.autosave_path.write_text('{"tampered": true}\n', encoding='utf-8')
+    third = App(pygame, scale=1)
+    assert not third.resume(app.autosave_path)
+    assert 'Autosave not resumed' in third.message and third.game.phase == Phase.PREOP
+
+
+def test_finished_case_clears_its_autosave(app):
+    start(app)
+    app.draw()
+    assert app.autosave_path.is_file()
+    key(app, pygame.K_x)
+    app.draw()
+    assert not app.autosave_path.exists()

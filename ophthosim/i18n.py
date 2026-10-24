@@ -90,6 +90,13 @@ EN: dict[str, str] = {
     'ui.synthetic': 'Synthetic / non-clinical', 'ui.stable': 'Stable', 'ui.status': 'Status',
     'ui.options': 'F1 help · L language · H contrast · C colour-safe · M motion · S sound',
     'ui.depth': 'Depth cross-section (synthetic)', 'ui.zoom': 'Zoom', 'ui.focus': 'Focus',
+    'ui.tools': 'Instruments (T)', 'ui.light': 'Light',
+    'ui.wrong_tool': 'Select the {tool} for this step (T or tray).',
+    'ui.resumed': 'Resumed the autosaved case.',
+    'ui.resume_failed': 'Autosave not resumed: {error}',
+    'tool.blade': 'Entry blade', 'tool.forceps': 'Capsule forceps',
+    'tool.phaco': 'Phaco handpiece', 'tool.aspirator': 'I/A aspirator',
+    'tool.injector': 'IOL injector',
     'bar.opacity': 'Lens opacity', 'bar.cortex': 'Cortex remaining',
     'bar.capsule': 'Capsule integrity', 'bar.iol': 'IOL alignment',
     'ui.sound_on': 'Sound on', 'ui.sound_off': 'Sound off', 'ui.exported': 'Exported to {path}',
@@ -97,7 +104,8 @@ EN: dict[str, str] = {
     'ui.preview3d': '3D mesh preview: J/L orbit, I/K tilt, G return.',
     'ui.back_2d': 'Returned to the 2.5D surgical view.',
     'ui.help': 'Help', 'ui.help.body': 'Mouse: task · Space: next checklist item · '
-               '1-9 case · Q/W/E difficulty · Wheel/+/- zoom · [ ] focus · G 3D preview',
+               '1-9 case · D difficulty · T instrument · Wheel/+/- zoom · [ ] focus · '
+               ', . light · G 3D preview',
 }
 
 KO: dict[str, str] = {
@@ -166,6 +174,12 @@ KO: dict[str, str] = {
     'ui.stable': '안정', 'ui.status': '상태',
     'ui.options': 'F1 도움말 · L 언어 · H 고대비 · C 색각 · M 움직임 · S 소리',
     'ui.depth': '깊이 단면도 (가상)', 'ui.zoom': '확대', 'ui.focus': '초점',
+    'ui.tools': '기구 (T)', 'ui.light': '조명',
+    'ui.wrong_tool': '이 단계에는 {tool}을(를) 선택하세요 (T 또는 기구 트레이).',
+    'ui.resumed': '자동 저장된 케이스를 이어서 진행합니다.',
+    'ui.resume_failed': '자동 저장을 불러오지 못했습니다: {error}',
+    'tool.blade': '진입 칼', 'tool.forceps': '전낭 겸자', 'tool.phaco': '초음파 핸드피스',
+    'tool.aspirator': '관류·흡인기', 'tool.injector': 'IOL 주입기',
     'bar.opacity': '수정체 혼탁도', 'bar.cortex': '잔여 피질', 'bar.capsule': '수정체낭 보존',
     'bar.iol': 'IOL 정렬',
     'ui.sound_on': '소리 켬', 'ui.sound_off': '소리 끔', 'ui.exported': '{path}에 저장했습니다',
@@ -173,7 +187,8 @@ KO: dict[str, str] = {
     'ui.preview3d': '3D 메시 미리보기: J/L 회전, I/K 기울기, G 복귀.',
     'ui.back_2d': '2.5D 수술 화면으로 돌아왔습니다.',
     'ui.help': '도움말', 'ui.help.body': '마우스: 과제 · Space: 다음 체크 항목 · '
-               '1-9 케이스 · Q/W/E 난이도 · 휠/+/- 확대 · [ ] 초점 · G 3D 미리보기',
+               '1-9 케이스 · D 난이도 · T 기구 · 휠/+/- 확대 · [ ] 초점 · , . 조명 · '
+               'G 3D 미리보기',
 }
 
 _TABLES = {'en': EN, 'ko': KO}

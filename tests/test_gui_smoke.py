@@ -12,9 +12,10 @@ from ophthosim.engine import Game, Phase
 
 
 @pytest.fixture
-def app():
+def app(tmp_path):
     pygame.init()
     instance=App(pygame,scale=1)
+    instance.autosave_path=tmp_path/'autosave.replay.jsonl'
     yield instance
     pygame.quit()
 

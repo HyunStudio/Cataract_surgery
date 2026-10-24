@@ -126,7 +126,7 @@ def events_csv(game: Game) -> str:
 
 
 METRIC_COLUMNS = ('case', 'hazard', 'difficulty', 'seed', 'ending', 'score', 'sim_time_s',
-                  'near_misses', 'rejected_inputs', 'iol_attempts', 'pauses',
+                  'near_misses', 'rejected_inputs', 'wrong_tool', 'iol_attempts', 'pauses',
                   'alert_count', 'first_alert_latency_s', 'first_alert_response',
                   'score_stages', 'score_tissue', 'score_iol', 'score_response',
                   'score_safety')

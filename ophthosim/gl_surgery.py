@@ -16,8 +16,9 @@ from pathlib import Path
 import sys
 import textwrap
 
+from .autosave import AUTOSAVE, load_autosave, write_autosave
 from .engine import (CASES, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
-                     ENDING_MANAGED, PREOP_CHECKS, Phase)
+                     ENDING_MANAGED, PREOP_CHECKS, TOOL_NAMES, Phase)
 from .i18n import LANGUAGES, t
 from .report import explain, save_session as save_report, timeline
 from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
@@ -127,6 +128,11 @@ class SurgeryHUD:
             label("SPACE: next  1-9 case  D level"[:26], 24, 437, color=light)
         else:
             label(f"Tool z: {c.tool_depth:+.2f}", 24, 350, color=green)
+        required = g.required_tool
+        if required is not None and not g.ending:
+            current = t(lang, "tool."+g.tool) if g.tool else "—"
+            label(f"{current} [T]"[:28], 24, 128,
+                  color=green if g.tool == required else amber)
         if c.last_contact is not None:
             kind=c.last_contact.status
             label(f"TOOL GUIDE: {kind}", 24, 151,
@@ -297,6 +303,25 @@ def save_session(controller: Surgery3DController,
     return first,second
 
 
+def cycle_tool(controller: Surgery3DController) -> bool:
+    """T key: select the next synthetic instrument (engine-validated)."""
+    current = controller.game.tool
+    index = (TOOL_NAMES.index(current)+1) % len(TOOL_NAMES) if current in TOOL_NAMES else 0
+    return controller.command("tool", TOOL_NAMES[index])
+
+
+def resume_controller(controller: Surgery3DController,
+                      path=AUTOSAVE) -> bool:
+    """Swap in a verified autosaved game; the caller reports failures."""
+    game = load_autosave(path)
+    controller.game = game
+    controller.tool_depth = controller.target_depth or controller.tool_depth
+    controller.last_pose = None
+    controller.last_contact = None
+    controller._sync(Phase.PREOP if game.phase != Phase.PREOP else Phase.ABORTED)
+    return True
+
+
 def advance_preop(controller: Surgery3DController) -> bool:
     """SPACE in PREOP: tick the next checklist item, then start the case."""
     g = controller.game
@@ -307,7 +332,7 @@ def advance_preop(controller: Surgery3DController) -> bool:
 
 
 def run(case: str="normal",seed: int=7,difficulty: str="standard",
-        lang: str="en") -> None:
+        lang: str="en",resume: str | None=None) -> None:
     try:
         import pygame
         import moderngl
@@ -322,8 +347,15 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
         hud=SurgeryHUD(controller)
         hud.lang=lang if lang in LANGUAGES else "en"
         sounds=Sounds(pygame)
-        heard_alerts=0
-        heard_ending=False
+        if resume:
+            try:
+                resume_controller(controller,resume)
+                hud.status=t(hud.lang,"ui.resumed")
+            except (OSError,ValueError) as exc:
+                hud.status=t(hud.lang,"ui.resume_failed",error=type(exc).__name__)
+        heard_alerts=len(controller.game.alerts)
+        heard_ending=bool(controller.game.ending)
+        saved_phase=controller.game.phase
         current_atlas="CATARACT"
         clock=pygame.time.Clock()
         profiler=FrameProfiler(capacity=600)
@@ -342,6 +374,7 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
             for event in pygame.event.get():
                 g=controller.game
                 if event.type==pygame.QUIT:
+                    write_autosave(controller.game)
                     running=False
                 elif event.type==pygame.MOUSEBUTTONUP and event.button==1:
                     dragging=False
@@ -377,6 +410,8 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                         dragging=False
                         heard_alerts=0
                         heard_ending=False
+                    elif key==pygame.K_t:
+                        cycle_tool(controller)
                     elif key==pygame.K_l:
                         hud.lang=LANGUAGES[(LANGUAGES.index(hud.lang)+1)%len(LANGUAGES)]
                     elif key==pygame.K_d and g.phase==Phase.PREOP and not g.eye.preop_checks:
@@ -424,6 +459,12 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
             if g.ending and not heard_ending:
                 heard_ending=True
                 sounds.play("end")
+            if g.phase != saved_phase:
+                saved_phase=g.phase
+                try:
+                    write_autosave(g)
+                except OSError:
+                    pass
             if g.patient.alert or g.ending or g.paused:
                 dragging=False
             if dragging and g.phase in (Phase.PHACO,Phase.CORTEX):
@@ -463,10 +504,12 @@ def main(argv=None) -> int:
     parser.add_argument("--difficulty",choices=list(DIFFICULTIES),default="standard")
     parser.add_argument("--lang",choices=list(LANGUAGES),default="en")
     parser.add_argument("--seed",type=int,default=7)
+    parser.add_argument("--resume",nargs="?",const=str(AUTOSAVE),default=None,
+                        help="continue a verified autosave")
     ns=parser.parse_args(argv)
     if isinstance(ns.seed,bool) or abs(ns.seed)>2**63-1:
         parser.error("seed must fit in bounded signed 64-bit range")
-    run(ns.case,ns.seed,ns.difficulty,ns.lang)
+    run(ns.case,ns.seed,ns.difficulty,ns.lang,ns.resume)
     return 0
 
 
