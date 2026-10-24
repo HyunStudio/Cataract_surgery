@@ -68,7 +68,8 @@ class Rules:
 
 DIFFICULTIES: dict[str, Rules] = {
     'tutorial': Rules('tutorial', .12, (.17, .39), 18, .36, .005, .55, None, True, True),
-    'standard': Rules('standard', .09, (.19, .37), 20, .33, .01, .65, 30., True, True),
+    # Ghost guides (tolerance rings, IOL crosshair) are a tutorial-only aid.
+    'standard': Rules('standard', .09, (.19, .37), 20, .33, .01, .65, 30., False, True),
     'hard': Rules('hard', .07, (.21, .35), 22, .30, .015, .75, 15., False, False),
 }
 

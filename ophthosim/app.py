@@ -10,12 +10,15 @@ from __future__ import annotations
 from array import array
 import argparse
 import math
+from pathlib import Path
 import sys
 
 from .autosave import AUTOSAVE, load_autosave, write_autosave
 from .engine import (CASES, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
                      ENDING_MANAGED, FINAL_CHECKS, PREOP_CHECKS, TOOL_NAMES, Phase)
 from .i18n import LANGUAGES, t
+from .iol3d import iol_visual_deployment
+from .playback import ReplayPlayer
 from .preview3d import draw_preview
 from .replay import ReplayGame as Game
 from .report import explain, save_session, timeline
@@ -55,6 +58,13 @@ FOCUS_TARGET = {Phase.ENTRY: .3, Phase.CAPSULE: .42, Phase.PHACO: .55,
 TASK_DEPTH = {Phase.ENTRY: .08, Phase.CAPSULE: .34, Phase.PHACO: .55,
               Phase.CORTEX: .7, Phase.IOL: .52, Phase.CLOSE: .1}
 FONT_NAMES = 'malgungothic,applesdgothicneo,notosanscjkkr,nanumgothic,segoeui'
+DEPTH_TOLERANCE = .08          # cross-section units; outside it a tool action is held
+UI_SCALES = (1.0, 1.25, 1.5, 2.0)
+MAX_PARTICLES = 48             # bounded phaco fragment pool (visual only)
+BREAK_AFTER_S = 20 * 60        # eye-fatigue reminder interval (wall clock)
+CONDITIONS = ('baseline', 'low_visibility')   # research conditions, not accessibility
+PROGRESS_PHASES = (Phase.PREOP, Phase.ANESTHESIA, Phase.ENTRY, Phase.CAPSULE, Phase.PHACO,
+                   Phase.CORTEX, Phase.IOL, Phase.CLOSE, Phase.RECOVERY)
 
 # Kept for backwards compatibility with older imports/tests.
 PHASE_COPY = {phase: (t('en', f'phase.{phase.value}').upper(), t('en', f'goal.{phase.value}'))
@@ -113,12 +123,16 @@ def render_eye(pg, surf, model, clock_s, palette=None, *, animate=True):
         surf.blit(overlay, (EYE_CX-210,EYE_CY-210))
     if model.phase in {Phase.IOL, Phase.CLOSE, Phase.RECOVERY} and (
             eye.iol_alignment > 0 or model.phase == Phase.IOL):
-        # Decentration is shown as a visible offset of the synthetic optic.
+        # Decentration is shown as a visible offset of the synthetic optic;
+        # the folded optic unfolds on simulation time (same as the 3D view).
         shift = round(70 * (1 - eye.iol_alignment)) if model.phase != Phase.IOL else 0
+        deploy = iol_visual_deployment(model)
         overlay = pg.Surface((260,260),pg.SRCALPHA)
-        pg.draw.circle(overlay,(150,231,239,72),(130,130),105)
-        pg.draw.circle(overlay,(215,253,255,145),(130,130),102,2)
-        pg.draw.ellipse(overlay,(180,240,246,170), (54,28,152,204),2)
+        radius = round(105 * (.35 + .65 * deploy))
+        pg.draw.circle(overlay,(150,231,239,72),(130,130),radius)
+        pg.draw.circle(overlay,(215,253,255,145),(130,130),max(2,radius-3),2)
+        width = round(152 * (.25 + .75 * deploy))
+        pg.draw.ellipse(overlay,(180,240,246,170), (130-width//2,28,width,204),2)
         surf.blit(overlay,(EYE_CX-130+shift,EYE_CY-130))
     # Reflection and anterior corneal specular glint.
     transparent = pg.Surface((EYE_R*2+20,EYE_R*2+20),pg.SRCALPHA)
@@ -140,7 +154,13 @@ def render_eye(pg, surf, model, clock_s, palette=None, *, animate=True):
             pg.draw.circle(surf,(240,237,211),pos,3)
             if rules.guides and not done:
                 pg.draw.circle(surf, c['warn'], pos, round(rules.entry_radius*EYE_R*2), 1)
+    ring = pg.Rect(0, 0, round(.56*EYE_R*2), round(.56*EYE_R*2))
+    ring.center = center
     if model.phase == Phase.CAPSULE:
+        # The traced rim grows as one continuous closed curve.
+        for n in sorted(eye.capsule_points):
+            start = -(n+1)*math.tau/24
+            pg.draw.arc(surf, c['ok'], ring, start, start+math.tau/24+.02, 3)
         for n in range(24):
             a = (n+.5)*math.tau/24
             p = to_screen((.5+math.cos(a)*.28,.5+math.sin(a)*.28))
@@ -151,6 +171,12 @@ def render_eye(pg, surf, model, clock_s, palette=None, *, animate=True):
             pg.draw.circle(surf, c['muted'], center, round(high*EYE_R*2), 1)
     if model.phase in (Phase.PHACO, Phase.CORTEX) and rules.guides:
         pg.draw.circle(surf, c['muted'], center, round(model.work_radius*EYE_R*2), 1)
+    if eye.capsule_integrity < .85 and model.phase not in (Phase.PREOP, Phase.ANESTHESIA,
+                                                           Phase.ENTRY):
+        # Damaged capsule: broken red rim (structural change shown, not taught).
+        for n in range(0, 24, 2):
+            start = n*math.tau/24
+            pg.draw.arc(surf, c['bad'], ring, start, start+math.tau/40, 3)
 
 
 def draw_text(pg, surf, fonts, text, xy, *, color=TEXT, size='base', max_chars=None):
@@ -273,6 +299,48 @@ class App:
         self.autosave_path=AUTOSAVE
         self._saved_phase=self.game.phase
         self._wrong_seen=0
+        self.scale=scale
+        self.tool_depth=TASK_DEPTH.get(self.game.phase,.1)
+        self.depth_rejections=0
+        self.pan=(0.,0.)
+        self._panning=None
+        self.big_section=False
+        self.confirm_abort=False
+        self._abort_armed=0.
+        self.damping=False
+        self.condition='baseline'
+        self.player=None
+        self.particles=[]
+        self._fx_rng=__import__('random').Random(0)
+        self._progress=(self.game.eye.opacity,self.game.eye.cortex)
+        self._near_seen=0
+        self._near_mark=None
+        self._alarm2=False
+        self.play_seconds=0.
+        self._next_break=BREAK_AFTER_S
+        self._depth_phase=self.game.phase
+
+    def start_replay(self, raw):
+        """Switch to the read-only replay viewer for a verified journal."""
+        try:
+            self.player=ReplayPlayer(raw)
+        except (ValueError, KeyError, TypeError) as exc:
+            self.message=t(self.lang,'ui.export_failed',error=exc.__class__.__name__)
+            return False
+        self.game=self.player.game
+        self._alerts_heard=0
+        self.message=t(self.lang,'ui.replay')
+        return True
+
+    def ui_conditions(self):
+        """Display/UI condition logged with every export (research plan)."""
+        w,h=self.screen.get_size()
+        return {'language':self.lang,'high_contrast':self.high_contrast,
+                'colour_safe':self.colour_safe,'reduced_motion':self.reduced_motion,
+                'zoom':self.zoom,'focus':self.focus,'light':self.light,
+                'ui_scale':self.scale,'window':[w,h],'cursor_damping':self.damping,
+                'research_condition':self.condition,'input':'mouse/keyboard',
+                'frame_rate_target':60}
 
     def resume(self, path=None):
         """Replace the current case with a verified autosave (if any)."""
@@ -308,6 +376,12 @@ class App:
         self._ending_heard=False
         self._wrong_seen=0
         self.zoom=1.0
+        self.pan=(0.,0.)
+        self.particles=[]
+        self._near_seen=0
+        self._near_mark=None
+        self._alarm2=False
+        self._progress=(1.,1.)
         self.message=t(self.lang,'ui.new_case')
 
     def mapped(self, raw):
@@ -320,8 +394,8 @@ class App:
         """Source rectangle of the field magnified by the microscope zoom."""
         fx,fy,fw,fh=FIELD
         cw,ch=fw/self.zoom,fh/self.zoom
-        cx=min(max(EYE_CX,fx+cw/2),fx+fw-cw/2)
-        cy=min(max(EYE_CY,fy+ch/2),fy+fh-ch/2)
+        cx=min(max(EYE_CX+self.pan[0],fx+cw/2),fx+fw-cw/2)
+        cy=min(max(EYE_CY+self.pan[1],fy+ch/2),fy+fh-ch/2)
         return cx-cw/2,cy-ch/2,cw,ch
 
     def unzoom(self, point):
@@ -347,14 +421,44 @@ class App:
             self.running=False
         elif event.type==pg.VIDEORESIZE:
             self.screen=pg.display.set_mode((max(640,event.w),max(360,event.h)),pg.RESIZABLE)
+        elif self.player is not None:
+            self.replay_input(event)
         elif event.type==pg.MOUSEWHEEL and not self.drag:
-            self.set_zoom(self.zoom+.1*event.y)
+            if pg.key.get_mods() & pg.KMOD_SHIFT:
+                self.adjust_depth(.04*event.y)          # Shift+wheel: tool depth
+            else:
+                self.set_zoom(self.zoom+.1*event.y)
+        elif event.type==pg.KEYUP and event.key in (pg.K_RETURN,pg.K_KP_ENTER):
+            self.drag=False
         elif event.type==pg.KEYDOWN:
             key=event.key
             if key==pg.K_ESCAPE:
                 g.action('pause')
             elif key==pg.K_x:
-                g.action('abort')
+                self.request_abort()
+            elif key in (pg.K_UP,pg.K_DOWN,pg.K_LEFT,pg.K_RIGHT) and not self.view_3d:
+                # Keyboard cursor: every task can be done without a mouse.
+                step=2 if pg.key.get_mods() & pg.KMOD_SHIFT else 6
+                dx={pg.K_LEFT:-step,pg.K_RIGHT:step}.get(key,0)
+                dy={pg.K_UP:-step,pg.K_DOWN:step}.get(key,0)
+                self.cursor=(min(WIDTH-1,max(0,self.cursor[0]+dx)),min(HEIGHT-1,max(0,self.cursor[1]+dy)))
+                if self.drag and g.phase==Phase.CAPSULE:
+                    self.pointer_action()
+            elif key in (pg.K_RETURN,pg.K_KP_ENTER):
+                self.drag=True
+                self.pointer_action()
+            elif key==pg.K_q and not self.view_3d:
+                self.adjust_depth(-.04)
+            elif key==pg.K_e and not g.ending:
+                self.adjust_depth(.04)
+            elif key==pg.K_F2:
+                self.cycle_scale()
+            elif key==pg.K_v:
+                self.big_section=not self.big_section
+            elif key==pg.K_k and not self.view_3d:
+                self.damping=not self.damping
+            elif key in (pg.K_SLASH,pg.K_QUESTION):
+                self.request_help()
             elif key==pg.K_a:
                 g.action('assess')
             elif key==pg.K_r:
@@ -382,6 +486,8 @@ class App:
                 self.message=t(self.lang,'ui.sound_on' if self.sounds.enabled else 'ui.sound_off')
             elif key==pg.K_F1:
                 self.show_help=not self.show_help
+                if self.show_help:
+                    self.request_help(show=False)
             elif key in (pg.K_EQUALS,pg.K_PLUS,pg.K_KP_PLUS):
                 self.set_zoom(self.zoom+.1)
             elif key in (pg.K_MINUS,pg.K_KP_MINUS):
@@ -414,12 +520,91 @@ class App:
             if event.button==1:
                 self.drag=True
                 self.pointer_action()
+            elif event.button==2 and not self.drag:
+                self._panning=self.cursor            # middle drag pans the microscope
         elif event.type == pg.MOUSEBUTTONUP and event.button==1:
             self.drag=False
+        elif event.type == pg.MOUSEBUTTONUP and event.button==2:
+            self._panning=None
         elif event.type==pg.MOUSEMOTION:
-            self.cursor=self.mapped(event.pos)
+            target=self.mapped(event.pos)
+            if self._panning is not None and not self.drag:
+                dx=(self._panning[0]-target[0])/self.zoom
+                dy=(self._panning[1]-target[1])/self.zoom
+                self.pan=(max(-220.,min(220.,self.pan[0]+dx)),max(-220.,min(220.,self.pan[1]+dy)))
+                self._panning=target
+            if self.damping and self.drag:
+                # Tremor damping: exponential smoothing of the tool cursor.
+                target=(self.cursor[0]+.35*(target[0]-self.cursor[0]),
+                        self.cursor[1]+.35*(target[1]-self.cursor[1]))
+            self.cursor=target
             if self.drag and self.game.phase==Phase.CAPSULE:
                 self.pointer_action()
+
+    def replay_input(self, event):
+        pg=self.pg;p=self.player
+        if event.type==pg.QUIT:
+            self.running=False
+        elif event.type==pg.KEYDOWN:
+            if event.key==pg.K_SPACE:
+                p.toggle()
+            elif event.key==pg.K_RIGHT:
+                p.playing=False
+                p.step()
+            elif event.key in (pg.K_EQUALS,pg.K_PLUS,pg.K_KP_PLUS):
+                p.faster()
+            elif event.key in (pg.K_MINUS,pg.K_KP_MINUS):
+                p.slower()
+            elif event.key==pg.K_END:
+                p.finish()
+            elif event.key==pg.K_ESCAPE:
+                self.running=False
+            elif event.key==pg.K_l:
+                self.lang=LANGUAGES[(LANGUAGES.index(self.lang)+1)%len(LANGUAGES)]
+
+    def request_abort(self):
+        if not self.confirm_abort or self._abort_armed > 0:
+            self._abort_armed=0.
+            self.game.action('abort')
+        else:
+            self._abort_armed=3.0            # hold-to-confirm window (seconds)
+            self.message=t(self.lang,'ui.confirm_abort')
+
+    def request_help(self, show=True):
+        if self.game.action('help'):
+            self.message=t(self.lang,'ui.help_sent')
+            if show:
+                self.show_help=True
+
+    def adjust_depth(self, delta):
+        if TASK_DEPTH.get(self.game.phase) is not None and not self.drag:
+            self.tool_depth=round(max(0.,min(1.,self.tool_depth+delta)),3)
+
+    def cycle_scale(self):
+        index=(UI_SCALES.index(self.scale)+1)%len(UI_SCALES) if self.scale in UI_SCALES else 0
+        self.scale=UI_SCALES[index]
+        self.screen=self.pg.display.set_mode((round(WIDTH*self.scale),round(HEIGHT*self.scale)),
+                                             self.pg.RESIZABLE)
+
+    def depth_ok(self):
+        task=TASK_DEPTH.get(self.game.phase)
+        return task is None or abs(self.tool_depth-task) <= DEPTH_TOLERANCE
+
+    def tick_ui(self, dt):
+        """Wall-clock UI timers: confirm window, particles, break reminder."""
+        g=self.game
+        self._abort_armed=max(0.,self._abort_armed-dt)
+        if not g.paused and not g.ending and g.phase not in (Phase.PREOP,Phase.ANESTHESIA):
+            self.play_seconds+=dt
+            if self.play_seconds>=self._next_break:
+                self._next_break+=BREAK_AFTER_S
+                self.message=t(self.lang,'ui.break')
+        alive=[]
+        for x,y,vx,vy,life in self.particles:
+            life-=dt
+            if life>0:
+                alive.append((x+vx*dt,y+vy*dt,vx,vy,life))
+        self.particles=alive
 
     def cycle_tool(self):
         current=self.game.tool
@@ -451,6 +636,9 @@ class App:
             return
         x,y=self.cursor
         game=self.game
+        if 27<=x<=252 and 647<=y<=673:
+            self.request_help()
+            return
         if game.patient.alert:
             if x>=955 and y>=550:
                 game.action('assess')
@@ -477,6 +665,10 @@ class App:
             game.action('tool',TOOL_NAMES[min(len(TOOL_NAMES)-1,int((x-tx)//(tw/len(TOOL_NAMES))))])
             return
         if 280<=x<=962 and 88<=y<=638:
+            if not self.depth_ok():
+                self.depth_rejections+=1
+                self.message=t(self.lang,'ui.depth_wrong')
+                return
             a,b=to_eye(self.unzoom((x,y)))
             if game.phase==Phase.ENTRY:
                 game.action('touch',a,b)
@@ -490,7 +682,7 @@ class App:
     def save(self):
         # Deliberately no personal patient identifiers; synthetic logs only.
         try:
-            paths=save_session(self.game,'session_logs',lang=self.lang)
+            paths=save_session(self.game,'session_logs',lang=self.lang,ui=self.ui_conditions())
             self.message=t(self.lang,'ui.exported',path=paths[0].parent)
         except (OSError, RuntimeError, ValueError) as exc:
             self.message=t(self.lang,'ui.export_failed',error=exc.__class__.__name__)
@@ -502,21 +694,33 @@ class App:
     def draw_sidebar(self):
         pg=self.pg;surf=self.canvas;c=self.palette;g=self.game
         rounded(pg,surf,c['panel'],(15,75,250,620),14)
-        draw_text(pg,surf,self.fonts,self.text('phase.'+g.phase.value).upper(),(29,96),color=c['accent'],size='base',max_chars=26)
+        title=self.text('phase.'+g.phase.value).upper()
+        draw_text(pg,surf,self.fonts,title,(29,96),color=c['accent'],
+                  size='base' if self.fonts['base'].size(title)[0]<=222 else 'tiny',max_chars=34)
         for i,line in enumerate(wrapped(self.text('goal.'+g.phase.value),font=self.fonts['base'],max_px=215)[:4]):
             draw_text(pg,surf,self.fonts,line,(29,126+i*23),color=c['muted'])
         pg.draw.line(surf,(48,76,91),(29,224),(248,224),1)
         draw_text(pg,surf,self.fonts,f"{self.text('ui.difficulty')}: {self.text('difficulty.'+g.difficulty)}",
                   (29,234),size='tiny',color=c['muted'])
         if g.phase==Phase.PREOP:
-            draw_text(pg,surf,self.fonts,f"{self.text('ui.select_case')} [1-9] · D",(29,256),size='tiny',color=c['accent'])
-            draw_text(pg,surf,self.fonts,self.text('case.'+g.case),(29,276),size='base',color=c['ok'],max_chars=26)
+            draw_text(pg,surf,self.fonts,f"{self.text('ui.select_case')} [1-9,0] · D",(29,250),size='tiny',color=c['accent'])
+            draw_text(pg,surf,self.fonts,self.text('case.'+g.case),(29,266),size='base',color=c['ok'],max_chars=26)
+            card=g.patient_card
+            for i,line in enumerate((f"{self.text('card.title')} {card['patient_id']}",
+                                     f"{self.text('card.eye.'+card['eye'])} · {card['iol_plan']}",
+                                     f"{self.text('card.grade',grade=card['opacity_grade'])} · "
+                                     f"{self.text('card.pupil.'+card['pupil'])}")):
+                draw_text(pg,surf,self.fonts,line,(29,288+i*17),size='tiny',
+                          color=c['text'] if i<2 else c['muted'],max_chars=40)
             self.checklist(PREOP_CHECKS,g.eye.preop_checks)
         elif g.phase==Phase.CLOSE:
             if g._decentered:
                 for i,line in enumerate(wrapped(self.text('hint.IOL DECENTRATION'),font=self.fonts['base'],max_px=215)):
                     draw_text(pg,surf,self.fonts,line,(29,282+i*22),color=c['warn'])
             self.checklist(FINAL_CHECKS,g.eye.final_checks,numbered=True)
+        elif g.ending:
+            self.heatmap(pg,surf,(27,262,225,225))
+            self.cross_section(pg,surf,(27,492,225,148))
         else:
             rows=((self.text('bar.opacity'),g.eye.opacity,c['warn']),
                   (self.text('bar.cortex'),g.eye.cortex,c['accent']),
@@ -526,11 +730,41 @@ class App:
                 yy=262+i*56
                 draw_text(pg,surf,self.fonts,f'{label}  {round(val*100)}%',(29,yy),color=c['muted'],size='tiny')
                 bar(pg,surf,30,yy+22,215,val,color)
-            self.cross_section(pg,surf,(27,492,225,148))
+            if g.phase!=Phase.ANESTHESIA:
+                self.cross_section(pg,surf,(27,492,225,148))
         if g.phase in (Phase.PREOP,Phase.ANESTHESIA):
             rounded(pg,surf,(24,104,111),(28,573,223,59),10)
             draw_text(pg,surf,self.fonts,self.text('ui.next'),(39,590),size='base')
-        draw_text(pg,surf,self.fonts,self.text('ui.pause_abort'),(27,653),size='tiny',color=c['muted'])
+        # Keyboard and click: '?' / F1 help request, ESC pause, X safe abort.
+        rounded(pg,surf,c['panel2'],(27,647,225,26),7)
+        draw_text(pg,surf,self.fonts,'? '+self.text('ui.help_request')[:22]+'  ·  X',(35,651),size='tiny',color=c['text'])
+
+    def heatmap(self, pg, surf, rect):
+        """Where actions landed (results): removals, near misses, entries, IOL."""
+        c=self.palette;g=self.game
+        x,y,w,h=rect
+        rounded(pg,surf,c['panel2'],rect,8)
+        draw_text(pg,surf,self.fonts,self.text('ui.heatmap'),(x+8,y+4),size='tiny',color=c['muted'])
+        cx,cy,r=x+w//2,y+h//2+10,min(w,h)//2-18
+        pg.draw.circle(surf,(40,70,80),(cx,cy),r)
+        pg.draw.circle(surf,c['muted'],(cx,cy),round(r*2*g.rules.work_radius),1)
+        to=lambda px,py:(round(cx+(px-.5)*2*r),round(cy+(py-.5)*2*r))
+        dots=pg.Surface((w,h),pg.SRCALPHA)
+        for event in g.events:
+            data=event['data']
+            if event['kind']=='removed':
+                px,py=to(data['x'],data['y'])
+                pg.draw.circle(dots,(*c['ok'],60),(px-x,py-y),5)
+            elif event['kind']=='near_miss':
+                pg.draw.circle(dots,(*c['bad'],200),(to(data['x'],data['y'])[0]-x,to(data['x'],data['y'])[1]-y),3)
+        surf.blit(dots,(x,y))
+        for i in g._entered:
+            pg.draw.circle(surf,c['warn'],to(*g._entry_target[i]),4,1)
+        for n in g.eye.capsule_points:
+            a=(n+.5)*math.tau/24
+            pg.draw.circle(surf,c['accent'],to(.5+.28*math.cos(a),.5+.28*math.sin(a)),2)
+        if g.eye.iol_alignment > 0:
+            pg.draw.circle(surf,(215,253,255),(cx+round(r*.5*(1-g.eye.iol_alignment)),cy),round(r*.45),1)
 
     def checklist(self, items, done, numbered=False):
         pg=self.pg;surf=self.canvas;c=self.palette
@@ -567,11 +801,14 @@ class App:
         task=TASK_DEPTH.get(g.phase)
         if task is not None:
             ty=depth(task)
-            pg.draw.line(surf,c['warn'],(x+8,ty),(x+18,ty),2)              # task depth band
+            band=round(DEPTH_TOLERANCE*(bottom-top))
+            pg.draw.rect(surf,c['warn'],(x+6,ty-band,10,2*band),1)          # task depth band
             ex,_=to_eye(self.unzoom(self.cursor))
-            tip=(round(x+16+max(0.,min(1.,ex))*(w-32)),ty)
+            tip=(round(x+16+max(0.,min(1.,ex))*(w-32)),depth(self.tool_depth))
             pg.draw.line(surf,(219,245,241),(tip[0]+26,y+24),tip,2)         # synthetic tool
-            pg.draw.circle(surf,c['accent'],tip,3)
+            pg.draw.circle(surf,c['ok'] if self.depth_ok() else c['bad'],tip,4)
+            draw_text(pg,surf,self.fonts,f'Q/E z {self.tool_depth:.2f}',(x+w-80,y+h-20),size='tiny',
+                      color=c['ok'] if self.depth_ok() else c['bad'])
 
     def draw_monitor(self):
         pg=self.pg;s=self.canvas;g=self.game;p=g.patient;c=self.palette
@@ -594,8 +831,12 @@ class App:
         draw_text(pg,s,self.fonts,self.text('ui.status').upper(), (1004,539),color=col)
         status=self.text('alert.'+p.alert) if p.alert else self.text('ui.stable')
         draw_text(pg,s,self.fonts,('! ' if p.alert else '')+status, (1004,566),color=col,size='medium',max_chars=23)
-        if p.alert:
+        if p.alert in ('PATIENT MOTION','PATIENT MONITOR'):
+            draw_text(pg,s,self.fonts,self.text('ui.call_team'),(999,603),size='tiny',color=c['text'])
+        elif p.alert:
             draw_text(pg,s,self.fonts,self.text('ui.assess_or_abort'),(999,603),size='tiny',color=c['text'])
+        else:
+            bar(pg,s,1004,608,232,p.cooperation,c['ok'])           # synthetic cooperation
         draw_text(pg,s,self.fonts,self.text('ui.synthetic'), (990,660),color=c['muted'],size='tiny')
 
     def draw_field(self):
@@ -608,6 +849,24 @@ class App:
             return
         render_eye(pg,s,g,g.time,c,animate=not self.reduced_motion)
         fx,fy,fw,fh=FIELD
+        if g.phase not in (Phase.PREOP,):
+            # Sterile drape: opaque during preparation, a frame afterwards.
+            drape=pg.Surface((fw,fh),pg.SRCALPHA)
+            drape.fill((26,92,98,235 if g.phase==Phase.ANESTHESIA else 120))
+            pg.draw.circle(drape,(0,0,0,0),(EYE_CX-fx,EYE_CY-fy),
+                           150 if g.phase==Phase.ANESTHESIA else 250)
+            s.blit(drape,(fx,fy))
+        if g.patient.motion > 0 and not self.reduced_motion:
+            # Patient motion: a static displaced view (never a strobe).
+            area=s.subsurface(FIELD).copy()
+            s.fill((13,31,45),FIELD)
+            s.blit(area,(fx+round(10*g.patient.motion),fy-round(6*g.patient.motion)))
+        for px,py,_,_,life in self.particles:
+            pg.draw.circle(s,(227,219,166),(round(px),round(py)),max(1,round(4*min(1.,life))))
+        if self._near_mark is not None:
+            (mx,my),life=self._near_mark
+            if life > 0:
+                pg.draw.circle(s,c['warn'],(mx,my),12,2)          # static near-miss mark
         if self.zoom > 1.0:
             crop=pg.Rect(*map(round,self._crop()))
             s.blit(pg.transform.smoothscale(s.subsurface(crop).copy(),(fw,fh)),(fx,fy))
@@ -627,6 +886,37 @@ class App:
             area=s.subsurface(FIELD).copy()
             small=pg.transform.smoothscale(area,(max(1,round(fw/factor)),max(1,round(fh/factor))))
             s.blit(pg.transform.smoothscale(small,(fw,fh)),(fx,fy))
+        if self.condition=='low_visibility':
+            # Research condition (not an accessibility mode): restricted view.
+            veil=pg.Surface((fw,fh),pg.SRCALPHA)
+            veil.fill((0,0,0,170))
+            pg.draw.circle(veil,(0,0,0,0),(EYE_CX-fx,EYE_CY-fy),150)
+            s.blit(veil,(fx,fy))
+
+    def draw_progress(self):
+        """Bottom timeline: completed / current / remaining procedure stages."""
+        pg=self.pg;s=self.canvas;g=self.game;c=self.palette
+        x0,y0,w=291,676,658
+        seg=w/len(PROGRESS_PHASES)
+        current=PROGRESS_PHASES.index(g.phase) if g.phase in PROGRESS_PHASES else None
+        reached=g._furthest
+        for i,phase in enumerate(PROGRESS_PHASES):
+            rect=(round(x0+i*seg)+1,y0,round(seg)-2,8)
+            color=(c['ok'] if i<reached or (g.ending and i<=reached) else
+                   c['accent'] if i==current else (35,65,77))
+            if g.phase==Phase.ABORTED and i==reached:
+                color=c['warn']
+            if g.phase==Phase.FAILED and i==reached:
+                color=c['bad']
+            rounded(pg,s,color,rect,3)
+
+    def draw_big_section(self):
+        pg=self.pg;s=self.canvas;c=self.palette
+        rounded(pg,s,(10,28,40),(330,150,600,330),14)
+        pg.draw.rect(s,c['accent'],(330,150,600,330),2,border_radius=14)
+        small=pg.Surface((225,148))
+        small.blit(s,(0,0),(27,492,225,148))
+        s.blit(pg.transform.smoothscale(small,(560,368*560//600)),(350,165))
 
     def draw_tray(self):
         pg=self.pg;s=self.canvas;g=self.game;c=self.palette
@@ -673,6 +963,17 @@ class App:
             draw_text(pg,s,self.fonts,f"{row['points']:.0f}/{row['max']}",(560,yy),size='base',color=c['ok'])
             bar(pg,s,630,yy+8,290,row['points']/row['max'],c['ok'])
             draw_text(pg,s,self.fonts,row['reasons'][0],(338,yy+22),size='tiny',color=c['muted'],max_chars=84)
+        draw_text(pg,s,self.fonts,self.text('ui.before_after'),(840,150),size='tiny',color=c['muted'])
+        for i,(opacity,iol) in enumerate(((1.0,False),(g.eye.opacity,g.eye.iol_alignment>0))):
+            center=(860+i*52,186)
+            pg.draw.circle(s,(40,92,96),center,22)
+            pg.draw.circle(s,(10,17,27),center,15)
+            if opacity>0:
+                lens=pg.Surface((30,30),pg.SRCALPHA)
+                pg.draw.circle(lens,(200,187,136,round(188*opacity)),(15,15),14)
+                s.blit(lens,(center[0]-15,center[1]-15))
+            if iol:
+                pg.draw.circle(s,(215,253,255),center,13,1)
         draw_text(pg,s,self.fonts,self.text('ui.timeline'),(328,468),color=c['accent'])
         for i,row in enumerate(timeline(g,self.lang)[-7:]):
             draw_text(pg,s,self.fonts,f"{row['t']:6.1f}s  {row['text']}",(338,494+i*20),size='tiny',
@@ -700,8 +1001,38 @@ class App:
         if g.wrong_tool > self._wrong_seen:
             self._wrong_seen=g.wrong_tool
             self.message=t(self.lang,'ui.wrong_tool',tool=t(self.lang,'tool.'+(g.required_tool or 'blade')))
-        if g.phase != self._saved_phase:
+        if self.player is None and g.phase != self._saved_phase:
             self.autosave()
+        if g.phase != self._depth_phase:
+            # New task: the tool returns to its stage depth (as in the 3D view).
+            self._depth_phase=g.phase
+            self.tool_depth=TASK_DEPTH.get(g.phase,self.tool_depth)
+            self._alarm2=False
+        limit=g.rules.alert_timeout
+        if g.patient.alert and limit and not self._alarm2 and g.alert_elapsed>=limit/2:
+            self._alarm2=True
+            self.sounds.play('alert')           # escalating reminder, once per alert
+        if not g.patient.alert:
+            self._alarm2=False
+        progress=(g.eye.opacity,g.eye.cortex)
+        if progress!=self._progress and not self.reduced_motion:
+            # Bounded fragment particles drift toward the instrument tip.
+            for _ in range(3):
+                if len(self.particles)>=MAX_PARTICLES:
+                    self.particles.pop(0)
+                a=self._fx_rng.uniform(0,math.tau);r=self._fx_rng.uniform(30,90)
+                px,py=EYE_CX+r*math.cos(a),EYE_CY+r*math.sin(a)
+                tx,ty=self.cursor
+                self.particles.append((px,py,(tx-px)*1.5,(ty-py)*1.5,.6))
+        self._progress=progress
+        if g.near_misses>self._near_seen:
+            self._near_seen=g.near_misses
+            last=next((e['data'] for e in reversed(g.events) if e['kind']=='near_miss'),None)
+            if last:
+                self._near_mark=(to_screen((last['x'],last['y'])),45)
+        elif self._near_mark is not None:
+            (pos,life)=self._near_mark
+            self._near_mark=(pos,life-1) if life>1 else None
         s.fill(c['bg'])
         draw_text(pg,s,self.fonts,'OPHTHOSIM', (24,21),size='title',color=c['accent'])
         draw_text(pg,s,self.fonts,'AI  /  CATARACT MICROSURGERY', (237,31),color=c['muted'])
@@ -724,12 +1055,17 @@ class App:
             if self.drag:
                 pg.draw.line(s,(156,206,217),(973,650),pt,5)
                 pg.draw.circle(s,(219,245,241),pt,8,2)
-        if not self.view_3d and (g.phase==Phase.IOL or (g.phase==Phase.CLOSE and g._decentered)):
+        if not self.view_3d and g.rules.guides and (g.phase==Phase.IOL or (g.phase==Phase.CLOSE and g._decentered)):
+            # Alignment crosshair: tutorial-only ghost guide.
             pg.draw.circle(s,c['accent'],(EYE_CX,EYE_CY),26,1)
             pg.draw.line(s,c['accent'],(EYE_CX-38,EYE_CY),(EYE_CX+38,EYE_CY),1)
         if not self.view_3d:
             self.draw_tray()
+        if g.stress>=.6 and g.phase in (Phase.PHACO,Phase.CORTEX) and not g.patient.alert:
+            rounded(pg,s,(70,52,24),(300,112,640,26),8)
+            draw_text(pg,s,self.fonts,'! '+self.text('ui.stress_warning'),(312,116),size='tiny',color=c['warn'])
         self.draw_sidebar();self.draw_monitor()
+        self.draw_progress()
         modes=' '.join(m for m,on in (('HC',self.high_contrast),('CVD',self.colour_safe),
                                          ('LOW-MOTION',self.reduced_motion),
                                          ('MUTE',not self.sounds.enabled)) if on)
@@ -743,8 +1079,16 @@ class App:
             draw_text(pg,s,self.fonts,self.text('ui.paused'),(424,564),size='medium')
         if g.ending:
             self.draw_results()
+        if self.big_section and not g.ending:
+            self.draw_big_section()
         if self.show_help:
             self.draw_help()
+        if self.player is not None:
+            p=self.player
+            rounded(pg,s,(20,40,70),(330,46,600,24),8)
+            draw_text(pg,s,self.fonts,f"REPLAY {round(p.progress*100)}%  x{p.speed:g}  "
+                      f"{'PLAY' if p.playing and not p.done else 'PAUSE'}  ·  "+self.text('ui.replay'),
+                      (340,49),size='tiny',color=c['text'],max_chars=110)
         # y=699 keeps the descenders inside the 720 px canvas (704 clipped them).
         draw_text(pg,s,self.fonts,self.message+'   ·   F1',(24,699),size='tiny',color=c['muted'],max_chars=120)
         out=pg.transform.smoothscale(s,self.screen.get_size())
@@ -757,6 +1101,12 @@ class App:
             dt=min(self.clock.tick(60)/1000,.1)
             for event in pg.event.get():
                 self.dispatch(event)
+            self.tick_ui(dt)
+            if self.player is not None:
+                self.player.advance(dt)
+                self.game=self.player.game
+                self.draw()
+                continue
             self._acc+=dt
             loops=0
             while self._acc>=1/60 and loops<6:
@@ -777,6 +1127,10 @@ def main(argv=None):
     parser.add_argument('--lang', choices=list(LANGUAGES),default='en')
     parser.add_argument('--seed',type=int,default=7)
     parser.add_argument('--scale',type=float,default=1.0)
+    parser.add_argument('--replay',default=None,help='watch a verified *.replay.jsonl step by step')
+    parser.add_argument('--condition',choices=list(CONDITIONS),default='baseline',
+                        help='research display condition (logged; not an accessibility mode)')
+    parser.add_argument('--confirm-abort',action='store_true',help='X must be pressed twice')
     parser.add_argument('--resume',nargs='?',const=str(AUTOSAVE),default=None,
                         help='continue a verified autosave (default session_logs/autosave.replay.jsonl)')
     ns=parser.parse_args(argv)
@@ -792,7 +1146,16 @@ def main(argv=None):
     pygame.init()
     try:
         app=App(pygame,ns.case,ns.seed,ns.scale,ns.difficulty,ns.lang)
-        if ns.resume:
+        app.condition=ns.condition
+        app.confirm_abort=ns.confirm_abort
+        if ns.replay:
+            try:
+                raw=Path(ns.replay).read_text(encoding='utf-8')
+            except OSError as exc:
+                parser.error(f'cannot read replay: {exc}')
+            if not app.start_replay(raw):
+                parser.error('replay failed verification')
+        elif ns.resume:
             app.resume(ns.resume)
         app.run()
     finally:

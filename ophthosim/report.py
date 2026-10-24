@@ -98,8 +98,13 @@ def timeline(game: Game, lang: str = 'en') -> list[dict[str, Any]]:
     return rows
 
 
-def build_report(game: Game, lang: str = 'en') -> dict[str, Any]:
+def build_report(game: Game, lang: str = 'en',
+                 ui: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
+        'session_id': getattr(game, 'session_id', None),
+        'scenario_version': getattr(game, 'VERSION', None),
+        'patient_card': getattr(game, 'patient_card', None),
+        'ui_conditions': ui or {},
         'report_version': 1,
         'language': lang,
         'case': game.case, 'hazard': game.hazard, 'difficulty': game.difficulty,
@@ -159,7 +164,8 @@ def metrics_csv(rows: list[dict[str, Any]]) -> str:
 
 
 def save_session(game: Game, directory: str | Path = 'session_logs',
-                 prefix: str = 'case', lang: str = 'en') -> list[Path]:
+                 prefix: str = 'case', lang: str = 'en',
+                 ui: dict[str, Any] | None = None) -> list[Path]:
     """Write trace JSONL, replay JSONL (if available), report JSON and CSVs.
 
     Only synthetic data is written; there are no personal identifiers.
@@ -171,7 +177,7 @@ def save_session(game: Game, directory: str | Path = 'session_logs',
         f'{base}.jsonl': game.export_jsonl(),
         f'{base}.events.csv': events_csv(game),
         f'{base}.metrics.csv': metrics_csv([metrics_row(game)]),
-        f'{base}.report.json': json.dumps(build_report(game, lang), ensure_ascii=False,
+        f'{base}.report.json': json.dumps(build_report(game, lang, ui), ensure_ascii=False,
                                           indent=2, sort_keys=True) + '\n',
     }
     if hasattr(game, 'export_replay_jsonl'):
