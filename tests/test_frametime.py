@@ -244,8 +244,11 @@ def test_memory_trend_slope_and_extremes():
     assert trend.start_mb == 100. and trend.end_mb == 103. and trend.peak_mb == 104.
     assert trend.growth_mb == pytest.approx(3.)
     assert trend.slope_mb_per_min == pytest.approx(1.1)
+    # Late half is samples at t >= 90 s: (120, 104) and (180, 103).
+    assert trend.late_slope_mb_per_min == pytest.approx(-1.)
     flat = memory_trend([(5., 50.), (5., 50.)])
     assert flat.slope_mb_per_min == 0.  # zero time spread: no division
+    assert flat.late_slope_mb_per_min == 0.
     assert memory_trend([]) is None and memory_trend([(0., 1.)]) is None
     for bad in ([(0., 1.), (1., math.nan)], [(0., 1.), (-1., 1.)],
                 [(0., 1.), (True, 1.)], [(0., 1.), [1., 1.]], [(0., 1.), (1.,)],
@@ -318,3 +321,18 @@ def test_workload_in_iol_display_scene_stays_read_only():
         frame = bench.prepare_frame(controller, hud, index, 1920, 1080)
         assert frame.tool_pose is not None
     assert controller.game.snapshot() == snapshot
+
+
+def test_gl07_ignores_early_warmup_plateau_but_flags_late_rise():
+    from ophthosim.frametime import gl07_assessment, memory_trend
+    # Driver warm-up: +3 MiB in the first minute, then flat for four more.
+    warmup = memory_trend([(0., 150.), (30., 152.), (60., 153.)] +
+                          [(60. + 30. * i, 153.) for i in range(1, 9)])
+    assert warmup.slope_mb_per_min > 0.
+    assert warmup.late_slope_mb_per_min == 0.
+    assert gl07_assessment(warmup, 300., "AMD Radeon")["status"] == "CANDIDATE_NO_GROWTH"
+    # Slow but steady leak that only shows in the second half.
+    rising = memory_trend([(30. * i, 150. + (0 if i < 5 else 1.5 * (i - 4)))
+                           for i in range(11)])
+    assert rising.late_slope_mb_per_min > 1.
+    assert gl07_assessment(rising, 300., "AMD Radeon")["status"] == "CANDIDATE_GROWTH"

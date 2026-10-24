@@ -245,6 +245,9 @@ class MemoryTrend:
     peak_mb: float
     growth_mb: float
     slope_mb_per_min: float
+    # Second half of the run only: driver/allocator warm-up plateaus early,
+    # whereas a leak keeps rising, so triage uses this slope.
+    late_slope_mb_per_min: float
 
     def as_dict(self) -> dict[str, float | int]:
         return {"samples": self.samples,
@@ -252,7 +255,8 @@ class MemoryTrend:
                 "end_mb": round(self.end_mb, 2),
                 "peak_mb": round(self.peak_mb, 2),
                 "growth_mb": round(self.growth_mb, 2),
-                "slope_mb_per_min": round(self.slope_mb_per_min, 3)}
+                "slope_mb_per_min": round(self.slope_mb_per_min, 3),
+                "late_slope_mb_per_min": round(self.late_slope_mb_per_min, 3)}
 
 
 def memory_trend(samples: Iterable[tuple[float, float]]) -> MemoryTrend | None:
@@ -269,15 +273,25 @@ def memory_trend(samples: Iterable[tuple[float, float]]) -> MemoryTrend | None:
         points.append((float(seconds), float(mb)))
     if len(points) < 2:
         return None
-    mean_t = math.fsum(t for t, _ in points) / len(points)
-    mean_m = math.fsum(m for _, m in points) / len(points)
-    spread = math.fsum((t - mean_t) ** 2 for t, _ in points)
-    slope = (math.fsum((t - mean_t) * (m - mean_m) for t, m in points) / spread
-             if spread > 0. else 0.)
+    midpoint = (points[0][0] + points[-1][0]) / 2.
+    late = [p for p in points if p[0] >= midpoint]
     return MemoryTrend(samples=len(points), start_mb=points[0][1],
                        end_mb=points[-1][1], peak_mb=max(m for _, m in points),
                        growth_mb=points[-1][1] - points[0][1],
-                       slope_mb_per_min=slope * 60.)
+                       slope_mb_per_min=_slope(points) * 60.,
+                       late_slope_mb_per_min=_slope(late) * 60.)
+
+
+def _slope(points: list[tuple[float, float]]) -> float:
+    """Least-squares MiB per second; 0 for fewer than two distinct times."""
+    if len(points) < 2:
+        return 0.
+    mean_t = math.fsum(t for t, _ in points) / len(points)
+    mean_m = math.fsum(m for _, m in points) / len(points)
+    spread = math.fsum((t - mean_t) ** 2 for t, _ in points)
+    if spread <= 0.:
+        return 0.
+    return math.fsum((t - mean_t) * (m - mean_m) for t, m in points) / spread
 
 
 def gl07_assessment(trend: MemoryTrend | None, seconds: float,
@@ -291,7 +305,7 @@ def gl07_assessment(trend: MemoryTrend | None, seconds: float,
     if not math.isfinite(seconds) or seconds < GL07_MIN_SECONDS:
         reasons.append(f"measured duration below {GL07_MIN_SECONDS:.0f} s")
     stable = (trend is not None and trend.growth_mb <= GL07_MAX_GROWTH_MB
-              and trend.slope_mb_per_min <= GL07_MAX_SLOPE_MB_PER_MIN)
+              and trend.late_slope_mb_per_min <= GL07_MAX_SLOPE_MB_PER_MIN)
     if reasons:
         status = "INSUFFICIENT_EVIDENCE"
     else:
