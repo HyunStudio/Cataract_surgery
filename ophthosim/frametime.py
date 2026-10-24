@@ -173,3 +173,132 @@ def gl08_assessment(frame: FrameStats | None, size: tuple[int, int],
             "target_frame_ms": round(TARGET_FRAME_MS, 3),
             "mean_and_p95_within_target": within,
             "requires_human_signoff": True}
+
+
+# --- GL07: process memory over long runs ---------------------------------
+GL07_MIN_SECONDS = 300.
+# Triage heuristics for the report only; a person still decides GL07.
+GL07_MAX_GROWTH_MB = 16.
+GL07_MAX_SLOPE_MB_PER_MIN = 1.
+
+
+def _rss_linux(path: str = "/proc/self/statm") -> float | None:
+    import os
+    try:
+        with open(path, encoding="ascii") as handle:
+            resident_pages = int(handle.read().split()[1])
+        return resident_pages * os.sysconf("SC_PAGE_SIZE") / 2**20
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _rss_windows() -> float | None:
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class Counters(ctypes.Structure):
+            _fields_ = [("cb", wintypes.DWORD),
+                        ("PageFaultCount", wintypes.DWORD),
+                        ("PeakWorkingSetSize", ctypes.c_size_t),
+                        ("WorkingSetSize", ctypes.c_size_t),
+                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                        ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                        ("PagefileUsage", ctypes.c_size_t),
+                        ("PeakPagefileUsage", ctypes.c_size_t)]
+
+        kernel32 = ctypes.WinDLL("kernel32")
+        psapi = ctypes.WinDLL("psapi")
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        counters = Counters()
+        counters.cb = ctypes.sizeof(Counters)
+        if not psapi.GetProcessMemoryInfo(kernel32.GetCurrentProcess(),
+                                          ctypes.byref(counters), counters.cb):
+            return None
+        return counters.WorkingSetSize / 2**20
+    except (AttributeError, ImportError, OSError):
+        return None
+
+
+def process_rss_mb(platform_name: str | None = None) -> float | None:
+    """Resident set / working set of this process in MiB, or None if unknown.
+
+    Host memory only: textures and buffers held in dedicated GPU memory are
+    not visible here, so GPU-side leaks need driver tools.
+    """
+    import sys
+    name = sys.platform if platform_name is None else platform_name
+    if name.startswith("linux"):
+        return _rss_linux()
+    if name == "win32":
+        return _rss_windows()
+    return None
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryTrend:
+    samples: int
+    start_mb: float
+    end_mb: float
+    peak_mb: float
+    growth_mb: float
+    slope_mb_per_min: float
+
+    def as_dict(self) -> dict[str, float | int]:
+        return {"samples": self.samples,
+                "start_mb": round(self.start_mb, 2),
+                "end_mb": round(self.end_mb, 2),
+                "peak_mb": round(self.peak_mb, 2),
+                "growth_mb": round(self.growth_mb, 2),
+                "slope_mb_per_min": round(self.slope_mb_per_min, 3)}
+
+
+def memory_trend(samples: Iterable[tuple[float, float]]) -> MemoryTrend | None:
+    """Least-squares slope and start/end/peak of (seconds, MiB) samples."""
+    points = []
+    for item in samples:
+        if not isinstance(item, tuple) or len(item) != 2:
+            raise ValueError("Memory samples must be (seconds, MiB) pairs")
+        seconds, mb = item
+        for value in item:
+            if (isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not math.isfinite(value) or value < 0):
+                raise ValueError("Memory sample out of range")
+        points.append((float(seconds), float(mb)))
+    if len(points) < 2:
+        return None
+    mean_t = math.fsum(t for t, _ in points) / len(points)
+    mean_m = math.fsum(m for _, m in points) / len(points)
+    spread = math.fsum((t - mean_t) ** 2 for t, _ in points)
+    slope = (math.fsum((t - mean_t) * (m - mean_m) for t, m in points) / spread
+             if spread > 0. else 0.)
+    return MemoryTrend(samples=len(points), start_mb=points[0][1],
+                       end_mb=points[-1][1], peak_mb=max(m for _, m in points),
+                       growth_mb=points[-1][1] - points[0][1],
+                       slope_mb_per_min=slope * 60.)
+
+
+def gl07_assessment(trend: MemoryTrend | None, seconds: float,
+                    renderer: object) -> dict[str, object]:
+    """Triage evidence for GL07 (5-minute run, no memory growth)."""
+    reasons = []
+    if trend is None:
+        reasons.append("process memory not measurable on this platform")
+    if is_software_renderer(renderer):
+        reasons.append("software or unknown OpenGL renderer")
+    if not math.isfinite(seconds) or seconds < GL07_MIN_SECONDS:
+        reasons.append(f"measured duration below {GL07_MIN_SECONDS:.0f} s")
+    stable = (trend is not None and trend.growth_mb <= GL07_MAX_GROWTH_MB
+              and trend.slope_mb_per_min <= GL07_MAX_SLOPE_MB_PER_MIN)
+    if reasons:
+        status = "INSUFFICIENT_EVIDENCE"
+    else:
+        status = "CANDIDATE_NO_GROWTH" if stable else "CANDIDATE_GROWTH"
+    return {"status": status, "reasons": reasons,
+            "heuristic_max_growth_mb": GL07_MAX_GROWTH_MB,
+            "heuristic_max_slope_mb_per_min": GL07_MAX_SLOPE_MB_PER_MIN,
+            "within_heuristics": stable,
+            "host_memory_only": True,
+            "requires_human_signoff": True}

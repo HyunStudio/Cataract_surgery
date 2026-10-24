@@ -82,3 +82,14 @@ python -m ophthosim.gl_benchmark --seconds 60 --fullscreen
 - 창 크기에 따라 HUD를 정수 배율(2560×1440부터 2배, 3840×2160부터 3배)로 확대합니다. HUD는 1280×720 기준 레이아웃으로 그린 뒤 GPU에서 최근접 보간으로 확대하므로, 4K에서도 글자가 작아지지 않고 선명하게 유지됩니다. 2560×1440 미만 창에서는 이전과 화면이 완전히 동일합니다.
 - 왼쪽 패널의 단계 이름은 단어 단위로 줄바꿈됩니다(예: "SIMULATED ENTRY / TARGETS").
 - 한계: 진짜 고해상도 글꼴 렌더링이 아니라 픽셀 확대이므로 글자 모서리가 각져 보일 수 있습니다. Windows 디스플레이 배율(DPI) 처리와 실제 4K 모니터에서의 가독성 확인은 아직 하지 않았습니다.
+
+## 장시간 메모리 측정 (GL07, 2026-10-24)
+
+```powershell
+python -m ophthosim.gl_benchmark --seconds 300 --size 1920x1080 --scene-switch-every 120 --out build\benchmark\gl07.json
+```
+
+- 벤치마크는 측정 프레임 60개마다 이 프로세스의 상주 메모리(Linux `/proc/self/statm`, Windows 작업 집합)를 기록합니다. 결과의 `memory`에 시작/끝/최대 MiB, 증가량, 분당 증가율(최소제곱 기울기)이 나옵니다.
+- `--scene-switch-every N`을 주면 N 프레임마다 백내장/IOL 장면을 교체해 GPU 버퍼 재할당과 BVH 재구성을 반복합니다(체크리스트의 "반복 장면 전환"). 교체 프레임은 시간이 튀므로 GL08 시간 측정은 이 옵션 없이 따로 실행하세요.
+- `gl07.status`: 소프트웨어 렌더러, 300초 미만, 메모리를 읽을 수 없는 플랫폼은 `INSUFFICIENT_EVIDENCE`. 그 외에는 증가량 16 MiB 이하이면서 기울기 1 MiB/분 이하이면 `CANDIDATE_NO_GROWTH`, 아니면 `CANDIDATE_GROWTH`입니다. 이 기준은 분류용 참고값이며 최종 판단은 사람이 합니다.
+- 전용 GPU 메모리는 포함되지 않습니다. 같은 실행 중 Windows 작업 관리자의 "전용 GPU 메모리"나 AMD Adrenalin 지표를 함께 확인하세요.

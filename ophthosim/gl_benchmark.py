@@ -23,7 +23,8 @@ import platform
 import sys
 import time
 
-from .frametime import FrameProfiler, gl08_assessment, is_software_renderer
+from .frametime import (FrameProfiler, gl07_assessment, gl08_assessment,
+                        is_software_renderer, memory_trend, process_rss_mb)
 from .gl_preview import hud_scale
 from .input3d import Surgery3DController, eye_to_pixel
 from .surface_probe3d import SurfaceProbe, probe_surface
@@ -34,6 +35,7 @@ WORKLOAD = "entry-hover-orbit"
 DEFAULT_OUT = Path("build/benchmark/gl-frametime.json")
 MAX_FRAMES = 1_000_000
 MAX_SECONDS = 3600.
+MEMORY_SAMPLE_EVERY = 60  # measured frames between host-memory samples
 # Rolling capacity for --seconds runs; reaching it ends the run early so the
 # statistics always describe every measured frame.
 SECONDS_CAPACITY = 250_000
@@ -106,11 +108,17 @@ def environment(ctx=None, pygame=None, moderngl=None) -> dict[str, object]:
 
 def build_report(profiler: FrameProfiler, *, size: tuple[int, int],
                  seconds: float, warmup: int, env: dict[str, object],
-                 state_unchanged: bool, probes: int) -> dict[str, object]:
+                 state_unchanged: bool, probes: int,
+                 memory: list[tuple[float, float]] | None = None,
+                 scene_switch_every: int = 0, scene_switches: int = 0
+                 ) -> dict[str, object]:
     frame = profiler.stats("frame")
+    trend = memory_trend(memory or [])
     return {
         "benchmark": "ophthosim-gl-surgery-frametime",
-        "workload": WORKLOAD,
+        "workload": (WORKLOAD if not scene_switch_every
+                     else f"{WORKLOAD}+scene-switch/{scene_switch_every}"),
+        "scene_switches": scene_switches,
         "window_size": list(size),
         "hud_scale": hud_scale(*size),
         "warmup_frames": warmup,
@@ -122,6 +130,8 @@ def build_report(profiler: FrameProfiler, *, size: tuple[int, int],
         "sections": profiler.report(),
         "environment": env,
         "gl08": gl08_assessment(frame, size, seconds, env.get("gl_renderer")),
+        "memory": trend.as_dict() if trend is not None else None,
+        "gl07": gl07_assessment(trend, seconds, env.get("gl_renderer")),
         "timing_basis": "CPU wall clock incl. buffer swap; not GPU time",
         "vsync_controlled": False,
         "game_state_unchanged": state_unchanged,
@@ -131,8 +141,11 @@ def build_report(profiler: FrameProfiler, *, size: tuple[int, int],
 
 def run_benchmark(pygame, moderngl, *, size=(1920, 1080), frames=None,
                   seconds=60., warmup=30, fullscreen=False,
-                  case="normal", seed=7) -> dict[str, object]:
-    from .gl_preview import GPUEyePreview, AnatomyAppearance
+                  case="normal", seed=7, scene_switch_every=0
+                  ) -> dict[str, object]:
+    """Optional scene switching reallocates the atlas GPU meshes and BVHs
+    every N measured frames (GL07 stress); those frames include that cost."""
+    from .gl_preview import GPUEyePreview, AnatomyAppearance, atlas_meshes
     from .gl_surgery import SurgeryHUD
 
     controller = prepare_controller(case, seed)
@@ -149,10 +162,19 @@ def run_benchmark(pygame, moderngl, *, size=(1920, 1080), frames=None,
         index = measured = probes = 0
         total_ms = 0.
         began = previous = None
+        memory: list[tuple[float, float]] = []
+        switches = 0
         while True:
             if any(event.type == pygame.QUIT for event in pygame.event.get()):
                 break
             width, height = pygame.display.get_window_size()
+            if (scene_switch_every and measured and
+                    measured % scene_switch_every == 0 and
+                    switches < measured // scene_switch_every):
+                controller.view.phase = ("IOL" if controller.view.phase == "CATARACT"
+                                         else "CATARACT")
+                atlas.set_meshes(atlas_meshes(controller.view.phase))
+                switches += 1
             work = prepare_frame(controller, hud, index, width, height,
                                  profiler if index >= warmup else None)
             # Running mean only: sorting every sample each frame would
@@ -178,6 +200,10 @@ def run_benchmark(pygame, moderngl, *, size=(1920, 1080), frames=None,
                     total_ms += interval
                     measured += 1
                     probes += work.proximity is not None
+                    if measured % MEMORY_SAMPLE_EVERY == 1:
+                        rss = process_rss_mb()
+                        if rss is not None:
+                            memory.append((end - began, rss))
             previous = end
             index += 1
             if measured >= capacity:
@@ -185,12 +211,18 @@ def run_benchmark(pygame, moderngl, *, size=(1920, 1080), frames=None,
             if frames is None and began is not None and end - began >= seconds:
                 break
         elapsed = (previous - began) if began is not None else 0.
+        controller.view.phase = "CATARACT"  # display-only; Game unaffected
+        rss = process_rss_mb()
+        if rss is not None and memory:
+            memory.append((elapsed, rss))
         unchanged = (controller.game.snapshot() == snapshot and
                      controller.game.export_replay_jsonl() == journal)
         return build_report(profiler, size=pygame.display.get_window_size(),
                             seconds=elapsed, warmup=warmup,
                             env=environment(atlas.ctx, pygame, moderngl),
-                            state_unchanged=unchanged, probes=probes)
+                            state_unchanged=unchanged, probes=probes,
+                            memory=memory, scene_switch_every=scene_switch_every,
+                            scene_switches=switches)
     finally:
         atlas.close()
 
@@ -213,6 +245,8 @@ def main(argv=None) -> int:
     limit.add_argument("--frames", type=int)
     parser.add_argument("--warmup", type=int, default=30)
     parser.add_argument("--fullscreen", action="store_true")
+    parser.add_argument("--scene-switch-every", type=int, default=0,
+                        help="GL07 stress: swap cataract/IOL meshes every N frames")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ns = parser.parse_args(argv)
     if ns.frames is not None and not 1 <= ns.frames <= MAX_FRAMES:
@@ -221,6 +255,8 @@ def main(argv=None) -> int:
         parser.error(f"--seconds must be within 1..{MAX_SECONDS:.0f}")
     if not 0 <= ns.warmup <= 10_000:
         parser.error("--warmup must be within 0..10000")
+    if not (ns.scene_switch_every == 0 or 10 <= ns.scene_switch_every <= 100_000):
+        parser.error("--scene-switch-every must be 0 or within 10..100000")
     # Keep stdout machine-readable: only the JSON report is printed there.
     os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
     try:
@@ -234,7 +270,8 @@ def main(argv=None) -> int:
     try:
         report = run_benchmark(pygame, moderngl, size=ns.size,
                                frames=ns.frames, seconds=ns.seconds,
-                               warmup=ns.warmup, fullscreen=ns.fullscreen)
+                               warmup=ns.warmup, fullscreen=ns.fullscreen,
+                               scene_switch_every=ns.scene_switch_every)
     finally:
         pygame.quit()
     ns.out.parent.mkdir(parents=True, exist_ok=True)

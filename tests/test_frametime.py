@@ -235,3 +235,86 @@ def test_f3_perf_label_is_display_only():
         assert controller.game.snapshot() == snapshot
     finally:
         pygame.quit()
+
+
+def test_memory_trend_slope_and_extremes():
+    from ophthosim.frametime import memory_trend
+    trend = memory_trend([(0., 100.), (60., 102.), (120., 104.), (180., 103.)])
+    assert trend.samples == 4
+    assert trend.start_mb == 100. and trend.end_mb == 103. and trend.peak_mb == 104.
+    assert trend.growth_mb == pytest.approx(3.)
+    assert trend.slope_mb_per_min == pytest.approx(1.1)
+    flat = memory_trend([(5., 50.), (5., 50.)])
+    assert flat.slope_mb_per_min == 0.  # zero time spread: no division
+    assert memory_trend([]) is None and memory_trend([(0., 1.)]) is None
+    for bad in ([(0., 1.), (1., math.nan)], [(0., 1.), (-1., 1.)],
+                [(0., 1.), (True, 1.)], [(0., 1.), [1., 1.]], [(0., 1.), (1.,)],
+                [(0., 1.), ("1", 1.)]):
+        with pytest.raises(ValueError):
+            memory_trend(bad)
+
+
+def test_linux_rss_parser_handles_missing_or_corrupt_files(tmp_path):
+    from ophthosim.frametime import _rss_linux, process_rss_mb
+    import os
+    good = tmp_path / "statm"
+    good.write_text("1000 256 10 1 0 100 0\n", encoding="ascii")
+    assert _rss_linux(str(good)) == pytest.approx(256 * os.sysconf("SC_PAGE_SIZE") / 2**20)
+    bad = tmp_path / "bad"
+    bad.write_text("garbage", encoding="ascii")
+    assert _rss_linux(str(bad)) is None
+    assert _rss_linux(str(tmp_path / "missing")) is None
+    assert process_rss_mb("darwin") is None
+    assert process_rss_mb("win32") is None or process_rss_mb("win32") > 0
+
+
+def test_gl07_assessment_is_conservative():
+    from ophthosim.frametime import gl07_assessment, memory_trend
+    stable = memory_trend([(0., 200.), (150., 201.), (300., 201.5)])
+    leaking = memory_trend([(0., 200.), (150., 230.), (300., 260.)])
+    assert gl07_assessment(stable, 30., "llvmpipe")["status"] == "INSUFFICIENT_EVIDENCE"
+    assert len(gl07_assessment(None, 30., "llvmpipe")["reasons"]) == 3
+    assert gl07_assessment(stable, 301., "AMD Radeon")["status"] == "CANDIDATE_NO_GROWTH"
+    result = gl07_assessment(leaking, 301., "AMD Radeon")
+    assert result["status"] == "CANDIDATE_GROWTH" and not result["within_heuristics"]
+    assert result["host_memory_only"] and result["requires_human_signoff"]
+
+
+def test_report_includes_memory_trend():
+    profiler = FrameProfiler(10)
+    profiler.record("frame", 10.)
+    report = bench.build_report(profiler, size=(1920, 1080), seconds=2., warmup=0,
+                                env=bench.environment(None), state_unchanged=True,
+                                probes=1, memory=[(0., 80.), (2., 80.5)])
+    assert report["memory"]["growth_mb"] == 0.5
+    assert report["gl07"]["status"] == "INSUFFICIENT_EVIDENCE"
+    without = bench.build_report(profiler, size=(1920, 1080), seconds=2., warmup=0,
+                                 env=bench.environment(None), state_unchanged=True,
+                                 probes=1)
+    assert without["memory"] is None
+
+
+def test_scene_switch_option_validation_and_report_label():
+    for argv in (["--scene-switch-every", "5"], ["--scene-switch-every", "-1"],
+                 ["--scene-switch-every", "100001"]):
+        with pytest.raises(SystemExit) as error:
+            bench.main(argv)
+        assert error.value.code == 2
+    profiler = FrameProfiler(4)
+    profiler.record("frame", 10.)
+    report = bench.build_report(profiler, size=(1920, 1080), seconds=1., warmup=0,
+                                env=bench.environment(None), state_unchanged=True,
+                                probes=1, scene_switch_every=120, scene_switches=3)
+    assert report["workload"] == "entry-hover-orbit+scene-switch/120"
+    assert report["scene_switches"] == 3
+
+
+def test_workload_in_iol_display_scene_stays_read_only():
+    controller = bench.prepare_controller()
+    hud = SurgeryHUD(controller)
+    snapshot = controller.game.snapshot()
+    controller.view.phase = "IOL"   # what the scene-switch stress does
+    for index in range(60):
+        frame = bench.prepare_frame(controller, hud, index, 1920, 1080)
+        assert frame.tool_pose is not None
+    assert controller.game.snapshot() == snapshot

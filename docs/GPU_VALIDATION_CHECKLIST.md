@@ -31,7 +31,7 @@ Controls: arrow keys rotate, +/- zoom, Space changes synthetic cataract lens to 
 | GL04 | Space changes scene from cataract to IOL | Visible synthetic optical state change | UNVERIFIED |
 | GL05 | Orbit, zoom, extreme camera angles | No clipping/black screen/crashes | UNVERIFIED |
 | GL06 | Window resize / DPI / repeated scale changes | Correct aspect and HUD alignment | UNVERIFIED |
-| GL07 | 5-minute run, repeated scene changes | No memory growth or context loss | UNVERIFIED |
+| GL07 | 5-minute run, repeated scene changes | No memory growth or context loss (`gl_benchmark --seconds 300`, see `memory`/`gl07`) | UNVERIFIED |
 | GL08 | 1920×1080 frame time | Target ~60fps; document measured mean/P95 (`python -m ophthosim.gl_benchmark`) | UNVERIFIED |
 | GL09 | Real Pygame 2.5D game remains working | No cross-mode regression | CI ONLY |
 | GL10 | Synthetic 3D mode is labeled non-clinical | Warnings visible | CODE REVIEW ONLY |
@@ -70,3 +70,7 @@ The JSON report contains mean/P50/P95/P99/max milliseconds for `frame` (interval
 | `CANDIDATE_BELOW_60FPS` | Same evidence conditions, but mean or P95 exceeds the 60 fps budget. |
 
 A candidate status is **not** a pass by itself: attach the JSON, display scaling, driver version and a screenshot, and have a person update the table above. Timings are CPU wall clock, not GPU execution time, and vsync is not controlled. A display locked to 60 Hz will cap measured intervals near 16.7 ms, so report the refresh rate too. In the interactive game, **F3** shows a rolling frame mean/P95 (capped at 60 fps by the game loop) for quick manual checks.
+
+### GL07 host-memory trend (2026-10-24)
+
+`python -m ophthosim.gl_benchmark --seconds 300 --size 1920x1080` also samples this process's resident memory (Linux `/proc/self/statm`, Windows working set via `GetProcessMemoryInfo`) every 60 measured frames and at the end. The report's `memory` block gives start/end/peak MiB, total growth and a least-squares slope in MiB/min; `gl07.status` is `INSUFFICIENT_EVIDENCE` for software GL, runs under 300 s or platforms without a reader, and otherwise `CANDIDATE_NO_GROWTH` (growth ≤ 16 MiB and slope ≤ 1 MiB/min, triage heuristics only) or `CANDIDATE_GROWTH`. Dedicated GPU memory is **not** included; check it with the vendor tool (e.g. AMD Adrenalin metrics or Windows Task Manager "Dedicated GPU memory") during the same run. The workload does not yet exercise repeated case restarts or atlas scene switches.
