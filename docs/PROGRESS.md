@@ -239,3 +239,9 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - **3D app parity:** checklist flow, instruments, decentration re-centring in 3D, localized hold/results panels, sounds and autosave/resume. The Mesa smoke has a fourth scenario.
 - **Docs:** README rewritten as the product document (history moved to `docs/CHANGELOG.md`), Korean user guide, 32-WP status table.
 - **Local result:** 707 tests passed. Both Mesa smokes and the benchmark passed.
+- **CI:** [Tests 40068709047](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047) (707 passed, Python 3.12/3.13) and [Mesa OpenGL 40068709064](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709064) succeeded.
+- **Remaining, needs the owner:**
+  - Windows Radeon GL01–GL10 and the benchmarks
+  - physical 4K legibility
+  - expert review of content plausibility
+  - ethics/IRB determination before any participant study

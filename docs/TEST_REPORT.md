@@ -205,3 +205,7 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 Updated `gl_surgery_smoke.py` adds a fourth Mesa scenario (decentration hold, visible 3D re-centring, managed-complication result) to the existing zero-copy HUD and capsule/vision checks.
 
 **Not claimed:** Windows GPU, physical 4K legibility, human usability or clinical validity.
+- **CI for v2:**
+  - Python 3.12/3.13: [Tests 40068709047](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047), 707 passed on 3.12; the 3.13 job succeeded. [GUI screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047/artifacts/12549384895).
+  - Mesa OpenGL: [40068709064](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709064), success with the four-scenario 3D smoke and benchmarks.
+  - Earlier v2 commits were also green: [40068403280](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068403280)/[40068403263](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068403263) and [40068152868](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068152868)/[40068152833](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068152833).
