@@ -364,9 +364,9 @@ class Game:
                 self._respond('timeout')
                 self.alerts[-1]['latency'] = None
                 kind = self.patient.alert
+                self._record('veto', {'reason': 'alert_unaddressed', 'alert': kind})
                 self._advance(Phase.FAILED)
                 self._finish(ENDING_FAILED)
-                self._record('veto', {'reason': 'alert_unaddressed', 'alert': kind})
             return
         if self.paused:
             return

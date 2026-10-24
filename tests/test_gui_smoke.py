@@ -82,6 +82,11 @@ def test_resize_and_coordinate_mapping(app):
 def test_ui_keyboard_case_selection_and_start(app):
     app.dispatch(pygame.event.Event(pygame.KEYDOWN,{'key':pygame.K_2}))
     assert app.game.case == 'motion'
+    # Space ticks the three pre-op checks one by one, then starts the case.
+    for expected in (1,2,3):
+        app.dispatch(pygame.event.Event(pygame.KEYDOWN,{'key':pygame.K_SPACE}))
+        assert len(app.game.eye.preop_checks) == expected
+        assert app.game.phase == Phase.PREOP
     app.dispatch(pygame.event.Event(pygame.KEYDOWN,{'key':pygame.K_SPACE}))
     assert app.game.phase == Phase.ANESTHESIA
     app.dispatch(pygame.event.Event(pygame.KEYDOWN,{'key':pygame.K_SPACE}))
@@ -90,8 +95,8 @@ def test_ui_keyboard_case_selection_and_start(app):
 
 
 def test_ui_dirty_mouse_coordinates_do_not_crash(app):
-    app.dispatch(pygame.event.Event(pygame.KEYDOWN,{'key':pygame.K_SPACE}))
-    app.dispatch(pygame.event.Event(pygame.KEYDOWN,{'key':pygame.K_SPACE}))
+    for _ in range(5):
+        app.dispatch(pygame.event.Event(pygame.KEYDOWN,{'key':pygame.K_SPACE}))
     for pos in [(-200,-200),(99999,99999),(0,0),(1920,1080)]:
         app.dispatch(pygame.event.Event(pygame.MOUSEBUTTONDOWN,{'pos':pos,'button':1}))
         app.dispatch(pygame.event.Event(pygame.MOUSEBUTTONUP,{'pos':pos,'button':1}))
@@ -107,8 +112,8 @@ def test_gui_exports_verifiable_replay(app, tmp_path, monkeypatch):
     assert app.game.action('prepare')
     assert app.game.action('abort')
     app.save()
-    trace_path=tmp_path/'session_logs/case_normal_seed_7.jsonl'
-    replay_path=tmp_path/'session_logs/case_normal_seed_7.replay.jsonl'
+    trace_path=tmp_path/'session_logs/case_normal_standard_seed_7.jsonl'
+    replay_path=tmp_path/'session_logs/case_normal_standard_seed_7.replay.jsonl'
     assert trace_path.is_file() and replay_path.is_file()
     restored=ReplayGame.replay_jsonl(replay_path.read_text(encoding='utf-8'))
     assert restored.snapshot()==app.game.snapshot()

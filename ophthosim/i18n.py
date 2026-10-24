@@ -29,7 +29,7 @@ EN: dict[str, str] = {
     'goal.ABORTED': 'The case stopped safely. Review the report; R restarts.',
     'goal.FAILED': 'A safety alert was left unattended. Review; R retries.',
     # checklists
-    'check.identity': 'Patient identity (synthetic)', 'check.site': 'Operative eye / site',
+    'check.identity': 'Patient ID (synthetic)', 'check.site': 'Operative eye / site',
     'check.iol_plan': 'Planned IOL', 'check.alignment': 'IOL alignment',
     'check.wound': 'Wound stability', 'check.handoff': 'Patient handoff',
     # endings
@@ -90,6 +90,8 @@ EN: dict[str, str] = {
     'ui.synthetic': 'Synthetic / non-clinical', 'ui.stable': 'Stable', 'ui.status': 'Status',
     'ui.options': 'F1 help · L language · H contrast · C colour-safe · M motion · S sound',
     'ui.depth': 'Depth cross-section (synthetic)', 'ui.zoom': 'Zoom', 'ui.focus': 'Focus',
+    'bar.opacity': 'Lens opacity', 'bar.cortex': 'Cortex remaining',
+    'bar.capsule': 'Capsule integrity', 'bar.iol': 'IOL alignment',
     'ui.sound_on': 'Sound on', 'ui.sound_off': 'Sound off', 'ui.exported': 'Exported to {path}',
     'ui.export_failed': 'Export failed: {error}', 'ui.new_case': 'New synthetic case started.',
     'ui.preview3d': '3D mesh preview: J/L orbit, I/K tilt, G return.',
@@ -164,6 +166,8 @@ KO: dict[str, str] = {
     'ui.stable': '안정', 'ui.status': '상태',
     'ui.options': 'F1 도움말 · L 언어 · H 고대비 · C 색각 · M 움직임 · S 소리',
     'ui.depth': '깊이 단면도 (가상)', 'ui.zoom': '확대', 'ui.focus': '초점',
+    'bar.opacity': '수정체 혼탁도', 'bar.cortex': '잔여 피질', 'bar.capsule': '수정체낭 보존',
+    'bar.iol': 'IOL 정렬',
     'ui.sound_on': '소리 켬', 'ui.sound_off': '소리 끔', 'ui.exported': '{path}에 저장했습니다',
     'ui.export_failed': '저장 실패: {error}', 'ui.new_case': '새 가상 케이스를 시작했습니다.',
     'ui.preview3d': '3D 메시 미리보기: J/L 회전, I/K 기울기, G 복귀.',
