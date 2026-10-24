@@ -106,6 +106,9 @@ class Surgery3DController:
 
     @property
     def target_depth(self) -> float | None:
+        # A decentered IOL is re-centred in CLOSE at the IOL stage depth.
+        if self.game.phase == Phase.CLOSE and getattr(self.game, "_decentered", False):
+            return STAGE_DEPTH[Phase.IOL]
         return STAGE_DEPTH.get(self.game.phase)
 
     def _sync(self, old_phase: Phase) -> None:
@@ -165,13 +168,15 @@ class Surgery3DController:
         command = {Phase.ENTRY: "touch", Phase.CAPSULE: "trace",
                    Phase.PHACO: "remove", Phase.CORTEX: "remove",
                    Phase.IOL: "place"}.get(phase)
+        if phase == Phase.CLOSE and self.target_depth is not None:
+            command = "place"     # reposition a decentered synthetic IOL
         if command is None or self.game.paused or self.game.patient.alert:
             self.inspect(x, y, width, height)
             return False
         # An IOL placement requires an explicit NEW click. Otherwise holding
         # a removal gesture through the cortex→IOL transition can accidentally
         # trigger lens placement, even though the phase gate itself is correct.
-        if phase == Phase.IOL and fresh_press is not True:
+        if command == "place" and fresh_press is not True:
             return False
         target = self.target_depth
         if target is None or abs(self.tool_depth - target) > DEPTH_TOLERANCE:

@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 CONTACT_STATES = frozenset({"TARGET", "VISITED", "NEAR", "OUTSIDE",
                             "DEPTH", "HOLD", "INACTIVE"})
 ACTIVATED = frozenset((Phase.ENTRY, Phase.CAPSULE, Phase.PHACO,
-                       Phase.CORTEX, Phase.IOL))
+                       Phase.CORTEX, Phase.IOL, Phase.CLOSE))
 
 
 @dataclass(frozen=True, slots=True)

@@ -27,6 +27,7 @@ def main() -> int:
         from .surface_probe3d import probe_surface
         from .capsule3d import capsule_display_state
         from .vision3d import visual_feedback,VisualFeedback
+        from .engine import PREOP_CHECKS
     except ImportError as exc:
         print(f"Optional GL dependency missing: {exc}", file=sys.stderr)
         return 2
@@ -271,13 +272,44 @@ def main() -> int:
         frame("capsule-safe-abort")
         assert ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl()).ending=="SAFELY ABORTED"
 
+        # Fourth scenario: IOL decentration hold, 3D re-centring click, then
+        # the explained "complication managed" result rendered through GL.
+        ctrl=Surgery3DController("decenter",seed=17)
+        overlay=SurgeryHUD(ctrl)
+        for _check in PREOP_CHECKS: ctrl.command("verify", _check)
+        ctrl.command("confirm")
+        ctrl.command("prepare")
+        for x,y in ctrl.game._entry_target:
+            assert point(x,y,pressed=True)
+        for n in range(24):
+            angle=(n+.5)*math.tau/24
+            point(.5+.28*math.cos(angle),.5+.28*math.sin(angle))
+        while ctrl.game.phase in (Phase.PHACO,Phase.CORTEX):
+            point(.5,.5)
+        assert point(.5,.5,pressed=True)
+        assert ctrl.game.patient.alert=="IOL DECENTRATION"
+        frame("decenter-hold")
+        assert ctrl.command("assess")
+        assert not ctrl.command("verify","alignment")
+        frame("decenter-offset")
+        assert point(.5,.5,pressed=True) and not ctrl.game._decentered
+        frame("decenter-recentered")
+        if eye_regions["decenter-offset"]==eye_regions["decenter-recentered"]:
+            raise AssertionError("Re-centred 3D IOL not visible in eye region")
+        for name in CHECKS:
+            assert ctrl.command("verify",name)
+        assert ctrl.game.ending=="COMPLICATION MANAGED"
+        frame("decenter-managed-results")
+        assert ReplayGame.replay_jsonl(ctrl.game.export_replay_jsonl()).snapshot()==ctrl.game.snapshot()
+
         if len(set(images.values())) != len(images):
             raise AssertionError("Distinct states rendered identical images")
         print(json.dumps({
             "status": "software-opengl-3d-surgery-integration-passed",
             "frame_hashes": images,
             "gl_renderer": atlas.ctx.info.get("GL_RENDERER", "unknown"),
-            "scenario_count": 3,
+            "scenario_count": 4,
+            "decenter_recentering_visible": True,
             "motion_haze_center_crop_distinct": True,
             "reduced_motion_preserves_safety_hold": True,
             "contact_ring_center_region_distinct": True,
