@@ -60,3 +60,19 @@ python -m ophthosim.gl_surgery --case normal --seed 7
 5. 의료 전문가 검토와 별도의 연구 평가 절차. 점수를 환자 결과나 술기 능력으로 해석해서는 안 됨.
 
 실존 환자 치료, 실제 마취 투여, 실수술 단계별 술기 지침, 의학적 경고 임계값 제공을 목적으로 하지 않습니다.
+
+## 프레임 타임 측정 (2026-10-24)
+
+GPU 검증 체크리스트의 GL08 항목(1920×1080 평균/P95 프레임 시간)을 실제 Windows PC에서 재현 가능하게 측정하는 스크립트가 추가되었습니다.
+
+```powershell
+python -m ophthosim.gl_benchmark --seconds 60 --size 1920x1080
+python -m ophthosim.gl_benchmark --seconds 60 --fullscreen
+```
+
+- ENTRY 단계에서 카메라가 정해진 경로로 회전하고 가상 도구가 고정 경로로 호버합니다. 매 프레임 최근접 삼각형 계산 1회, 접촉 링, 도구, HUD 텍스처 업로드, 화면 전환이 모두 실행됩니다.
+- 호버는 `Game.action`을 호출하지 않으며, 게임 스냅샷/재생 로그가 바뀌면 실패로 종료합니다.
+- 결과는 `build/benchmark/gl-frametime.json`에 저장됩니다: `frame`/`probe`/`render` 구간별 평균·P50·P95·P99·최대(ms), OS·Python·pygame·moderngl 버전, `GL_RENDERER`/`GL_VENDOR`/`GL_VERSION`.
+- `gl08.status`: 소프트웨어 렌더러, 1920×1080 미만 창, 60초 미만 측정은 항상 `INSUFFICIENT_EVIDENCE`. 하드웨어 조건을 충족해도 `CANDIDATE_WITHIN_60FPS` / `CANDIDATE_BELOW_60FPS`까지만 표시되며, 최종 판정은 사람이 체크리스트에 기록해야 합니다.
+- 측정값은 CPU 벽시계 기준(버퍼 스왑 포함)이며 GPU 실행 시간이 아닙니다. 수직동기화는 제어하지 않으므로 60Hz 모니터에서는 약 16.7ms 근처로 제한될 수 있습니다. 모니터 주사율도 함께 기록하세요.
+- 3D 수술 화면에서 **F3** 키를 누르면 최근 프레임 평균/P95(게임 루프 60fps 제한 포함)를 HUD에 표시합니다. 표시 전용이며 점수·단계·재생 로그에 영향이 없습니다.

@@ -286,3 +286,34 @@ does **not** establish a measured FPS speedup or 4K/Windows GPU performance.
 **Remaining:** 4K readability and sustained frame-time profiling on physical
 Windows AMD hardware, deforming tissue physics, medical realism validation and
 completion of the full 32-work-package plan.
+
+
+## Scripted 3D frame-time benchmark for the GL08 gate (2026-10-24)
+
+The WP04 renderer decision needs measured frame times on the target Windows
+GPU. `python -m ophthosim.gl_benchmark` runs a fixed, deterministic workload
+in the interactive 3D surgery viewport (ENTRY phase, orbiting camera,
+synthetic stylus hover, one nearest-triangle query per frame, full HUD
+upload) and writes a JSON report with mean/P50/P95/P99/max milliseconds for
+whole frames, the CPU proximity query and the render call, together with the
+OpenGL renderer/vendor/version strings.
+
+```powershell
+python -m ophthosim.gl_benchmark --seconds 60 --size 1920x1080
+python -m ophthosim.gl_benchmark --seconds 60 --fullscreen --out build\benchmark\fullscreen.json
+```
+
+The report's `gl08.status` stays `INSUFFICIENT_EVIDENCE` for software
+renderers (llvmpipe, Microsoft Basic Render, …), windows below 1920×1080 or
+runs under 60 s. A hardware run can only reach a `CANDIDATE_…` status, which
+still needs a person to sign off the [GPU checklist](docs/GPU_VALIDATION_CHECKLIST.md).
+Timings are CPU wall clock including the buffer swap, not GPU execution time,
+and vsync is not controlled. Hover never calls `Game.action`; the run fails
+if the synthetic Game snapshot or replay journal changes. Press **F3** in
+`python -m ophthosim.gl_surgery` for a rolling frame mean/P95 readout.
+
+Local Linux Mesa llvmpipe sample (software rendering, 1920×1080, 5 s):
+mean ≈ 13.9 ms per frame, proximity query ≈ 0.23 ms, render call ≈ 13.6 ms.
+On this software path the full-window draw/HUD upload, not the BVH query,
+dominates. This says nothing about Windows Radeon hardware performance.
+**GL08 remains UNVERIFIED.**

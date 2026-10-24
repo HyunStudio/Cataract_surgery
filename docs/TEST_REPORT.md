@@ -152,3 +152,15 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Staleness checks hide a prepared observation after moving the tool in the same phase, changing camera orientation, switching phase, pausing and resuming without a new safe hover, or restarting. Invalid `SurfaceProbe` types/status/gaps fail closed; reading the HUD does not mutate `Game.snapshot()` or the replay journal.
 - [Mesa Linux software GL run 38355978911](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911) succeeded, with three synthetic scenario/replay flows and the previously established *eye-only* nearest-triangle marker framebuffer difference. [Image artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911/artifacts/11792578657).
 - **Not claimed:** wall-clock frame-rate improvement, reduced GPU draw cost, 4K performance on Windows AMD/Radeon, real tissue collision/forces or professional clinical validity. Quantitative target-device profiling remains a separate acceptance gate.
+
+
+## 2026-10-24 — frame-time statistics and benchmark workload
+
+- Local run: **557 tests passed** (Python 3.13, SDL dummy driver); 35 new tests in `tests/test_frametime.py`.
+- Percentiles match `statistics.quantiles(method="inclusive")` across 200 seeded sample sets; known-sample summary, infinite FPS for zero mean, and rejection of booleans, `None`, strings, NaN/Inf, negative, >10 s and huge-integer samples.
+- Profiler memory stays bounded (oldest samples drop), unknown section names and bad capacities are rejected.
+- GL08 assessment: software, small-window, short, NaN-duration and empty runs are always `INSUFFICIENT_EVIDENCE`; a hardware run with acceptable mean but P95 over budget is `CANDIDATE_BELOW_60FPS`.
+- Workload: camera path stays inside `View` limits for 20 000 frames; at 960×640, 1920×1080 and 3840×2160 every one of 400 frames yields a visible stylus and a nearest-triangle probe, exactly one `probe_surface` call per frame, with `Game.snapshot()` and the replay journal unchanged.
+- F3 HUD label renders three distinct states (hidden / measuring / measured) without Game mutation.
+- Local Xvfb + Mesa llvmpipe: `gl_smoke`, `gl_surgery_smoke` and `gl_benchmark` (120 frames at 960×640; 5 s at 1920×1080) succeeded with `game_state_unchanged: true` and `gl08.status: INSUFFICIENT_EVIDENCE`. The Software OpenGL workflow now runs a 300-frame 1080p benchmark and uploads the JSON report.
+- **Not claimed:** Windows GPU frame time, 4K performance, GPU execution time or any clinical property.

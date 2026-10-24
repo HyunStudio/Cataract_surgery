@@ -167,3 +167,9 @@ Experimental ModernGL GPU atlas code and offline geometry/shader-interface tests
 - Interactive 3D render now computes the unitless nearest-triangle `SurfaceProbe` **once** per visual frame, passes the same immutable result to GPU overlay and HUD, and invalidates old HUD observations on changed phase, pose, camera orientation or safety state. This eliminates duplicate CPU BVH queries in one frame without allowing a visual result to authorize Game actions.
 - Automated spy/counter tests, stale/hostile-input checks and Mesa software OpenGL integration pass: 522 Python tests on 3.12 and 3.13.
 - **WP12/WP31 remain PARTIAL**: need measured 4K Windows GPU frame latency, adaptive 4K HUD layout/legibility, accessible status typography, validated phase-consistent visual pose and deformed *synthetic* geometry, specialist review and full release acceptance.
+
+## 2026-10-24 — WP04 measurement tooling
+
+- `python -m ophthosim.gl_benchmark` produces the GL08 evidence (mean/P95 at ≥1920×1080 for ≥60 s, renderer strings) needed for the WP04 renderer decision. It refuses to call software GL evidence and leaves the final pass to a human reviewer.
+- Software-GL profiling shows render/HUD upload dominating over the proximity query; partial-region or cached HUD upload is the next candidate optimization once hardware numbers exist.
+- **WP04 remains IN PROGRESS** until a physical Windows Radeon report is attached.

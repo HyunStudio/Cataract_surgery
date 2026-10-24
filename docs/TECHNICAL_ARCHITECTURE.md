@@ -118,3 +118,10 @@ The shader's **visual-overlay draw pass** intentionally ignores depth occlusion 
 `gl_surgery.run()` now calls `visual_feedback(Game)` and `probe_surface(controller, feedback)` once per frame and hands the same read-only probe to `GPUEyePreview.render(surface_probe=...)` and `SurgeryHUD.set_frame_proximity()`. HUD painting never traverses the triangle BVH; it reads the prepared probe and validates active phase, live stylus position, camera yaw/pitch and safety status before displaying unitless model gap. This avoids the former second HUD-time proximity lookup and prevents stale marker text after game transitions.
 
 Regression spies prove two expected triangle-mesh lookups at probe preparation and zero further lookups during five HUD repaints. The visual result cannot drive procedural actions, replay, simulated complications or clinical interpretation. GPU marker draw remains a separate purely visual pass. This is an architectural optimization, **not measured wall-clock FPS or hardware 4K readiness**.
+
+
+## Frame-time measurement (2026-10-24)
+
+`frametime.FrameProfiler` keeps fixed-capacity deques for three closed sections: `frame` (interval between consecutive `render()` returns, i.e. buffer swaps), `probe` (`visual_feedback` + `probe_surface` + `SurgeryHUD.set_frame_proximity`) and `render` (`GPUEyePreview.render`, including HUD texture upload and `display.flip`). Statistics are computed only on demand; the benchmark loop keeps a running mean for its on-screen FPS so that sorting never perturbs the measured frames.
+
+`gl_benchmark.run_benchmark` reuses the interactive game's real pipeline (`Surgery3DController.inspect` → one `probe_surface` → shared `SurfaceProbe` for GPU marker and HUD) under a deterministic camera/hover script. `gl08_assessment` gates its verdict on renderer string, window size and duration and can only emit candidate statuses. All values are CPU-observed wall clock with uncontrolled vsync; they are not GPU timer queries.
