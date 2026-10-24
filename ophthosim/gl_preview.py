@@ -14,6 +14,7 @@ import argparse
 from dataclasses import dataclass
 import json
 import math
+import sys
 from typing import Iterable
 
 from .geometry import Mesh, anterior_eye_meshes
@@ -96,6 +97,30 @@ void main() {
     fragColor = texture(u_hud, v_uv);
 }
 """
+
+
+def hud_swizzle(bitsize: int, pitch: int, width: int,
+                masks: tuple[int, int, int, int],
+                byteorder: str = sys.byteorder) -> str | None:
+    """Texture swizzle for uploading a 32-bit surface buffer without copying.
+
+    Returns e.g. ``"BGRA"`` for SDL's usual little-endian ARGB8888 layout, or
+    None when rows are padded, a channel is not a whole byte, or channels
+    overlap; callers must then fall back to an explicit RGBA byte copy.
+    """
+    if bitsize != 32 or width < 1 or pitch != width * 4 or len(masks) != 4:
+        return None
+    if byteorder not in ("little", "big"):
+        return None
+    positions = []
+    for mask in masks:
+        if mask not in (0xff, 0xff00, 0xff0000, 0xff000000):
+            return None
+        shift = mask.bit_length() - 8
+        positions.append(shift // 8 if byteorder == "little" else 3 - shift // 8)
+    if len(set(positions)) != 4:
+        return None
+    return "".join("RGBA"[index] for index in positions)
 
 
 def bounded_float(value: object, lower: float, upper: float) -> float:
@@ -243,16 +268,19 @@ class GPUEyePreview:
                                              fragment_shader=FRAGMENT_SHADER)
         self.hud_shader = self.ctx.program(vertex_shader=UI_VERTEX_SHADER,
                                            fragment_shader=UI_FRAGMENT_SHADER)
-        quad = array("f", (-1, -1, 0, 0,
-                            1, -1, 1, 0,
-                           -1,  1, 0, 1,
-                            1,  1, 1, 1))
+        # HUD rows are uploaded top-first (surface memory order), so the
+        # quad's v coordinate runs downward instead of flipping every byte.
+        quad = array("f", (-1, -1, 0, 1,
+                            1, -1, 1, 1,
+                           -1,  1, 0, 0,
+                            1,  1, 1, 0))
         self.quad_buffer = self.ctx.buffer(quad.tobytes())
         self.quad_vao = self.ctx.vertex_array(self.hud_shader,
                                [(self.quad_buffer, "2f 2f", "in_pos", "in_uv")])
         self.font = pygame.font.SysFont("segoeui", 20)
         self.font_big = pygame.font.SysFont("segoeui", 28, bold=True)
         self.hud_texture = None
+        self.hud_surface = None
         self.meshes: dict[str, tuple[object, object, object]] = {}
         self.selection: TriangleHit | None = None
         self.selection_pixel: tuple[int, int] | None = None
@@ -512,7 +540,12 @@ class GPUEyePreview:
 
     def draw_hud(self, view: View, fps: float, w: int, h: int,
                  *, overlay=None, vision: VisualFeedback | None = None) -> None:
-        hud = self.pg.Surface((w, h), self.pg.SRCALPHA)
+        # One reusable full-window surface: allocating ~8 MB per frame at
+        # 1080p showed up in software-GL profiles.
+        if self.hud_surface is None or self.hud_surface.get_size() != (w, h):
+            self.hud_surface = self.pg.Surface((w, h), self.pg.SRCALPHA)
+        hud = self.hud_surface
+        hud.fill((0, 0, 0, 0))
         if vision is not None:
             # Frosted synthetic view veil; static and bounded, never blinking.
             # This HUD-layer approximation does NOT reproduce tissue optics.
@@ -568,7 +601,21 @@ class GPUEyePreview:
                 self.hud_texture.release()
             self.hud_texture = self.ctx.texture((w, h), 4)
             self.hud_texture.filter = (self.gl.LINEAR, self.gl.LINEAR)
-        self.hud_texture.write(self.pg.image.tobytes(hud, "RGBA", True))
+        swizzle = hud_swizzle(hud.get_bitsize(), hud.get_pitch(), w,
+                              tuple(hud.get_masks()))
+        if swizzle is not None:
+            # Hand the surface's own pixel memory to the driver; no
+            # intermediate RGBA/flip copy. The view locks the surface only
+            # for the duration of the upload.
+            self.hud_texture.swizzle = swizzle
+            view_buffer = hud.get_view("1")
+            try:
+                self.hud_texture.write(view_buffer)
+            finally:
+                del view_buffer
+        else:
+            self.hud_texture.swizzle = "RGBA"
+            self.hud_texture.write(self.pg.image.tobytes(hud, "RGBA", False))
         self.hud_texture.use(0)
         self.hud_shader["u_hud"].value = 0
         self.ctx.disable(self.gl.DEPTH_TEST)
@@ -597,6 +644,7 @@ class GPUEyePreview:
         self.quad_buffer.release()
         if self.hud_texture is not None:
             self.hud_texture.release()
+        self.hud_surface = None
         self.scene_shader.release()
         self.hud_shader.release()
 

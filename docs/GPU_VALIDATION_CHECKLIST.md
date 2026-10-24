@@ -41,7 +41,7 @@ Collect operating system, GPU, driver version, OpenGL version, display scaling, 
 ## Technical next steps
 
 - Confirm shader compilation, culling orientation, depth interactions and HUD texture y-direction on target driver.
-- Profile full-screen HUD RGBA texture upload each frame; optimize with a small static atlas or subregion upload if it dominates.
+- Profile full-screen HUD RGBA texture upload each frame; optimize with a small static atlas or subregion upload if it dominates. *(2026-10-24: software-GL profiling showed it dominating; the HUD surface is now reused and uploaded zero-copy with a texture swizzle. Re-profile on Windows hardware with `ophthosim.gl_benchmark`.)*
 - Add depth-picking and a synchronized object-space tool model before enabling any 3D surgery interactions.
 - Replace the closed globe background shortcut with a modeled anterior scleral cutaway; validate layer visibility with real screenshots.
 - Keep a fully playable 2.5D fallback until these tests pass.

@@ -317,3 +317,24 @@ mean ≈ 13.9 ms per frame, proximity query ≈ 0.23 ms, render call ≈ 13.6 ms
 On this software path the full-window draw/HUD upload, not the BVH query,
 dominates. This says nothing about Windows Radeon hardware performance.
 **GL08 remains UNVERIFIED.**
+
+**CI for the benchmark increment:** [Python 3.12/3.13 run 40065486713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486713), 557 tests passed per version; [Mesa OpenGL run 40065486734](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486734) measured 300 frames at 1920×1080 on llvmpipe (mean 13.5 ms, P95 14.2 ms, probe 0.40 ms, render 12.97 ms; [JSON report](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486734/artifacts/12549490894)), status `INSUFFICIENT_EVIDENCE` as designed.
+
+
+## Zero-copy HUD texture upload (2026-10-24)
+
+Profiling the benchmark showed the 2D HUD costing more than half of each
+frame on software GL: a new full-window 8 MB surface every frame, a vertically
+flipped RGBA byte copy (`pygame.image.tobytes`) and then the texture upload.
+`GPUEyePreview` now reuses one HUD surface per window size and uploads the
+surface's own pixel memory directly. A texture swizzle derived from the
+surface channel masks (normally `BGRA`) replaces the channel reorder, and the
+HUD quad's v coordinate runs top-down instead of flipping rows. Padded rows or
+unusual pixel formats fall back to the previous explicit RGBA copy.
+
+Rendered output is unchanged: local framebuffer readbacks of seven HUD,
+haze/high-contrast and atlas frames are byte-identical to the previous code
+for both the zero-copy and fallback paths, and the Mesa smoke now asserts that
+equality on every CI run. Local llvmpipe 1920×1080, 300 frames: mean frame
+14.2 → 10.0 ms, P95 16.0 → 11.4 ms. This is a **software-rasterizer
+measurement**; Windows GPU gains are unmeasured and GL08 remains UNVERIFIED.

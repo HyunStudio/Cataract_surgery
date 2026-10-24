@@ -184,3 +184,12 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Issues found while building it and fixed before commit: the measured-duration anchor was never set after warmup (reported 0 s); per-frame `stats()` sorting would have distorted the measurement at high frame rates (replaced with a running mean); an `"unknown"` renderer string was treated as hardware; the pygame banner corrupted JSON stdout.
 - Local Mesa llvmpipe 1920×1080 sample: ≈13.9 ms mean frame, ≈0.23 ms proximity query, ≈13.6 ms render call. On software GL the full-window draw/HUD upload dominates, which points the next optimization at HUD texture upload rather than the BVH.
 - **WP04/GL08 remain OPEN**: no physical Windows Radeon run has been made. The tool produces evidence; it does not produce a pass.
+
+
+## 2026-10-24 — zero-copy HUD upload from benchmark evidence
+
+- CI confirmed the benchmark increment: [Tests 40065486713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486713) (557 passed on 3.12 and 3.13) and [Mesa GL 40065486734](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486734) (300 frames at 1080p: mean 13.5 ms, render 12.97 ms, probe 0.40 ms).
+- cProfile of the 1080p workload attributed ≈9.3 ms of a ≈15 ms render to `draw_hud`: per-frame `Surface` allocation, `tobytes(..., flipped=True)` and `Texture.write`. The BVH proximity query was ≈0.24 ms.
+- `GPUEyePreview` now reuses its HUD surface, uploads the raw surface buffer with a mask-derived texture swizzle (`hud_swizzle`), and flips the HUD quad's v coordinate instead of the bytes. Unsupported layouts fall back to the RGBA copy.
+- Verified pixel-identical framebuffers (7 frames, both paths) against the previous implementation; Mesa smoke asserts zero-copy == copy and surface reuse. Local llvmpipe 1080p: mean 14.2 → 10.0 ms, P95 16.0 → 11.4 ms.
+- **Still open:** Windows Radeon GL08 run, 4K, HUD legibility at 4K, clinical review.

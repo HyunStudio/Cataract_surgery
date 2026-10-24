@@ -164,3 +164,12 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - F3 HUD label renders three distinct states (hidden / measuring / measured) without Game mutation.
 - Local Xvfb + Mesa llvmpipe: `gl_smoke`, `gl_surgery_smoke` and `gl_benchmark` (120 frames at 960×640; 5 s at 1920×1080) succeeded with `game_state_unchanged: true` and `gl08.status: INSUFFICIENT_EVIDENCE`. The Software OpenGL workflow now runs a 300-frame 1080p benchmark and uploads the JSON report.
 - **Not claimed:** Windows GPU frame time, 4K performance, GPU execution time or any clinical property.
+
+
+## 2026-10-24 — zero-copy HUD upload
+
+- CI for the benchmark increment: [run 40065486713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486713) **557 passed on Python 3.12 and 3.13**; [Mesa run 40065486734](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486734) uploaded the 1080p frame-time JSON (`INSUFFICIENT_EVIDENCE`, software renderer).
+- Local: **560 passed**. New `hud_swizzle` tests cover little/big-endian ARGB and ABGR layouts; rejection of 24-bit, padded-row, zero-width, missing/duplicate/partial-byte masks and unknown byte order; and a real pygame `SRCALPHA` surface whose swizzled raw buffer reproduces `tobytes(..., "RGBA")` exactly.
+- `gl_surgery_smoke` now renders the same HUD frame through the zero-copy path and a forced copy fallback and requires identical framebuffer bytes, plus HUD surface reuse across frames. Local llvmpipe reports swizzle `BGRA`.
+- Manual A/B before commit: seven captured frames byte-identical to the previous implementation for both paths; 1080p llvmpipe mean frame 14.2 → 10.0 ms (two runs each).
+- **Not claimed:** any Windows GPU or 4K speedup.

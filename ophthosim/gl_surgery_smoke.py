@@ -114,6 +114,28 @@ def main() -> int:
                                             eye_regions["vision-motion"]):
             raise AssertionError("Synthetic eye motion/haze invisible in center-eye crop")
 
+        # Zero-copy HUD upload (surface memory + texture swizzle + flipped
+        # quad v) must match the explicit RGBA copy byte for byte on this
+        # driver, and the full-window HUD surface must be reused.
+        import ophthosim.gl_preview as gl_preview_module
+        hud_kwargs=dict(capture=True,overlay=overlay,appearance=AnatomyAppearance(),
+                        vision=VisualFeedback(haze=.3,high_contrast=True))
+        direct=atlas.render(ctrl.view,60.,**hud_kwargs)
+        reused=atlas.hud_surface
+        assert reused is not None
+        assert atlas.render(ctrl.view,60.,**hud_kwargs)==direct
+        assert atlas.hud_surface is reused, "HUD surface reallocated per frame"
+        original_swizzle=gl_preview_module.hud_swizzle
+        gl_preview_module.hud_swizzle=lambda *args,**kwargs: None
+        try:
+            copied=atlas.render(ctrl.view,60.,**hud_kwargs)
+        finally:
+            gl_preview_module.hud_swizzle=original_swizzle
+        if copied!=direct:
+            raise AssertionError("Zero-copy HUD upload differs from RGBA copy")
+        hud_zero_copy=original_swizzle(reused.get_bitsize(),reused.get_pitch(),
+                                       reused.get_width(),tuple(reused.get_masks()))
+
         ctrl.command("confirm")
         ctrl.command("prepare")
         assert ctrl.game.phase == Phase.ENTRY
@@ -258,6 +280,8 @@ def main() -> int:
             "contact_ring_center_region_distinct": True,
             "nearest_triangle_marker_center_crop_distinct": True,
             "capsule_center_region_healthy_vs_damage_distinct": True,
+            "hud_upload_swizzle": hud_zero_copy or "copy-fallback",
+            "hud_zero_copy_matches_rgba_copy": True,
             "windows_gpu_tested": False,
             "clinical_validation": False,
         },sort_keys=True))
