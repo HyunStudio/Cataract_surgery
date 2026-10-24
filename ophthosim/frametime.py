@@ -8,7 +8,7 @@ not GPU execution times. They support the GL08 checklist row (mean/P95 at
 """
 from __future__ import annotations
 
-from collections import deque
+from array import array
 from dataclasses import dataclass
 import math
 from typing import Iterable
@@ -99,35 +99,47 @@ def summarize(samples: Iterable[float],
 class FrameProfiler:
     """Fixed-capacity rolling samples per named section.
 
-    Memory stays bounded during long sessions: older samples are discarded.
-    Unknown section names are rejected instead of silently creating buckets.
+    Each section is a ring buffer of C doubles allocated (and touched) up
+    front, so recording never grows process memory: otherwise the profiler
+    itself would show up as "memory growth" in GL07 runs. Once full, the
+    oldest samples are overwritten. Unknown section names are rejected.
     """
 
     def __init__(self, capacity: int = DEFAULT_CAPACITY) -> None:
         if type(capacity) is not int or not 1 <= capacity <= 1_000_000:
             raise ValueError("Profiler capacity must be a bounded integer")
         self.capacity = capacity
-        self._samples = {name: deque(maxlen=capacity) for name in SECTIONS}
+        self._samples = {name: array("d", bytes(8 * capacity))
+                         for name in SECTIONS}
+        self._counts = dict.fromkeys(SECTIONS, 0)
+        self._next = dict.fromkeys(SECTIONS, 0)
+
+    def _check(self, section: object) -> None:
+        if section not in self._samples:
+            raise ValueError(f"Unknown profiler section: {section!r}")
 
     def record(self, section: str, ms: object) -> None:
-        if section not in self._samples:
-            raise ValueError(f"Unknown profiler section: {section!r}")
-        self._samples[section].append(_sample(ms))
+        self._check(section)
+        value = _sample(ms)
+        slot = self._next[section]
+        self._samples[section][slot] = value
+        self._next[section] = (slot + 1) % self.capacity
+        self._counts[section] = min(self._counts[section] + 1, self.capacity)
 
     def count(self, section: str = "frame") -> int:
-        if section not in self._samples:
-            raise ValueError(f"Unknown profiler section: {section!r}")
-        return len(self._samples[section])
+        self._check(section)
+        return self._counts[section]
 
     def stats(self, section: str = "frame") -> FrameStats | None:
-        if section not in self._samples:
-            raise ValueError(f"Unknown profiler section: {section!r}")
-        samples = self._samples[section]
-        return summarize(samples) if samples else None
+        self._check(section)
+        count = self._counts[section]
+        # Order is irrelevant to the statistics; only filled slots count.
+        return summarize(self._samples[section][:count]) if count else None
 
     def reset(self) -> None:
-        for samples in self._samples.values():
-            samples.clear()
+        for name in SECTIONS:
+            self._counts[name] = 0
+            self._next[name] = 0
 
     def report(self) -> dict[str, dict[str, float | int] | None]:
         result = {}

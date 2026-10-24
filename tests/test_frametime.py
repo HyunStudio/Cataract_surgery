@@ -336,3 +336,31 @@ def test_gl07_ignores_early_warmup_plateau_but_flags_late_rise():
                            for i in range(11)])
     assert rising.late_slope_mb_per_min > 1.
     assert gl07_assessment(rising, 300., "AMD Radeon")["status"] == "CANDIDATE_GROWTH"
+
+
+def test_recording_does_not_grow_memory_during_a_run():
+    import tracemalloc
+    profiler = FrameProfiler(capacity=50_000)
+    profiler.record("frame", 1.)
+    tracemalloc.start()
+    try:
+        before = tracemalloc.get_traced_memory()[0]
+        for i in range(120_000):          # wraps the ring more than twice
+            profiler.record("frame", float(i % 97))
+            profiler.record("probe", .25)
+        grown = tracemalloc.get_traced_memory()[0] - before
+    finally:
+        tracemalloc.stop()
+    assert grown < 4096, f"profiler allocated {grown} bytes while recording"
+    assert profiler.count("frame") == 50_000 and profiler.count("probe") == 50_000
+
+
+def test_ring_buffer_statistics_after_wraparound():
+    profiler = FrameProfiler(capacity=4)
+    for value in (100., 100., 1., 2., 3., 4.):
+        profiler.record("render", value)
+    stats = profiler.stats("render")
+    assert stats.count == 4 and stats.max_ms == 4. and stats.min_ms == 1.
+    profiler.reset()
+    profiler.record("render", 9.)
+    assert profiler.stats("render").count == 1 and profiler.stats("render").max_ms == 9.
