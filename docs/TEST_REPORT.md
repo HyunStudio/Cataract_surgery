@@ -229,3 +229,15 @@ requires each to change the frame and to be distinct. Hardware result on an RTX 
 
 **Not claimed:** AMD Radeon results, human usability, clinical validity of the
 complication chains or of the synthetic vital-sign and bleeding values.
+
+## 2026-10-24 — v4 operating room
+
+**Local run (Windows 11): 865 passed.**
+
+| File | Covers |
+|---|---|
+| `test_room3d.py` | room meshes valid, inside the room and packable; people and tray for every instrument; tray = game instruments; held instrument tip at the eye; instrument tips at the origin; orthonormal rotations; finite cameras; eye framed in close-ups; screen cameras see the whole display; scope view orientation matches the 2D field; eye-disc UVs; display sizes and refresh groups; alert on vitals/video; hyphema in the eye texture; phaco console without digits and with qualitative levels |
+| `test_gl_surgery_v2.py` | `C` view cycle; room views hide microscope markers; `room_frame` feeds people and displays |
+
+GPU (RTX 3070): `or_gallery` rendered ten distinct, non-blank panels. The real game
+loop was driven through all five views with injected key events.

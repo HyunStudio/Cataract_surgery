@@ -279,3 +279,25 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
   - human sign-off of GL01–GL10
   - expert review of the clinical plausibility of the complication chains
   - licensed anatomy models (none are committed)
+
+## 2026-10-24 — v4: 3D operating room from the concept image
+
+- **Plan / design:** [V4 plan](V4_OPERATING_ROOM_3D_PLAN_KO.md) maps the ten concept panels to modules.
+- **Room (`room3d.py`):** procedurally modelled theatre with:
+  - surgical lamp, table and draped patient (face, eye drape, speculum)
+  - floor-stand microscope
+  - vital-signs, phaco and video displays
+  - instrument tray with the 15 game instruments
+  - seated surgeon whose gloved hands hold `game.tool` with its tip at the eye
+  - scrub nurse
+  - nine cameras, including the view straight down the microscope
+- **Displays (`screens3d.py`):** live vitals with an alert banner, phaco console (relative bars only), video feed and the eye texture, all from the 2D procedural eye renderer. They refresh in two alternating groups at about 10 Hz.
+- **Renderer (`gl_room.py`):** hemisphere and ceiling light, lamp spotlight, metal highlights, exposure curve and gamma, 4× MSAA.
+- **Game:** `C` cycles five views. Room views observe only; mouse surgery stays in the microscope view.
+- **Gallery (`or_gallery.py`):** renders the ten panels on the GPU and assembles a captioned sheet. Mesa CI runs it too.
+- **Local result (RTX 3070):**
+  - 865 tests passed
+  - gallery rendered on hardware
+  - room view at 1080p: 9.5 ms mean, 17.8 ms p95 including display refresh
+  - in-game loop check through all five views
+- **Limits:** stylized procedural geometry, not photorealistic. Licensed models can replace parts through the asset loader.

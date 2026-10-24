@@ -45,3 +45,14 @@ hints name only game actions. Boundaries that still apply:
 - Third-party 3D models load only with a manifest naming the source, author and a
   redistributable licence (`assets/models/README.md`). Non-commercial or
   no-derivatives licences are refused.
+
+## v4 3D operating room (2026-10-24)
+
+- Equipment is generic. No manufacturer names, logos or product designs (microscope,
+  phaco console, monitors) are reproduced.
+- The phaco console shows relative bars for irrigation, ultrasound, vacuum and flow. It
+  shows no power, vacuum or flow numbers; a test checks that the console text contains
+  no digits.
+- The scene, people and displays only read the Game. Changing the view never changes
+  rules, scores or replays, and mouse surgery is accepted only in the microscope view.
+- Renders are synthetic procedural images, not photographs or clinical imagery.

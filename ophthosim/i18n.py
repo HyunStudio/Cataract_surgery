@@ -194,6 +194,15 @@ KO: dict[str, str] = {
 
 # --- engine v3: instruments, management, bleeding, patient chart ----------
 EN.update({
+    'screen.phaco_title': 'Phaco console', 'screen.irrigation': 'Irrigation',
+    'screen.ultrasound': 'Ultrasound', 'screen.vacuum': 'Vacuum', 'screen.flow': 'Flow',
+    'screen.no_settings': 'Synthetic display: relative levels only, no device settings',
+    'screen.step': 'Step', 'screen.live': 'LIVE',
+    'view.microscope_view': 'Microscope (operate)', 'view.overview': 'Operating room',
+    'view.scope': 'Through the microscope (observe)',
+    'view.surgeon': "Surgeon's view", 'view.monitor': 'Video monitor',
+    'view.label': 'View: {name}  (C)',
+    'view.room_input': 'Operating from the microscope view only: press C',
     'hud.tool_z': 'Tool depth {z}', 'hud.target_z': 'Target depth {z}',
     'hud.inactive': 'Tool inactive', 'hud.depth_keys': 'Q/E adjust depth',
     'hud.guide': 'Tool guide: {s}', 'hud.gap': 'Mesh gap: {s} {gap}u',
@@ -281,6 +290,15 @@ EN.update({
 })
 
 KO.update({
+    'screen.phaco_title': 'Phaco 콘솔', 'screen.irrigation': '관류',
+    'screen.ultrasound': '초음파', 'screen.vacuum': '흡인', 'screen.flow': '유량',
+    'screen.no_settings': '합성 표시: 상대 수준만 표시, 장비 설정값 없음',
+    'screen.step': '단계', 'screen.live': '실시간',
+    'view.microscope_view': '현미경 (조작)', 'view.overview': '수술실 전경',
+    'view.scope': '현미경 접안 시야 (관찰)',
+    'view.surgeon': '집도의 시점', 'view.monitor': '모니터 시점',
+    'view.label': '시점: {name}  (C)',
+    'view.room_input': '수술 조작은 현미경 시점에서만 가능합니다: C',
     'hud.tool_z': '도구 깊이 {z}', 'hud.target_z': '목표 깊이 {z}',
     'hud.inactive': '도구 비활성', 'hud.depth_keys': 'Q/E 깊이 조절',
     'hud.guide': '도구 가이드: {s}', 'hud.gap': '메시 간격: {s} {gap}u',

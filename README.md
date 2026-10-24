@@ -12,6 +12,8 @@ difficulty levels, Korean/English UI and replayable research logs.
 > instrument for each situation follow real cataract surgery, but there are no drug
 > doses or device energy/vacuum/flow settings. See [Safety](docs/SAFETY.md).
 
+![3D operating room gallery rendered on an RTX 3070](docs/evidence/2026-10-24-windows-rtx3070/or_gallery_ko.jpg)
+
 Screenshots of every screen are produced by CI (`build/screenshots/` artifacts of the
 *Tests* and *Software OpenGL Smoke* workflows).
 
@@ -131,6 +133,13 @@ The weights are game-design hypotheses, not a validated skill measure.
 The 3D game (`python -m ophthosim.gl_surgery`) uses the same engine and keys for the
 procedure, plus arrows to orbit, Q/E for tool depth, F3 for frame time and S to export.
 Complications, bleeding and the devices used to manage them are drawn in both views.
+`C` cycles from the operating microscope to a 3D **operating room**: the view through
+the eyepieces, the whole theatre, the surgeon's view and the video monitor. The room has
+the draped patient, a floor-stand microscope, a surgeon whose gloved hands hold the
+current instrument, a scrub nurse, an instrument tray with all 15 instruments, and live
+vital-signs, phaco and video displays. Mouse surgery stays in the microscope view.
+`python -m ophthosim.or_gallery` renders all ten panels of the
+[room concept](docs/V4_OPERATING_ROOM_3D_PLAN_KO.md) to `build/or_gallery/`.
 Licensed OBJ models in `assets/models/` can replace the procedural eye
 ([format](assets/models/README.md)).
 
@@ -196,8 +205,8 @@ evidence. The HUD texture is uploaded zero-copy. See the
 
 | Area | State |
 |---|---|
-| Full 2.5D game: 13 scenarios, 15 instruments, bleeding, patient profiles, 3 difficulties, 5 endings, explained score, KO/EN, accessibility, autosave | **Implemented and tested** (804 automated tests on Windows) |
-| 3D game with the same engine, complication/bleeding signs | Implemented; GPU smoke passed on Windows 11 / RTX 3070 |
+| Full 2.5D game: 13 scenarios, 15 instruments, bleeding, patient profiles, 3 difficulties, 5 endings, explained score, KO/EN, accessibility, autosave | **Implemented and tested** (865 automated tests on Windows) |
+| 3D game with the same engine, complication/bleeding signs, 3D operating room (5 views, gallery) | Implemented; GPU smoke and gallery passed on Windows 11 / RTX 3070 |
 | Windows GPU (GL01–GL10) | NVIDIA RTX 3070: automated checks pass; AMD Radeon target and human sign-off **open** ([checklist](docs/GPU_VALIDATION_CHECKLIST.md)) |
 | Clinical plausibility and educational value | **Open** — needs subject-matter-expert review |
 | Vitreous event, deformable tissue physics | Out of scope for v1.x (spec "advanced") |
@@ -219,9 +228,12 @@ ophthosim/
   gl_surgery.py       experimental ModernGL 3D game (+ input3d, contact3d, tool3d,
                       iol3d, capsule3d, complication3d, vision3d, surface_probe3d …)
   assets.py           optional licensed OBJ models (licence manifest required)
+  room3d.py           procedural operating room, instruments, people, cameras
+  screens3d.py        in-room displays (vitals, phaco, video, eye texture)
+  gl_room.py          room renderer (lit shader, MSAA); or_gallery.py panel renders
   gl_preview.py       3D anatomy atlas and renderer
   gl_benchmark.py     frame-time / memory benchmark; frametime.py statistics
-tests/                804 headless, SDL-dummy and GUI tests
+tests/                865 headless, SDL-dummy and GUI tests
 docs/                 specs (KO), architecture, roadmap, safety, research, GPU checklist
 ```
 

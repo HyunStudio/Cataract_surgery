@@ -270,3 +270,51 @@ def test_resume_controller_restores_verified_autosave(tmp_path):
         resume_controller(Surgery3DController(), path)
     c.command("abort")
     assert write_autosave(c.game, path) is None and not path.exists()
+
+
+def test_c_cycles_views_and_room_views_hide_microscope_markers():
+    from ophthosim.gl_surgery import cycle_view
+    from ophthosim.room3d import VIEW_CYCLE
+    pygame, surf, font, title = _surface()
+    try:
+        c = Surgery3DController()
+        hud = SurgeryHUD(c)
+        seen = [cycle_view(hud) for _ in VIEW_CYCLE]
+        assert seen == list(VIEW_CYCLE[1:]) + [VIEW_CYCLE[0]]
+        while c.game.phase != Phase.ENTRY:
+            advance_preop(c) if c.game.phase == Phase.PREOP else c.command("prepare")
+        x, y = eye_to_pixel(*c.game._entry_target[0], c.target_depth, W, H, c.view)
+        frames = {}
+        for camera in ("microscope_view", "overview"):
+            hud.camera = camera
+            surf.fill((0, 0, 0, 0))
+            hud.draw(pygame, surf, c.view, W, H, font, title)
+            frames[camera] = max(surf.get_at((round(x) + d, round(y))).a for d in (7, 8, 9))
+        assert frames["microscope_view"] > 0 and frames["overview"] == 0
+    finally:
+        pygame.quit()
+
+
+def test_room_frame_feeds_people_and_displays():
+    from ophthosim.gl_surgery import room_frame
+
+    class FakeRoom:
+        def set_people(self, tool, active):
+            self.people = (tool, active)
+
+        def set_screens(self, surfaces):
+            self.screens = surfaces
+
+    pygame = pytest.importorskip("pygame")
+    pygame.init()
+    try:
+        c = Surgery3DController()
+        to_close(c)
+        room = FakeRoom()
+        room_frame(room, c.game, "ko", pygame)
+        assert room.people == (c.game.tool, False)
+        assert set(room.screens) == {"video", "eye", "vitals", "phaco"}
+        room_frame(room, c.game, "ko", pygame, 1)
+        assert set(room.screens) == {"vitals", "phaco"}
+    finally:
+        pygame.quit()

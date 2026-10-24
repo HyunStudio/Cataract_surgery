@@ -664,7 +664,21 @@ class GPUEyePreview:
         self.pg.display.flip()
         return image
 
-    def draw_hud(self, view: View, fps: float, w: int, h: int,
+    def render_room(self, room, camera, fps: float, *, overlay=None,
+                    capture: bool = False) -> bytes | None:
+        """Operating-room view (gl_room.RoomRenderer) with the same HUD."""
+        w, h = self.pg.display.get_window_size()
+        if not (w > 0 and h > 0):
+            return None
+        self.size = (w, h)
+        room.draw(camera, w, h)
+        self.draw_hud(None, fps, w, h, overlay=overlay)
+        image = (self.ctx.screen.read(viewport=(0, 0, w, h), components=3, alignment=1)
+                 if capture else None)
+        self.pg.display.flip()
+        return image
+
+    def draw_hud(self, view: View | None, fps: float, w: int, h: int,
                  *, overlay=None, vision: VisualFeedback | None = None) -> None:
         # Large windows paint the HUD at a logical size and magnify it on the
         # GPU; every coordinate below is in logical HUD pixels.
@@ -692,7 +706,9 @@ class GPUEyePreview:
             if vision.high_contrast:
                 self.pg.draw.circle(hud,(245,236,146,235),(w//2,h//2),
                                     max(1,min(w,h)//3)+5,3)
-        if overlay is None:
+        if overlay is None and view is None:
+            lines = ()                      # clean room render (gallery images)
+        elif overlay is None:
             lines = (
                 ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
                 ("EDUCATIONAL SYNTHETIC ANATOMY - NOT CLINICAL", self.font, (245, 202, 136)),
@@ -710,7 +726,8 @@ class GPUEyePreview:
                 ("OPHTHOSIM-AI  /  INTERACTIVE 3D PROTOTYPE", self.font_big, (230, 241, 250)),
                 ("SYNTHETIC EDUCATIONAL SURGERY - NOT CLINICAL TRAINING", self.font,
                  (245, 202, 136)),
-                (f"ANATOMY: {view.phase}    {fps_label(fps)}", self.font,
+                (f"ANATOMY: {view.phase}    {fps_label(fps)}" if view is not None
+                 else f"OPERATING ROOM    {fps_label(fps)}", self.font,
                  (125, 211, 231)),
             )
         y = 24

@@ -29,6 +29,7 @@ from .tool3d import visible_stylus
 from .iol3d import iol_visual_deployment
 from .capsule3d import capsule_display_state
 from .complication3d import complication_visuals
+from .room3d import VIEW_CYCLE
 from .vision3d import visual_feedback
 from .surface_probe3d import SurfaceProbe, probe_surface
 from .frametime import FrameProfiler, FrameStats
@@ -65,6 +66,8 @@ class SurgeryHUD:
         self.last_cursor: tuple[int, int] | None = None  # window pixels
         self.ui_scale = 1
         self.status = ""            # empty: the localized disclaimer
+        # "microscope_view" operates; the operating-room views only observe.
+        self.camera = VIEW_CYCLE[0]
         self.lang = "en"
         self.reduced_motion = False
         self.high_contrast = False
@@ -131,6 +134,7 @@ class SurgeryHUD:
         amber=(247,195,109)
         red=(247,122,136)
         lang = self.lang
+        room = self.camera != VIEW_CYCLE[0]
         label(t(lang, 'case.'+g.case)[:24], 24, 189, color=light)
         # Long titles wrap at word boundaries to avoid spilling onto the iris.
         for i, line in enumerate(phase_title_lines(g.phase, lang=lang)):
@@ -144,7 +148,7 @@ class SurgeryHUD:
                 label((("[x] " if done else "[ ] ") + t(lang, "check."+item))[:26],
                       24, 350+i*28, color=green if done else amber)
             label(t(lang, "hud.preop_keys")[:34], 24, 437, color=light)
-        else:
+        elif not room:
             label(t(lang, "hud.tool_z", z=f"{c.tool_depth:+.2f}"), 24, 350, color=green)
         required = g.required_tool
         if not g.ending and g.phase != Phase.PREOP:
@@ -179,7 +183,7 @@ class SurgeryHUD:
             label(t(lang, "hud.iol_deploy", p=f"{iol_visual_deployment(g):.0%}"),
                   width//2-104, 152, color=green)
         target = c.target_depth
-        if g.phase != Phase.PREOP:
+        if g.phase != Phase.PREOP and not room:
             label(t(lang, "hud.target_z", z=f"{target:+.2f}") if target is not None
                   else t(lang, "hud.inactive"), 24, 378, color=light)
             label(t(lang, "hud.depth_keys"), 24, 410, color=amber)
@@ -198,8 +202,21 @@ class SurgeryHUD:
                       [(left+i, 403-int(val*29)) for i,val in enumerate(wave)],2)
         pg.draw.line(surf, (54,100,122), (left,415), (width-34,415), 1)
 
+        view_lines = [(t(lang, "view.label", name=t(lang, "view."+self.camera)),
+                       (255,238,155) if room else light)]
+        if room and not g.ending and g.phase not in (Phase.PREOP, Phase.ANESTHESIA):
+            view_lines.append((t(lang, "view.room_input"), amber))
+        if room:
+            # Room scenes are bright: give the view caption its own plate.
+            plate_w = max(font.size(text)[0] for text, _ in view_lines) + 20
+            pg.draw.rect(surf, (10,27,39,215), (width//2-160, 88, plate_w, 8+24*len(view_lines)),
+                         border_radius=8)
+        for i, (text, colour) in enumerate(view_lines):
+            label(text, width//2-150, 92+24*i, color=colour)
         # Targets projected using the same GLSL camera and ray-plane scale.
-        if g.phase == Phase.ENTRY:
+        if room:
+            pass        # microscope-space markers do not belong to room cameras
+        elif g.phase == Phase.ENTRY:
             for i,(x,y) in enumerate(g._entry_target):
                 self._point(pg, surf, x,y,c, width,height,
                             green if i < g.eye.entry_hits else amber, r=9)
@@ -241,7 +258,7 @@ class SurgeryHUD:
             flags=("LOW MOTION " if self.reduced_motion else "") + ("HIGH CONTRAST" if self.high_contrast else "")
             label(flags.strip(), width//2-115, 110, color=(255,238,155))
         # Avoid displaying an earlier cursor after phase changes or restart.
-        if self.last_cursor and c.last_pose is not None:
+        if self.last_cursor and c.last_pose is not None and not room:
             cursor=tuple(v//self.ui_scale for v in self.last_cursor)
             pg.draw.circle(surf,green,cursor,8,2)
         self._draw_common(pg, surf, width, height, label, light, green, amber, red)
@@ -395,6 +412,21 @@ def cycle_tool(controller: Surgery3DController, step: int = 1) -> bool:
     return controller.command("tool", TOOL_NAMES[index])
 
 
+def cycle_view(hud: SurgeryHUD) -> str:
+    """C key: microscope (operate) -> operating room -> surgeon -> monitor."""
+    hud.camera = VIEW_CYCLE[(VIEW_CYCLE.index(hud.camera)+1) % len(VIEW_CYCLE)]
+    return hud.camera
+
+
+def room_frame(room, game, lang: str, pygame, group: int | None = None) -> None:
+    """Refresh the room's people and display contents from the Game
+    (`group` 0/1 refreshes half of the displays; None all of them)."""
+    from .screens3d import all_screens
+    active = game.phase in (Phase.PHACO, Phase.CORTEX) and not game.ending
+    room.set_people(game.tool, active)
+    room.set_screens(all_screens(pygame, game, lang, active=active, group=group))
+
+
 def quick_use(controller: Surgery3DController, tool: str) -> bool:
     """V (viscoelastic) / D (hydrodissection): pick `tool`, use it at the centre."""
     if controller.game.tool != tool and not controller.command("tool", tool):
@@ -445,6 +477,7 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
         raise SystemExit("Install: python -m pip install -r requirements-3d.txt") from exc
     pygame.init()
     atlas=None
+    room=None
     try:
         from .app import Sounds
         controller=Surgery3DController(case,seed,difficulty)
@@ -467,6 +500,8 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
         frames=0
         dragging=False
         drag_phase=None
+        room_refresh=0.
+        room_group=0
         cursor=(0,0)
         running=True
         while running:
@@ -489,6 +524,8 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                     hud.last_cursor=cursor
                     if tray_pick(controller,*cursor,*pygame.display.get_window_size()):
                         continue
+                    if hud.camera != VIEW_CYCLE[0]:
+                        continue        # room views observe; operate under the microscope
                     dragging=True
                     drag_phase=g.phase
                     controller.pointer(*cursor,*pygame.display.get_window_size(),
@@ -496,7 +533,9 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                 elif event.type==pygame.MOUSEMOTION:
                     cursor=event.pos
                     hud.last_cursor=cursor
-                    if dragging and g.phase==Phase.CAPSULE:
+                    if hud.camera != VIEW_CYCLE[0]:
+                        pass
+                    elif dragging and g.phase==Phase.CAPSULE:
                         controller.pointer(*cursor,*pygame.display.get_window_size())
                     else:
                         controller.inspect(*cursor,*pygame.display.get_window_size())
@@ -521,6 +560,9 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                         heard_ending=False
                     elif key==pygame.K_t:
                         cycle_tool(controller,-1 if event.mod & pygame.KMOD_SHIFT else 1)
+                    elif key==pygame.K_c:
+                        cycle_view(hud)
+                        dragging=False
                     elif key==pygame.K_v:
                         quick_use(controller,"ovd_cannula")
                     elif key==pygame.K_b:
@@ -587,6 +629,23 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
             if dragging and g.phase in (Phase.PHACO,Phase.CORTEX):
                 controller.pointer(*cursor,*pygame.display.get_window_size())
             controller.advance_clock(dt)
+            if hud.camera != VIEW_CYCLE[0]:
+                # Operating-room views: displays refresh at about 10 Hz.
+                if room is None:
+                    from .gl_room import RoomRenderer
+                    room=RoomRenderer(atlas.ctx,moderngl,pygame)
+                    room_frame(room,controller.game,hud.lang,pygame)
+                    room_refresh=0.
+                room_refresh-=dt
+                if room_refresh<=0.:
+                    # Alternate halves: each display refreshes at about 10 Hz
+                    # without one long frame painting all of them.
+                    room_group=1-room_group
+                    room_frame(room,controller.game,hud.lang,pygame,room_group)
+                    room_refresh=.05
+                hud.set_frame_proximity(None)
+                atlas.render_room(room,hud.camera,clock.get_fps(),overlay=hud)
+                continue
             if controller.view.phase != current_atlas:
                 current_atlas=controller.view.phase
                 atlas.set_meshes(atlas_meshes(current_atlas))
@@ -611,6 +670,8 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                                   (controller.game.paused or controller.game.ending
                                    or controller.game.patient.alert) else None))
     finally:
+        if room is not None:
+            room.release()
         if atlas is not None:
             atlas.close()
         pygame.quit()
