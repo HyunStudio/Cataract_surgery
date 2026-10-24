@@ -169,10 +169,18 @@ def bar(pg,surf,x,y,w,value,color):
     rounded(pg,surf,color,(x,y,max(0,int(w*min(1,max(0,value)))),8),4)
 
 
-def wrapped(text, width=27):
+def wrapped(text, width=27, font=None, max_px=None):
+    """Word wrap. With `font`, wrap by rendered width (`max_px`, else `width`
+    average Latin characters): Hangul glyphs are about twice as wide, so a
+    character count let Korean lines spill out of their panel."""
+    if font is not None:
+        budget=max_px if max_px is not None else width*font.size('n')[0]
+        too_long=lambda line: font.size(line)[0]>budget
+    else:
+        too_long=lambda line: len(line)>width
     words=str(text).split();lines=[];cur=''
     for word in words:
-        if cur and len(cur)+len(word)+1>width:
+        if cur and too_long(cur+' '+word):
             lines.append(cur);cur=word
         else:
             cur=(cur+' '+word).strip()
@@ -495,7 +503,7 @@ class App:
         pg=self.pg;surf=self.canvas;c=self.palette;g=self.game
         rounded(pg,surf,c['panel'],(15,75,250,620),14)
         draw_text(pg,surf,self.fonts,self.text('phase.'+g.phase.value).upper(),(29,96),color=c['accent'],size='base',max_chars=26)
-        for i,line in enumerate(wrapped(self.text('goal.'+g.phase.value))[:4]):
+        for i,line in enumerate(wrapped(self.text('goal.'+g.phase.value),font=self.fonts['base'],max_px=215)[:4]):
             draw_text(pg,surf,self.fonts,line,(29,126+i*23),color=c['muted'])
         pg.draw.line(surf,(48,76,91),(29,224),(248,224),1)
         draw_text(pg,surf,self.fonts,f"{self.text('ui.difficulty')}: {self.text('difficulty.'+g.difficulty)}",
@@ -506,7 +514,7 @@ class App:
             self.checklist(PREOP_CHECKS,g.eye.preop_checks)
         elif g.phase==Phase.CLOSE:
             if g._decentered:
-                for i,line in enumerate(wrapped(self.text('hint.IOL DECENTRATION'))):
+                for i,line in enumerate(wrapped(self.text('hint.IOL DECENTRATION'),font=self.fonts['base'],max_px=215)):
                     draw_text(pg,surf,self.fonts,line,(29,282+i*22),color=c['warn'])
             self.checklist(FINAL_CHECKS,g.eye.final_checks,numbered=True)
         else:
@@ -677,7 +685,8 @@ class App:
         rounded(pg,s,(10,28,40),(330,150,600,170),14)
         pg.draw.rect(s,c['accent'],(330,150,600,170),2,border_radius=14)
         draw_text(pg,s,self.fonts,self.text('ui.help'),(350,164),size='medium',color=c['accent'])
-        for i,line in enumerate(wrapped(self.text('ui.help.body'),66)+wrapped(self.text('ui.options'),66)):
+        for i,line in enumerate(wrapped(self.text('ui.help.body'),font=self.fonts['base'],max_px=560)
+                                +wrapped(self.text('ui.options'),font=self.fonts['base'],max_px=560)):
             draw_text(pg,s,self.fonts,line,(352,200+i*22),size='base')
 
     def draw(self):
@@ -736,7 +745,8 @@ class App:
             self.draw_results()
         if self.show_help:
             self.draw_help()
-        draw_text(pg,s,self.fonts,self.message+'   ·   F1',(24,704),size='tiny',color=c['muted'],max_chars=120)
+        # y=699 keeps the descenders inside the 720 px canvas (704 clipped them).
+        draw_text(pg,s,self.fonts,self.message+'   ·   F1',(24,699),size='tiny',color=c['muted'],max_chars=120)
         out=pg.transform.smoothscale(s,self.screen.get_size())
         self.screen.blit(out,(0,0))
         pg.display.flip()

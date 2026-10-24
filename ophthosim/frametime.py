@@ -200,12 +200,20 @@ def _rss_linux(path: str = "/proc/self/statm") -> float | None:
         with open(path, encoding="ascii") as handle:
             resident_pages = int(handle.read().split()[1])
         return resident_pages * os.sysconf("SC_PAGE_SIZE") / 2**20
-    except (OSError, ValueError, IndexError):
+    except (OSError, ValueError, IndexError, AttributeError):
+        # AttributeError: os.sysconf does not exist on Windows.
         return None
 
 
-def _rss_windows() -> float | None:
-    try:
+_WIN_READER = None
+
+
+def _windows_reader():
+    """Build the ctypes binding ONCE: defining a Structure class and WinDLL
+    handles on every sample made the memory probe itself grow host memory
+    and showed up as a fake GL07 trend."""
+    global _WIN_READER
+    if _WIN_READER is None:
         import ctypes
         from ctypes import wintypes
 
@@ -224,14 +232,31 @@ def _rss_windows() -> float | None:
         kernel32 = ctypes.WinDLL("kernel32")
         psapi = ctypes.WinDLL("psapi")
         kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        kernel32.GetCurrentProcess.argtypes = []
+        # Without argtypes ctypes passes the 64-bit pseudo-handle (-1) as a
+        # 32-bit int and raises OverflowError on 64-bit Windows.
+        psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(Counters),
+                                               wintypes.DWORD]
+        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
         counters = Counters()
         counters.cb = ctypes.sizeof(Counters)
-        if not psapi.GetProcessMemoryInfo(kernel32.GetCurrentProcess(),
-                                          ctypes.byref(counters), counters.cb):
+        _WIN_READER = (kernel32.GetCurrentProcess(), psapi.GetProcessMemoryInfo,
+                       counters, ctypes.byref(counters))
+    return _WIN_READER
+
+
+def _rss_windows() -> float | None:
+    try:
+        process, read, counters, ref = _windows_reader()
+        if not read(process, ref, counters.cb):
             return None
         return counters.WorkingSetSize / 2**20
-    except (AttributeError, ImportError, OSError):
+    except (AttributeError, ImportError, OSError, ValueError):
         return None
+    except Exception as exc:  # ctypes.ArgumentError on unexpected bindings
+        if type(exc).__name__ == "ArgumentError":
+            return None
+        raise
 
 
 def process_rss_mb(platform_name: str | None = None) -> float | None:

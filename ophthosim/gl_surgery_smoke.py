@@ -57,7 +57,7 @@ def main() -> int:
                 high_contrast=overlay.high_contrast)
             proximity=probe_surface(ctrl,vision)
             overlay.set_frame_proximity(proximity)
-            data = atlas.render(ctrl.view, 60., capture=True, overlay=overlay,
+            data = atlas.render(ctrl.view,None, capture=True, overlay=overlay,
                                 appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment,
                                                              iol_visual_deployment(ctrl.game),
                                                              damage,capsule_on),
@@ -90,7 +90,7 @@ def main() -> int:
         # Isolate the actual 3D capsule layer. Identical camera and HUD,
         # only the *world-space ring* differs. Crop excludes interface text.
         for name,damage in (("capsule-intact",0.),("capsule-damaged",.45)):
-            pixels=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+            pixels=atlas.render(ctrl.view,None,capture=True,overlay=None,
                 appearance=AnatomyAppearance(capsule_damage=damage,
                                              capsule_present=True))
             surface=pygame.image.fromstring(pixels,(W,H),"RGB",True)
@@ -105,7 +105,7 @@ def main() -> int:
         for name,vf in (("vision-clear",VisualFeedback()),
                         ("vision-hazy",VisualFeedback(haze=.48)),
                         ("vision-motion",VisualFeedback(motion_x=.04,motion_y=-.026))):
-            data=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+            data=atlas.render(ctrl.view,None,capture=True,overlay=None,
                 appearance=AnatomyAppearance(), vision=vf)
             surf=pygame.image.fromstring(data,(W,H),"RGB",True)
             crop=surf.subsurface((W//2-100,H//2-100,200,200))
@@ -121,15 +121,15 @@ def main() -> int:
         import ophthosim.gl_preview as gl_preview_module
         hud_kwargs=dict(capture=True,overlay=overlay,appearance=AnatomyAppearance(),
                         vision=VisualFeedback(haze=.3,high_contrast=True))
-        direct=atlas.render(ctrl.view,60.,**hud_kwargs)
+        direct=atlas.render(ctrl.view,None,**hud_kwargs)
         reused=atlas.hud_surface
         assert reused is not None
-        assert atlas.render(ctrl.view,60.,**hud_kwargs)==direct
+        assert atlas.render(ctrl.view,None,**hud_kwargs)==direct
         assert atlas.hud_surface is reused, "HUD surface reallocated per frame"
         original_swizzle=gl_preview_module.hud_swizzle
         gl_preview_module.hud_swizzle=lambda *args,**kwargs: None
         try:
-            copied=atlas.render(ctrl.view,60.,**hud_kwargs)
+            copied=atlas.render(ctrl.view,None,**hud_kwargs)
         finally:
             gl_preview_module.hud_swizzle=original_swizzle
         if copied!=direct:
@@ -148,20 +148,20 @@ def main() -> int:
                 assert visible_stylus(ctrl) is not None
                 # Verify mesh draws into GL pixels, not just a HUD cursor.
                 e = ctrl.game.eye
-                raw = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                raw = atlas.render(ctrl.view,None,capture=True,overlay=overlay,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=None)
-                with_tool = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                with_tool = atlas.render(ctrl.view,None,capture=True,overlay=overlay,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=visible_stylus(ctrl))
                 assert raw != with_tool, "Synthetic 3D instrument not visible in frame"
                 assert ctrl.last_contact is not None
                 # Same game, tool and HUD; compare eye-only pixels with and
                 # without the GPU contact mesh (text label cannot pass).
-                no_guide = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                no_guide = atlas.render(ctrl.view,None,capture=True,overlay=overlay,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=visible_stylus(ctrl),contact=None)
-                guided = atlas.render(ctrl.view,60.,capture=True,overlay=overlay,
+                guided = atlas.render(ctrl.view,None,capture=True,overlay=overlay,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     tool_pose=visible_stylus(ctrl),contact=ctrl.last_contact)
                 a=pygame.image.fromstring(no_guide,(W,H),"RGB",True)
@@ -176,10 +176,10 @@ def main() -> int:
                 before=ctrl.game.snapshot()
                 nearest=probe_surface(ctrl)
                 assert nearest is not None and nearest.face_index>=0
-                no_surface=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+                no_surface=atlas.render(ctrl.view,None,capture=True,overlay=None,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     surface_probe=None)
-                with_surface=atlas.render(ctrl.view,60.,capture=True,overlay=None,
+                with_surface=atlas.render(ctrl.view,None,capture=True,overlay=None,
                     appearance=AnatomyAppearance(e.opacity,e.cortex,e.iol_alignment),
                     surface_probe=nearest)
                 compare=(W//2-100,H//2-100,200,200)
@@ -304,10 +304,14 @@ def main() -> int:
 
         if len(set(images.values())) != len(images):
             raise AssertionError("Distinct states rendered identical images")
+        from .frametime import is_software_renderer
+        renderer = atlas.ctx.info.get("GL_RENDERER", "unknown")
+        kind = "software" if is_software_renderer(renderer) else "hardware"
         print(json.dumps({
-            "status": "software-opengl-3d-surgery-integration-passed",
+            "status": f"{kind}-opengl-3d-surgery-integration-passed",
             "frame_hashes": images,
-            "gl_renderer": atlas.ctx.info.get("GL_RENDERER", "unknown"),
+            "gl_renderer": renderer,
+            "renderer_kind": kind,
             "scenario_count": 4,
             "decenter_recentering_visible": True,
             "motion_haze_center_crop_distinct": True,
@@ -317,7 +321,7 @@ def main() -> int:
             "capsule_center_region_healthy_vs_damage_distinct": True,
             "hud_upload_swizzle": hud_zero_copy or "copy-fallback",
             "hud_zero_copy_matches_rgba_copy": True,
-            "windows_gpu_tested": False,
+            "windows_gpu_tested": sys.platform == "win32" and kind == "hardware",
             "clinical_validation": False,
         },sort_keys=True))
         return 0

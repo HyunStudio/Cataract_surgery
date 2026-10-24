@@ -27,6 +27,19 @@ from .vision3d import VisualFeedback
 from .contact3d import ContactGuide, guide_ring_mesh
 from .surface_probe3d import SurfaceProbe
 
+# Hangul-capable fallback list (kept identical to app.FONT_NAMES).
+
+HUD_FONT_NAMES = 'malgungothic,applesdgothicneo,notosanscjkkr,nanumgothic,segoeui'
+
+
+def fps_label(fps: object) -> str:
+    """Show only a frame rate that was actually measured ("FPS: --" otherwise)."""
+    if fps is None or isinstance(fps, bool) or not isinstance(fps, (int, float)):
+        return "FPS: --"
+    if not math.isfinite(fps) or fps <= 0:
+        return "FPS: --"
+    return f"FPS: {fps:.0f}"
+
 VERTEX_SHADER = """
 #version 330
 in vec3 in_position;
@@ -296,8 +309,10 @@ class GPUEyePreview:
         self.quad_buffer = self.ctx.buffer(quad.tobytes())
         self.quad_vao = self.ctx.vertex_array(self.hud_shader,
                                [(self.quad_buffer, "2f 2f", "in_pos", "in_uv")])
-        self.font = pygame.font.SysFont("segoeui", 20)
-        self.font_big = pygame.font.SysFont("segoeui", 28, bold=True)
+        # Same Hangul-capable fallback list as the 2.5D app: Segoe UI has no
+        # Korean glyphs, so the KO HUD rendered as empty boxes on Windows.
+        self.font = pygame.font.SysFont(HUD_FONT_NAMES, 20)
+        self.font_big = pygame.font.SysFont(HUD_FONT_NAMES, 28, bold=True)
         self.hud_texture = None
         self.hud_surface = None
         self.meshes: dict[str, tuple[object, object, object]] = {}
@@ -553,7 +568,11 @@ class GPUEyePreview:
         self.draw_hud(view, fps, w, h, overlay=overlay, vision=vision)
         # Optional readback must occur before swapping. CI uses Mesa software
         # GL; this cannot establish Windows GPU or display-driver correctness.
-        image = self.ctx.screen.read(components=3, alignment=1) if capture else None
+        # Read the CURRENT window area: ctx.screen keeps the size it had when
+        # the context was created, so after a resize a plain read returned a
+        # frame of the old size (found by the GL06 hardware check).
+        image = (self.ctx.screen.read(viewport=(0, 0, w, h), components=3, alignment=1)
+                 if capture else None)
         self.pg.display.flip()
         return image
 
@@ -589,7 +608,7 @@ class GPUEyePreview:
             lines = (
                 ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
                 ("EDUCATIONAL SYNTHETIC ANATOMY - NOT CLINICAL", self.font, (245, 202, 136)),
-                (f"VIEW: {view.phase}    FOLD: {view.iol_deployment:.0%}    FPS: {fps:.0f}", self.font, (125, 211, 231)),
+                (f"VIEW: {view.phase}    FOLD: {view.iol_deployment:.0%}    {fps_label(fps)}", self.font, (125, 211, 231)),
                 ("ARROWS: ORBIT   +/-: ZOOM   SPACE: LENS/IOL   F: FOLD   ESC: EXIT",
                  self.font, (201, 223, 236)),
                 ("LEFT CLICK: INSPECT IRIS / LENS (READ-ONLY DEPTH PICKING)",
@@ -603,7 +622,7 @@ class GPUEyePreview:
                 ("OPHTHOSIM-AI  /  INTERACTIVE 3D PROTOTYPE", self.font_big, (230, 241, 250)),
                 ("SYNTHETIC EDUCATIONAL SURGERY - NOT CLINICAL TRAINING", self.font,
                  (245, 202, 136)),
-                (f"ANATOMY: {view.phase}    FPS: {fps:.0f} (measured locally)", self.font,
+                (f"ANATOMY: {view.phase}    {fps_label(fps)}", self.font,
                  (125, 211, 231)),
             )
         y = 24

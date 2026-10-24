@@ -262,7 +262,10 @@ def test_linux_rss_parser_handles_missing_or_corrupt_files(tmp_path):
     import os
     good = tmp_path / "statm"
     good.write_text("1000 256 10 1 0 100 0\n", encoding="ascii")
-    assert _rss_linux(str(good)) == pytest.approx(256 * os.sysconf("SC_PAGE_SIZE") / 2**20)
+    if hasattr(os, "sysconf"):
+        assert _rss_linux(str(good)) == pytest.approx(256 * os.sysconf("SC_PAGE_SIZE") / 2**20)
+    else:  # Windows: the Linux parser must fail closed, not raise
+        assert _rss_linux(str(good)) is None
     bad = tmp_path / "bad"
     bad.write_text("garbage", encoding="ascii")
     assert _rss_linux(str(bad)) is None
