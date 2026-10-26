@@ -2,10 +2,10 @@
 config_version=5
 
 [application]
-config/name="OphthoSim · Cataract Theatre"
-run/main_scene="res://main.tscn"
+config/name="OphthoSim Surgical Simulation Research"
+run/main_scene="res://simulator.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/description="A synthetic educational cataract surgery game"
+config/description="Uncalibrated numerical cataract surgery research simulator"
 
 [display]
 window/size/viewport_width=1600

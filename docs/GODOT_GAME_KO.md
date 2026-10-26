@@ -9,7 +9,7 @@
 소스로 실행하는 경우 저장소 루트에서:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/run-godot.ps1
+powershell -ExecutionPolicy Bypass -File tools/run-godot.ps1 -Game
 # Godot 편집기
 powershell -ExecutionPolicy Bypass -File tools/run-godot.ps1 -Editor
 # 자동 검증
@@ -17,6 +17,8 @@ powershell -ExecutionPolicy Bypass -File tools/run-godot.ps1 -Test
 ```
 
 실행 스크립트는 엔진이 없으면 공식 GitHub 릴리스의 고정 버전을 `.tools/`에 내려받는다. 게임 자체는 오프라인으로 작동한다. 기존 `python main.py`의 2.5D 모드는 별도로 유지된다.
+
+범위 정정 후 옵션 없는 실행은 물리 연구 모드로 바뀌었다. 이 문서는 `-Game`으로 명시하는 이전 게임 구현의 안내이며, 현재 수술 시뮬레이터 목표의 완료를 의미하지 않는다.
 
 ## 게임 흐름
 

@@ -1,5 +1,11 @@
 # Implementation progress — 2026-10-12
 
+## 2026-10-26 — target corrected to surgical simulation
+
+The user explicitly rejected a procedural game as the final deliverable. The default scene is now a partial numerical research simulator: incision-pivot instrument kinematics, anchored XPBD capsule with pressure loading/traction/rupture, connected lens particles with local fracture and inlet uptake, and a single-compartment volume/pressure model. Passive contact works for both retained tool tips. No target-completion or score drives these models.
+
+Four new numerical/integration suites and actual NVIDIA GPU scene tests pass; Windows research executable smoke exits 0. These establish implementation behavior, not calibrated tissue mechanics, numerical convergence, real-time performance, clinical accuracy, or a completed full surgical simulator. [Current scope, controls and remaining work](PHYSICS_SIMULATOR_KO.md). Prior game completion reports below refer only to that baseline.
+
 ## 2026-10-26 — dedicated Godot 3D game
 
 - Added the approved dedicated-engine edition under `godot/`, preserving all Python code.

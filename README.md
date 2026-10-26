@@ -1,5 +1,9 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
+**Target clarification (2026-10-26):** The requested product is a surgical simulation, not a procedural game. The game edition below is a baseline UI/graphics implementation and does **not** fulfill physical surgical simulation. [Corrected scope and numerical-model plan](docs/PHYSICS_SIMULATOR_SCOPE_KO.md).
+
+The default Godot scene is now an **uncalibrated numerical research workbench**: anchored XPBD capsule deformation/traction/rupture, connected lens particles with local fracture and aspiration transport, incision-pivot instrument poses and one-compartment volume/pressure feedback. These are physical approximations, not validated tissue mechanics or a finished surgical trainer. [Research mode controls and validation](docs/PHYSICS_SIMULATOR_KO.md). `tools/run-godot.ps1` starts this mode; `-Game` explicitly opens the previous procedural game.
+
 ## Godot 3D game edition (2026-10-26)
 
 The repository now also contains a **dedicated Godot 4.7.2 3D game** in [`godot/`](godot/). It includes an operating room and microscope view, seven selectable instruments, continuous entry/capsule tasks, regional lens/cortex removal, IOL delivery and alignment, three hazard scenarios, a Korean interface, patient monitor, depth diagram, assessment and version-2 semantic replay export.
@@ -7,7 +11,7 @@ The repository now also contains a **dedicated Godot 4.7.2 3D game** in [`godot/
 On Windows, run the delivered `godot/build/OphthoSim.exe` beside its `.pck`, or run from source:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/run-godot.ps1
+powershell -ExecutionPolicy Bypass -File tools/run-godot.ps1 -Game
 ```
 
 [Korean game guide and controls](docs/GODOT_GAME_KO.md) · [Godot validation and limitations](docs/GODOT_VALIDATION.md) · [Approved migration design](docs/superpowers/specs/2026-10-26-godot-surgery-design.md).

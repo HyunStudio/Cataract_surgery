@@ -1,0 +1,23 @@
+{
+  "adapter": "NVIDIA GeForce RTX 3070 Laptop GPU",
+  "capsule": {
+    "broken_edges": 68,
+    "finite": true,
+    "grasped": -1,
+    "max_strain": 1.92645341750575,
+    "strain_energy": 0.000000999842427112235,
+    "triangles": 322,
+    "vertices": 217
+  },
+  "lens": {
+    "finite": true,
+    "fragments": 1,
+    "inflow": 0.0,
+    "outflow": 0.08,
+    "pressure": 0.591879162437491,
+    "remaining_mass": 0.945945945945947,
+    "removed_mass": 0.0540540540540541,
+    "volume": 0.769336832887579
+  },
+  "model": "uncalibrated research"
+}
