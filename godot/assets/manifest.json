@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "author": "OpenAI Codex for Hyun Studio",
+  "assets": [
+    {
+      "path": "scripts/surgical_world.gd",
+      "type": "procedural geometry",
+      "license": "project license",
+      "provenance": "Original parameterized GDScript meshes: annular open sclera, iris, eight nuclear and cortical regions, transparent cornea, IOL optic and haptics, seven instruments, room and equipment. No external models/textures."
+    },
+    {
+      "path": "assets/iris.gdshader",
+      "type": "spatial shader",
+      "license": "project license",
+      "provenance": "Original analytic radial iris fibers, crypts, limbal shading and amber collarette."
+    },
+    {
+      "license": "project license",
+      "provenance": "Original analytic cloudy lens texture shared by eight curved region-local nuclear sectors.",
+      "type": "spatial shader",
+      "path": "assets/lens.gdshader"
+    },
+    {
+      "type": "spatial shader",
+      "provenance": "Original world-space antialiased subtle clinical floor tile grid.",
+      "license": "project license",
+      "path": "assets/floor.gdshader"
+    }
+  ],
+  "anatomy_note": "Stylized game-relative geometry; not a clinically validated surgical model."
+}

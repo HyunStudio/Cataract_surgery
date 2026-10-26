@@ -1,5 +1,21 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
+## Godot 3D game edition (2026-10-26)
+
+The repository now also contains a **dedicated Godot 4.7.2 3D game** in [`godot/`](godot/). It includes an operating room and microscope view, seven selectable instruments, continuous entry/capsule tasks, regional lens/cortex removal, IOL delivery and alignment, three hazard scenarios, a Korean interface, patient monitor, depth diagram, assessment and version-2 semantic replay export.
+
+On Windows, run the delivered `godot/build/OphthoSim.exe` beside its `.pck`, or run from source:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/run-godot.ps1
+```
+
+[Korean game guide and controls](docs/GODOT_GAME_KO.md) · [Godot validation and limitations](docs/GODOT_VALIDATION.md) · [Approved migration design](docs/superpowers/specs/2026-10-26-godot-surgery-design.md).
+
+The Python/ModernGL edition and its historical progress follow below. Godot has its own independent tests and replay format. This is a playable stylized educational game; physically accurate tissue mechanics, photorealism and clinical training validation are not claimed.
+
+---
+
 **Status:** Playable 2.5D prototype + experimental *interactive* ModernGL 3D synthetic surgery mode (2026-10-13). The full 32-work-package product, medical realism and Windows GPU QA are **not complete**.
 
 An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built around Python, Pygame for UI/input, and an optional hardware-accelerated 3D renderer. The project models a complete *abstracted* cataract surgery encounter: patient preparation, topical anesthesia and monitoring, microscope navigation, corneal entry, capsular task, cataract removal, residual material cleanup, intraocular lens (IOL) placement, wound assessment, recovery, and result scoring.

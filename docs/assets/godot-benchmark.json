@@ -1,0 +1,17 @@
+{
+  "adapter": "NVIDIA GeForce RTX 3070 Laptop GPU",
+  "display": "Windows",
+  "draw_calls": 283.0,
+  "duration_seconds": 300.022416,
+  "engine": "4.7.2-stable (official)",
+  "frames": 17873,
+  "mean_fps": 59.9714306076893,
+  "mean_frame_ms": 16.6746063895261,
+  "p95_frame_ms": 18.537,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "scene": "microscope ENTRY: full anatomy, idle instrument, live UI/monitor; no automated surgery",
+  "warmup_seconds": 2
+}

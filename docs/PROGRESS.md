@@ -1,5 +1,13 @@
 # Implementation progress — 2026-10-12
 
+## 2026-10-26 — dedicated Godot 3D game
+
+- Added the approved dedicated-engine edition under `godot/`, preserving all Python code.
+- End-to-end normal encounter with seven selectable 3D instruments, continuous entry/capsule paths, regional lens/cortex removal, IOL delivery/alignment and final-check gates.
+- Original patient/theatre/microscope/eye assets, Korean UI, depth diagram, synthetic monitor, guide/contrast/motion/audio options, three hazard branches, earned assessment and bounded version-2 semantic replay.
+- Local verification: existing 522 Python tests passed; five Godot suites and actual RTX 3070 GPU screen-coordinate playthrough passed. Windows release build and actual compiled-executable graphics smoke passed.
+- [Run guide](GODOT_GAME_KO.md) and [detailed validation/limitations](GODOT_VALIDATION.md) are the current Godot status; historical Python notes below are retained.
+
 ## Delivered in repository
 - Headless Python simulation engine: nine coherent educational phases, safe abort, synthetic vitals, 4 seeded scenarios, strict guards, scoring, bounded JSONL event output.
 - Pygame UI source: custom vector 2.5D eye, synthetic monitor, interactive cursor tasks, phase progress, status overlays, JSONL export and screen scaling.

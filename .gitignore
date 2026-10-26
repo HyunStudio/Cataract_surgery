@@ -204,6 +204,11 @@ cython_debug/
 # .vscode/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
+.tools/
+.superpowers/
+godot/.godot/
+godot/build/
+godot/reports/
 
 # Ruff stuff:
 .ruff_cache/
