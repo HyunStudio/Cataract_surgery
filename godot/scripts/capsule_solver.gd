@@ -5,6 +5,9 @@ const RINGS := 6
 const SECTORS := 36
 const RADIUS := .88
 const MAX_DT := .1
+const NATIVE_COUPLING_BUDGET:=32
+## Scene-unit numerical tolerance above float32 publication noise, not tear strength.
+const NATIVE_COUPLING_TOLERANCE:=1e-6
 const FaceContact=preload("res://scripts/membrane_contact.gd")
 const ToolPath=preload("res://scripts/instrument_path.gd")
 const Cutter=preload("res://scripts/membrane_cut.gd")
@@ -354,13 +357,21 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 			if broken:
 				_edge_active[edge_id] = 0; edges[edge_id].active = false; _dirty = true
 		if not body.is_empty() and _dirty: _rebuild_triangles()
-		for iteration in range(clampi(solver_iterations, 1, 16)):
+		var settled:bool=not stretch_backend
+		var motion:=INF; var operator_motion:=INF; var constitutive_residual:=INF; var contact_residual:=0.
+		var budget:int=NATIVE_COUPLING_BUDGET if stretch_backend else clampi(solver_iterations,1,16)
+		for iteration in range(budget):
+			var iterate:=positions.duplicate() if stretch_backend else PackedVector3Array()
 			_project_stretch(alpha)
 			if _backend_failed: return
+			if stretch_backend: operator_motion=_position_correction(positions,iterate)
 			if not body.is_empty():
+				var before_body:=positions.duplicate() if stretch_backend else PackedVector3Array()
 				var projected:Dictionary=_face_contact.project(positions,triangles,_inverse_mass,body,body_previous)
 				if projected.valid:
 					positions=projected.positions
+					if stretch_backend: operator_motion=maxf(operator_motion,_position_correction(positions,before_body))
+					contact_residual=projected.residual
 					body_contact_count+=projected.contacts
 					body_contact_residual=maxf(body_contact_residual,projected.residual)
 					body_contact_uncertain+=projected.uncertain
@@ -368,13 +379,26 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 					body_contact_uncertain+=1
 					if stretch_backend:
 						native_failure={"reason":"native_body_contact"}; _backend_failed=true; return
+			if stretch_backend and tissue_boundary and geometry:
+				var before_boundary:=positions.duplicate()
+				_project_boundary(contact_previous)
+				if _backend_failed: return
+				operator_motion=maxf(operator_motion,_position_correction(positions,before_boundary))
+			if stretch_backend:
+				motion=_position_correction(positions,iterate)
+				constitutive_residual=_native_constitutive_residual(alpha)
+				if motion<=NATIVE_COUPLING_TOLERANCE and operator_motion<=NATIVE_COUPLING_TOLERANCE and constitutive_residual<=NATIVE_COUPLING_TOLERANCE and contact_residual<=NATIVE_COUPLING_TOLERANCE:
+					settled=true; break
+		if not settled:
+			native_failure={"reason":"native_coupling_exhausted","iterations":budget,"position_residual":motion,"operator_residual":operator_motion,"constitutive_residual":constitutive_residual,"contact_residual":contact_residual}
+			_backend_failed=true; return
 		for i in range(positions.size()):
 			if anchored[i] != 0:
 				positions[i] = rest_positions[i]; _previous[i] = positions[i]
 			elif _pinned[i] != 0:
 				_previous[i] = positions[i]
 		if _dirty: _rebuild_triangles()
-		if tissue_boundary and geometry: _boundary_step(contact_previous)
+		if not stretch_backend and tissue_boundary and geometry: _boundary_step(contact_previous)
 		if _backend_failed: return
 		if stretch_backend:
 			# Constitutive failure uses accepted motion, never the inertial predictor.
@@ -385,6 +409,21 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 				if strain>tear_strain:
 					_edge_active[edge_id]=0; edges[edge_id].active=false; _dirty=true
 			if _dirty: _rebuild_triangles()
+			if tissue_boundary and geometry: _retire_exterior_flaps()
+
+func _position_correction(a:PackedVector3Array,b:PackedVector3Array)->float:
+	var motion:=0.
+	for v in range(a.size()): motion=maxf(motion,a[v].distance_to(b[v]))
+	return motion
+
+func _native_constitutive_residual(alpha:float)->float:
+	var residual:=0.
+	for e in range(_edge_a.size()):
+		if _edge_active[e]==0: continue
+		var constraint:float=positions[_edge_a[e]].distance_to(positions[_edge_b[e]])-_edge_rest[e]+alpha*_lambdas[e]
+		if not is_finite(constraint): return INF
+		residual=maxf(residual,absf(constraint))
+	return residual
 
 func _project_stretch(alpha:float)->void:
 	if stretch_backend:
@@ -505,6 +544,9 @@ func detached_components()->Array[Dictionary]:
 		if not component.anchored and component.area>1e-12: result.append(component.duplicate(true))
 	return result
 func _boundary_step(before:PackedVector3Array)->void:
+	_project_boundary(before)
+	if not _backend_failed: _retire_exterior_flaps()
+func _project_boundary(before:PackedVector3Array)->void:
 	_refresh_components()
 	for component in _components:
 		if component.anchored or component.area<=1e-12: continue
@@ -512,8 +554,12 @@ func _boundary_step(before:PackedVector3Array)->void:
 			var result:Dictionary=tissue_boundary.resolve(before[v],positions[v],_outside[v]!=0)
 			if stretch_backend and not result.valid:
 				native_failure={"reason":"native_tissue_boundary"}; _backend_failed=true; return
+			if stretch_backend and _inverse_mass[v]==0. and result.position!=positions[v]:
+				native_failure={"reason":"native_kinematic_boundary","vertex":v}; _backend_failed=true; return
 			positions[v]=result.position; _outside[v]=1 if result.outside else 0
 			if result.contact or not result.valid: _previous[v]=positions[v]
+func _retire_exterior_flaps()->void:
+	_refresh_components()
 	var retire:Array[Dictionary]=[]
 	for component in _components:
 		if component.anchored or component.area<=1e-12: continue
