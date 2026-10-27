@@ -67,6 +67,7 @@ var samples: Array = []
 var metrics := {"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.,"capsule_contacts":0.,"cornea_contacts":0.}
 var targets := [Vector3.ZERO,Vector3.ZERO]
 var target_valid := [false,false]
+var _command_axes := [Vector3.ZERO,Vector3.ZERO]
 var previous_tips := [Vector3.ZERO,Vector3.ZERO]
 var target_planes := [.82,.68]
 var display
@@ -116,6 +117,7 @@ func new_case(id: String) -> void:
 	display.reset_lens_geometry()
 	anatomy.cornea=injury.surfaces.cornea; anatomy.posterior=injury.surfaces.posterior
 	_contact_records=[[],[]]
+	_command_axes=[Vector3.ZERO,Vector3.ZERO]
 	_resolved_grips=[false,false]
 	lens.layered=true
 	lens.hardness=.8 if case_id=="dense" else .4
@@ -178,6 +180,7 @@ func choose_tool(id: String) -> void:
 		_resolved_grips[selected]=false; _body_poses[selected].grip=false
 	_disarm_actions(); latched[selected]=false; capsule.release_hand(selected)
 	hand_tools[selected]=id; target_planes[selected]=_plane(id); target_valid[selected]=false
+	_command_axes[selected]=Vector3.ZERO
 	status="%s 기구: %s" % ["왼손" if selected==0 else "오른손",id]
 	update_geometry()
 
@@ -187,11 +190,13 @@ func _disarm_actions() -> void:
 func release_controls() -> void:
 	_disarm_actions(); latched=[false,false]; capsule.release()
 	target_valid=[false,false]
+	_command_axes=[Vector3.ZERO,Vector3.ZERO]
 	for hand in range(2): incision.cut(hand,rigs[hand].tip,false)
 
 func switch_hand() -> void:
 	_disarm_actions()
 	target_valid=[false,false]
+	_command_axes=[Vector3.ZERO,Vector3.ZERO]
 	if not latched[selected]: capsule.release_hand(selected)
 	selected=1-selected
 	status="%s 조작. G로 접촉한 집게의 파지를 유지할 수 있습니다." % ("왼손" if selected==0 else "오른손")
@@ -282,6 +287,27 @@ func reset_simulation() -> void:
 	if practice: start_practice()
 	else: new_case(case_id)
 
+func _command_rig():
+	# Input edits a proposed pose. Only the fixed simulation tick may
+	# publish movement after speed, pivot and tissue contact constraints.
+	var command=Rig.new()
+	command.portal=rigs[selected].portal
+	command.allow_withdrawal=rigs[selected].allow_withdrawal
+	command.axis=rigs[selected].axis; command.insertion=rigs[selected].insertion
+	if target_valid[selected]:
+		var delta:Vector3=targets[selected]-command.portal
+		var inward:=Vector3(-signf(command.portal.x),0,0)
+		var side:=-1. if command.allow_withdrawal and delta.dot(inward)<0. else 1.
+		if delta==Vector3.ZERO or (delta.normalized()*side).dot(inward)>=.28:
+			command.place_tip(targets[selected])
+			if delta==Vector3.ZERO and _command_axes[selected]!=Vector3.ZERO: command.axis=_command_axes[selected]
+	return command
+
+func _queue_command(command)->void:
+	targets[selected]=command.tip; target_valid[selected]=true
+	_command_axes[selected]=command.axis
+	target_planes[selected]=command.tip.y
+
 func _input(event: InputEvent) -> void:
 	if not viewport_box: return
 	if reviewing:
@@ -301,8 +327,11 @@ func _input(event: InputEvent) -> void:
 			var hit=Plane(Vector3.UP,target_planes[selected]).intersects_ray(origin,ray)
 			if hit!=null:
 				if assisted: targets[selected]=hit
-				else: targets[selected]=rigs[selected].portal+(hit-rigs[selected].portal).normalized()*absf(rigs[selected].insertion)
+				else:
+					var length:float=targets[selected].distance_to(rigs[selected].portal) if target_valid[selected] else absf(rigs[selected].insertion)
+					targets[selected]=rigs[selected].portal+(hit-rigs[selected].portal).normalized()*length
 				target_valid[selected]=true
+				_command_axes[selected]=Vector3.ZERO
 		elif grip_down or pedal_down: _disarm_actions()
 	if event is InputEventMouseButton:
 		var inside: bool=_pointer_inside(event.position)
@@ -314,8 +343,8 @@ func _input(event: InputEvent) -> void:
 			var direction:=1. if event.button_index==MOUSE_BUTTON_WHEEL_UP else -1.
 			if event.shift_pressed: world.microscope.size=clampf(world.microscope.size-direction*.2,2.8,6.4)
 			elif _can_operate():
-				rigs[selected].set_insertion(rigs[selected].insertion+direction*.03)
-				target_planes[selected]=rigs[selected].tip.y; target_valid[selected]=false
+				var command=_command_rig()
+				command.set_insertion(command.insertion+direction*.03); _queue_command(command)
 	if event is InputEventKey:
 		if event.keycode==KEY_SPACE:
 			var stage:=1 if event.ctrl_pressed else (2 if event.shift_pressed else 3)
@@ -335,8 +364,8 @@ func _input(event: InputEvent) -> void:
 				KEY_V: set_room_view(not room_view)
 				KEY_Q,KEY_E:
 					if _can_operate():
-						rigs[selected].adjust_pitch(-.02 if event.keycode==KEY_Q else .02)
-						target_planes[selected]=rigs[selected].tip.y; target_valid[selected]=false
+						var command=_command_rig()
+						command.adjust_pitch(-.02 if event.keycode==KEY_Q else .02); _queue_command(command)
 				KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7: choose_tool(IDS[event.keycode-KEY_1])
 
 func _pointer_inside(point: Vector2) -> bool:
@@ -353,6 +382,11 @@ func _advance_motion(dt: float) -> float:
 	_contact_records=[[],[]]
 	for hand in range(2):
 		if target_valid[hand]: rigs[hand].advance_toward(targets[hand],dt*1.5)
+		# Finish retraction before rotating at the pivot. This creates a
+		# separate zero-to-zero rotation interval for body certification.
+		if target_valid[hand] and targets[hand]==rigs[hand].portal and previous_tips[hand]==rigs[hand].portal and rigs[hand].insertion==0. and _command_axes[hand]!=Vector3.ZERO:
+			var angle:float=rigs[hand].axis.angle_to(_command_axes[hand])
+			if angle>0.: rigs[hand].axis=rigs[hand].axis.slerp(_command_axes[hand],minf(1.,dt*1.2/angle)).normalized()
 		if not incision.opened[hand] and hand_tools[hand]!="knife": rigs[hand].set_insertion(minf(.05 if geometry else .12,rigs[hand].insertion))
 		var wounds:Array=_open_wounds()
 		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,_radius(hand),hand_tools[hand],hand==selected and grip_down,capsule,wounds,hand,geometry!=null)
