@@ -20,6 +20,7 @@ func run() -> void:
 	var source=load("res://scripts/simulator.gd")
 	if not source.can_instantiate(): push_error("app does not load"); quit(1); return
 	var app=source.new()
+	app.anatomical=false
 	root.add_child(app)
 	app.set_physics_process(false)
 	await process_frame

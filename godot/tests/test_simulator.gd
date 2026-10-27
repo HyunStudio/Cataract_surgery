@@ -12,6 +12,7 @@ func run() -> void:
 		quit(1)
 		return
 	var app = source.new()
+	app.anatomical=false
 	root.add_child(app)
 	app.set_physics_process(false)
 	await process_frame

@@ -1,6 +1,7 @@
 extends RefCounted
 ## Synthetic elastic implant experiment. No material calibration or clinical dimensions.
 ## The plunger meters release; damped elastic forces recover each released point.
+var geometry:RefCounted
 var positions := PackedVector3Array()
 var optic_count := 32
 var _rest := PackedVector3Array()
@@ -15,7 +16,7 @@ func _init() -> void:
 
 func reset() -> void:
 	_delivered = 0.; _started = false
-	_center = Vector3(0,.72,0); _center_velocity = Vector3.ZERO
+	_center = Vector3(0,geometry.iol_plane if geometry else .72,0); _center_velocity = Vector3.ZERO
 	_rest = PackedVector3Array()
 	for i in range(optic_count):
 		var a := TAU*i/optic_count
@@ -24,6 +25,8 @@ func reset() -> void:
 		for i in range(12):
 			var a := -.8+float(i)/11.*1.6
 			_rest.append(Vector3(side*(.46+.24*sin(float(i)/11.*PI)),0,side*sin(a)*.52))
+	if geometry:
+		for i in range(_rest.size()): _rest[i]*=geometry.iol_scale
 	positions.resize(_rest.size())
 	_velocity.resize(_rest.size()); _velocity.fill(Vector3.ZERO)
 	for i in range(positions.size()): positions[i] = _folded(i,_center)
@@ -74,5 +77,5 @@ func metrics() -> Dictionary:
 		if i<optic_count: centroid+=positions[i]/optic_count
 	var shape_error := 0.
 	for i in range(positions.size()): shape_error=maxf(shape_error,positions[i].distance_to(_center+_rest[i]))
-	var alignment := clampf(1.-Vector2(centroid.x,centroid.z).length()/.5-absf(centroid.y-.72),0.,1.)
+	var alignment := clampf(1.-Vector2(centroid.x,centroid.z).length()/.5-absf(centroid.y-(geometry.iol_plane if geometry else .72)),0.,1.)
 	return {"delivered":_delivered,"deployed":_delivered>=1. and shape_error<.035,"alignment":alignment if _delivered>=1. else 0.,"finite":finite,"center":[centroid.x,centroid.y,centroid.z],"shape_error":shape_error}

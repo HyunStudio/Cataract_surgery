@@ -4,6 +4,11 @@ const Shapes=preload("res://scripts/anatomy_surfaces.gd")
 const LIMIT:=8192
 const CUT_RADIUS:=.04
 var surfaces:Dictionary={}
+var _closed_shell:=false
+var _shell_samples:Array[Dictionary]=[]
+var _removed_shell_samples:Array[Dictionary]=[]
+var _corneal_through_area:=0.
+var _carve_surface:=""
 var events:Array[Dictionary]=[]
 var _exposure:Dictionary={}
 var _initial_area:Dictionary={}
@@ -15,8 +20,9 @@ var _midpoints:Dictionary={}
 var _removed:=0.
 var _ok:=true
 func _init()->void: reset()
-func reset()->void:
-	surfaces={"cornea":Shapes.cornea(),"posterior":Shapes.posterior()}; events=[]
+func reset(source:Dictionary={})->void:
+	surfaces=source.duplicate(true) if not source.is_empty() else {"cornea":Shapes.cornea(),"posterior":Shapes.posterior()}; events=[]
+	_closed_shell=surfaces.cornea.get("closed_shell",false); _shell_samples=[]; _corneal_through_area=0.
 	_exposure={"cornea":{},"posterior":{}}; _initial_area={}; _open_area={"cornea":0.,"posterior":0.}; _limited={"cornea":false,"posterior":false}
 	for id in surfaces:
 		surfaces[id]["revision"]=0
@@ -58,12 +64,16 @@ func step(dt:float,records:Array)->void:
 func _carve(id:String,center:Vector3)->void:
 	if _limited[id]: return
 	var data:Dictionary=surfaces[id]
+	_carve_surface=id; _removed_shell_samples=[]
 	_work_points=data.positions.duplicate(); _kept=PackedInt32Array(); _midpoints={}; _removed=0.; _ok=true
 	for i in range(0,data.triangles.size(),3):
 		_refine(data.triangles[i],data.triangles[i+1],data.triangles[i+2],center,0)
 		if not _ok: _limited[id]=true; return
 	if _removed<=.00000001: return
+	if _shell_samples.size()+_removed_shell_samples.size()>512: _limited[id]=true; return
 	data.positions=_work_points; data.triangles=_kept; data.revision+=1
+	if id=="cornea" and _closed_shell:
+		_shell_samples.append_array(_removed_shell_samples); _measure_shell()
 	_open_area[id]=minf(_initial_area[id],_open_area[id]+_removed)
 	var retained:Dictionary={}
 	for offset in range(0,_kept.size(),3):
@@ -87,7 +97,11 @@ func _refine(a:int,b:int,c:int,center:Vector3,depth:int)->void:
 	if _distance(center,pa,pb,pc)>CUT_RADIUS: _keep(a,b,c); return
 	var longest:=maxf(pa.distance_to(pb),maxf(pb.distance_to(pc),pc.distance_to(pa)))
 	if longest<.018 or depth>=4:
-		if center.distance_to((pa+pb+pc)/3.)<CUT_RADIUS: _removed+=_area(pa,pb,pc)
+		if center.distance_to((pa+pb+pc)/3.)<CUT_RADIUS:
+			var area:=_area(pa,pb,pc); _removed+=area
+			var normal:=(pb-pa).cross(pc-pa).normalized()
+			if _closed_shell and _carve_surface=="cornea" and normal.y>.1:
+				_removed_shell_samples.append({"point":(pa+pb+pc)/3.,"normal":normal,"area":area})
 		else: _keep(a,b,c)
 		return
 	var ab:=_mid(a,b); var bc:=_mid(b,c); var ca:=_mid(c,a)
@@ -109,5 +123,24 @@ static func _distance(p:Vector3,a:Vector3,b:Vector3,c:Vector3)->float:
 	var distance:=INF
 	for edge in [[a,b],[b,c],[c,a]]: distance=minf(distance,p.distance_to(Geometry3D.get_closest_point_to_segment(p,edge[0],edge[1])))
 	return distance
+func _measure_shell()->void:
+	_corneal_through_area=0.
+	var data:Dictionary=surfaces.cornea
+	for sample in _shell_samples:
+		var opened:=false
+		for direction in [sample.normal,Vector3.UP]:
+			if not _shell_blocked(sample.point+direction*.35,sample.point-direction*.65,data): opened=true; break
+		if opened: _corneal_through_area+=sample.area
+
+func _shell_blocked(start:Vector3,finish:Vector3,data:Dictionary)->bool:
+	var lo:=start.min(finish); var hi:=start.max(finish)
+	for offset in range(0,data.triangles.size(),3):
+		var a:Vector3=data.positions[data.triangles[offset]]; var b:Vector3=data.positions[data.triangles[offset+1]]; var c:Vector3=data.positions[data.triangles[offset+2]]
+		var face_lo:=a.min(b).min(c); var face_hi:=a.max(b).max(c)
+		if face_hi.x<lo.x or face_lo.x>hi.x or face_hi.y<lo.y or face_lo.y>hi.y or face_hi.z<lo.z or face_lo.z>hi.z: continue
+		if Geometry3D.segment_intersects_triangle(start,finish,a,b,c)!=null: return true
+	return false
+
 func metrics()->Dictionary:
-	return {"finite":true,"topology_limited":_limited.cornea or _limited.posterior,"last_event":events[-1].duplicate(true) if not events.is_empty() else {},"posterior_open_area":_open_area.posterior,"corneal_open_area":_open_area.cornea,"posterior_integrity":clampf(1.-_open_area.posterior/_initial_area.posterior,0.,1.),"corneal_integrity":clampf(1.-_open_area.cornea/_initial_area.cornea,0.,1.),"posterior_breached":_open_area.posterior>.00000001,"corneal_breached":_open_area.cornea>.00000001,"rupture_conductance":clampf(_open_area.posterior*8.,0.,1.),"corneal_conductance":clampf(_open_area.cornea*8.,0.,1.)}
+	var corneal_area:float=_corneal_through_area if _closed_shell else _open_area.cornea
+	return {"finite":true,"topology_limited":_limited.cornea or _limited.posterior,"last_event":events[-1].duplicate(true) if not events.is_empty() else {},"posterior_open_area":_open_area.posterior,"corneal_open_area":corneal_area,"corneal_damage_area":_open_area.cornea,"posterior_integrity":clampf(1.-_open_area.posterior/_initial_area.posterior,0.,1.),"corneal_integrity":clampf(1.-_open_area.cornea/_initial_area.cornea,0.,1.),"posterior_breached":_open_area.posterior>.00000001,"corneal_breached":corneal_area>.00000001,"rupture_conductance":clampf(_open_area.posterior*8.,0.,1.),"corneal_conductance":clampf(corneal_area*8.,0.,1.)}

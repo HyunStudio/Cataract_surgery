@@ -3,6 +3,7 @@ extends RefCounted
 ## Parameters and pressure are dimensionless, uncalibrated and NOT device settings.
 ## This is neither CFD nor a validated model of human lens material.
 const MaterialModel=preload("res://scripts/lens_material.gd")
+var geometry:RefCounted
 var material=MaterialModel.new()
 var layered:=false
 var hydro_flow:=0.0
@@ -69,18 +70,19 @@ func reset() -> void:
 	_fragment_count=1; _fragments_dirty=false
 	# Three interlinked layers, each with 1+6+12+18 particles; no region masks.
 	for layer in range(-1,2):
-		var radial_scale: float = 0.86 if layer!=0 else 1.0
-		_append_particle(CENTER+Vector3(0,layer*0.047,0))
+		var radial_scale: float = (.95 if geometry else .86) if layer!=0 else 1.0
+		_append_particle(Vector3(0,layer*geometry.lens_half_thickness,0) if geometry else CENTER+Vector3(0,layer*.047,0))
 		for ring in range(1,4):
 			for i in range(ring*6):
 				var angle := float(i)/float(ring*6)*TAU
-				var radius := ring*0.22*radial_scale
-				_append_particle(CENTER+Vector3(cos(angle)*radius,layer*0.047,sin(angle)*radius))
+				var radius:float = ring*(geometry.lens_radius/3. if geometry else .22)*radial_scale
+				var y:float=layer*geometry.lens_height(radius) if geometry else CENTER.y+layer*.047
+				_append_particle(Vector3(cos(angle)*radius,y,sin(angle)*radius))
 	for particle in particles: particle.mass=INITIAL_MASS/particles.size()
 	for i in range(particles.size()):
 		for j in range(i+1,particles.size()):
 			var distance: float = particles[i].position.distance_to(particles[j].position)
-			if distance<=0.244:
+			if distance<=(.59 if geometry else .244):
 				bonds.append({"a":i,"b":j,"rest":distance,"active":true,"damage":0.0})
 	_accelerations.resize(particles.size())
 	_degree.resize(particles.size())
@@ -91,7 +93,8 @@ func reset() -> void:
 	for bond in bonds:
 		_bond_a.append(bond.a); _bond_b.append(bond.b); _bond_rest.append(bond.rest); _bond_active.append(1); _bond_damage.append(0.0)
 
-	material.reset(_positions)
+	material.surface_flow=geometry!=null
+	material.reset(_positions,geometry.lens_radius*.76 if geometry else .5)
 	_sync_public()
 
 func _append_particle(position: Vector3) -> void:
@@ -217,14 +220,16 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 				continue
 		# A simple bounded chamber wall, not anatomical contact or hydrodynamics.
 		var radial := Vector2(next.x,next.z)
-		if radial.length()>1.10:
-			radial=radial.normalized()*1.10
+		var radial_limit:=1.4 if geometry else 1.10
+		if radial.length()>radial_limit:
+			radial=radial.normalized()*radial_limit
 			next.x=radial.x
 			next.z=radial.y
 			velocity.x*=0.2
 			velocity.z*=0.2
-		if next.y<0.36 or next.y>1.04:
-			next.y=clampf(next.y,0.36,1.04)
+		var lower:=-.65 if geometry else .36; var upper:=1.45 if geometry else 1.04
+		if next.y<lower or next.y>upper:
+			next.y=clampf(next.y,lower,upper)
 			velocity.y*=0.2
 		_velocities[i]=velocity
 		_positions[i]=next

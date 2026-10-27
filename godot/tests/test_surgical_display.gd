@@ -68,6 +68,12 @@ func run()->void:
 		display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false,"anatomy":{"posterior":damage.surfaces.posterior}})
 		var posterior=display.get_node("NumericalEye/ComputedPosteriorCapsule")
 		check(posterior.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]==damage.surfaces.posterior.positions,"same revision from another recorded case still uses its own geometry")
+	var shape=load("res://scripts/anterior_segment.gd").new()
+	display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false,"dimensioned":true,"anatomy":{"cornea":shape.cornea(),"posterior":shape.posterior(),"iris":shape.iris(.96)}})
+	display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false,"anatomy":{}})
+	var legacy=load("res://scripts/anatomy_surfaces.gd")
+	check(display.get_node("NumericalEye/ComputedCornea").mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]==legacy.cornea().positions,"absent legacy revision-zero state restores legacy corneal geometry after dimensioned replay")
+	check(display.get_node("NumericalEye/ComputedPosteriorCapsule").mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]==legacy.posterior().positions,"absent legacy state restores posterior geometry after dimensioned replay")
 	display.free()
 	finish()
 func finish()->void:

@@ -4,7 +4,7 @@ func check(ok:bool,message:String)->void:
 	if not ok: failures+=1; push_error(message)
 func _initialize()->void: call_deferred("run")
 func run()->void:
-	var app=load("res://scripts/simulator.gd").new(); root.add_child(app); app.set_physics_process(false)
+	var app=load("res://scripts/simulator.gd").new(); app.anatomical=false; root.add_child(app); app.set_physics_process(false)
 	await process_frame; app.start_practice()
 	app.choose_tool("phaco")
 	app.set_machine("energy",1.); app.set_machine("suction",1.)

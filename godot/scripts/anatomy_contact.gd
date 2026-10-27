@@ -2,6 +2,7 @@ extends RefCounted
 ## Stateful geometry selection, with no tissue or instrument mutation.
 const Shapes=preload("res://scripts/anatomy_surfaces.gd")
 const Kernel=preload("res://scripts/surface_contact.gd")
+var geometry:RefCounted
 var cornea:Dictionary=Shapes.cornea()
 var posterior:Dictionary=Shapes.posterior()
 var iris:Dictionary=Shapes.iris(.98)
@@ -10,7 +11,7 @@ var _kernel=Kernel.new()
 func set_pupil(radius:float)->void:
 	if not is_finite(radius): return
 	radius=clampf(radius,.45,1.1)
-	if not is_equal_approx(pupil,radius): pupil=radius; iris=Shapes.iris(radius)
+	if geometry or not is_equal_approx(pupil,radius): pupil=radius; iris=geometry.iris(radius) if geometry else Shapes.iris(radius)
 func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,capsule,wounds:Array)->Dictionary:
 	var result:={"valid":true,"position":target,"contacts":[],"normal":Vector3.ZERO,"records":[]}
 	if not start.is_finite() or not target.is_finite() or not is_finite(radius) or radius<=0. or radius>.5: result.valid=false; result.position=start if start.is_finite() else Vector3.ZERO; return result
@@ -23,7 +24,7 @@ func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,
 			if id=="capsule" and tool=="knife" and cutting: continue
 			var surface:Dictionary=surfaces[id]
 			var ignore:=Callable()
-			if id=="cornea": ignore=func(hit): return _corneal_window(hit.surface_point,wounds,tool=="knife" and cutting,radius)
+			if id=="cornea": ignore=func(hit): return _corneal_window(hit.position if geometry else hit.surface_point,wounds,tool=="knife" and cutting,radius)
 			var hit:Dictionary=_kernel.sweep(current,desired,radius,surface.positions,surface.triangles,ignore)
 			if not hit.valid: result.valid=false; result.position=start; return result
 			if hit.hit and (first.is_empty() or hit.time<first.time): first=hit; label=id
@@ -42,7 +43,7 @@ func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,
 	return result
 func _corneal_window(point:Vector3,wounds:Array,cutting:bool,radius:float)->bool:
 	if cutting:
-		for portal in [Vector3(1.44,.86,0),Vector3(-1.44,.86,.25)]:
+		for portal in (geometry.portals if geometry else [Vector3(1.44,.86,0),Vector3(-1.44,.86,.25)]):
 			if point.distance_to(portal)<.34: return true
 	for path in wounds:
 		if not (path is Array or path is PackedVector3Array): continue
@@ -50,13 +51,18 @@ func _corneal_window(point:Vector3,wounds:Array,cutting:bool,radius:float)->bool
 			if not path[i] is Vector3 or not path[i-1] is Vector3: continue
 			if not path[i].is_finite() or not path[i-1].is_finite(): continue
 			var closest:=Geometry3D.get_closest_point_to_segment(point,path[i-1],path[i])
-			if closest.distance_to(point)+radius<.052: return true
+			var distance:=Vector2(closest.x-point.x,closest.z-point.z).length() if geometry else closest.distance_to(point)
+			if distance+radius<(geometry.wound_radius if geometry else .052): return true
 	return false
 
 func lens_access(tip:Vector3,capsule,radius:=.018)->bool:
 	if not tip.is_finite(): return false
-	if tip.y<=.53: return true
-	var hit:Dictionary=_kernel.sweep(tip,Vector3(tip.x,.53,tip.z),radius,capsule.positions,capsule.triangles)
+	var floor:float=-geometry.bag_half_thickness if geometry else .53
+	if geometry:
+		var r:=Vector2(tip.x,tip.z).length()
+		if r<geometry.bag_radius and tip.y<geometry.bag_front(r)-radius and tip.y>geometry.bag_back(r)+radius: return true
+	elif tip.y<=floor: return true
+	var hit:Dictionary=_kernel.sweep(tip,Vector3(tip.x,floor,tip.z),radius,capsule.positions,capsule.triangles)
 	return hit.valid and not hit.hit
 
 func stationary(tip:Vector3,radius:float,wounds:Array=[])->Array:
@@ -64,7 +70,7 @@ func stationary(tip:Vector3,radius:float,wounds:Array=[])->Array:
 	for id in ["cornea","posterior"]:
 		var surface:Dictionary=cornea if id=="cornea" else posterior
 		var ignore:=Callable()
-		if id=="cornea": ignore=func(hit): return _corneal_window(hit.surface_point,wounds,false,radius)
+		if id=="cornea": ignore=func(hit): return _corneal_window(hit.position if geometry else hit.surface_point,wounds,false,radius)
 		var hit:Dictionary=_kernel.overlap(tip,radius,surface.positions,surface.triangles,ignore)
 		if hit.valid and hit.hit:
 			records.append({"surface":id,"point":hit.surface_point,"center":tip,"normal":hit.normal,"triangle":hit.triangle,"revision":surface.get("revision",0),"load":0.})

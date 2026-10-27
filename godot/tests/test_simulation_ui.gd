@@ -70,6 +70,9 @@ func run() -> void:
 	var report: String=ui.report_text()
 	check(report.contains("123.4") and report.contains("12.340") and report.contains("접촉") and report.contains("누출"),"debrief presents actionable measured metrics")
 	check(report.contains("환자 움직임") and report.contains("전낭 집게") and report.contains("수술 부위") and not report.contains("instrument_selected"),"timeline uses Korean event and instrument/check names")
+	state.metrics["length_unit"]="mm"; state.metrics["area_unit"]="mm²"; state.metrics["corneal_damage_area"]=.5
+	ui.refresh(state)
+	check(ui.report_text().contains("12.340 mm") and ui.report_text().contains("mm²") and ui.report_text().contains("각막 표면 손상"),"dimensioned reports label real length scale and distinguish surface damage")
 	ui.sound_toggle.button_pressed=true
 	check(app.calls.has(["sound",true]),"sound accessibility toggle invokes app")
 	ui.review_slider.value=5

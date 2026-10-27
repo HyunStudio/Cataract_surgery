@@ -1,5 +1,8 @@
 extends Control
 ## Specialist simulation game: numerical tissue, instrument constraints and evidence-based cases.
+const Segment=preload("res://scripts/anterior_segment.gd")
+var anatomical:=true
+var geometry:RefCounted
 const Capsule = preload("res://scripts/capsule_solver.gd")
 const Lens = preload("res://scripts/lens_fluid_solver.gd")
 const Rig = preload("res://scripts/instrument_rig.gd")
@@ -96,20 +99,24 @@ func new_case(id: String) -> void:
 	release_controls()
 	case_id=id if id in ["standard","dense","small_pupil","motion"] else "standard"
 	director.reset(case_id,7)
-	capsule.reset(); lens.reset(); iol.reset(); incision.reset(); recording.reset(); injury.reset()
+	geometry=Segment.new() if anatomical else null
+	capsule.geometry=geometry; lens.geometry=geometry; iol.geometry=geometry; incision.geometry=geometry; anatomy.geometry=geometry
+	capsule.reset(); lens.reset(); iol.reset(); incision.reset(); recording.reset()
+	injury.reset({"cornea":geometry.cornea(),"posterior":geometry.posterior()} if geometry else {})
+	display.reset_lens_geometry()
 	anatomy.cornea=injury.surfaces.cornea; anatomy.posterior=injury.surfaces.posterior
 	_contact_records=[[],[]]
 	lens.layered=true
 	lens.hardness=.8 if case_id=="dense" else .4
 	selected=0; hand_tools=["forceps","phaco"]; latched=[false,false]
-	target_planes=[PLANES.forceps,PLANES.phaco]
-	rigs[0].portal=Vector3(1.44,.86,0); rigs[1].portal=Vector3(-1.44,.86,.25)
+	target_planes=[_plane("forceps"),_plane("phaco")]
+	rigs[0].portal=incision.portals[0]; rigs[1].portal=incision.portals[1]
 	for hand in range(2):
-		rigs[hand].aim_at(Vector3(0,.8,0)); rigs[hand].set_insertion(.12)
+		rigs[hand].aim_at(Vector3(0,.65 if geometry else .8,0)); rigs[hand].set_insertion(.05 if geometry else .12)
 		targets[hand]=rigs[hand].tip; previous_tips[hand]=rigs[hand].tip; target_valid[hand]=false
-	pupil_radius=.74 if case_id=="small_pupil" else .98
+	pupil_radius=geometry.pupil_radius(case_id=="small_pupil") if geometry else (.74 if case_id=="small_pupil" else .98)
 	anatomy.set_pupil(pupil_radius); last_contacts=[[],[]]
-	implant_hand=-1; implant_nozzle=Vector3(0,.72,0)
+	implant_hand=-1; implant_nozzle=Vector3(0,_plane("injector"),0)
 	clock=0.; samples=[]; _sample_accum=0.; _ui_accum=0.
 	metrics={"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.,"capsule_contacts":0.,"cornea_contacts":0.}
 	case_active=false; practice=false; paused=false; reviewing=false; room_view=true
@@ -132,16 +139,22 @@ func start_practice() -> void:
 	for check_id in ["patient","side","equipment"]: director.prepare(check_id)
 	practice=true; case_active=true; room_view=false
 	incision.opened=[true,true]; incision.lengths=[.18,.18]
-	incision.paths=[[Vector3(1.32,.84,-.1),Vector3(1.32,.84,.1)],[Vector3(-1.32,.84,.15),Vector3(-1.32,.84,.35)]]
+	incision.paths=[[Vector3(1.32,.80,-.25),Vector3(1.32,.80,.25)],[Vector3(-1.32,.80,0),Vector3(-1.32,.80,.5)]] if geometry else [[Vector3(1.32,.84,-.1),Vector3(1.32,.84,.1)],[Vector3(-1.32,.84,.15),Vector3(-1.32,.84,.35)]]
 	status="자유 술기 연습: 미리 준비된 진입부에서 조직과 장비 반응을 연습합니다."
 	update_geometry()
+
+func _radius(hand:int)->float:
+	return geometry.tip_radius(hand_tools[hand]) if geometry else TIP_RADIUS
+
+func _plane(id:String)->float:
+	return geometry.planes[id] if geometry else PLANES[id]
 
 func choose_tool(id: String) -> void:
 	if id not in IDS: return
 	if selected==implant_hand and iol.metrics().delivered<1. and id!="injector":
 		status="부분 전달 중인 인젝터를 유지하세요. 다른 손은 Tab으로 선택할 수 있습니다."; refresh_ui(); return
 	_disarm_actions(); latched[selected]=false; capsule.release_hand(selected)
-	hand_tools[selected]=id; target_planes[selected]=PLANES[id]; target_valid[selected]=false
+	hand_tools[selected]=id; target_planes[selected]=_plane(id); target_valid[selected]=false
 	status="%s 기구: %s" % ["왼손" if selected==0 else "오른손",id]
 	update_geometry()
 
@@ -311,9 +324,9 @@ func _advance_motion(dt: float) -> float:
 	for hand in range(2):
 		var before: Vector3=rigs[hand].tip
 		if target_valid[hand]: _set_tip(hand,before.move_toward(targets[hand],dt*1.5))
-		if not incision.opened[hand] and hand_tools[hand]!="knife": rigs[hand].set_insertion(minf(.12,rigs[hand].insertion))
+		if not incision.opened[hand] and hand_tools[hand]!="knife": rigs[hand].set_insertion(minf(.05 if geometry else .12,rigs[hand].insertion))
 		var wounds:Array=_open_wounds()
-		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,TIP_RADIUS,hand_tools[hand],hand==selected and grip_down,capsule,wounds)
+		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,_radius(hand),hand_tools[hand],hand==selected and grip_down,capsule,wounds)
 		_set_tip(hand,contact.position if contact.valid else previous_tips[hand])
 		for surface in contact.contacts:
 			metrics[surface+"_contacts"]+=dt
@@ -342,7 +355,7 @@ func _physics_process(dt: float) -> void:
 	var powered:=flow_active and pedal_stage==3 and tool=="phaco"
 	lens.inflow=machine.inflow if flow_active else 0.
 	lens.suction=machine.suction; lens.energy=machine.energy
-	lens.tissue_access=anatomy.lens_access(tip,capsule,TIP_RADIUS) if flow_active else true
+	lens.tissue_access=anatomy.lens_access(tip,capsule,_radius(selected)) if flow_active else true
 	lens.hydro_flow=1. if flow_active and tool=="cannula" and lens.tissue_access else 0.
 	lens.wound_leak=clampf(incision.metrics().leak+_last_injury.get("corneal_conductance",0.),0.,1.)
 	lens.rupture_leak=_last_injury.get("rupture_conductance",0.)
@@ -352,7 +365,7 @@ func _physics_process(dt: float) -> void:
 	capsule.pressure_load=.3*(float(_last_lens.pressure)-1.)
 	var tools: Array[Dictionary]=[]
 	for hand in range(2):
-		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":TIP_RADIUS,"grip":hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
+		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":_radius(hand),"grip":hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
 	capsule.step_tools(dt,tools)
 	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
 	if injecting and implant_hand==-1: implant_hand=selected
@@ -381,7 +394,7 @@ func _update_injury(dt:float)->void:
 		var powered:bool=hand==selected and hand_tools[hand]=="phaco" and pedal_down and pedal_stage==3
 		var local:Array=_contact_records[hand].duplicate(true)
 		if powered:
-			for current in anatomy.stationary(rigs[hand].tip,TIP_RADIUS,_open_wounds()):
+			for current in anatomy.stationary(rigs[hand].tip,_radius(hand),_open_wounds()):
 				var duplicate:=false
 				for moving in local:
 					if moving.surface==current.surface and moving.triangle==current.triangle and moving.revision==current.revision: duplicate=true; break
@@ -395,7 +408,8 @@ func _update_injury(dt:float)->void:
 func _anatomy_state()->Dictionary:
 	var state:Dictionary={}
 	for id in injury.surfaces:
-		if injury.surfaces[id].revision>0: state[id]=injury.surfaces[id]
+		if geometry or injury.surfaces[id].revision>0: state[id]=injury.surfaces[id]
+	if geometry: state["iris"]=anatomy.iris
 	return state
 
 func _observation(movement:=0.,energy:=0.) -> Dictionary:
@@ -408,7 +422,8 @@ func update_geometry(update_ui:=true) -> void:
 	if not display: return
 	var actions: Array=[]
 	for hand in range(2): actions.append({"grip":latched[hand] or (grip_down and hand==selected),"pedal":pedal_stage if hand==selected else 0})
-	display.apply(capsule,lens,iol,rigs,hand_tools,selected,actions,{"room":room_view,"wireframe":wireframe,"pupil_radius":pupil_radius,"wounds":incision.paths,"anatomy":_anatomy_state(),"injury":_last_injury})
+	display.apply(capsule,lens,iol,rigs,hand_tools,selected,actions,{"dimensioned":geometry!=null,"room":room_view,"wireframe":wireframe,"pupil_radius":pupil_radius,"wounds":incision.paths,"anatomy":_anatomy_state(),"injury":_last_injury})
+	tool_models=display.tool_models
 	_apply_optics()
 	if update_ui: _cache_metrics(); refresh_ui()
 
@@ -433,6 +448,11 @@ func refresh_ui() -> void:
 	report_metrics["iol_alignment"]=_last_iol.get("alignment",0.); report_metrics["tissue_breaks"]=_last_capsule.get("broken_edges",0)
 	report_metrics["wound_leak"]=incision.metrics().leak
 	report_metrics["posterior_open_area"]=_last_injury.get("posterior_open_area",0.); report_metrics["corneal_open_area"]=_last_injury.get("corneal_open_area",0.)
+	report_metrics["corneal_damage_area"]=_last_injury.get("corneal_damage_area",0.)
+	if geometry:
+		report_metrics["length_unit"]="mm"; report_metrics["area_unit"]="mm²"
+		report_metrics["path_length"]/=geometry.units_per_mm
+		for key in ["posterior_open_area","corneal_open_area","corneal_damage_area"]: report_metrics[key]/=geometry.units_per_mm*geometry.units_per_mm
 	ui.refresh({"director":state,"case_id":case_id,"room_view":room_view,"paused":paused,"status":status,"tools":hand_tools,"selected":selected,"latched":latched,"clock":clock,"pedal_stage":pedal_stage,"capsule":_last_capsule,"lens":_last_lens,"iol":_last_iol,"wound":incision.metrics(),"assisted":assisted,"debug":wireframe,"frame_count":recording.frames.size(),"reviewing":reviewing,"metrics":report_metrics,"machine":machine,"pupil_radius":pupil_radius,"ending":state.ending,"objective":objective,"show_briefing":not case_active and state.ending=="","practice":practice,"sound":_sound,"high_contrast":high_contrast,"reduced_motion":reduced_motion,"review_index":review_index,"injury":_last_injury})
 
 func preview_frame(index: int) -> void:
@@ -446,6 +466,7 @@ func end_review() -> void:
 func save_session() -> void:
 	var report: Dictionary=director.snapshot()
 	report["simulation_metrics"]=metrics.duplicate(); report["model"]="specialist-simulation-1 / uncalibrated"
+	report["geometry"]={"model_units_per_mm":geometry.units_per_mm,"lens_diameter_mm":geometry.lens_radius*2./geometry.units_per_mm,"lens_thickness_mm":geometry.lens_half_thickness*2./geometry.units_per_mm,"kind":"representative anterior segment"} if geometry else {"kind":"legacy unitless specimen"}
 	var raw: String=recording.export_json(report)
 	if raw.to_utf8_buffer().size()>32000000: status="기록 용량 한도 초과. 세션을 나누어 저장하세요."; refresh_ui(); return
 	var path: String="user://case_%s_%d.json" % [case_id,Time.get_unix_time_from_system()]

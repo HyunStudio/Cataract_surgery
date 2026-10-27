@@ -17,7 +17,7 @@ func begin(app)->void:
 		var a:=TAU*i/99.
 		app._set_tip(0,Vector3(.32*cos(a),.81,.32*sin(a))); app._physics_process(1./60.)
 func run()->void:
-	var app=load("res://scripts/simulator.gd").new(); root.add_child(app); app.set_physics_process(false)
+	var app=load("res://scripts/simulator.gd").new(); app.anatomical=false; root.add_child(app); app.set_physics_process(false)
 	await process_frame; begin(app)
 	check(not app.injury.metrics().posterior_breached and not app.injury.metrics().corneal_breached,"normal entry and anterior cutting preserve posterior surface")
 	app.update_geometry(); app.recording.record(app.clock,app.display.capture_frame(),true)

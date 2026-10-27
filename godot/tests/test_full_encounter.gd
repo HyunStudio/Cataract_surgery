@@ -9,6 +9,7 @@ func tick(app, count: int) -> void:
 	for i in range(count): app._physics_process(1./60.)
 func run() -> void:
 	var app=load("res://scripts/simulator.gd").new()
+	app.anatomical=false
 	root.add_child(app); app.set_physics_process(false)
 	await process_frame
 	for key in ["patient","side","equipment"]: app.prepare_check(key)

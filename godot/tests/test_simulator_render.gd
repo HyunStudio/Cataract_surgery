@@ -20,6 +20,7 @@ func enter_chamber(side:float,z:float) -> void:
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://reports"))
 	app=load("res://scripts/simulator.gd").new()
+	app.anatomical=false
 	root.add_child(app)
 	app.set_process_input(false)
 	app.set_physics_process(false)

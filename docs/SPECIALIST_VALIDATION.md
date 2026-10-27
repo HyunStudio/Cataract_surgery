@@ -1,6 +1,34 @@
-# Integrated specialist simulator validation — 2026-10-27
+# Integrated specialist simulator validation — 2026-10-28
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
+
+## Dimensioned volumetric anatomy milestone — 2026-10-28
+
+- The **default playable app** now initializes a shared representative anterior segment at 0.24 model units/mm: 9.2mm diameter / 4.2mm thick lens, enclosing bag, 3.0mm central chamber clearance and a closed inner/outer corneal shell. The lens is still 111 numerical particles, now sampled in a volumetric rest shape; this is not display-only scaling. Representative lens dimensions refer to [Xue et al.](https://onlinelibrary.wiley.com/doi/10.1155/2019/8319027); the remaining surface fits and coefficients are engineering choices, not a measured patient or calibrated biomechanics.
+- Anterior and posterior bag rings share their equator. Equal meridional-angle sampling preserves real triangle enclosure with the existing 217 membrane nodes. Independent review found outer particles protruding through coarse linear-ring facets despite passing an analytic-profile test. A new test independently interpolates actual indexed face heights and proves enclosure of every rest particle.
+- Shared geometry also sets iris/pupil cases, entry portals, working depths, IOL target/rest scale, tool-specific tip radii and collision/render surfaces. Generic instrument handles are now outside the operative field; working tips and shafts are separately modeled. Full shaft/jaw/blade collision remains open.
+- Accepted inflow drives a bounded cortical surface exposure field with symmetric neighbor exchange and relaxation. Tests verify no source/no release, local onset, propagation beyond the direct tip radius, bounds, nuclear identity and reset. This is a reduced exposure model, **not CFD, measured pressure or extra compartment volume**.
+- Corneal surface damage and through-wall loss are separate. Only removed outer-face samples with a clear path through both shell boundaries contribute to estimated through-wall area/conductance. Sample measurement is bounded to 512 outer leaves; further subdivision is limited if the budget is reached. This is an area estimate, not a calibrated hydraulic aperture. Independent review reproduced the previous superficial-damage false leak; the regression now verifies one-wall no-leak and two-wall actual passage.
+- Revision-zero anatomy now tracks presence as well as revision, so undamaged legacy rich replay restores its own cornea/posterior rather than leaving dimensioned geometry visible. Same-count lens topology caches reset between cases/replay. New instrument references follow model rebuilds.
+- Fresh local standard runner: **33 suites passed**, including five new default-mode suites (geometry, cortical surface flow, corneal shell injury, volumetric full encounter, volumetric adverse case). Old fixed-coordinate app fixtures explicitly opt into the legacy specimen; they do not stand in for the new default tests. Python implementation/tests unchanged in this milestone.
+- Default full encounter passed headless and on the RTX 3070 Laptop GPU: actual continuous blade entry, anterior connectivity cut, accepted-flow adhesion release, all nuclear/cortical mass removal at the inlet, IOL deployment/alignment, collision-resolved withdrawal through the wound, measured final inspections, completed ending and immutable review. This test drives normal tool/action methods with constrained poses, not a full human pointer route or clinical evaluation. New default adverse case proves posterior puncture, posterior outflow, persistent failure after assessment and healthy reset into a smaller-pupil case.
+- GPU intact/oblique geometry, normal ending and adverse captures were visually inspected: `volumetric-anatomy.png`, `volumetric-depth.png`, `volumetric-results.png`, `volumetric-injury.png` under `godot/reports`. The oblique view is a diagnostic test capture, not a newly exposed camera mode.
+
+### New geometry: moving powered GPU workload
+
+The benchmark follows the new chamber route and anterior opening, then scans lateral position **and depth** for 30 seconds at 1920×1080. Energy, aspiration and inflow are each 1.0 normalized controls. First two seconds discarded; no other test/export process ran during the accepted measurement.
+
+| Metric | Observed |
+|---|---|
+| Sampled frames | 1,316 |
+| Mean FPS / frame time | 46.95 fps / 21.297ms |
+| P95 frame time | 27.428ms |
+| Actual removed mass | 8.108% of initial mass |
+| Finite / tissue access / case alert | true / true / none |
+
+This remains below a stable 60fps target. The earlier 56.01fps result below used the flatter specimen, smaller tip and a different depth/power path; it is historical and not a same-workload comparison. The benchmark requires actual removal and a clear case alert before accepting a run, so a powered but ineffective hover cannot be reported as active-operation validation.
+
+Editor import and Windows release export exited 0. The native OpenGL executable ran 120 frames and exited 0 without script/shader errors. Refreshed nine-file Windows ZIP passed CRC verification. Overall goal remains active: separated anterior flap extraction, actual dynamic particle/bag boundaries and rupture aftermath, tool exchange withdrawal/reinsertion, full-tool contact, detailed environment/assets, full pointer workflow and sustained performance are still required.
 
 ## Packed visual snapshot milestone — 2026-10-27
 

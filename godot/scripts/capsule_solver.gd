@@ -5,6 +5,7 @@ const RINGS := 6
 const SECTORS := 36
 const RADIUS := .88
 const MAX_DT := .1
+var geometry:RefCounted
 var positions := PackedVector3Array()
 var rest_positions := PackedVector3Array()
 var triangles := PackedInt32Array()
@@ -54,6 +55,13 @@ func reset() -> void:
 			var angle := TAU * sector / SECTORS
 			positions.append(Vector3(cos(angle) * radius, .8 + .02 * (1.0 - pow(radius / RADIUS, 2)), sin(angle) * radius))
 			anchored.append(1 if ring == RINGS else 0)
+	if geometry:
+		for i in range(positions.size()):
+			var ring:int=int((i-1)/SECTORS)+1 if i>0 else 0
+			var theta:=PI*.5*ring/RINGS
+			var r:float=geometry.bag_radius*sin(theta)
+			var angle:float=TAU*((i-1)%SECTORS)/SECTORS if i>0 else 0.
+			positions[i]=Vector3(cos(angle)*r,0. if anchored[i]!=0 else geometry.bag_half_thickness*cos(theta),sin(angle)*r)
 	rest_positions = positions.duplicate()
 	_previous = positions.duplicate()
 	_incident = []

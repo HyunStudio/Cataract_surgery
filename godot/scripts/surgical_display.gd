@@ -1,5 +1,8 @@
 extends Node3D
 ## Rendering adapter only. Numerical solvers and captured frames remain read-only.
+const Instrument=preload("res://scripts/surgical_instrument.gd")
+const Segment=preload("res://scripts/anterior_segment.gd")
+var _dimensioned_tools:=false
 const Snapshot=preload("res://scripts/visual_snapshot.gd")
 const Shapes=preload("res://scripts/anatomy_surfaces.gd")
 const WorldScript=preload("res://scripts/surgical_world.gd")
@@ -23,7 +26,7 @@ var _optic: MeshInstance3D
 var _haptics: MeshInstance3D
 var _iris: MeshInstance3D
 var _pupil_radius:float=-1.0
-var _surface_revision:Dictionary={"cornea":0,"posterior":0}
+var _surface_revision:Dictionary={"cornea":0,"posterior":0,"iris":-1}
 var _surface_data:Dictionary={}
 var _last_frame:Dictionary={}
 var _built:=false
@@ -48,7 +51,7 @@ func build()->void:
 	world.name="World"
 	add_child(world)
 	world.build()
-	for label in ["CapsuleMembrane","LensRegions","CortexRegions","IOL","Iris","PupilRim","TutorialTargets","AspirationFragments","Cornea","Pupil"]:
+	for label in ["Capsule","CapsuleMembrane","LensRegions","CortexRegions","IOL","Iris","PupilRim","TutorialTargets","AspirationFragments","Cornea","Pupil"]:
 		var old:Node3D=world.find_child(label,true,false)
 		if old: old.visible=false
 	_physical=Node3D.new()
@@ -99,10 +102,17 @@ func build()->void:
 	_haptics.mesh=_haptic_mesh
 	_haptics.material_override=_material(Color("b1e0ec"),.18)
 	iol_display.visible=false
+	_build_tool_models(false)
+	_set_view(false)
+
+func _build_tool_models(dimensioned:bool)->void:
+	for models in tool_models:
+		for model in models.values(): model.free()
+	tool_models=[]; _forceps_jaws=[[],[]]; _dimensioned_tools=dimensioned
 	for hand in range(2):
 		var models:Dictionary={}
 		for id in world.tools:
-			var model:Node3D=world.tools[id].duplicate()
+			var model:Node3D=Instrument.build(id,Segment.tool_radii[id]) if dimensioned else world.tools[id].duplicate()
 			model.name="Hand%d_%s"%[hand,id]
 			model.visible=false
 			_physical.add_child(model)
@@ -111,7 +121,6 @@ func build()->void:
 				for child in model.get_children():
 					if str(child.name).begins_with("Jaw"): _forceps_jaws[hand].append({"node":child,"rest":child.transform})
 		tool_models.append(models)
-	_set_view(false)
 
 func _node(label:String,parent:Node3D)->MeshInstance3D:
 	var node:=MeshInstance3D.new()
@@ -129,6 +138,7 @@ func _material(color:Color,roughness:float,unshaded:bool=false)->StandardMateria
 
 func apply(capsule,lens,iol,rigs:Array,hand_tools:Array,selected:int,actions:Array,options:Dictionary)->void:
 	if not _built: build()
+	if bool(options.get("dimensioned",false))!=_dimensioned_tools: _build_tool_models(bool(options.get("dimensioned",false)))
 	var iol_metrics:Dictionary=iol.metrics()
 	_render_anatomy(options.get("anatomy",{}))
 	_render_capsule(capsule,bool(options.get("wireframe",false)))
@@ -142,7 +152,7 @@ func apply(capsule,lens,iol,rigs:Array,hand_tools:Array,selected:int,actions:Arr
 	var radius:=clampf(float(options.get("pupil_radius",.98)),.55,1.15)
 	if not is_equal_approx(radius,_pupil_radius):
 		_pupil_radius=radius
-		_iris.mesh=Shapes.mesh(Shapes.iris(radius))
+		if not options.get("anatomy",{}).has("iris"): _iris.mesh=Shapes.mesh(Shapes.iris(radius))
 	_set_view(bool(options.get("room",false)))
 	var rig_data:Array=[]
 	for rig in rigs: rig_data.append({"tip":rig.tip,"axis":rig.axis,"portal":rig.portal,"insertion":rig.insertion})
@@ -151,16 +161,16 @@ func apply(capsule,lens,iol,rigs:Array,hand_tools:Array,selected:int,actions:Arr
 	_last_frame={"capsule":cap_state,"lens":lens_state,"iol":{"positions":iol.positions.duplicate(),"optic_count":int(iol.optic_count),"metrics":iol_metrics.duplicate(true)},"rigs":rig_data,"hand_tools":hand_tools.duplicate(true),"selected":selected,"actions":actions.duplicate(true),"options":options.duplicate(true)}
 
 func _render_anatomy(state:Dictionary)->void:
-	for id in ["cornea","posterior"]:
+	for id in ["cornea","posterior","iris"]:
 		var revision:int=state.get(id,{}).get("revision",0)
+		var cached:Dictionary=_surface_data.get(id,{})
 		if revision==_surface_revision[id]:
-			if not state.has(id): continue
-			var cached:Dictionary=_surface_data.get(id,{})
-			if not cached.is_empty() and cached.positions==state[id].positions and cached.triangles==state[id].triangles: continue
-		var data:Dictionary=state[id] if state.has(id) else (Shapes.cornea() if id=="cornea" else Shapes.posterior())
-		var node:MeshInstance3D=_physical.get_node("ComputedCornea" if id=="cornea" else "ComputedPosteriorCapsule")
+			if not state.has(id) and not cached.get("provided",false): continue
+			if state.has(id) and cached.get("provided",false) and cached.positions==state[id].positions and cached.triangles==state[id].triangles: continue
+		var data:Dictionary=state[id] if state.has(id) else (Shapes.cornea() if id=="cornea" else (Shapes.posterior() if id=="posterior" else Shapes.iris(_pupil_radius)))
+		var node:MeshInstance3D=_physical.get_node({"cornea":"ComputedCornea","posterior":"ComputedPosteriorCapsule","iris":"ComputedIris"}[id])
 		node.mesh=Shapes.mesh(data); _surface_revision[id]=revision
-		_surface_data[id]={"positions":data.positions.duplicate(),"triangles":data.triangles.duplicate()}
+		_surface_data[id]={"provided":state.has(id),"positions":data.positions.duplicate(),"triangles":data.triangles.duplicate()}
 
 func _set_view(room:bool)->void:
 	world.set_room_view(room)
@@ -276,7 +286,8 @@ func _render_tools(rigs:Array,hand_tools:Array,selected:int,actions:Array)->void
 			var side:=toward.cross(Vector3.UP).normalized()
 			if side.length_squared()<.01: side=Vector3.FORWARD
 			var frame:=Basis(toward,side.cross(toward).normalized(),side)
-			model.basis=frame*Basis(Quaternion(Vector3(1.55,.52,.20).normalized(),Vector3.RIGHT))
+			var local_axis:Vector3=model.get_meta("shaft_axis",Vector3(1.55,.52,.20).normalized())
+			model.basis=frame*Basis(Quaternion(local_axis,Vector3.RIGHT))
 			model.position=rigs[hand].tip
 			model.set_meta("selected",hand==selected)
 			model.set_meta("action",actions[hand].duplicate(true) if hand<actions.size() else {})
@@ -325,8 +336,13 @@ func capture_frame()->Dictionary:
 	if frame.has("lens"): frame.lens=Snapshot.expand_lens(frame.lens)
 	if frame.has("capsule"): frame.capsule=Snapshot.expand_capsule(frame.capsule)
 	return frame
+func reset_lens_geometry()->void:
+	_surface=SurfaceScript.new()
+	_last_lens_positions=PackedVector3Array(); _last_lens_active=PackedByteArray(); _last_bond_active=PackedByteArray()
+
 func apply_frame(frame:Dictionary)->void:
 	if not frame.has_all(["capsule","lens","iol","rigs","hand_tools","selected","actions","options"]): return
+	reset_lens_geometry()
 	var copy:=frame.duplicate(true)
 	var implant:=CapturedIOL.new()
 	implant.positions=copy.iol.positions
