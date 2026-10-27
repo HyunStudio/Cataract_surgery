@@ -16,6 +16,22 @@ func _initialize()->void:
 	var contact_tools:Array[Dictionary]=[{"hand":0,"tip":contact_point+Vector3(0,.025,0),"radius":.065,"contact_radius":.018,"grip":true,"cut":false}]
 	model.step_tools(1./60.,contact_tools)
 	check(model.metrics().grasped==0 and model.positions[0].distance_to(contact_point)<.000001,"grasp acquisition preserves material contact offset without snapping tissue to tool center")
+	var profile=load("res://scripts/instrument_profile.gd")
+	var path_source=load("res://scripts/instrument_path.gd")
+	var axis0:=Vector3.RIGHT; var axis1:=Vector3(.8,.6,0)
+	var local:=Vector3(0,.025,.01); model._grasp_offsets[0]=local
+	var body:Array=path_source.build("forceps",.018,contact_point,axis0,true,contact_point+Vector3(.01,0,0),axis1,true,false)
+	var moving:Dictionary={"hand":0,"tip":contact_point+Vector3(.01,0,0),"body":body}
+	var attached_start:Vector3=contact_point+profile.frame(axis0)*local
+	var material_path:Dictionary=body[0].duplicate(true)
+	for key in ["a0","a1","b0","b1"]: material_path.path[key]=local
+	for fraction in [0.,.25,.5,.75,1.]:
+		var target:Vector3=model._grasp_target(moving,fraction,attached_start,false)
+		check(target.distance_to(path_source.sample(material_path,fraction).a)<.000001,"attachment and body share the same translated/rotated substep pose")
+		check(model._grasp_target(moving,fraction,attached_start,true)==attached_start,"new endpoint acquisition does not rewind through an earlier tool pose")
+	var lagged_start:=attached_start+Vector3(.003,-.002,.001)
+	check(model._grasp_target(moving,0.,lagged_start,false).distance_to(lagged_start)<.000001,"attachment path begins at the accepted tissue position after contact correction")
+	check(model._grasp_target(moving,1.,lagged_start,false).distance_to(path_source.sample(material_path,1.).a)<.000001,"attachment correction reaches the requested tool pose at the end of the tick")
 	model.reset()
 	model.pressure_load=.2
 	var ordinary_force:PackedVector3Array=model._pressure_acceleration(); var old_area:float=model._rest_area[0]

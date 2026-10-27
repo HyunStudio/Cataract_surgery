@@ -207,6 +207,16 @@ func _tool_frame(tool:Dictionary)->Basis:
 		if part.has("path"): return Basis(part.path.rotation1)
 	return Basis.IDENTITY
 
+func _grasp_target(tool:Dictionary,t:float,start:Vector3,acquired:bool)->Vector3:
+	if acquired: return start # New contact is acquired at the accepted endpoint.
+	var local:Vector3=_grasp_offsets[tool.hand]
+	for part in tool.get("body",[]):
+		if not part.has("path"): continue
+		var path:Dictionary=part.path
+		var old:Vector3=path.tip0+Basis(path.rotation0)*local
+		return path.tip0.lerp(path.tip1,t)+Basis(path.rotation0.slerp(path.rotation1,t))*local+(start-old)*(1.-t)
+	return start.lerp(tool.tip+local,t)
+
 func step(dt: float, tool_tip: Vector3, tool_radius: float, grip: bool, cut: bool) -> void:
 	if passive_tips.size() > 8: return
 	var tools: Array[Dictionary] = [{"hand": 0, "tip": tool_tip, "radius": tool_radius, "grip": grip, "cut": cut}]
@@ -257,6 +267,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 	for tool in tools:
 		if not tool.grip: _grasps.erase(tool.hand); _grasp_faces.erase(tool.hand); _grasp_offsets.erase(tool.hand)
 	_refresh_components()
+	var acquired:={}
 	for tool in tools:
 		if not tool.grip or _grasps.has(tool.hand): continue
 		var nearest: float = tool.radius
@@ -268,6 +279,9 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		if vertex >= 0:
 			_grasps[tool.hand] = vertex; _grasp_faces[tool.hand]=_grasp_face(vertex)
 			_grasp_offsets[tool.hand]=_tool_frame(tool).transposed()*(positions[vertex]-tool.tip)
+			acquired[tool.hand]=true
+	var grasp_starts:={}
+	for hand in _grasps: grasp_starts[hand]=positions[_grasps[hand]]
 	_pinned = anchored.duplicate()
 	for vertex in _grasps.values(): _pinned[vertex] = 1
 	for i in range(positions.size()):
@@ -293,7 +307,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		for tool in tools:
 			if _grasps.has(tool.hand):
 				var vertex: int = _grasps[tool.hand]
-				positions[vertex] = positions[vertex].move_toward(tool.tip+_tool_frame(tool)*_grasp_offsets[tool.hand], .08)
+				positions[vertex] = positions[vertex].move_toward(_grasp_target(tool,float(substep+1)/substeps,grasp_starts[tool.hand],acquired.has(tool.hand)), .08)
 			if tool.get("body",[]).is_empty(): _project_contact(tool.tip, tool.get("contact_radius",tool.radius))
 		for edge_id in range(_edge_a.size()):
 			_lambdas[edge_id] = 0.0
@@ -311,21 +325,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 				_edge_active[edge_id] = 0; edges[edge_id].active = false; _dirty = true
 		if not body.is_empty() and _dirty: _rebuild_triangles()
 		for iteration in range(clampi(solver_iterations, 1, 16)):
-			for edge_id in range(_edge_a.size()):
-				if _edge_active[edge_id] == 0: continue
-				var a := _edge_a[edge_id]
-				var b := _edge_b[edge_id]
-				var wa := _inverse_mass[a]
-				var wb := _inverse_mass[b]
-				if wa + wb == 0: continue
-				var offset := positions[a] - positions[b]
-				var length := offset.length()
-				var normal:=offset/length if length>0. else (rest_positions[a]-rest_positions[b])/_edge_rest[edge_id]
-				var delta := (-(length - _edge_rest[edge_id]) - alpha * _lambdas[edge_id]) / (wa + wb + alpha)
-				_lambdas[edge_id] += delta
-				var correction := normal * delta
-				positions[a] += correction * wa
-				positions[b] -= correction * wb
+			_project_stretch(alpha)
 			if not body.is_empty():
 				var projected:Dictionary=_face_contact.project(positions,triangles,_inverse_mass,body,body_previous)
 				if projected.valid:
@@ -342,6 +342,19 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 				_previous[i] = positions[i]
 		if _dirty: _rebuild_triangles()
 		if tissue_boundary and geometry: _boundary_step(contact_previous)
+
+func _project_stretch(alpha:float)->void:
+	for edge_id in range(_edge_a.size()):
+		if _edge_active[edge_id] == 0: continue
+		var a := _edge_a[edge_id]; var b := _edge_b[edge_id]
+		var wa := _inverse_mass[a]; var wb := _inverse_mass[b]
+		if wa + wb == 0: continue
+		var offset := positions[a] - positions[b]; var length := offset.length()
+		var normal:=offset/length if length>0. else (rest_positions[a]-rest_positions[b])/_edge_rest[edge_id]
+		var delta := (-(length - _edge_rest[edge_id]) - alpha * _lambdas[edge_id]) / (wa + wb + alpha)
+		_lambdas[edge_id] += delta
+		var correction := normal * delta
+		positions[a] += correction * wa; positions[b] -= correction * wb
 
 func _project_contact(tip: Vector3, radius: float) -> void:
 	for i in range(positions.size()):
