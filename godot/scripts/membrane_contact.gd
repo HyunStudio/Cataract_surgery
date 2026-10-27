@@ -5,6 +5,12 @@ extends RefCounted
 const Kernel=preload("res://scripts/capsule_surface.gd")
 const Path=preload("res://scripts/instrument_path.gd")
 var kernel:=Kernel.new()
+var _previous_linearization:=false
+func begin_substep(previous_linearization:bool=true)->void:
+	# The experimental global XPBD backend uses a semi-implicit contact frame.
+	# Recompute it from the new physical substep's previous geometry, never
+	# change its gradient during the inner elastic/contact iterations.
+	_previous_linearization=previous_linearization
 func valid_body(body:Array)->bool:
 	if body.size()>64: return false
 	for part in body:
@@ -74,6 +80,15 @@ func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat
 			if normal.length_squared()<1e-16:
 				out.uncertain+=1; out.residual=maxf(out.residual,part.radius); continue
 			normal=normal.normalized()
+			# Follow the current nearest features as the membrane deforms. The
+			# previous normal selects the retained material side, not a frozen
+			# correction direction after a face has tilted.
+			if hit.hit and not _previous_linearization:
+				var separating:Vector3=hit.surface_point-hit.axis_point
+				# Flipping an endpoint radial normal can turn it inward along
+				# the finite shaft. A crossing retains its previous direction.
+				if separating.length_squared()>1e-16 and separating.dot(normal)>0.:
+					normal=separating.normalized()
 			var weights:=_weights(witness,witness_face)
 			if weights==Vector3.ZERO:
 				out.uncertain+=1; out.residual=maxf(out.residual,part.radius); continue
@@ -82,7 +97,9 @@ func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat
 			if local_attachment>=0 and witness.distance_to(witness_face[local_attachment])<=maxf(.025,part.radius*2.): continue
 			var surface:=Vector3.ZERO
 			for i in range(3): surface+=out.positions[ids[i]]*weights[i]
-			var axis:Vector3=Geometry3D.get_closest_point_to_segment(surface,part.a,part.b)
+			# This supporting plane remains valid for the whole finite capsule,
+			# including when a corrected witness changes its nearest axis feature.
+			var axis:Vector3=part.a if part.a.dot(normal)>=part.b.dot(normal) else part.b
 			var depth:float=part.radius-(surface-axis).dot(normal)
 			if depth<=1e-7: continue
 			out.contacts+=1

@@ -357,6 +357,7 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 			if broken:
 				_edge_active[edge_id] = 0; edges[edge_id].active = false; _dirty = true
 		if not body.is_empty() and _dirty: _rebuild_triangles()
+		if _face_contact.has_method("begin_substep"): _face_contact.begin_substep(stretch_backend!=null)
 		var settled:bool=not stretch_backend
 		var motion:=INF; var operator_motion:=INF; var constitutive_residual:=INF; var contact_residual:=0.
 		var budget:int=NATIVE_COUPLING_BUDGET if stretch_backend else clampi(solver_iterations,1,16)
