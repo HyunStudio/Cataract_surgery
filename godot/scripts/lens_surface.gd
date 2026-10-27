@@ -13,6 +13,7 @@ var _faces: Array[Dictionary] = []
 var _sources: Array[Vector3i] = []
 var _weights: Array[Vector3] = []
 var _rest_uv := PackedVector2Array()
+var _colors:=PackedColorArray()
 var _bond_lookup: Dictionary = {}
 var _particle_count := 0
 var _bond_count := -1
@@ -87,6 +88,7 @@ func update_from_solver(solver) -> ArrayMesh:
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX]=vertices
 	arrays[Mesh.ARRAY_NORMAL]=smooth_normals
+	arrays[Mesh.ARRAY_COLOR]=_colors
 	arrays[Mesh.ARRAY_TEX_UV]=_rest_uv
 	arrays[Mesh.ARRAY_INDEX]=indices
 	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
@@ -125,6 +127,14 @@ func _cache_topology(solver) -> void:
 			var normal:Vector3=(solver.particles[a].position-Vector3(0,.68,0))*Vector3(1,0,1)
 			_face(a,b,c,normal,solver)
 			_face(b,d,c,normal,solver)
+	_colors=PackedColorArray()
+	_colors.resize(_sources.size())
+	for i in range(_sources.size()):
+		var nodes:=_sources[i]; var weight:=_weights[i]
+		var cortex:=0.
+		for part in range(3):
+			if solver.particles[nodes[part]].get("cortex",false): cortex+=weight[part]
+		_colors[i]=Color(cortex,0,0,1)
 	if _material==null:
 		_material=ShaderMaterial.new()
 		_material.shader=load("res://assets/lens_surface.gdshader")

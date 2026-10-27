@@ -89,6 +89,7 @@ func new_case(id: String) -> void:
 	case_id=id if id in ["standard","dense","small_pupil","motion"] else "standard"
 	director.reset(case_id,7)
 	capsule.reset(); lens.reset(); iol.reset(); incision.reset(); recording.reset()
+	lens.layered=true
 	lens.hardness=.8 if case_id=="dense" else .4
 	selected=0; hand_tools=["forceps","phaco"]; latched=[false,false]
 	target_planes=[PLANES.forceps,PLANES.phaco]
@@ -321,6 +322,7 @@ func _physics_process(dt: float) -> void:
 	var powered:=flow_active and pedal_stage==3 and tool=="phaco"
 	lens.inflow=machine.inflow if flow_active else 0.
 	lens.suction=machine.suction; lens.energy=machine.energy
+	lens.hydro_flow=1. if flow_active and tool=="cannula" else 0.
 	lens.wound_leak=incision.metrics().leak
 	lens.passive_tips=PackedVector3Array([rigs[1-selected].tip])
 	lens.step(dt,tip,powered,aspirating)
@@ -375,6 +377,8 @@ func refresh_ui() -> void:
 	if case_active and state.ending=="" and state.alert=="":
 		if incision.metrics().entry_count==0: objective="절개도로 진입부 형성 · 각막 주변의 짧은 연속 경로"
 		elif _last_capsule.get("broken_edges",0)==0 and _last_lens.get("remaining_mass",1.)>.98: objective="집게·절개도로 전낭 접근과 개방 · 조직 반응 관찰"
+		elif float(_last_lens.get("nucleus_remaining",0.))<.01 and float(_last_lens.get("cortex_remaining",0.))>.02: objective="피질 잔여물 확인 · 관류·흡인 기구로 국소 제거"
+		elif float(_last_lens.get("adhesion_released",1.))<.2 and _last_capsule.get("broken_edges",0)>0: objective="캐뉼라 국소 관류 · 피질 부착과 핵의 움직임 관찰"
 	var report_metrics:=metrics.duplicate()
 	report_metrics["time_seconds"]=clock; report_metrics["lens_removed"]=1.-float(_last_lens.get("remaining_mass",1.))
 	report_metrics["iol_alignment"]=_last_iol.get("alignment",0.); report_metrics["tissue_breaks"]=_last_capsule.get("broken_edges",0)

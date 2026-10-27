@@ -8,6 +8,7 @@ void fragment(){
  float wisps=sin(p.x*36.0+p.y*18.0+cloud*3.0)*.025;
  float density=clamp(.65+cloud*.12+wisps,0.0,1.0);
  vec3 nucleus=mix(cloud_color.rgb*.70,cloud_color.rgb*1.08,density);
- ALBEDO=mix(vec3(.55,.66,.67),nucleus,cloudiness);
+ vec3 cortex=vec3(.77,.81,.73)*(0.94+wisps);
+ ALBEDO=mix(mix(vec3(.55,.66,.67),nucleus,cloudiness),cortex,COLOR.r*.8);
  ROUGHNESS=.35; SPECULAR=.38;
 }

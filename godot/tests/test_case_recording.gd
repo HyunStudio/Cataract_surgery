@@ -7,15 +7,17 @@ func _initialize() -> void:
 	if source==null:
 		push_error("case recording missing"); quit(1); return
 	var rec = source.new()
-	var frame := {"capsule":{"positions":PackedVector3Array([Vector3.ZERO]),"triangles":PackedInt32Array(),"edges":[]},"lens":{"particles":[{"position":Vector3.ONE,"active":true}],"bonds":[]},"iol":{"positions":PackedVector3Array(),"optic_count":0,"metrics":{}},"rigs":[],"hand_tools":[],"selected":0,"actions":[],"options":{}}
+	var frame := {"capsule":{"positions":PackedVector3Array([Vector3.ZERO]),"triangles":PackedInt32Array(),"edges":[]},"lens":{"particles":[{"position":Vector3.ONE,"active":true,"adhesion":1.,"cortex":true}],"bonds":[]},"iol":{"positions":PackedVector3Array(),"optic_count":0,"metrics":{}},"rigs":[],"hand_tools":[],"selected":0,"actions":[],"options":{}}
 	rec.record(0.,frame,true)
 	frame.capsule.positions[0]=Vector3(1,2,3)
+	frame.lens.particles[0].adhesion=.2
 	rec.record(2.,frame,true)
 	var recalled: Dictionary = rec.frame_at(0)
 	check(recalled.capsule.positions[0]==Vector3.ZERO,"review preserves earlier topology state")
 	recalled.capsule.positions[0]=Vector3(9,9,9)
 	check(rec.frame_at(0).capsule.positions[0]==Vector3.ZERO,"review cannot mutate recording")
 	check(rec.frame_at(1).capsule.positions[0]==Vector3(1,2,3),"recording preserves actual moved state")
+	check(rec.frame_at(0).lens.particles[0].adhesion==1. and rec.frame_at(1).lens.particles[0].adhesion==.2,"review retains time-specific cortical attachment")
 	var exported = JSON.parse_string(rec.export_json({"ending":"completed"}))
 	check(exported is Dictionary and exported.frames.size()==2,"report is valid bounded JSON")
 	check(exported.frames[1].capsule_positions[0]==[1.,2.,3.],"vector data exports as numeric arrays")

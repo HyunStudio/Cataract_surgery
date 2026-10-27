@@ -23,6 +23,17 @@ func run() -> void:
 		var angle:=TAU*i/99.
 		place(app,Vector3(.32*cos(angle),.81,.32*sin(angle))); tick(app,1)
 	check(app.capsule.metrics().broken_edges>0,"blade opening changes actual capsule topology")
+	app.release_controls(); app.choose_tool("cannula"); app.set_machine("inflow",1.)
+	app.handle_pedal(false,false,true,1); app.handle_pedal(true,false,true,1)
+	for step in range(2500):
+		var attached:=-1.; var hydro_tip:=Vector3(.66,.76,0)
+		for i in range(app.lens.particles.size()):
+			if app.lens.material.is_cortex(i) and app.lens.material.adhesion[i]>attached:
+				attached=app.lens.material.adhesion[i]; hydro_tip=app.lens.particles[i].position+Vector3(0,.04,0)
+		if attached<.1: break
+		place(app,hydro_tip); app._physics_process(.05)
+		if step%100==0: await process_frame
+	check(app.lens.metrics().adhesion_released>.8,"cannula moves locally around cortical shell to release adhesion")
 	app.release_controls(); app.choose_tool("phaco")
 	app.set_machine("energy",1.); app.set_machine("suction",1.); app.set_machine("inflow",1.)
 	app.handle_pedal(false,false,true); app.handle_pedal(true,false,true)
@@ -32,13 +43,25 @@ func run() -> void:
 		var nearest:=INF
 		var found:=false
 		for particle in app.lens.particles:
-			if not particle.active: continue
+			if not particle.active or particle.cortex: continue
 			var distance: float=particle.position.distance_squared_to(tip)
 			if distance<nearest: nearest=distance; tip=particle.position; found=true
 		if not found: break
 		place(app,tip); tick(app,1); steps+=1
 		if step%200==0: await process_frame
 	print("Encounter phaco steps: ",steps," removed: ",app.lens.metrics().removed_mass)
+	check(app.lens.metrics().nucleus_remaining<.01,"phaco removes the nuclear material")
+	app.release_controls(); app.choose_tool("ia")
+	app.handle_pedal(false,false,true,2); app.handle_pedal(true,false,true,2)
+	for step in range(1600):
+		var nearest:=INF; var found:=false
+		for particle in app.lens.particles:
+			if not particle.active: continue
+			var distance:float=particle.position.distance_squared_to(tip)
+			if distance<nearest: nearest=distance; tip=particle.position; found=true
+		if not found: break
+		place(app,tip); tick(app,1)
+		if step%200==0: await process_frame
 	check(app.metrics.path_length>1.,"path metric includes instrument pose and insertion changes")
 	check(app.lens.metrics().removed_mass>=.98,"full app can physically aspirate material")
 	app.release_controls(); app.choose_tool("injector"); place(app,Vector3(0,.72,0)); app.grip_down=true

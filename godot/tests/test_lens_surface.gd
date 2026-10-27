@@ -14,6 +14,7 @@ func run()->void:
 	var mesh:ArrayMesh=surface.update_from_solver(solver)
 	check(mesh.get_surface_count()==1,"Intact particles form a continuous lens surface")
 	var initial_arrays=mesh.surface_get_arrays(0)
+	check(initial_arrays[Mesh.ARRAY_COLOR]!=null and initial_arrays[Mesh.ARRAY_COLOR].size()>100,"surface carries physical nuclear/cortical material identity")
 	var initial_vertices:PackedVector3Array=initial_arrays[Mesh.ARRAY_VERTEX].duplicate()
 	var initial_indices:PackedInt32Array=initial_arrays[Mesh.ARRAY_INDEX].duplicate()
 	check(initial_indices.size()>500,"Indexed smooth caps and side strips replace point-cloud balls")

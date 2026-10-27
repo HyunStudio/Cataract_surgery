@@ -2,6 +2,10 @@ extends RefCounted
 ## Bounded research model: equal-mass spring particles + one fluid compartment.
 ## Parameters and pressure are dimensionless, uncalibrated and NOT device settings.
 ## This is neither CFD nor a validated model of human lens material.
+const MaterialModel=preload("res://scripts/lens_material.gd")
+var material=MaterialModel.new()
+var layered:=false
+var hydro_flow:=0.0
 const CENTER := Vector3(0.0,0.68,0.0)
 const INITIAL_MASS := 1.0
 const MIN_VOLUME := 0.2
@@ -51,6 +55,7 @@ func reset() -> void:
 	energy=0.0
 	hardness=.4
 	wound_leak=0.0
+	hydro_flow=0.0
 	passive_tips.clear()
 	_contact_tips.clear()
 	_removed_mass=0.0
@@ -83,6 +88,9 @@ func reset() -> void:
 	for bond in bonds:
 		_bond_a.append(bond.a); _bond_b.append(bond.b); _bond_rest.append(bond.rest); _bond_active.append(1); _bond_damage.append(0.0)
 
+	material.reset(_positions)
+	_sync_public()
+
 func _append_particle(position: Vector3) -> void:
 	particles.append({"position":position,"velocity":Vector3.ZERO,"mass":0.0,"active":true})
 
@@ -104,6 +112,7 @@ func step(dt: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 	energy=_control(energy)
 	hardness=clampf(hardness,0.0,1.0) if is_finite(hardness) else .4
 	wound_leak=_control(wound_leak)
+	hydro_flow=_control(hydro_flow)
 	_damage_scale=1.0/(1.0+2.0*(hardness-.4))
 	_fracture_strain=.5+.5*(hardness-.4)
 	var count := ceili(dt/SUBSTEP)
@@ -117,6 +126,8 @@ func _sync_public() -> void:
 		particles[i].position=_positions[i]
 		particles[i].velocity=_velocities[i]
 		particles[i].active=_active[i]!=0
+		particles[i]["cortex"]=material.is_cortex(i)
+		particles[i]["adhesion"]=material.adhesion[i]
 	for i in range(_bond_a.size()):
 		bonds[i].damage=_bond_damage[i]
 
@@ -144,7 +155,13 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 			var nearest := minf(pa.distance_to(tip),pb.distance_to(tip))
 			if nearest<0.22:
 				_bond_damage[bond_id]+=h*energy*10.0*(1.0-nearest/0.22)*_damage_scale
-		if strain>_fracture_strain or _bond_damage[bond_id]>=1.0:
+		var threshold:=_fracture_strain
+		if layered and (material.is_cortex(a) or material.is_cortex(b)):
+			threshold=.32
+			# Aspiration can peel locally released cortical fibres; it adds no nuclear energy.
+			if aspiration and suction>0.:
+				_bond_damage[bond_id]+=h*suction*14.*material.peel_weight(a,b,tip,_positions)
+		if strain>threshold or _bond_damage[bond_id]>=1.0:
 			_break_bond(bond_id)
 			continue
 		_degree[a]+=1
@@ -159,6 +176,7 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 	for i in range(_positions.size()):
 		if _active[i]==0: continue
 		var position := _positions[i]
+		if layered: _accelerations[i]+=material.adhesion_acceleration(i,position)
 		var to_tip := tip-position
 		var distance := to_tip.length()
 		if distance<0.12:
@@ -203,11 +221,13 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 		_velocities[i]=velocity
 		_positions[i]=next
 	_integrate_compartment(h,aspiration,obstruction)
+	if layered: material.step(h,tip,hydro_flow*(_inflow_rate/.08),_positions,_active)
 
 func _remove_at_inlet(index: int) -> void:
 	if _active[index]==0: return
 	_removed_mass+=_masses[index]
 	_active[index]=0
+	if layered: material.adhesion[index]=0.
 	_velocities[index]=Vector3.ZERO
 	_fragments_dirty=true
 
@@ -238,7 +258,9 @@ func metrics() -> Dictionary:
 	for i in range(_bond_rest.size()):
 		finite=finite and is_finite(_bond_rest[i]) and is_finite(_bond_damage[i])
 	if _fragments_dirty: _count_fragments()
-	return {"remaining_mass":remaining,"removed_mass":_removed_mass,"fragments":_fragment_count,"volume":_volume,"pressure":pow(_volume,2.0),"inflow":_inflow_rate,"outflow":_outflow_rate,"leak_outflow":_leak_rate,"finite":finite}
+	var result:Dictionary={"remaining_mass":remaining,"removed_mass":_removed_mass,"fragments":_fragment_count,"volume":_volume,"pressure":pow(_volume,2.0),"inflow":_inflow_rate,"outflow":_outflow_rate,"leak_outflow":_leak_rate,"finite":finite}
+	if layered: result.merge(material.metrics(_active,_masses))
+	return result
 
 func _count_fragments() -> void:
 	var parents := PackedInt32Array()

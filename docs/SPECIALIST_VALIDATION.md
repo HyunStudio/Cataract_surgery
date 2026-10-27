@@ -2,7 +2,21 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
-## Verified locally
+## Layered material milestone — 2026-10-27
+
+The default app now enables nuclear/cortical material identity, localized capsule-cortex adhesion and cortical aspiration peeling. Homogeneous kernel fixtures remain available as the explicit legacy solver mode.
+
+- Fresh run of `tools/run-godot.ps1 -Test`: **20 Godot suites passed**, including new lens-material and layered-lens tests.
+- Extended complete encounter passed: blade entry/membrane opening → cannula local adhesion release using actually admitted compartment inflow → nuclear phaco (169 steps, approximately 51.35% of initial total mass) → separate IA cortical removal → IOL → final checks → completed. Final nuclear and cortical mass both zero, total removed mass 1.0, 52 visual frames, 102.15 seconds of simulated time. No tissue state is edited by the test driver.
+- A separate cortical IA test removed all cortical mass (48.65% of initial total mass) without ultrasound while retaining all initial nuclear mass (51.35%). Closed/full compartment with zero actual admitted inflow cannot release adhesion despite a nonzero commanded pump.
+- Independent review found endpoint-order dependence in cortex-cortex peeling. The fix evaluates both eligible endpoints and uses the strongest local contribution; swap-symmetry regression passes.
+- GPU local traction/rupture/aspiration test passed with the material shader, and the microscope image was visually inspected. Material colors are cached by fixed source topology; tissue movement still updates geometry.
+- New measured 30-second 1080p live-physics sample, after editor/export activity had finished: **1,498 frames, mean 53.47 fps / 18.701 ms, P95 23.920 ms** on the same RTX 3070 Laptop GPU. Earlier concurrent runs ranged 48.97–51.41fps. The previous 58.13fps integration measurement below is historical, before this material milestone. Active surgery and endurance acceptance remain pending.
+- Fresh native Windows release/export smoke: exit 0 with the real NVIDIA OpenGL context. Python source was unchanged; the earlier 522-pass result remains regression evidence, not a new rerun.
+
+This is still a reduced radial-shell/point-spring model. It is not continuum hydraulic layer separation or validated clinical biomechanics. [Overall completion criteria](REALISM_COMPLETION_KO.md) remain active, especially actual anatomical surface contact, posterior/corneal injury, geometry/visual fidelity and full pointer-driven operating verification.
+
+## Earlier integration verification
 
 - Windows, Python 3.12.10, Godot 4.7.2 stable official `ed1daf0bf`, Compatibility OpenGL 3.3, NVIDIA driver 566.14, RTX 3070 Laptop GPU.
 - Python regressions: **522 passed in 30.57 seconds**.

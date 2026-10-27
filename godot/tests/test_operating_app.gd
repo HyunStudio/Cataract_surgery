@@ -44,6 +44,13 @@ func run() -> void:
 	check(not app.pedal_down and app.pedal_stage==0,"camera switch disarms equipment")
 	app.start_practice()
 	check(app.practice and app.incision.opened[0],"practice supplies explicit prepared entry anatomy")
+	app.choose_tool("cannula"); place(app,app.selected,Vector3(.66,.76,0))
+	app.set_machine("inflow",1.)
+	app.handle_pedal(false,false,true,1); app.handle_pedal(true,false,true,1)
+	for i in range(40): app._physics_process(1./60.)
+	check(app.lens.layered and app.lens.metrics().adhesion_released>0.,"active cannula couples local hydro release in actual app")
+	app.choose_tool("phaco"); app._physics_process(1./60.)
+	check(app.lens.hydro_flow==0.,"tool change cannot retain a hydro jet")
 	app.choose_tool("injector")
 	place(app,app.selected,Vector3(0,.72,0)); app.grip_down=true
 	for i in range(15): app._physics_process(1./60.)

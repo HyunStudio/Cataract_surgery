@@ -1,0 +1,30 @@
+extends SceneTree
+var failures:=0
+func check(ok:bool,message:String)->void:
+	if not ok: failures+=1; push_error(message)
+func _initialize()->void: call_deferred("run")
+func run()->void:
+	var source=load("res://scripts/lens_material.gd")
+	if source==null: push_error("layer material component missing"); quit(1); return
+	var material=source.new()
+	var points:=PackedVector3Array([Vector3(0,.68,0),Vector3(.66,.68,0),Vector3(-.66,.68,0)])
+	var active:=PackedByteArray([1,1,1]); var masses:=PackedFloat64Array([.4,.3,.3])
+	material.reset(points)
+	check(not material.is_cortex(0) and material.is_cortex(1),"rest geometry distinguishes nuclear core and cortical shell")
+	var initial:Dictionary=material.metrics(active,masses)
+	for i in range(60): material.step(1./60.,points[1],0.,points,active)
+	check(material.metrics(active,masses)==initial,"no flow cannot release adhesions")
+	for i in range(60): material.step(1./60.,Vector3(2,.68,0),1.,points,active)
+	check(material.metrics(active,masses)==initial,"distant irrigation cannot release adhesions")
+	for i in range(120): material.step(1./60.,points[1],1.,points,active)
+	check(material.adhesion[1]<.2 and material.adhesion[2]>.99,"local flow releases nearby shell without instant opposite-side release")
+	check(material.adhesion_acceleration(2,points[2]+Vector3(.05,0,0)).x<0.,"attached cortex resists displacement")
+	check(material.peel_weight(1,2,points[1],points)>.9,"released endpoint participates despite attached neighbor")
+	check(material.peel_weight(1,2,points[1],points)==material.peel_weight(2,1,points[1],points),"cortical peeling is independent of bond endpoint order")
+	var state:Dictionary=material.metrics(active,masses)
+	check(absf(state.nucleus_remaining-.4)<.000001 and absf(state.cortex_remaining-.6)<.000001,"layer masses partition exact active material")
+	material.step(.5,points[1],1.,points,active)
+	check(material.metrics(active,masses)==state,"invalid timestep cannot change adhesion")
+	material.reset(points)
+	check(material.metrics(active,masses).adhesion_released==0.,"reset restores original adhesion")
+	print("Lens material: ",failures," failures"); quit(1 if failures else 0)

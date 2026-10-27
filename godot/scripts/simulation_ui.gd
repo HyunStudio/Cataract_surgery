@@ -282,6 +282,8 @@ func refresh(state: Dictionary) -> void:
 	_vitals.text="%d  HR     98%%  SpO₂"%roundi(72.+sin(elapsed*.2)*2.)
 	var lens: Dictionary=state.get("lens",{}); var capsule: Dictionary=state.get("capsule",{}); var iol: Dictionary=state.get("iol",{})
 	_telemetry.text="잔여물 %d%%   ·   IOL %d%%   ·   페달 %s   ·   기록 %d"%[roundi(float(lens.get("remaining_mass",1.))*100),roundi(float(iol.get("delivered",0.))*100),str(state.get("pedal_stage","OFF")),int(state.get("frame_count",0))]
+	if lens.has("nucleus_remaining"):
+		_telemetry.text+="   ·   핵 %.0f%% / 피질 %.0f%%   ·   부착 해제 %.0f%%"%[float(lens.nucleus_remaining)*100.,float(lens.cortex_remaining)*100.,float(lens.adhesion_released)*100.]
 	diagnostics.visible=state.get("debug",false)
 	if diagnostics.visible: diagnostics.text="MEMBRANE  strain %.3f / broken %d    LENS  fragments %d / volume %.3f / synthetic pressure %.3f\nIOL alignment %.3f  ·  solver state finite %s"%[capsule.get("max_strain",0.),capsule.get("broken_edges",0),lens.get("fragments",1),lens.get("volume",1.),lens.get("pressure",1.),iol.get("alignment",0.),str(capsule.get("finite",true) and lens.get("finite",true) and iol.get("finite",true))]
 	_alert_text.text="환자 움직임이 감지되었습니다. 기구 작동을 멈추고 상태를 평가하세요." if alert=="motion" else "상태 변화: "+alert
