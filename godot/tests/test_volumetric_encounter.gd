@@ -20,6 +20,9 @@ func place(app,p:Vector3,tolerance:=.001)->void:
 func safe_target(app,p:Vector3)->Vector3:
 	var r:=Vector2(p.x,p.z).length()
 	var margin:float=app._radius(app.selected)+.035
+	if r>app.geometry.bag_radius-margin:
+		var scale:float=(app.geometry.bag_radius-margin)/r
+		p.x*=scale; p.z*=scale; r=app.geometry.bag_radius-margin
 	p.y=clampf(p.y,app.geometry.bag_back(r)+margin,app.geometry.bag_front(r)-margin)
 	return p
 func walk(app,target:Vector3)->void:
@@ -51,17 +54,46 @@ func body_path(app,hand:int,start:Vector3,finish:Vector3,tool:String)->Dictionar
 	return app._rigid_body.resolve(portal,start,(start-portal).normalized(),finish,(finish-portal).normalized(),tool,app.geometry.tip_radius(tool),false,{"iris":app.anatomy.iris,"posterior":app.anatomy.posterior})
 func clear_path(result:Dictionary)->bool:
 	return result.valid and result.fraction==1. and result.contacts.is_empty()
-func approach_material(app,p:Vector3,tool:String)->void:
+func material_pose(app,p:Vector3,tool:String,free:bool)->Dictionary:
 	var hand:int=app.selected
-	if not clear_path(body_path(app,hand,p,p,tool)):
-		hand=1-hand
-		check(clear_path(body_path(app,hand,p,p,tool)),"material target must have a nominal whole-instrument approach from an actual portal: "+str(p))
-		if failures: return
-		use_hand(app,hand,tool)
-	if not clear_path(body_path(app,hand,app.rigs[hand].tip,p,tool)):
+	# Operate near the material: a free fragment must actually travel into
+	# the inlet, and a bound link must actually fracture/peel. The search
+	# stays inside the existing local effect radius, without moving tissue.
+	var reach:=.40 if free else (.20 if tool=="phaco" else .14)
+	var inward:=Vector3(-p.x,0,-p.z).normalized()
+	for lift in [0.,.05,.10,.15,.20,.25,.30,.35,.40]:
+		for inset in [0.,.05,.10]:
+			var candidate:=safe_target(app,p+Vector3.UP*lift+inward*inset)
+			# Rounding allowance remains below unchanged .44 capture / .22
+			# energy / .16 peel radii. Bound material never uses capture reach.
+			if candidate.distance_to(p)>reach+.000001: continue
+			for candidate_hand in [hand,1-hand]:
+				if clear_path(body_path(app,candidate_hand,candidate,candidate,tool)):
+					return {"hand":candidate_hand,"target":candidate}
+	return {}
+func next_material(app,tool:String)->Dictionary:
+	var candidates:Array=[]
+	for i in range(app.lens.particles.size()):
+		var p:Dictionary=app.lens.particles[i]
+		if not p.active or (tool=="phaco" and p.cortex): continue
+		candidates.append({"index":i,"distance":p.position.distance_squared_to(app.rigs[app.selected].tip)})
+	candidates.sort_custom(func(a,b): return a.distance<b.distance)
+	for candidate in candidates:
+		var i:int=candidate.index
+		var pose:=material_pose(app,app.lens.particles[i].position,tool,app.lens._degree[i]==0)
+		if not pose.is_empty(): return pose
+	if not candidates.is_empty():
+		var capture:=FileAccess.open("res://reports/material-no-access.bin",FileAccess.WRITE)
+		if capture: capture.store_var({"particles":app.lens.particles,"bonds":app.lens.bonds,"degree":app.lens._degree,"tip":app.rigs[app.selected].tip,"selected":app.selected,"tool":tool,"surfaces":{"iris":app.anatomy.iris,"posterior":app.anatomy.posterior}})
+		check(false,"retained material has no certified local approach; inspect actual bonds and inlet access")
+	return {}
+func approach_material(app,chosen:Dictionary,tool:String)->void:
+	var hand:int=chosen.hand
+	if hand!=app.selected: use_hand(app,hand,tool)
+	if not clear_path(body_path(app,hand,app.rigs[hand].tip,chosen.target,tool)):
 		app.release_controls(); place(app,Vector3(0,.20,0))
 	app.handle_pedal(false,false,true); app.handle_pedal(true,false,true,3 if tool=="phaco" else 2)
-	place(app,p,.025)
+	place(app,chosen.target,.005)
 func run()->void:
 	var app=load("res://scripts/simulator.gd").new(); root.add_child(app); app.set_physics_process(false)
 	await process_frame
@@ -143,32 +175,24 @@ func run()->void:
 	app.set_machine("energy",1.); app.set_machine("suction",1.); app.set_machine("inflow",1.)
 	app.handle_pedal(false,false,true); app.handle_pedal(true,false,true)
 	for step in range(4000):
-		var found:=false; var target:=Vector3.ZERO; var nearest:=INF
-		for p in app.lens.particles:
-			if not p.active or p.cortex: continue
-			var d:float=p.position.distance_squared_to(app.rigs[app.selected].tip)
-			if d<nearest: nearest=d; target=p.position; found=true
-		if not found: break
+		var chosen:=next_material(app,"phaco")
+		if chosen.is_empty(): break
 		# Aspiration draws material into the .05 inlet; the instrument center
 		# need not occupy a peripheral particle's exact center against the bag.
-		approach_material(app,safe_target(app,target),"phaco")
+		approach_material(app,chosen,"phaco")
 		if failures: break
-		if step%200==0: await process_frame
+		if step%200==0: print("Phaco progress ",step," ",app.lens.metrics()," tip=",app.rigs[app.selected].tip); await process_frame
 	print("Volumetric phaco: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().nucleus_remaining<.01,"powered local tool removes volumetric nucleus")
 	if failures: app.queue_free(); await process_frame; quit(1); return
 	exchange(app,"ia")
 	app.handle_pedal(false,false,true,2); app.handle_pedal(true,false,true,2)
 	for step in range(3000):
-		var found:=false; var target:=Vector3.ZERO; var nearest:=INF
-		for p in app.lens.particles:
-			if not p.active: continue
-			var d:float=p.position.distance_squared_to(app.rigs[app.selected].tip)
-			if d<nearest: nearest=d; target=p.position; found=true
-		if not found: break
-		approach_material(app,safe_target(app,target),"ia")
+		var chosen:=next_material(app,"ia")
+		if chosen.is_empty(): break
+		approach_material(app,chosen,"ia")
 		if failures: break
-		if step%200==0: await process_frame
+		if step%200==0: print("IA progress ",step," ",app.lens.metrics()," tip=",app.rigs[app.selected].tip); await process_frame
 	print("Volumetric IA: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().removed_mass>=.98,"dimensioned full encounter aspirates material through actual inlet")
 	if failures: app.queue_free(); await process_frame; quit(1); return
