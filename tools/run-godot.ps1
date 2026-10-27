@@ -12,7 +12,7 @@ if (-not (Test-Path -LiteralPath $engineExe)) {
 }
 $projectDir = Join-Path $repoRoot 'godot'
 if ($Test) {
-    foreach ($suite in @('test_instrument_profile','test_capsule_surface','test_instrument_body_contact','test_tunnel_surface')) {
+    foreach ($suite in @('test_membrane_contact','test_instrument_profile','test_capsule_surface','test_instrument_body_contact','test_tunnel_surface')) {
         & $engineExe --headless --path $projectDir --script "res://tests/$suite.gd"
         if ($LASTEXITCODE -ne 0) { throw "Godot test failed: $suite" }
     }

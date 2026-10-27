@@ -5,6 +5,11 @@ const RINGS := 6
 const SECTORS := 36
 const RADIUS := .88
 const MAX_DT := .1
+const FaceContact=preload("res://scripts/membrane_contact.gd")
+var _face_contact=FaceContact.new()
+var body_contact_count:=0
+var body_contact_residual:=0.
+var body_contact_uncertain:=0
 var tissue_boundary:RefCounted
 var _removed:=PackedByteArray()
 var _outside:=PackedByteArray()
@@ -52,6 +57,7 @@ func _init() -> void:
 	reset()
 
 func reset() -> void:
+	body_contact_count=0; body_contact_residual=0.; body_contact_uncertain=0
 	tissue_boundary=null; _extracted_flaps=0; _extracted_area=0.; _components=[]; _component_dirty=true
 	positions = PackedVector3Array([Vector3(0, .82, 0)])
 	anchored = PackedByteArray([0])
@@ -167,6 +173,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 	var alpha := stretch_compliance / (h * h)
 	if not is_finite(alpha): return
 	var present: Dictionary = {}
+	var body_size:=0
 	for tool in tools:
 		if not tool.get("hand") is int or tool.hand < 0 or tool.hand > 15 or present.has(tool.hand): return
 		if not tool.get("tip") is Vector3 or not tool.tip.is_finite(): return
@@ -174,6 +181,9 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		var contact_radius=tool.get("contact_radius",tool.radius)
 		if not (contact_radius is float or contact_radius is int) or not is_finite(contact_radius) or contact_radius<=0. or contact_radius>.3: return
 		if not tool.get("grip") is bool or not tool.get("cut") is bool: return
+		if tool.has("body") and (not tool.body is Array or not _face_contact.valid_body(tool.body)): return
+		body_size+=tool.get("body",[]).size()
+		if body_size>64: return
 		present[tool.hand] = true
 	for hand_id in _grasps.keys():
 		if not present.has(hand_id): _grasps.erase(hand_id)
@@ -194,8 +204,19 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 	for i in range(positions.size()):
 		_inverse_mass[i] = 0.0 if _pinned[i] != 0 or _removed[i]!=0 else 1.0 / (surface_density * _rest_area[i])
 	_integration_steps += 1
+	body_contact_count=0; body_contact_residual=0.; body_contact_uncertain=0
 	var damping_factor := clampf(damping, 0, 1)
 	for substep in range(substeps):
+		var body:Array=[]
+		for tool in tools:
+			for segment in tool.get("body",[]):
+				var part:Dictionary=segment.duplicate()
+				part.previous_a=segment.previous_a.lerp(segment.a,float(substep)/substeps)
+				part.previous_b=segment.previous_b.lerp(segment.b,float(substep)/substeps)
+				part.a=segment.previous_a.lerp(segment.a,float(substep+1)/substeps)
+				part.b=segment.previous_b.lerp(segment.b,float(substep+1)/substeps)
+				body.append(part)
+		var body_previous:=positions.duplicate() if not body.is_empty() else PackedVector3Array()
 		var contact_previous:=positions.duplicate() if tissue_boundary else PackedVector3Array()
 		var acceleration := _pressure_acceleration()
 		for i in range(positions.size()):
@@ -207,7 +228,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 			if _grasps.has(tool.hand):
 				var vertex: int = _grasps[tool.hand]
 				positions[vertex] = positions[vertex].move_toward(tool.tip, .08)
-			_project_contact(tool.tip, tool.get("contact_radius",tool.radius))
+			if tool.get("body",[]).is_empty(): _project_contact(tool.tip, tool.get("contact_radius",tool.radius))
 		for edge_id in range(_edge_a.size()):
 			_lambdas[edge_id] = 0.0
 			if _edge_active[edge_id] == 0: continue
@@ -222,6 +243,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 						broken = true; break
 			if broken:
 				_edge_active[edge_id] = 0; edges[edge_id].active = false; _dirty = true
+		if not body.is_empty() and _dirty: _rebuild_triangles()
 		for iteration in range(clampi(solver_iterations, 1, 16)):
 			for edge_id in range(_edge_a.size()):
 				if _edge_active[edge_id] == 0: continue
@@ -238,6 +260,15 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 				var correction := offset / length * delta
 				positions[a] += correction * wa
 				positions[b] -= correction * wb
+			if not body.is_empty():
+				var projected:Dictionary=_face_contact.project(positions,triangles,_inverse_mass,body,body_previous)
+				if projected.valid:
+					positions=projected.positions
+					body_contact_count+=projected.contacts
+					body_contact_residual=maxf(body_contact_residual,projected.residual)
+					body_contact_uncertain+=projected.uncertain
+				else:
+					body_contact_uncertain+=1
 		for i in range(positions.size()):
 			if anchored[i] != 0:
 				positions[i] = rest_positions[i]; _previous[i] = positions[i]
