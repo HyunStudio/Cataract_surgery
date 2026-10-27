@@ -35,3 +35,18 @@ func place_tip(target:Vector3)->void:
 		aim_at(portal-delta); set_insertion(-delta.length())
 	else:
 		aim_at(target); set_insertion(delta.length())
+
+## A signed tip cannot cross the portal's lateral plane away from the pivot.
+## First retract to the pivot, then aim/advance on the other side. This keeps
+## bounded pointer travel reachable instead of stalling between opposite cones.
+func advance_toward(target:Vector3,max_distance:float)->void:
+	if not target.is_finite() or not is_finite(max_distance) or max_distance<=0.: return
+	if allow_withdrawal:
+		var delta:=target-portal
+		var inward:=Vector3(-signf(portal.x),0,0)
+		var sign_target:=-1. if delta.dot(inward)<0. else 1.
+		if delta.length_squared()>1e-12 and (delta.normalized()*sign_target).dot(inward)<.28: return
+		if insertion*sign_target<0.:
+			set_insertion(move_toward(insertion,0.,max_distance))
+			return
+	place_tip(tip.move_toward(target,max_distance))

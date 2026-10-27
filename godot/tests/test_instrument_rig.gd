@@ -33,5 +33,23 @@ func _initialize() -> void:
 	var close_tip:Vector3=rig.portal+Vector3(-.02,.02,0)
 	rig.place_tip(close_tip)
 	check(rig.tip.distance_to(close_tip)<.00001,"near-pivot correction preserves oblique contact position")
+	check(rig.has_method("advance_toward"),"signed pointer motion has a continuous pivot-crossing path")
+	if rig.has_method("advance_toward"):
+		rig.axis=Vector3(-1,-.1,.5).normalized(); rig.insertion=-.2
+		var target:=Vector3(1.32,.95,-.25)
+		var crossed:=false
+		for i in range(150):
+			var old_tip:Vector3=rig.tip; var old_insertion:float=rig.insertion
+			rig.advance_toward(target,.025)
+			check(rig.tip.distance_to(old_tip)<=.02501,"each continuous step respects tip speed bound")
+			check((rig.tip-rig.portal).cross(rig.axis).length()<.00001,"continuous path preserves pivot constraint")
+			if old_insertion<0. and rig.insertion>=0.: crossed=true; check(rig.tip.distance_to(rig.portal)<.00001,"crossing between outside and inside passes through the portal")
+		check(crossed and rig.tip.distance_to(target)<.0001,"oblique inside target reaches after withdrawal through portal")
+		var exterior_target:Vector3=rig.portal+Vector3(.3,.1,.3)
+		for i in range(150): rig.advance_toward(exterior_target,.025)
+		check(rig.tip.distance_to(exterior_target)<.0001 and rig.insertion<0.,"continuous return withdraws before changing exterior aim")
+		var stable:Vector3=rig.tip
+		rig.advance_toward(Vector3(NAN,0,0),.025); rig.advance_toward(target,NAN)
+		check(rig.tip==stable,"invalid continuous request cannot alter pose")
 	print("Instrument rig tests: ",failures," failures")
 	quit(1 if failures else 0)

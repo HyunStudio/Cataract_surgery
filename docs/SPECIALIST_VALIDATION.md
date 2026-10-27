@@ -2,7 +2,15 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
-## Current source: elastic anterior body integration in progress
+## Continuous pointer control investigation — current continuation
+
+The first unintended noncut tear in the previous driver was traced to a2.055645-unit cannula teleport in.05seconds. The canonical default encounter now uses normal target controls and bounded continuous movement, persistent hydro targets, actual aspiration transport and unchanged outcome gates. A real signed-pivot entry stall was reproduced and fixed by retracting to the pivot before crossing between inside/outside poses. Rig and integrated default-app approach regressions pass; independent scoped review found no substantive issue.
+
+The first continuous run removed100% material with no retained detached flap, but its final wider-injector route contacted the inner tunnel edge, exceeded a per-tick displacement assertion and failed wound completion. A centered collision-free path was isolated and added. The fresh standard47-suite runner exits0, including the complete continuous default encounter, adverse injury, extraction, exchange and clock/presentation cases. This is not evidence that collision recovery or actual tunnel publication is complete. Full anterior contact uncertainty, coarse extra edge failure and runtime cost remain open.
+
+Fresh editor import and Windows release export exit0; the newly exported default native app launches for120frames and exits0 with the actual RTX3070Laptop/NVIDIA566.14 OpenGL context. Source-run GPU adverse case reports0failures. The final source-run GPU normal encounter also reports0failures:100%mass removed, one extracted flap, zero retained detached area, IOL/wound checks passed and zero corneal/posterior injury. The fresh result image was inspected. Final retained area3.210435, cut-loss1.849384, extracted area.259507and255broken edges show the remaining coarse-edge failure. These source-script runs do not establish native full active-case acceptance. No new performance or Python rerun is claimed.
+
+## Previous source result before continuous-control correction
 
 The working source now connects dimensioned full-tool paths to anterior face response, with angular bounds, solver-owned local jaw attachments, atomic interval validation and correction-bounded broadphase. The prior rigid anterior-tip blocker is disabled only where this elastic path takes responsibility. Cornea/iris/posterior full-body and actual entry-mesh integration remain pending.
 

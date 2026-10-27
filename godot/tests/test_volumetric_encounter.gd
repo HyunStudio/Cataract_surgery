@@ -5,8 +5,15 @@ func check(ok:bool,message:String)->void:
 func _initialize()->void: call_deferred("run")
 func tick(app,n:=1)->void:
 	for i in range(n): app._physics_process(1./60.)
-func place(app,p:Vector3)->void:
-	app._set_tip(app.selected,p); tick(app)
+func place(app,p:Vector3,tolerance:=.001)->void:
+	if failures: return
+	app.targets[app.selected]=p; app.target_valid[app.selected]=true
+	for i in range(300):
+		var before:Vector3=app.rigs[app.selected].tip
+		tick(app)
+		check(app.rigs[app.selected].tip.distance_to(before)<=.0251,"normal target path keeps per-tick travel bounded")
+		if app.rigs[app.selected].tip.distance_to(p)<tolerance: return
+	check(false,"continuous instrument target blocked: %s -> %s"%[p,app.rigs[app.selected].tip])
 func safe_target(app,p:Vector3)->Vector3:
 	var r:=Vector2(p.x,p.z).length()
 	var margin:float=app._radius(app.selected)+.035
@@ -30,7 +37,7 @@ func run()->void:
 	await process_frame
 	for id in ["patient","side","equipment"]: app.prepare_check(id)
 	check(app.begin_operation(),"dimensioned case begins after preparation")
-	app.choose_tool("knife"); app.grip_down=true
+	app.choose_tool("knife"); place(app,Vector3(1.32,.95,-.25)); app.grip_down=true
 	for i in range(101): place(app,Vector3(1.32,.80,-.25+.005*i))
 	check(app.incision.opened[0],"dimensioned corneal tunnel requires actual blade trace")
 	app.release_controls()
@@ -76,13 +83,18 @@ func run()->void:
 	for p in [Vector3(1.32,.80,0),Vector3(1.32,.65,0),Vector3(.9,.68,0),Vector3(0,.75,0),Vector3(0,.20,0)]: place(app,p)
 	app.set_machine("inflow",1.)
 	app.handle_pedal(false,false,true,1); app.handle_pedal(true,false,true,1)
+	var hydro_target:=-1
 	for step in range(4500):
-		var attached:=-1.; var target:=Vector3.ZERO
-		for i in range(app.lens.particles.size()):
-			if app.lens.material.is_cortex(i) and app.lens.material.adhesion[i]>attached:
-				attached=app.lens.material.adhesion[i]; target=app.lens.particles[i].position*.98
-		if attached<.1: break
-		app._set_tip(0,safe_target(app,target)); app._physics_process(.05)
+		if hydro_target<0 or app.lens.material.adhesion[hydro_target]<.1:
+			var attached:=-1.; hydro_target=-1
+			for i in range(app.lens.particles.size()):
+				if app.lens.material.is_cortex(i) and app.lens.material.adhesion[i]>attached:
+					attached=app.lens.material.adhesion[i]; hydro_target=i
+			if attached<.1: break
+		var target:Vector3=app.lens.particles[hydro_target].position*.98
+		var before:Vector3=app.rigs[0].tip
+		app.targets[0]=safe_target(app,target); app.target_valid[0]=true; app._physics_process(.05)
+		check(app.rigs[0].tip.distance_to(before)<=.0751,"hydro moves through normal continuous control instead of teleporting between cortex sites")
 		if step%200==0: await process_frame
 	print("Volumetric hydro: ",app.lens.metrics()," alert=",app.director.snapshot().alert," tip=",app.rigs[0].tip)
 	check(app.lens.metrics().adhesion_released>.8,"accepted local flow releases the volumetric cortical shell")
@@ -96,7 +108,9 @@ func run()->void:
 			var d:float=p.position.distance_squared_to(app.rigs[0].tip)
 			if d<nearest: nearest=d; target=p.position; found=true
 		if not found: break
-		place(app,safe_target(app,target))
+		# Aspiration draws material into the .05 inlet; the instrument center
+		# need not occupy a peripheral particle's exact center against the bag.
+		place(app,safe_target(app,target),.025)
 		if step%200==0: await process_frame
 	print("Volumetric phaco: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().nucleus_remaining<.01,"powered local tool removes volumetric nucleus")
@@ -109,13 +123,15 @@ func run()->void:
 			var d:float=p.position.distance_squared_to(app.rigs[0].tip)
 			if d<nearest: nearest=d; target=p.position; found=true
 		if not found: break
-		place(app,safe_target(app,target))
+		place(app,safe_target(app,target),.025)
 		if step%200==0: await process_frame
 	print("Volumetric IA: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().removed_mass>=.98,"dimensioned full encounter aspirates material through actual inlet")
 	exchange(app,"injector"); place(app,Vector3.ZERO); app.grip_down=true
 	tick(app,110); app.release_controls(); tick(app,180)
-	for p in [Vector3(.57,.25,0),Vector3(.57,.62,0),Vector3(.96,.52,0),Vector3(1.32,.52,0),Vector3(1.32,.95,0)]:
+	# The wider injector exits through the middle of the traced tunnel rather
+	# than sweeping upward along its inner edge with the narrow-tool route.
+	for p in [Vector3(.57,.25,0),Vector3(.57,.62,0),Vector3(.96,.52,0),Vector3(1.32,.52,0),Vector3(1.38,.70,0),Vector3(1.38,.95,0),Vector3(1.32,.95,0)]:
 		place(app,p); print("Withdraw route ",p," -> ",app.rigs[0].tip," ",app.last_contacts)
 	app.withdraw_tools(); tick(app,150)
 	print("Withdrawn wound ",app.incision.metrics()," lengths=",app.incision.lengths," depths=",[app.rigs[0].insertion,app.rigs[1].insertion]," injury=",app.injury.metrics())

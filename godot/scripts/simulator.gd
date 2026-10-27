@@ -343,8 +343,7 @@ func _advance_motion(dt: float) -> float:
 	var distance:=0.
 	_contact_records=[[],[]]
 	for hand in range(2):
-		var before: Vector3=rigs[hand].tip
-		if target_valid[hand]: _set_tip(hand,before.move_toward(targets[hand],dt*1.5))
+		if target_valid[hand]: rigs[hand].advance_toward(targets[hand],dt*1.5)
 		if not incision.opened[hand] and hand_tools[hand]!="knife": rigs[hand].set_insertion(minf(.05 if geometry else .12,rigs[hand].insertion))
 		var wounds:Array=_open_wounds()
 		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,_radius(hand),hand_tools[hand],hand==selected and grip_down,capsule,wounds,hand,geometry!=null)
