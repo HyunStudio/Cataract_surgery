@@ -39,6 +39,7 @@ func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat
 	mesh_lo-=Vector3.ONE*max_correction; mesh_hi+=Vector3.ONE*max_correction
 	var lower:Array[Vector3]=[]; var upper:Array[Vector3]=[]
 	var active:Array=[]
+	var constraints:Array=[]
 	for part in body:
 		var lo:Vector3=part.a.min(part.b).min(part.previous_a).min(part.previous_b)-Vector3.ONE*part.radius
 		var hi:Vector3=part.a.max(part.b).max(part.previous_a).max(part.previous_b)+Vector3.ONE*part.radius
@@ -100,6 +101,7 @@ func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat
 			# This supporting plane remains valid for the whole finite capsule,
 			# including when a corrected witness changes its nearest axis feature.
 			var axis:Vector3=part.a if part.a.dot(normal)>=part.b.dot(normal) else part.b
+			constraints.append([ids,weights,normal,axis,part.radius])
 			var depth:float=part.radius-(surface-axis).dot(normal)
 			if depth<=1e-7: continue
 			out.contacts+=1
@@ -116,6 +118,14 @@ func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat
 				out.positions[id]=points[id]+(desired-points[id]).limit_length(max_correction)
 				achieved+=(out.positions[id]-original).dot(normal)*weights[i]
 			out.residual=maxf(out.residual,maxf(0.,depth-achieved))
+	# Later faces/parts can undo an earlier contact correction. Re-evaluate
+	# every activated supporting plane against the final published positions;
+	# per-correction achievement alone is not the final contact residual.
+	for constraint in constraints:
+		var ids:PackedInt32Array=constraint[0]; var weights:Vector3=constraint[1]
+		var surface:=Vector3.ZERO
+		for i in range(3): surface+=out.positions[ids[i]]*weights[i]
+		out.residual=maxf(out.residual,maxf(0.,constraint[4]-(surface-constraint[3]).dot(constraint[2])))
 	return out
 
 func _relative_point(p0:Vector3,p1:Vector3,a0:Vector3,a1:Vector3,t:float)->Vector3:

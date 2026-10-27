@@ -77,6 +77,10 @@ func _initialize()->void:
 	var opposing:=[{"a":Vector3(0,-.01,0),"b":Vector3(0,-.01,0),"previous_a":Vector3(0,-.01,0),"previous_b":Vector3(0,-.01,0),"radius":.08},{"a":Vector3(0,.10,0),"b":Vector3(0,.10,0),"previous_a":Vector3(0,.10,0),"previous_b":Vector3(0,.10,0),"radius":.04}]
 	r=solver.project(points,faces,masses,opposing,points,.2)
 	check(r.contacts>=2,"global bounds retain later contact created by an earlier projection")
+	var remaining:Dictionary=solver.kernel.query(opposing[0].a,opposing[0].b,opposing[0].radius,r.positions,faces)
+	check(remaining.hit and remaining.distance<opposing[0].radius-1e-4,"later opposing projection reintroduces penetration in the earlier body")
+	var retained_depth:float=.08-(.25*r.positions[0].y+.25*r.positions[1].y+.5*r.positions[2].y+.01)
+	check(retained_depth>.0099 and r.residual>=retained_depth-1e-7,"final residual includes the analytic first contact plane invalidated by a later projection")
 	var one=load("res://scripts/capsule_solver.gd").new()
 	var six=load("res://scripts/capsule_solver.gd").new()
 	var midpoint:Vector3=(one.positions[0]+one.positions[1]+one.positions[2])/3.
