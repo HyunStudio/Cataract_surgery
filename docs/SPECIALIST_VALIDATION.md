@@ -2,6 +2,19 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
+## Instrument profile and contact foundations — 2026-10-28
+
+Default dimensioned instruments now share generic rod dimensions and orientation with the prospective contact profiles. Both forceps jaws are tracked by unique names and update their complete endpoint geometry, including angle and length, during closure/reopening. Applied and reviewed frames restore the same shape. This is the app-visible change in this milestone.
+
+Four new standalone suites cover capsule/triangle geometry, instrument profiles/live jaws, rigid-body motion envelopes and closed-shell entry tunnels. The rigid adapter and tunnel builder are **not enabled in default app physics/rendering yet**. The current app still uses its previous swept spherical tip contacts and logical wound predicate. Integration requires portal-compatible pose resolution, elastic anterior face contact, injury face identity handling and bounded cached tunnel publication.
+
+- Actual healthy default cornea plus the101-point entry trace produces1483vertices/2962triangles, with oriented closed walls, original source-face mapping and full capsule clearance through the hole. Inscribed16-gon footprint and1e-6 welding tolerance are engineering approximations. Latest parent build712ms; independent observation781ms. Open injured source shells and ambiguous/budget-exhausted results reject atomically. This cost is unsuitable for per-tick reconstruction.
+- Independent review exposed masked static-query false clearance, skinny-face Gram cancellation, shallow edge-pair cancellation and two tunnel budget gaps. Each has a failing reproduction followed by a passing fix. Static arbitrary masks with uncertified clearance fail closed. Profile tests also reject overflowing frame magnitudes. Final review reported no remaining substantive issue in the standalone scope.
+- Standard runner **44 suites passed** with exit0. Final profile and tunnel changes were also rerun individually after their review fixes. Source-run full default normal encounter and volumetric injury route both reported zero failures on the actual RTX3070Laptop/NVIDIA566.14 OpenGL context. The extraction image was visually inspected. These prove existing app behavior and rendering, not integrated body contact.
+- Fresh editor import, Windows release export and native120-frame default launch exited0, with a fresh180-byte native log showing the actual NVIDIA context. Native full active-case acceptance remains pending; source-script GPU routes do not establish that result.
+
+No new active-performance measurement is claimed. The32.17fps timing milestone below remains historical evidence. Python code is unchanged; no remote CI result or clinical/device calibration is claimed. The [overall completion goal](REALISM_COMPLETION_KO.md) remains active.
+
 ## Fixed-step timing and presentation milestone — 2026-10-28
 
 The default app now permits up to eight fixed physics ticks per rendered frame instead of one, with geometry/UI publication coalesced once per rendered frame. Tissue tick size, internal substeps, force/fracture/flow coefficients and clock integration are unchanged. [Godot documents](https://docs.godotengine.org/en/stable/classes/class_engine.html#class-engine-property-max-physics-steps-per-frame) why a one-step catch-up cap slows simulation below the physics tick rate. This section supersedes the prior cap-related limitation below, while startup and sustained performance remain open.

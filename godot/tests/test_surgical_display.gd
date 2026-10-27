@@ -70,6 +70,21 @@ func run()->void:
 		check(posterior.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]==damage.surfaces.posterior.positions,"same revision from another recorded case still uses its own geometry")
 	var shape=load("res://scripts/anterior_segment.gd").new()
 	display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false,"dimensioned":true,"anatomy":{"cornea":shape.cornea(),"posterior":shape.posterior(),"iris":shape.iris(.96)}})
+	var closed_frame:Dictionary=display.capture_frame()
+	var profile=load("res://scripts/instrument_profile.gd")
+	var closed_segments:Array=profile.segments("forceps",.018,true)
+	var closed_jaws:Array=[]
+	for i in range(2):
+		var rod:MeshInstance3D=display._forceps_jaws[0][i].node
+		closed_jaws.append({"transform":rod.transform,"height":rod.mesh.height})
+		var half:Vector3=rod.basis.y*rod.mesh.height*.5
+		check((rod.position-half).is_equal_approx(closed_segments[i].a) and (rod.position+half).is_equal_approx(closed_segments[i].b),"dimensioned applied frame closes both jaw endpoints")
+	var open_actions:Array=actions.duplicate(true); open_actions[0].grip=false
+	display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,open_actions,{"room":false,"dimensioned":true})
+	display.apply_frame(closed_frame)
+	for i in range(2):
+		var rod:MeshInstance3D=display._forceps_jaws[0][i].node
+		check(rod.transform.is_equal_approx(closed_jaws[i].transform) and is_equal_approx(rod.mesh.height,closed_jaws[i].height),"review restores closed jaw orientation and length after live reopening")
 	display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false,"anatomy":{}})
 	var legacy=load("res://scripts/anatomy_surfaces.gd")
 	check(display.get_node("NumericalEye/ComputedCornea").mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]==legacy.cornea().positions,"absent legacy revision-zero state restores legacy corneal geometry after dimensioned replay")

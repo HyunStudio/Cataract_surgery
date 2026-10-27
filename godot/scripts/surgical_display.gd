@@ -1,6 +1,7 @@
 extends Node3D
 ## Rendering adapter only. Numerical solvers and captured frames remain read-only.
 const Instrument=preload("res://scripts/surgical_instrument.gd")
+const InstrumentProfile=preload("res://scripts/instrument_profile.gd")
 const Segment=preload("res://scripts/anterior_segment.gd")
 var _dimensioned_tools:=false
 const Snapshot=preload("res://scripts/visual_snapshot.gd")
@@ -282,10 +283,7 @@ func _render_tools(rigs:Array,hand_tools:Array,selected:int,actions:Array)->void
 			var model:Node3D=tool_models[hand][id]
 			model.visible=hand<rigs.size() and hand<hand_tools.size() and id==hand_tools[hand]
 			if not model.visible: continue
-			var toward:Vector3=-rigs[hand].axis.normalized()
-			var side:=toward.cross(Vector3.UP).normalized()
-			if side.length_squared()<.01: side=Vector3.FORWARD
-			var frame:=Basis(toward,side.cross(toward).normalized(),side)
+			var frame:=InstrumentProfile.frame(rigs[hand].axis)
 			var local_axis:Vector3=model.get_meta("shaft_axis",Vector3(1.55,.52,.20).normalized())
 			model.basis=frame*Basis(Quaternion(local_axis,Vector3.RIGHT))
 			model.position=rigs[hand].tip
@@ -293,9 +291,17 @@ func _render_tools(rigs:Array,hand_tools:Array,selected:int,actions:Array)->void
 			model.set_meta("action",actions[hand].duplicate(true) if hand<actions.size() else {})
 			if id=="forceps":
 				var closed:bool=hand<actions.size() and bool(actions[hand].get("grip",false))
+				var jaws:Array=InstrumentProfile.segments("forceps",Segment.tool_radii.forceps,closed).filter(func(s):return s.part=="jaw") if _dimensioned_tools else []
+				var jaw_index:=0
 				for jaw in _forceps_jaws[hand]:
-					jaw.node.transform=jaw.rest
-					jaw.node.position.z*=.35 if closed else 1.0
+					if _dimensioned_tools:
+						var segment:Dictionary=jaws[jaw_index]
+						jaw.node.transform=InstrumentProfile.rod_transform(segment.a,segment.b)
+						jaw.node.mesh.height=segment.a.distance_to(segment.b)
+					else:
+						jaw.node.transform=jaw.rest
+						jaw.node.position.z*=.35 if closed else 1.0
+					jaw_index+=1
 
 func _render_wounds(wounds:Array)->void:
 	var paths:Array=wounds
