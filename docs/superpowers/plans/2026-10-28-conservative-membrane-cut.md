@@ -1,0 +1,34 @@
+# Area-preserving membrane incision
+
+> **For agentic workers:** Execute inline with superpowers:executing-plans. The user has authorized continued implementation without design confirmation.
+
+**Goal:** Replace coarse face deletion with a local incision that retains tissue area, creates two real crack banks and transfers existing numerical state.
+
+**Architecture:** First implement a bounded pure geometric cutter. A finite swept curtain intersects actual triangles; inserted points share source-edge identity, local subdivision retains winding, and vertex face fans split only across incision edges. Barycentric source bindings carry material/rest/history data into the later XPBD integration. Integration must then rebuild constraints and masses without healing existing seams or dropping retained flap area.
+
+**Tech stack:** Godot4.7.2/GDScript; current feature checkout. No new dependency. This is a geometric engineering approximation, not calibrated fracture mechanics or a claim of precise clinical CCC.
+
+**Spec:** `docs/REALISM_COMPLETION_KO.md`, active full-simulator goal. Product release `be14d7f` remains unchanged until integration and full qualification succeed.
+
+## Invariants and review focus
+
+- Finite stroke and blade depth only: no infinite-plane cut, masking, or broad off-path damage.
+- Preserve every source face's current/rest area within stated numerical tolerance; no face deletion as a fallback.
+- Shared old edges reuse intersection points; disconnected coincident surfaces must never weld.
+- Interior crack tips stay connected; crack banks can separate. Existing cracks remain separated through original vertex identity.
+- Invalid geometry, ambiguous coplanarity, nonmanifold topology and work/geometry exhaustion reject atomically.
+- New point bindings are convex barycentric combinations of original triangle vertices; original points retain identity.
+
+## Tasks
+
+1. Create `godot/scripts/membrane_cut.gd` and `godot/tests/test_membrane_cut.gd`. RED→GREEN cases: boundary-to-boundary and interior slits, multiple shared faces, finite depth/stroke, repeated cuts/old seams, winding/area/bindings, unsupported geometry and budgets. Review the geometry before integrating.
+2. Integrate incision state into `capsule_solver.gd`: source bindings for rest/previous/anchors, positive areal mass, constraints/components/pressure/contact updates, grasp identity, removed/extracted area accounting. Only actual knife sweeps cut. Replace tensile face deletion with explicit fracture topology separately; never silently retain legacy face loss while claiming completion.
+3. Update realistic CCC driver and verify cut/flap topology, true held flap extraction and dynamic contact. Run standard regression, human input cases, real GPU and compiled release qualification. Existing outcome gates remain unchanged.
+
+## Ledger
+
+- Previous goal turn was progress: release `be14d7f` verified/packaged, validator fixes reviewed, full Godot52 and Python541 passed. Current HEAD `7453606`, clean checkout, no live validation jobs.
+- Engineering choice: retain material area through subdivision and crack-bank splitting rather than reducing tool radius or raising mesh density while continuing to delete incident faces. Fine fracture direction/material calibration remains a later physical requirement.
+- Geometric component now passes boundary/interior slits, shared-edge endpoint insertion, crossing/repeated seams, disconnected coincident surfaces, narrow triangles, finite oblique depth, convex current/rest transfer and atomic budgets/bad input. Runtime rejects nonmanifold vertex links and nonpositive child winding, and each planned source face must have a complete seam chain.
+- RED→GREEN on actual curved capsule: rounded edge insertion originally generated overlapping microscopic fans; explicit topological edge insertion fixed this. Fractional endpoint tolerance left short uncut bridges; physical scene-distance endpoint tolerance fixed this. The64-stroke closed circle now retains total area and separates exactly2components,745vertices/924triangles from original217/396, about1.9s for the entire batch on this machine. This is a geometry test, not live frame-rate or surgical-device calibration.
+- Independent review's bow-tie source and mixed near-boundary face cases were reproduced RED and fixed. No default `capsule_solver`/knife path connection yet; no new source full53/GPU/native result is claimed at this point. The verified Windows release remains `be14d7f`.
