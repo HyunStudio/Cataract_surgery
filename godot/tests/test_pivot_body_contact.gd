@@ -29,9 +29,10 @@ func _initialize():
 	r=solver.resolve(portal,start,(start-portal).normalized(),finish,(finish-portal).normalized(),"phaco",.04,false,{"iris":oversized})
 	check(not r.valid and r.reason=="geometry_budget","oversized geometry rejects before unbounded body queries")
 	var exhausted:={"positions":PackedVector3Array([Vector3(.16,.03,.03)]),"triangles":PackedInt32Array(),"revision":9}
-	for i in range(300): exhausted.triangles.append_array(PackedInt32Array([0,0,0]))
+	exhausted.positions[0]=Vector3(.16,.04001,0)
+	for i in range(3000): exhausted.triangles.append_array(PackedInt32Array([0,0,0]))
 	r=solver.resolve(Vector3(2,0,0),Vector3.ZERO,Vector3.LEFT,Vector3(.1,0,0),Vector3.LEFT,"phaco",.04,false,{"posterior":exhausted})
-	check(not r.valid and r.reason=="work_budget" and r.tip==Vector3.ZERO and r.contacts.is_empty(),"exhausted sweep cannot invent a triangle or powered injury witness")
+	check(not r.valid and r.reason=="query_budget" and r.tip==Vector3.ZERO and r.contacts.is_empty(),"exhausted nominal queries cannot invent a triangle or powered injury witness")
 	var closure:={"positions":PackedVector3Array([Vector3(.2,-.001,.043),Vector3(.201,.001,.043),Vector3(.2,.001,.044)]),"triangles":PackedInt32Array([0,1,2]),"revision":0}
 	r=solver.resolve(Vector3(2,0,0),Vector3.ZERO,Vector3.LEFT,Vector3(.01,0,0),Vector3.LEFT,"forceps",.01,true,{"iris":closure},false)
 	check(r.valid and r.fraction==0. and not r.contacts.is_empty(),"closing jaws cannot erase contact in the prior open pose")
@@ -43,7 +44,7 @@ func _initialize():
 	check(jaw_load>0.,"proved jaw opening contact uses articulation motion even with a stationary tip")
 	var phantom:={"positions":PackedVector3Array([Vector3(.769,.1,.05),Vector3(.769,.10001,.05),Vector3(.769,.1,.05001)]),"triangles":PackedInt32Array([0,1,2]),"revision":0}
 	r=solver.resolve(Vector3(2,0,0),Vector3(0,.5,0),Vector3(-2,.5,0).normalized(),Vector3(0,-.5,0),Vector3(-2,-.5,0).normalized(),"phaco",.04,false,{"iris":phantom})
-	check(r.valid and not r.contacts.is_empty() and r.contacts[0].conservative and r.contacts[0].load==0.,"inflated near miss blocks conservatively without a fabricated injury witness")
+	check(r.valid and r.fraction==1. and r.contacts.is_empty(),"proved nominal sleeve near miss is clear despite an overlapping radial/chord envelope")
 	check(solver.get("use_index")!=null,"body geometry has a source-preserving candidate index")
 	if solver.get("use_index")!=null:
 		var segment=load("res://scripts/anterior_segment.gd").new()
@@ -62,6 +63,13 @@ func _initialize():
 	var departure:Vector3=portal+Vector3(-.04,.03,0)
 	r=solver.resolve(portal,portal,Vector3.LEFT,departure,(departure-portal).normalized(),"phaco",.04,false,{"iris":mesh})
 	check(r.valid and r.fraction==1.,"outside halfspace certifies oblique pivot departure without a singular angular guess")
+	var rotation_patch:={"positions":PackedVector3Array([Vector3(2.3,-.225,-.01),Vector3(2.31,-.225,-.01),Vector3(2.3,-.225,.01)]),"triangles":PackedInt32Array([0,1,2]),"revision":0}
+	r=solver.resolve(Vector3(2,0,0),Vector3(2,0,0),Vector3.LEFT,Vector3(2,0,0),Vector3(-.8,.6,0),"phaco",.04,false,{"iris":rotation_patch})
+	check(not r.valid and r.reason=="pivot_rotation_unresolved","zero-insertion orientation change cannot be certified as a stationary old frame")
+	var distant:={"positions":PackedVector3Array([Vector3(2.3,.5,-.01),Vector3(2.31,.5,-.01),Vector3(2.3,.5,.01)]),"triangles":PackedInt32Array([0,1,2]),"revision":0}
+	var near_pivot:=Vector3(2,0,0)+Vector3(-1e-5,0,0)
+	r=solver.resolve(Vector3(2,0,0),near_pivot,Vector3.LEFT,near_pivot,Vector3.LEFT,"phaco",.04,false,{"posterior":distant})
+	check(r.valid and r.fraction==1. and r.contacts.is_empty(),"numerical normalization allowance cannot invent distant powered contact")
 	# The exact axis is normalized linear tip displacement, not a free-pose
 	# quaternion interpolation. Every point of that curve needs an enclosure.
 	var p0:=Vector3(.1,.2,.15); var p1:=Vector3(1.6,-.1,-.1)

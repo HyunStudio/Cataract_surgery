@@ -186,16 +186,19 @@ func _disarm_actions() -> void:
 
 func release_controls() -> void:
 	_disarm_actions(); latched=[false,false]; capsule.release()
+	target_valid=[false,false]
 	for hand in range(2): incision.cut(hand,rigs[hand].tip,false)
 
 func switch_hand() -> void:
 	_disarm_actions()
+	target_valid=[false,false]
 	if not latched[selected]: capsule.release_hand(selected)
 	selected=1-selected
 	status="%s 조작. G로 접촉한 집게의 파지를 유지할 수 있습니다." % ("왼손" if selected==0 else "오른손")
 	refresh_ui()
 
 func toggle_latch() -> void:
+	if not _can_operate(): return
 	if hand_tools[selected]!="forceps":
 		status="파지 유지는 집게에서 사용할 수 있습니다."; refresh_ui(); return
 	if latched[selected]:
@@ -298,7 +301,7 @@ func _input(event: InputEvent) -> void:
 			var hit=Plane(Vector3.UP,target_planes[selected]).intersects_ray(origin,ray)
 			if hit!=null:
 				if assisted: targets[selected]=hit
-				else: targets[selected]=rigs[selected].portal+(hit-rigs[selected].portal).normalized()*rigs[selected].insertion
+				else: targets[selected]=rigs[selected].portal+(hit-rigs[selected].portal).normalized()*absf(rigs[selected].insertion)
 				target_valid[selected]=true
 		elif grip_down or pedal_down: _disarm_actions()
 	if event is InputEventMouseButton:
@@ -371,6 +374,8 @@ func _advance_motion(dt: float) -> float:
 					var transition:Dictionary=_rigid_body.resolve(rigs[hand].portal,rigs[hand].tip,rigs[hand].axis,rigs[hand].tip,rigs[hand].axis,hand_tools[hand],_radius(hand),requested_grip,surfaces,prior.grip)
 					if transition.valid and transition.fraction==1. and transition.contacts.is_empty(): _resolved_grips[hand]=requested_grip
 					else:
+						for candidate in transition.contacts:
+							if candidate.get("time",0.)>0.: candidate.conservative=true; candidate.load=0.
 						body.contacts.append_array(transition.contacts)
 						status="집게 턱이 조직과 접촉합니다. 기구 위치를 조절하세요."
 				for record in body.contacts:

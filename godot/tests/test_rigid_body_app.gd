@@ -48,6 +48,8 @@ func run():
 	app._physics_process(1./60.)
 	check(app._body_poses[0].grip and app.display.capture_frame().actions[0].grip,"blocked jaw opening preserves accepted grip in capsule history and rendering")
 	check(not observed.received[0].grip,"released input cannot re-grasp tissue merely because opening is blocked")
+	for c in app._contact_records[0]:
+		if c.surface=="iris": check(c.get("conservative",false) and c.load==0.,"uncommitted future jaw pose cannot create current physical injury")
 	app.targets[0]=Vector3(0,.1,0); app.target_valid[0]=true
 	for i in range(8): app._physics_process(1./60.)
 	check(app.rigs[0].tip.y>.09,"rejected jaw opening cannot freeze a clear closed-jaw withdrawal")

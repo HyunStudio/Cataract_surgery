@@ -2,7 +2,19 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
-## Current working source: pivot-constrained iris/posterior bodies
+## Current working source: actual-part continuous motion
+
+Rigid motion now advances using the distance of the actual nominal part, following the normalized signed portal axis and the shared world-up render frame. Endpoint speed bounds include frame rotation and jaw articulation; numerical portal-distance allowances reduce the denominator bound. Existing chord/radial bounds only select candidate faces. They cannot independently create physical contacts or injury. A previous thin-triangle sleeve near miss is now certified clear rather than blocked. Near-pivot numerical padding cannot invent distant powered contact; a failing reproduction drove nominal-radius-only contact queries. Zero-insertion orientation changes remain unresolved unless all-axis halfspace pruning establishes clearance. Query and iteration exhaustion reject atomically with reasons.
+
+Contact-time metadata and endpoint-speed retreat support stationary articulation. An atomically rejected future jaw pose is marked conservative before injury dispatch, so a pose that was never committed cannot damage current tissue. Actual initial contact retains part-relative load. This closes a new failing regression found while adding continuous nominal motion.
+
+Fresh six-suite batch passes: pivot, rigid app, injury parts, anterior body app, tool exchange, and the rewritten continuous default adverse case. The adverse route now uses normal target controls from actual entry to wrong-depth posterior contact, rather than injecting an inside pose across the signed portal. It preserves speed bounds and verifies actual posterior aperture, outflow, alert/action stop, completion refusal and reset. Actual NVIDIA rigid app and continuous adverse source runs both exit0; editor import exits0. A separate bilateral entry/actual exterior tool-exchange test passes and is included in the51-suite runner; no fresh all51-pass result is claimed.
+
+The old1800-step opposite-cortex diagnostic completed with global adhesion release1.0 using admitted flow, even while the older conservative bent-tip envelope held the tip. The new canonical normal case now chooses an opposite cortical site and requires admitted surface-flow propagation to>.95release; the live current run reports.951006with no alert and no corneal/posterior damage after actual flap extraction. Its downstream phaco/IA/IOL/full completion is still under verification. The old near-entry path is not forced through iris, tissue thresholds and removal/retained-piece completion gates remain unchanged.
+
+No new active GPU performance measurement, native release or ZIP is qualified by this working continuation. The previousb1f60f9Windows archive remains the delivered verified package. Corneal body/tunnel integration, anterior uncertainty/performance, precise cut mechanics, full human input usability and clinical calibration remain incomplete.
+
+## Previous pivot-constrained iris/posterior integration evidence
 
 The current source adds rigid generic shaft/sleeve/working-part envelopes against actual iris/posterior meshes. Tip interpolation and normalized signed portal axes remain constrained; no off-pivot overlap translation is applied. A second-order normalization bound encloses centerline curves; radial envelopes enclose off-axis parts. Initial overlap/uncertainty blocks rather than inventing clearance. Corneal body/tunnel integration remains pending.
 
@@ -222,3 +234,9 @@ python -m pytest -q
 .tools/godot/Godot_v4.7.2-stable_win64_console.exe --path godot --resolution 1600x1000 --script res://tests/test_full_encounter.gd
 .tools/godot/Godot_v4.7.2-stable_win64_console.exe --path godot --script res://tests/benchmark_simulator.gd
 ```
+
+### Current control and full-case diagnosis
+
+Real projected mouse/key event regressions reproduce and fix stale pending motion after context changes, negative insertion mirroring during fixed-length aiming and paused G-key latch activation. Pending targets are cleared on release_controls and hand switch. Explicit withdrawal disarms then schedules fresh targets; blocked tool exchange preserves those withdrawal targets. The regression went from7failures to0 and also exits0 on NVIDIA OpenGL. Seven surrounding control/app suites pass; independent scoped control review found no substantive regression.
+
+The normal encounter subsequently failed its first near-entry nucleus target(.366354,-.016539,.640237), with tip(.180381,-.018742,.692422) and iris contact. Only.045045mass was removed; nucleus removal and full completion are NOT passed. The run was deliberately stopped after this diagnosis. Subsequent exchanges were cascaded test failures, not verified impossible withdrawals. A new diagnostic rerun saves actual pose/mesh/particle data on the first block and stops after the failed phase. Alternative-portal reachability and near-contact query convergence remain under investigation. The standard runner now has52suites; no all52run or new native package is claimed.

@@ -13,6 +13,9 @@ func place(app,p:Vector3,tolerance:=.001)->void:
 		tick(app)
 		check(app.rigs[app.selected].tip.distance_to(before)<=.0251,"normal target path keeps per-tick travel bounded")
 		if app.rigs[app.selected].tip.distance_to(p)<tolerance: return
+	var capture:=FileAccess.open("res://reports/volumetric-blocked-pose.bin",FileAccess.WRITE)
+	if capture:
+		capture.store_var({"target":p,"tip":app.rigs[app.selected].tip,"axis":app.rigs[app.selected].axis,"portal":app.rigs[app.selected].portal,"tool":app.hand_tools[app.selected],"radius":app._radius(app.selected),"contacts":app._contact_records[app.selected],"surfaces":{"iris":app.anatomy.iris,"posterior":app.anatomy.posterior},"particles":app.lens.particles,"status":app.status})
 	check(false,"continuous instrument target blocked: %s -> %s"%[p,app.rigs[app.selected].tip])
 func safe_target(app,p:Vector3)->Vector3:
 	var r:=Vector2(p.x,p.z).length()
@@ -84,13 +87,15 @@ func run()->void:
 	app.set_machine("inflow",1.)
 	app.handle_pedal(false,false,true,1); app.handle_pedal(true,false,true,1)
 	var hydro_target:=-1
+	# The straight shaft approaches opposite cortex through the pupil. Let
+	# actually admitted surface flow propagate around the bag rather than
+	# forcing the near-entry shaft through the iris to visit every particle.
+	for i in range(app.lens.particles.size()):
+		if app.lens.material.is_cortex(i) and app.lens.particles[i].position.x<-.4: hydro_target=i; break
+	check(hydro_target>=0,"opposite cortical site exists for the current portal")
 	for step in range(4500):
-		if hydro_target<0 or app.lens.material.adhesion[hydro_target]<.1:
-			var attached:=-1.; hydro_target=-1
-			for i in range(app.lens.particles.size()):
-				if app.lens.material.is_cortex(i) and app.lens.material.adhesion[i]>attached:
-					attached=app.lens.material.adhesion[i]; hydro_target=i
-			if attached<.1: break
+		if app.lens.metrics().adhesion_released>.95: break
+		if hydro_target<0: break
 		var target:Vector3=app.lens.particles[hydro_target].position*.98
 		var before:Vector3=app.rigs[0].tip
 		app.targets[0]=safe_target(app,target); app.target_valid[0]=true; app._physics_process(.05)
@@ -111,9 +116,11 @@ func run()->void:
 		# Aspiration draws material into the .05 inlet; the instrument center
 		# need not occupy a peripheral particle's exact center against the bag.
 		place(app,safe_target(app,target),.025)
+		if failures: break
 		if step%200==0: await process_frame
 	print("Volumetric phaco: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().nucleus_remaining<.01,"powered local tool removes volumetric nucleus")
+	if failures: app.queue_free(); await process_frame; quit(1); return
 	exchange(app,"ia")
 	app.handle_pedal(false,false,true,2); app.handle_pedal(true,false,true,2)
 	for step in range(3000):
@@ -124,9 +131,11 @@ func run()->void:
 			if d<nearest: nearest=d; target=p.position; found=true
 		if not found: break
 		place(app,safe_target(app,target),.025)
+		if failures: break
 		if step%200==0: await process_frame
 	print("Volumetric IA: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().removed_mass>=.98,"dimensioned full encounter aspirates material through actual inlet")
+	if failures: app.queue_free(); await process_frame; quit(1); return
 	exchange(app,"injector"); place(app,Vector3.ZERO); app.grip_down=true
 	tick(app,110); app.release_controls(); tick(app,180)
 	# The wider injector exits through the middle of the traced tunnel rather

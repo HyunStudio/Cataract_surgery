@@ -10,6 +10,50 @@ var kernel:=Kernel.new()
 var use_index:=true
 var _cache:Dictionary={}
 
+func _motion_margin(portal:Vector3,a:Vector3,b:Vector3,reach:float)->float:
+	var lower:=maxf(0.,Geometry3D.get_closest_point_to_segment(portal,a,b).distance_to(portal)-.000004)
+	return .000004*(1.+reach*(1.+2./(.28-1e-6))/lower) if lower>0. else .000004
+
+func _actual_sweep(portal:Vector3,start:Vector3,finish:Vector3,fallback:Vector3,side:float,old:Dictionary,part:Dictionary,t0:float,t1:float,data:Dictionary,budget:int)->Dictionary:
+	var a:=start.lerp(finish,t0); var b:=start.lerp(finish,t1)
+	var v:=b-a; var w:=a-portal
+	var minimum:float=Geometry3D.get_closest_point_to_segment(portal,a,b).distance_to(portal)
+	# Outward rounding allowance for bounded float32 scene coordinates.
+	var lower:=maxf(0.,minimum-.000004)
+	var rotation_speed:=0.
+	if lower==0.:
+		for d in [a-portal,b-portal]:
+			if d!=Vector3.ZERO and d.normalized()*side!=fallback: return {"valid":false,"reason":"pivot_rotation_unresolved","visits":0}
+	else: rotation_speed=v.length()/lower
+	const H:=.28-1e-6
+	var extent:=0.; var reach:=0.
+	for p in [old.a,old.b,part.a,part.b]:
+		extent=maxf(extent,absf(p.x)+absf(p.y)*(1.+1./H)+absf(p.z)/H); reach=maxf(reach,p.length())
+	var speed:float=v.length()+rotation_speed*extent+maxf(old.a.distance_to(part.a),old.b.distance_to(part.b))*(t1-t0)
+	var margin:=_motion_margin(portal,a,b,reach)
+	if not is_finite(speed) or not is_finite(margin): return {"valid":false,"reason":"invalid_bound","visits":0}
+	var s:=0.; var visits:=0
+	for iteration in range(128):
+		visits+=data.triangles.size()/3
+		if visits>budget: return {"valid":false,"reason":"query_budget","visits":visits}
+		var t:=lerpf(t0,t1,s); var tip:=start.lerp(finish,t); var delta:=tip-portal
+		var axis:Vector3=delta.normalized()*side if delta!=Vector3.ZERO else fallback
+		var frame:=Profile.frame(axis)
+		# Padding may select candidates, but only the nominal capsule can
+		# certify physical contact or provide cutting/energy injury evidence.
+		var hit:Dictionary=kernel.query(tip+frame*old.a.lerp(part.a,t),tip+frame*old.b.lerp(part.b,t),part.radius,data.positions,data.triangles)
+		if not hit.valid: return {"valid":false,"reason":"invalid_geometry","visits":visits}
+		if hit.hit:
+			hit["time"]=t; hit["visits"]=visits; hit["conservative"]=false; hit["margin"]=0.; hit["speed"]=speed/(t1-t0); return hit
+		var gap:float=hit.distance-part.radius
+		if not is_finite(gap): return {"valid":false,"reason":"invalid_distance","visits":visits}
+		if speed==0. or gap>speed*(1.-s)+1e-7: return {"valid":true,"hit":false,"visits":visits}
+		var next:float=s+.9*gap/speed
+		if not is_finite(next) or next<=s: return {"valid":false,"reason":"convergence","visits":visits}
+		if next>1.: return {"valid":true,"hit":false,"visits":visits}
+		s=next
+	return {"valid":false,"reason":"iteration_budget","visits":visits}
+
 func _prepare(name:String,data:Dictionary)->Dictionary:
 	if _cache.has(name):
 		var old:Dictionary=_cache[name]
@@ -45,7 +89,7 @@ func interval(portal:Vector3,p0:Vector3,p1:Vector3,fallback:Vector3,side:float,r
 	var a:=p0.lerp(p1,t0); var b:=p0.lerp(p1,t1)
 	var da:=a-portal; var db:=b-portal
 	var closest:=Geometry3D.get_closest_point_to_segment(portal,a,b)
-	var minimum:float=closest.distance_to(portal)
+	var minimum:float=maxf(0.,closest.distance_to(portal)-.000004)
 	var error:=0.
 	if minimum==0.:
 		var spread:=0.
@@ -93,7 +137,7 @@ func resolve(portal:Vector3,start:Vector3,axis0:Vector3,finish:Vector3,axis1:Vec
 	var steps:=maxi(1,ceili(axis0.angle_to(axis1)/.05))
 	if steps>64: out.valid=false; out.reason="path_budget"; return out
 	var query_visits:=0
-	var fraction:=1.; var contacts:Array=[]
+	var fraction:=1.; var contacts:Array=[]; var contact_speed:=0.
 	for step in range(steps):
 		var t0:=float(step)/steps; var t1:=float(step+1)/steps
 		if t0>fraction: break
@@ -101,7 +145,8 @@ func resolve(portal:Vector3,start:Vector3,axis0:Vector3,finish:Vector3,axis1:Vec
 			var part:Dictionary=parts[part_index]; var old_part:Dictionary=old_parts[part_index]
 			var radial:float=maxf(maxf(Vector2(part.a.y,part.a.z).length(),Vector2(part.b.y,part.b.z).length()),maxf(Vector2(old_part.a.y,old_part.a.z).length(),Vector2(old_part.b.y,old_part.b.z).length()))
 			var reach:float=maxf(part.a.x,part.b.x)
-			var padding:float=part.radius+radial
+			var extent:float=maxf(maxf(old_part.a.length(),old_part.b.length()),maxf(part.a.length(),part.b.length()))
+			var padding:float=part.radius+radial+.000004
 			var lo:Vector3=start.min(finish)-Vector3.ONE*(reach+padding)
 			var hi:Vector3=start.max(finish)+Vector3.ONE*(reach+padding)
 			# Every valid inward axis has an outward handle component >= .28.
@@ -114,39 +159,28 @@ func resolve(portal:Vector3,start:Vector3,axis0:Vector3,finish:Vector3,axis1:Vec
 				if m.hi.x<lo.x or m.lo.x>hi.x or m.hi.y<lo.y or m.lo.y>hi.y or m.hi.z<lo.z or m.lo.z>hi.z: continue
 				nearby.append(name)
 			if nearby.is_empty(): continue
+			if start==portal and finish==portal and axis0!=axis1: out.valid=false; out.reason="pivot_rotation_unresolved"; return out
 			var ia:=interval(portal,start,finish,axis0,side,part.a.x,t0,t1)
 			var ib:=interval(portal,start,finish,axis0,side,part.b.x,t0,t1)
 			if not ia.valid or not ib.valid: out.valid=false; out.reason="pivot_rotation_unresolved"; return out
-			var envelope:float=part.radius+radial+maxf(ia.error,ib.error)
+			var envelope:float=part.radius+radial+maxf(ia.error,ib.error)+_motion_margin(portal,start.lerp(finish,t0),start.lerp(finish,t1),extent)
 			for name in nearby:
 				var data:=_subset(meshes[name],ia.a,ib.a,ia.b,ib.b,envelope)
 				if data.triangles.is_empty(): continue
-				query_visits+=data.triangles.size()/3*4
-				if query_visits>MAX_TRIANGLE_VISITS: out.valid=false; out.reason="query_budget"; return out
-				# Sweep recovery exemptions cannot certify a curved path starting
-				# inside an inflated envelope. Report that interval as blocked.
-				var hit:Dictionary=kernel.query(ia.a,ib.a,envelope,data.positions,data.triangles)
-				if not hit.valid: out.valid=false; out.reason="invalid_geometry"; return out
-				if hit.hit:
-					hit["time"]=0.; hit["conservative"]=true
-				else: hit=kernel.sweep(ia.a,ib.a,ia.b,ib.b,envelope,data.positions,data.triangles)
-				if not hit.valid: out.valid=false; out.reason="invalid_geometry"; return out
+				var hit:=_actual_sweep(portal,start,finish,axis0,side,old_part,part,t0,t1,data,MAX_TRIANGLE_VISITS-query_visits)
+				query_visits+=hit.visits
+				if not hit.valid: out.valid=false; out.reason=hit.reason; return out
 				if not hit.hit: continue
 				if hit.triangle<0:
 					out.valid=false; out.reason=hit.get("reason","missing_witness"); return out
-				var time:float=lerpf(t0,t1,hit.time)
-				# An inflated chord proves blocking, not tissue contact. Confirm
-				# the nominal part at that time before publishing an injury witness.
+				var time:float=hit.time
 				var tip_at:=start.lerp(finish,time); var delta_at:=tip_at-portal
 				var axis_at:=delta_at.normalized()*side if delta_at!=Vector3.ZERO else axis0
 				var frame_at:=Profile.frame(axis_at)
 				var part_a:Vector3=old_part.a.lerp(part.a,time); var part_b:Vector3=old_part.b.lerp(part.b,time)
-				var actual:Dictionary=kernel.query(tip_at+frame_at*part_a,tip_at+frame_at*part_b,part.radius,data.positions,data.triangles)
-				if not actual.valid: out.valid=false; out.reason="invalid_geometry"; return out
-				if actual.hit and not actual.get("conservative",false): hit=actual; hit["conservative"]=false
-				else: hit["conservative"]=true
+				var actual:Dictionary=hit
 				if data.has("sources"): hit.triangle=data.sources[hit.triangle]
-				var record:={"surface":name,"part":part.part,"point":hit.surface_point,"normal":hit.normal,"triangle":hit.triangle,"revision":data.get("revision",0),"cutting":part.cutting,"energy":part.energy,"conservative":hit.get("conservative",false),"load":0.}
+				var record:={"surface":name,"part":part.part,"point":hit.surface_point,"normal":hit.normal,"triangle":hit.triangle,"revision":data.get("revision",0),"cutting":part.cutting,"energy":part.energy,"conservative":hit.get("conservative",false),"margin":hit.get("margin",0.),"time":time,"load":0.}
 				if not record.conservative:
 					var local_point:Vector3=frame_at.inverse()*(actual.axis_point-tip_at)
 					var local_segment:=part_b-part_a
@@ -154,11 +188,11 @@ func resolve(portal:Vector3,start:Vector3,axis0:Vector3,finish:Vector3,axis1:Vec
 					var old_local:Vector3=old_part.a.lerp(old_part.b,along); var new_local:Vector3=part.a.lerp(part.b,along)
 					var witness_motion:Vector3=(finish+Profile.frame(axis1)*new_local)-(start+Profile.frame(axis0)*old_local)
 					record.load=maxf(0.,-witness_motion.dot(record.normal))*(1.-time)
-				if time<fraction-1e-7: fraction=time; contacts=[record]
-				elif absf(time-fraction)<1e-7: contacts.append(record)
-	if fraction<1.: fraction=maxf(0.,fraction-CLEARANCE/maxf(start.distance_to(finish),CLEARANCE))
+				if time<fraction-1e-7: fraction=time; contacts=[record]; contact_speed=hit.speed
+				elif absf(time-fraction)<1e-7: contacts.append(record); contact_speed=maxf(contact_speed,hit.speed)
+	if fraction<1.: fraction=maxf(0.,fraction-CLEARANCE/maxf(contact_speed,CLEARANCE))
 	out.fraction=fraction; out.tip=start.lerp(finish,fraction)
 	var delta:Vector3=out.tip-portal
-	out.axis=delta.normalized()*side if delta!=Vector3.ZERO else axis0
+	out.axis=delta.normalized()*side if delta!=Vector3.ZERO else axis1
 	out.contacts=contacts
 	return out
