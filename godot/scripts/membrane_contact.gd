@@ -136,29 +136,51 @@ func _relative_point(p0:Vector3,p1:Vector3,a0:Vector3,a1:Vector3,t:float)->Vecto
 ## Every linear endpoint trajectory lies in the convex hull of its interval
 ## endpoints. A separating projection of those two hulls certifies the entire
 ## interval. Scalar doubles retain small gaps in translated float32 scenes.
-func _interval_separated(part:Dictionary,old:PackedVector3Array,current:PackedVector3Array,lo:float,hi:float,query:Dictionary)->bool:
-	var n:=PackedFloat64Array(); var squared:=0.
-	for axis in range(3):
-		var value:float=float(query.axis_point[axis])-query.surface_point[axis]
-		n.append(value); squared+=value*value
+func _hull_axis_separated(body:Array,face:Array,n:PackedFloat64Array,radius:float,scale:float)->bool:
+	var squared:=0.
+	for axis in range(3): squared+=n[axis]*n[axis]
 	if not is_finite(squared) or squared<=0.: return false
 	var length:=sqrt(squared)
-	for axis in range(3): n[axis]/=length
-	var body_lo:=0.; var body_hi:=0.; var face_lo:=INF; var face_hi:=-INF; var scale:=1.
+	# Keep the caller's candidate direction unchanged (packed arrays share data).
+	var unit:=PackedFloat64Array([n[0]/length,n[1]/length,n[2]/length])
+	var body_lo:=INF; var body_hi:=-INF; var face_lo:=INF; var face_hi:=-INF
+	for point in body:
+		var projection:float=unit[0]*point[0]+unit[1]*point[1]+unit[2]*point[2]
+		body_lo=minf(body_lo,projection); body_hi=maxf(body_hi,projection)
+	for point in face:
+		var projection:float=unit[0]*point[0]+unit[1]*point[1]+unit[2]*point[2]
+		face_lo=minf(face_lo,projection); face_hi=maxf(face_hi,projection)
+	return maxf(body_lo-face_hi,face_lo-body_hi)>radius+Kernel.CONTACT_EPS+1e-12*scale
+
+func _interval_separated(part:Dictionary,old:PackedVector3Array,current:PackedVector3Array,lo:float,hi:float,query:Dictionary)->bool:
+	var body:Array=[PackedFloat64Array([0.,0.,0.])]; var face:Array=[]; var scale:=1.
 	for t in [lo,hi]:
-		var projection:=0.
+		var point:=PackedFloat64Array()
 		for axis in range(3):
 			var value:float=lerpf(float(part.previous_b[axis])-part.previous_a[axis],float(part.b[axis])-part.a[axis],t)
-			projection+=n[axis]*value; scale=maxf(scale,absf(value))
-		body_lo=minf(body_lo,projection); body_hi=maxf(body_hi,projection)
+			point.append(value); scale=maxf(scale,absf(value))
+		body.append(point)
 		for vertex in range(3):
-			projection=0.
+			point=PackedFloat64Array()
 			for axis in range(3):
 				var value:float=lerpf(float(old[vertex][axis])-part.previous_a[axis],float(current[vertex][axis])-part.a[axis],t)
-				projection+=n[axis]*value; scale=maxf(scale,absf(value))
-			face_lo=minf(face_lo,projection); face_hi=maxf(face_hi,projection)
-	var gap:=maxf(body_lo-face_hi,face_lo-body_hi)
-	return gap>part.radius+Kernel.CONTACT_EPS+1e-12*scale
+				point.append(value); scale=maxf(scale,absf(value))
+			face.append(point)
+	var n:=PackedFloat64Array()
+	for axis in range(3): n.append(float(query.axis_point[axis])-query.surface_point[axis])
+	if _hull_axis_separated(body,face,n,part.radius,scale): return true
+	# Instantaneous nearest features can give a poor direction for the swept
+	# hull. Try the20triple normals of its6vertices. Every candidate still
+	# needs the same complete hull certificate, whether it is a facet or not.
+	for i in range(4):
+		for j in range(i+1,5):
+			for k in range(j+1,6):
+				var u:=PackedFloat64Array(); var v:=PackedFloat64Array()
+				for axis in range(3):
+					u.append(face[j][axis]-face[i][axis]); v.append(face[k][axis]-face[i][axis])
+				n=PackedFloat64Array([u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]])
+				if _hull_axis_separated(body,face,n,part.radius,scale): return true
+	return false
 
 ## Return a verified sampled contact, or clear only when every time interval
 ## has a whole-hull separation certificate. This is not an exact impact time.

@@ -22,9 +22,27 @@ func _initialize()->void:
 	var limited:Dictionary=solver._moving_hit(part,old,current,1)
 	check(limited.valid and not limited.hit and limited.uncertain and limited.evaluations==1,"an unresolved hull at the work limit is uncertain, never certified clear")
 	for budget in [0,129]: check(not solver._moving_hit(part,old,current,budget).valid,"unsupported work budgets reject explicitly")
+	data=JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/near_tangent_jaw_262.json"))
+	segment=vectors(data.segment); old=vectors(data.old); current=vectors(data.current)
+	part={"previous_a":segment[0],"previous_b":segment[1],"a":segment[2],"b":segment[3],"radius":data.radius}
+	hit=solver._moving_hit(part,old,current)
+	check(hit.valid and not hit.hit and not hit.uncertain,"actual tick262 clear jaw sweep is resolved inside the unchanged query budget")
+	print("Tick262 fixture evaluations: ",hit.evaluations)
+	for order in [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]]:
+		var permuted_old:=PackedVector3Array(); var permuted_current:=PackedVector3Array()
+		for index in order: permuted_old.append(old[index]); permuted_current.append(current[index])
+		hit=solver._moving_hit(part,permuted_old,permuted_current)
+		check(hit.valid and not hit.hit and not hit.uncertain,"swept hull certificate is independent of triangle indexing and winding")
+
+
 	part={"previous_a":Vector3(0,.1,0),"previous_b":Vector3(0,.1,0),"a":Vector3(0,-.1,0),"b":Vector3(0,-.1,0),"radius":.01}
 	hit=solver._moving_hit(part,face,face)
 	check(hit.valid and hit.hit and not hit.uncertain,"a crossing remains contact even when both endpoints are clear")
+	for heights in [[.1,-.3],[.3,-.1]]:
+		part={"previous_a":Vector3(0,heights[0],0),"previous_b":Vector3(0,heights[0],0),"a":Vector3(0,heights[1],0),"b":Vector3(0,heights[1],0),"radius":.01}
+		hit=solver._moving_hit(part,face,face)
+		check(hit.valid and hit.hit and not hit.uncertain,"clear midpoint cannot hide a crossing in either pending time half")
+
 	part={"previous_a":Vector3.ZERO,"previous_b":Vector3.ZERO,"a":Vector3.ZERO,"b":Vector3.ZERO,"radius":.01}
 	var below:=PackedVector3Array(); var above:=PackedVector3Array()
 	for point in face: below.append(point+Vector3(0,-.1,0)); above.append(point+Vector3(0,.1,0))
