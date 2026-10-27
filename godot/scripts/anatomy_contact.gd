@@ -1,5 +1,6 @@
 extends RefCounted
 ## Stateful geometry selection, with no tissue or instrument mutation.
+const EntryWindow=preload("res://scripts/incision_window.gd")
 const Shapes=preload("res://scripts/anatomy_surfaces.gd")
 const Kernel=preload("res://scripts/surface_contact.gd")
 var geometry:RefCounted
@@ -12,12 +13,13 @@ func set_pupil(radius:float)->void:
 	if not is_finite(radius): return
 	radius=clampf(radius,.45,1.1)
 	if geometry or not is_equal_approx(pupil,radius): pupil=radius; iris=geometry.iris(radius) if geometry else Shapes.iris(radius)
-func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,capsule,wounds:Array)->Dictionary:
+func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,capsule,wounds:Array,hand:=-1)->Dictionary:
 	var result:={"valid":true,"position":target,"contacts":[],"normal":Vector3.ZERO,"records":[]}
 	if not start.is_finite() or not target.is_finite() or not is_finite(radius) or radius<=0. or radius>.5: result.valid=false; result.position=start if start.is_finite() else Vector3.ZERO; return result
 	if start.distance_squared_to(target)<.00000000000001: return result
 	var current:=start; var desired:=target
-	var surfaces:={"cornea":cornea,"iris":iris,"posterior":posterior,"capsule":{"positions":capsule.positions,"triangles":capsule.triangles}}
+	var cap_triangles:PackedInt32Array=capsule.collision_triangles(hand) if hand>=0 and capsule is Object and capsule.has_method("collision_triangles") else capsule.triangles
+	var surfaces:={"cornea":cornea,"iris":iris,"posterior":posterior,"capsule":{"positions":capsule.positions,"triangles":cap_triangles}}
 	for attempt in range(4):
 		var first:Dictionary={}; var label:=""
 		for id in surfaces:
@@ -45,6 +47,7 @@ func _corneal_window(point:Vector3,wounds:Array,cutting:bool,radius:float)->bool
 	if cutting:
 		for portal in (geometry.portals if geometry else [Vector3(1.44,.86,0),Vector3(-1.44,.86,.25)]):
 			if point.distance_to(portal)<.34: return true
+	if geometry: return EntryWindow.contains(point,wounds,radius,geometry.wound_radius,geometry.portals)
 	for path in wounds:
 		if not (path is Array or path is PackedVector3Array): continue
 		for i in range(1,path.size()):

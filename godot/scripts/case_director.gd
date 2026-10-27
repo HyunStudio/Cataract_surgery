@@ -17,6 +17,7 @@ var _ending := ""
 var _motion_issued := false
 var _milestones: Dictionary = {}
 var _last_tool := ""
+var _extraction_required:=false
 var _injury_seen:=false
 var _injury_area:Dictionary={"posterior":0.,"corneal":0.}
 
@@ -29,6 +30,7 @@ func reset(case_id: String = "standard", seed_id: int = 1) -> void:
 	_preparation={"patient":false,"side":false,"equipment":false}
 	_inspection={"residual":false,"implant":false,"wound":false}
 	_latest={}; _timeline=[]
+	_extraction_required=false
 	_milestones={}; _last_tool=""; _injury_seen=false; _injury_area={"posterior":0.,"corneal":0.}
 	_event("case_started",{"case_id":_case,"seed":_seed})
 
@@ -50,6 +52,7 @@ func observe(dt: float, observation: Dictionary) -> void:
 	if not ready() or not is_finite(dt) or dt<=0. or dt>.1 or not _valid_observation(observation): return
 	_elapsed+=dt
 	_latest=observation.duplicate(true)
+	_extraction_required=_extraction_required or observation.get("capsule_extraction_required",false)
 	var injury:Dictionary=observation.get("injury",{})
 	for surface in ["posterior","corneal"]:
 		var area:float=injury.get(surface+"_open_area",0.)
@@ -60,9 +63,10 @@ func observe(dt: float, observation: Dictionary) -> void:
 	var observed_tool: String = str(observation.get("tool",""))
 	if observed_tool!=_last_tool:
 		_last_tool=observed_tool; _event("instrument_selected",{"tool":observed_tool})
-	for milestone in ["material_removed","implant_delivery","implant_deployed","implant_aligned","entry_observed"]:
+	for milestone in ["capsule_flap_removed","material_removed","implant_delivery","implant_deployed","implant_aligned","entry_observed"]:
 		var reached := false
 		match milestone:
+			"capsule_flap_removed": reached=_extraction_required and _capsule_clear()
 			"material_removed": reached=_satisfied("residual")
 			"implant_delivery": reached=observation.iol.delivered>0.
 			"implant_deployed": reached=observation.iol.deployed
@@ -88,6 +92,12 @@ func _valid_observation(o: Dictionary) -> bool:
 	for key in ["energy","movement"]:
 		var value = o.get(key,0.)
 		if not (value is float or value is int) or not is_finite(value) or value<0.: return false
+	if o.has("capsule_extraction_required") and not o.capsule_extraction_required is bool: return false
+	if _extraction_required or o.get("capsule_extraction_required",false):
+		if not o.capsule.get("extracted_flaps") is int or o.capsule.extracted_flaps<0: return false
+		for key in ["extracted_area","retained_detached_area"]:
+			var value=o.capsule.get(key)
+			if not (value is float or value is int) or not is_finite(value) or value<0.: return false
 	if o.has("injury"):
 		var injury=o.injury
 		if not injury is Dictionary or injury.get("finite")!=true: return false
@@ -99,6 +109,11 @@ func _valid_observation(o: Dictionary) -> bool:
 		for surface in ["posterior","corneal"]:
 			if injury[surface+"_breached"]!=(injury[surface+"_open_area"]>.00000001): return false
 	return true
+
+func _capsule_clear()->bool:
+	if not _extraction_required: return true
+	var state:Dictionary=_latest.get("capsule",{})
+	return state.get("extracted_flaps",0)>0 and state.get("extracted_area",0.)>0. and state.get("retained_detached_area",INF)<=1e-8
 
 func _satisfied(check_id: String) -> bool:
 	if _latest.is_empty(): return false
@@ -115,7 +130,7 @@ func inspect(check_id: String) -> bool:
 	return true
 
 func finish() -> bool:
-	if not ready() or _alert!="" or _injury_seen or false in _inspection.values(): return false
+	if not ready() or _alert!="" or _injury_seen or not _capsule_clear() or false in _inspection.values(): return false
 	for check_id in INSPECTIONS:
 		if not _satisfied(check_id): return false
 	_stage="debrief"; _ending="completed"; _event("completed")

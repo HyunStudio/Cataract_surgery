@@ -23,5 +23,15 @@ func _initialize() -> void:
 	rig.adjust_pitch(.3)
 	check(absf((rig.tip-rig.portal).length()-rig.insertion)<.00001,"pitch preserves insertion constraint")
 	check(rig.tip.is_finite(),"finite tool pose")
+	check(rig.has_method("place_tip"),"rig supports a tip moving outside the incision pivot during extraction")
+	if rig.has_method("place_tip"):
+		rig.allow_withdrawal=true
+		var exterior:Vector3=rig.portal+Vector3(.6,.4,0)
+		rig.place_tip(exterior)
+		check(rig.insertion<0. and rig.tip.distance_to(exterior)<.0001,"signed withdrawal moves the actual tip outside without reversing the shaft")
+	rig.axis=Vector3.LEFT
+	var close_tip:Vector3=rig.portal+Vector3(-.02,.02,0)
+	rig.place_tip(close_tip)
+	check(rig.tip.distance_to(close_tip)<.00001,"near-pivot correction preserves oblique contact position")
 	print("Instrument rig tests: ",failures," failures")
 	quit(1 if failures else 0)

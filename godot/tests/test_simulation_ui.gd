@@ -73,6 +73,10 @@ func run() -> void:
 	state.metrics["length_unit"]="mm"; state.metrics["area_unit"]="mm²"; state.metrics["corneal_damage_area"]=.5
 	ui.refresh(state)
 	check(ui.report_text().contains("12.340 mm") and ui.report_text().contains("mm²") and ui.report_text().contains("각막 표면 손상"),"dimensioned reports label real length scale and distinguish surface damage")
+	state.metrics["extracted_flaps"]=1; state.metrics["extracted_area"]=4.634; state.metrics["retained_detached_area"]=0.
+	state.director.timeline.append({"time":10.,"event":"capsule_flap_removed"})
+	ui.refresh(state)
+	check(ui.report_text().contains("4.634") and ui.report_text().contains("분리 전낭편 인출 확인"),"debrief shows measured extracted area and named flap event")
 	ui.sound_toggle.button_pressed=true
 	check(app.calls.has(["sound",true]),"sound accessibility toggle invokes app")
 	ui.review_slider.value=5

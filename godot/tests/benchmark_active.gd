@@ -13,8 +13,13 @@ func run()->void:
 	for i in range(100):
 		var a:=TAU*i/99.
 		app._set_tip(0,Vector3(.57*cos(a),app.geometry.bag_front(.57)-.005,.57*sin(a))); app._physics_process(1./60.)
-	app.release_controls(); app._set_tip(0,Vector3(.57,.28,0)); app._physics_process(1./60.)
-	app.choose_tool("phaco"); app._set_tip(0,Vector3(.57,.18,0)); app._physics_process(1./60.)
+	app.release_controls()
+	for p in [Vector3(.57,.70,0),Vector3(1.32,.52,0),Vector3(1.32,.95,0),Vector3(1.95,.95,0)]:
+		app._set_tip(0,p); app._physics_process(1./60.)
+	app.choose_tool("phaco")
+	if app.hand_tools[0]!="phaco": push_error("active benchmark failed exterior tool exchange"); quit(1); return
+	for p in [Vector3(1.32,.8,0),Vector3(1.32,.65,0),Vector3(.9,.68,0),Vector3(0,.75,0),Vector3(.57,.18,0)]:
+		app._set_tip(0,p); app._physics_process(1./60.)
 	app.set_preset("balanced"); app.set_machine("energy",1.); app.set_machine("suction",1.); app.set_machine("inflow",1.)
 	app.handle_pedal(false,false,true); app.handle_pedal(true,false,true)
 	app.set_physics_process(true)
@@ -29,7 +34,7 @@ func run()->void:
 	var total:=0.
 	for value in samples: total+=value
 	samples.sort()
-	var report:={"controls":app.machine.duplicate(),"tip":[app.rigs[0].tip.x,app.rigs[0].tip.y,app.rigs[0].tip.z],"tissue_access":app.lens.tissue_access,"membrane_broken_edges":app.capsule.metrics().broken_edges,"case_alert":app.director.snapshot().alert,"scene":"Dimensioned volumetric eye, full corneal shell, moving powered phaco, continuous tip contact, live membrane/lens and UI","resolution":[1920,1080],"duration_seconds":30,"warmup_seconds":2,"adapter":RenderingServer.get_video_adapter_name(),"frames":samples.size(),"mean_frame_ms":total/samples.size(),"p95_frame_ms":samples[int(samples.size()*.95)],"mean_fps":1000.*samples.size()/total,"lens":app.lens.metrics(),"energy_exposure":app.metrics.energy_exposure,"path_length":app.metrics.path_length}
+	var report:={"controls":app.machine.duplicate(),"tip":[app.rigs[0].tip.x,app.rigs[0].tip.y,app.rigs[0].tip.z],"tissue_access":app.lens.tissue_access,"membrane_broken_edges":app.capsule.metrics().broken_edges,"retained_detached_area":app.capsule.metrics().retained_detached_area,"extracted_flaps":app.capsule.metrics().extracted_flaps,"case_alert":app.director.snapshot().alert,"scene":"Dimensioned volumetric eye, full corneal shell, moving powered phaco, continuous tip contact, live membrane/lens and UI","resolution":[1920,1080],"duration_seconds":30,"warmup_seconds":2,"adapter":RenderingServer.get_video_adapter_name(),"frames":samples.size(),"mean_frame_ms":total/samples.size(),"p95_frame_ms":samples[int(samples.size()*.95)],"mean_fps":1000.*samples.size()/total,"lens":app.lens.metrics(),"energy_exposure":app.metrics.energy_exposure,"path_length":app.metrics.path_length}
 	var file:=FileAccess.open("res://reports/benchmark-active.json",FileAccess.WRITE); file.store_string(JSON.stringify(report,"  "))
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png("res://reports/professional-active.png")

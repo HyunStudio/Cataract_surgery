@@ -12,6 +12,19 @@ func safe_target(app,p:Vector3)->Vector3:
 	var margin:float=app._radius(app.selected)+.035
 	p.y=clampf(p.y,app.geometry.bag_back(r)+margin,app.geometry.bag_front(r)-margin)
 	return p
+func walk(app,target:Vector3)->void:
+	var tip:Vector3=app.rigs[app.selected].tip
+	for i in range(1000):
+		if tip.distance_to(target)<.0001: break
+		tip=tip.move_toward(target,.005); place(app,tip)
+		if app.rigs[app.selected].tip.distance_to(tip)>.035:
+			check(false,"continuous extraction pose must remain reachable: requested %s resolved %s"%[tip,app.rigs[app.selected].tip]); return
+	check(app.rigs[app.selected].tip.distance_to(target)<.035,"constrained tool reaches intended extraction route point")
+func exchange(app,id:String)->void:
+	app.release_controls()
+	for p in [Vector3(0,.70,0),Vector3(1.32,.52,0),Vector3(1.32,.95,0),Vector3(1.95,.95,0)]: place(app,p)
+	app.choose_tool(id); check(app.hand_tools[0]==id,"exchange after actual exterior withdrawal")
+	for p in [Vector3(1.32,.80,0),Vector3(1.32,.65,0),Vector3(.9,.68,0),Vector3(0,.75,0),Vector3(0,.20,0)]: place(app,p)
 func run()->void:
 	var app=load("res://scripts/simulator.gd").new(); root.add_child(app); app.set_physics_process(false)
 	await process_frame
@@ -30,8 +43,38 @@ func run()->void:
 		var a:=TAU*i/144.; var r:=.57
 		place(app,Vector3(r*cos(a),app.geometry.bag_front(r)-.005,r*sin(a)))
 	check(app.capsule.metrics().broken_edges>0,"dimensioned anterior opening changes actual membrane connectivity")
-	app.release_controls(); place(app,Vector3(.57,.28,0))
-	app.choose_tool("cannula"); app.set_machine("inflow",1.)
+	app.release_controls()
+	for p in [Vector3(.57,.70,0),Vector3(1.32,.52,0),Vector3(1.32,.95,0),Vector3(1.95,.95,0)]: place(app,p)
+	app.choose_tool("forceps")
+	for p in [Vector3(1.32,.80,0),Vector3(1.32,.65,0),Vector3(.9,.68,0)]: place(app,p)
+	var pieces:Array=app.capsule.detached_components()
+	check(not pieces.is_empty(),"cut retains a real detached anterior flap")
+	if pieces.is_empty(): app.queue_free(); await process_frame; quit(1); return
+	var vertex:int=pieces[0].vertices[0]
+	for v in pieces[0].vertices:
+		if app.capsule.positions[v].x>app.capsule.positions[vertex].x: vertex=v
+	var edge:Vector3=app.capsule.positions[vertex]
+	place(app,edge+Vector3(0,.025,0)); app.grip_down=true; tick(app,2)
+	check(app.capsule.metrics().grasped>=0,"actual forceps contacts and holds a supported flap vertex")
+	var held_frame:Dictionary=app.display.capture_frame()
+	var held_indices:PackedInt32Array=held_frame.capsule.triangles.duplicate()
+	for p in [Vector3(edge.x,.90,0),Vector3(.9,.70,0),Vector3(1.32,.50,0),Vector3(1.32,.76,0),Vector3(1.80,1.0,0),Vector3(2.10,1.15,0)]:
+		walk(app,p)
+		if DisplayServer.get_name()!="headless" and p==Vector3(1.32,.76,0):
+			await process_frame; await RenderingServer.frame_post_draw
+			root.get_texture().get_image().save_png("res://reports/capsule-extraction.png")
+	tick(app,60)
+	check(app.capsule.metrics().extracted_flaps>0 and app.capsule.metrics().retained_detached_area<1e-8,"forceps carries the actual complete flap through the shared wound")
+	check(held_frame.capsule.triangles==held_indices and held_indices.size()>app.capsule.triangles.size(),"actual displayed earlier flap remains immutable after extraction")
+	app.display.apply_frame(held_frame)
+	check(app.display.capture_frame().capsule.triangles==held_indices,"recorded retained flap restores its actual faces")
+	app.update_geometry()
+	check(app.display.capture_frame().capsule.triangles==app.capsule.triangles,"live extracted topology restores after preview")
+	print("Default extraction: ",app.capsule.metrics())
+	if failures: app.queue_free(); await process_frame; quit(1); return
+	app.release_controls(); app.choose_tool("cannula")
+	for p in [Vector3(1.32,.80,0),Vector3(1.32,.65,0),Vector3(.9,.68,0),Vector3(0,.75,0),Vector3(0,.20,0)]: place(app,p)
+	app.set_machine("inflow",1.)
 	app.handle_pedal(false,false,true,1); app.handle_pedal(true,false,true,1)
 	for step in range(4500):
 		var attached:=-1.; var target:=Vector3.ZERO
@@ -43,7 +86,7 @@ func run()->void:
 		if step%200==0: await process_frame
 	print("Volumetric hydro: ",app.lens.metrics()," alert=",app.director.snapshot().alert," tip=",app.rigs[0].tip)
 	check(app.lens.metrics().adhesion_released>.8,"accepted local flow releases the volumetric cortical shell")
-	app.release_controls(); app.choose_tool("phaco")
+	exchange(app,"phaco")
 	app.set_machine("energy",1.); app.set_machine("suction",1.); app.set_machine("inflow",1.)
 	app.handle_pedal(false,false,true); app.handle_pedal(true,false,true)
 	for step in range(4000):
@@ -57,7 +100,7 @@ func run()->void:
 		if step%200==0: await process_frame
 	print("Volumetric phaco: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().nucleus_remaining<.01,"powered local tool removes volumetric nucleus")
-	app.release_controls(); app.choose_tool("ia")
+	exchange(app,"ia")
 	app.handle_pedal(false,false,true,2); app.handle_pedal(true,false,true,2)
 	for step in range(3000):
 		var found:=false; var target:=Vector3.ZERO; var nearest:=INF
@@ -70,7 +113,7 @@ func run()->void:
 		if step%200==0: await process_frame
 	print("Volumetric IA: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().removed_mass>=.98,"dimensioned full encounter aspirates material through actual inlet")
-	app.release_controls(); app.choose_tool("injector"); place(app,Vector3.ZERO); app.grip_down=true
+	exchange(app,"injector"); place(app,Vector3.ZERO); app.grip_down=true
 	tick(app,110); app.release_controls(); tick(app,180)
 	for p in [Vector3(.57,.25,0),Vector3(.57,.62,0),Vector3(.96,.52,0),Vector3(1.32,.52,0),Vector3(1.32,.95,0)]:
 		place(app,p); print("Withdraw route ",p," -> ",app.rigs[0].tip," ",app.last_contacts)

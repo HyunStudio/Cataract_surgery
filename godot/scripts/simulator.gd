@@ -1,5 +1,8 @@
 extends Control
 ## Specialist simulation game: numerical tissue, instrument constraints and evidence-based cases.
+const FlapBoundary=preload("res://scripts/flap_boundary.gd")
+var _flap_boundary:RefCounted
+var _flap_revision:=-1
 const Segment=preload("res://scripts/anterior_segment.gd")
 var anatomical:=true
 var geometry:RefCounted
@@ -112,10 +115,16 @@ func new_case(id: String) -> void:
 	target_planes=[_plane("forceps"),_plane("phaco")]
 	rigs[0].portal=incision.portals[0]; rigs[1].portal=incision.portals[1]
 	for hand in range(2):
-		rigs[hand].aim_at(Vector3(0,.65 if geometry else .8,0)); rigs[hand].set_insertion(.05 if geometry else .12)
+		rigs[hand].allow_withdrawal=geometry!=null
+		rigs[hand].aim_at(Vector3(0,.65 if geometry else .8,0)); rigs[hand].set_insertion(-.2 if geometry else .12)
 		targets[hand]=rigs[hand].tip; previous_tips[hand]=rigs[hand].tip; target_valid[hand]=false
 	pupil_radius=geometry.pupil_radius(case_id=="small_pupil") if geometry else (.74 if case_id=="small_pupil" else .98)
 	anatomy.set_pupil(pupil_radius); last_contacts=[[],[]]
+	_flap_boundary=FlapBoundary.new() if geometry else null; _flap_revision=-1
+	if _flap_boundary:
+		_flap_boundary.portals=geometry.portals.duplicate(); _flap_boundary.wound_radius=geometry.wound_radius
+		_flap_boundary.configure(anatomy.cornea,anatomy.iris); _flap_revision=anatomy.cornea.revision
+	capsule.tissue_boundary=_flap_boundary
 	implant_hand=-1; implant_nozzle=Vector3(0,_plane("injector"),0)
 	clock=0.; samples=[]; _sample_accum=0.; _ui_accum=0.
 	metrics={"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.,"capsule_contacts":0.,"cornea_contacts":0.}
@@ -151,6 +160,8 @@ func _plane(id:String)->float:
 
 func choose_tool(id: String) -> void:
 	if id not in IDS: return
+	if geometry and id!=hand_tools[selected] and (rigs[selected].insertion>0. or rigs[selected].tip.distance_to(previous_tips[selected])>.001):
+		_disarm_actions(); status="열린 통로로 현재 기구를 완전히 인출한 뒤 교체하세요."; refresh_ui(); return
 	if selected==implant_hand and iol.metrics().delivered<1. and id!="injector":
 		status="부분 전달 중인 인젝터를 유지하세요. 다른 손은 Tab으로 선택할 수 있습니다."; refresh_ui(); return
 	_disarm_actions(); latched[selected]=false; capsule.release_hand(selected)
@@ -225,8 +236,12 @@ func set_preset(name: String) -> void:
 
 func withdraw_tools() -> void:
 	release_controls()
-	for hand in range(2): rigs[hand].set_insertion(.06); target_valid[hand]=false
-	status="기구 인출. 진입부가 안정된 뒤 최종 검사를 수행하세요."
+	for hand in range(2):
+		if geometry:
+			targets[hand]=rigs[hand].portal-rigs[hand].axis*.35; target_valid[hand]=true
+		else:
+			rigs[hand].set_insertion(.06); target_valid[hand]=false
+	status="기구 인출 중. 열린 절개창에 맞춘 경로인지 확인하세요."
 	update_geometry()
 
 func acknowledge() -> void:
@@ -316,7 +331,7 @@ func _notification(what: int) -> void:
 	if what in [MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT,NOTIFICATION_WM_WINDOW_FOCUS_OUT]: release_controls()
 
 func _set_tip(hand: int, target: Vector3) -> void:
-	rigs[hand].aim_at(target); rigs[hand].set_insertion(rigs[hand].portal.distance_to(target))
+	rigs[hand].place_tip(target)
 
 func _advance_motion(dt: float) -> float:
 	var distance:=0.
@@ -326,7 +341,7 @@ func _advance_motion(dt: float) -> float:
 		if target_valid[hand]: _set_tip(hand,before.move_toward(targets[hand],dt*1.5))
 		if not incision.opened[hand] and hand_tools[hand]!="knife": rigs[hand].set_insertion(minf(.05 if geometry else .12,rigs[hand].insertion))
 		var wounds:Array=_open_wounds()
-		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,_radius(hand),hand_tools[hand],hand==selected and grip_down,capsule,wounds)
+		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,_radius(hand),hand_tools[hand],hand==selected and grip_down,capsule,wounds,hand)
 		_set_tip(hand,contact.position if contact.valid else previous_tips[hand])
 		for surface in contact.contacts:
 			metrics[surface+"_contacts"]+=dt
@@ -366,6 +381,10 @@ func _physics_process(dt: float) -> void:
 	var tools: Array[Dictionary]=[]
 	for hand in range(2):
 		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":_radius(hand),"grip":hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
+	if _flap_boundary:
+		_flap_boundary.wounds=_open_wounds()
+		if anatomy.cornea.revision!=_flap_revision:
+			_flap_boundary.configure(anatomy.cornea,anatomy.iris); _flap_revision=anatomy.cornea.revision
 	capsule.step_tools(dt,tools)
 	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
 	if injecting and implant_hand==-1: implant_hand=selected
@@ -413,7 +432,7 @@ func _anatomy_state()->Dictionary:
 	return state
 
 func _observation(movement:=0.,energy:=0.) -> Dictionary:
-	return {"capsule":_last_capsule,"lens":_last_lens,"iol":_last_iol,"injury":_last_injury,"wound":incision.metrics().sealed and not _last_injury.get("corneal_breached",false) and not _last_injury.get("posterior_breached",false),"energy":energy,"movement":movement,"tool":hand_tools[selected]}
+	return {"capsule_extraction_required":geometry!=null,"capsule":_last_capsule,"lens":_last_lens,"iol":_last_iol,"injury":_last_injury,"wound":incision.metrics().sealed and not _last_injury.get("corneal_breached",false) and not _last_injury.get("posterior_breached",false),"energy":energy,"movement":movement,"tool":hand_tools[selected]}
 
 func _cache_metrics() -> void:
 	_last_capsule=capsule.metrics(); _last_lens=lens.metrics(); _last_iol=iol.metrics(); _last_injury=injury.metrics()
@@ -441,6 +460,7 @@ func refresh_ui() -> void:
 	if case_active and state.ending=="" and state.alert=="":
 		if incision.metrics().entry_count==0: objective="절개도로 진입부 형성 · 각막 주변의 짧은 연속 경로"
 		elif _last_capsule.get("broken_edges",0)==0 and _last_lens.get("remaining_mass",1.)>.98: objective="집게·절개도로 전낭 접근과 개방 · 조직 반응 관찰"
+		elif geometry and (_last_capsule.get("extracted_flaps",0)==0 or _last_capsule.get("retained_detached_area",0.)>1e-8): objective="분리된 전낭편 확인 · 집게로 가장자리를 잡아 열린 통로로 인출"
 		elif float(_last_lens.get("nucleus_remaining",0.))<.01 and float(_last_lens.get("cortex_remaining",0.))>.02: objective="피질 잔여물 확인 · 관류·흡인 기구로 국소 제거"
 		elif float(_last_lens.get("adhesion_released",1.))<.2 and _last_capsule.get("broken_edges",0)>0: objective="캐뉼라 국소 관류 · 피질 부착과 핵의 움직임 관찰"
 	var report_metrics:=metrics.duplicate()
@@ -449,10 +469,12 @@ func refresh_ui() -> void:
 	report_metrics["wound_leak"]=incision.metrics().leak
 	report_metrics["posterior_open_area"]=_last_injury.get("posterior_open_area",0.); report_metrics["corneal_open_area"]=_last_injury.get("corneal_open_area",0.)
 	report_metrics["corneal_damage_area"]=_last_injury.get("corneal_damage_area",0.)
+	report_metrics["extracted_flaps"]=_last_capsule.get("extracted_flaps",0)
+	for key in ["extracted_area","retained_detached_area","cut_loss_area"]: report_metrics[key]=_last_capsule.get(key,0.)
 	if geometry:
 		report_metrics["length_unit"]="mm"; report_metrics["area_unit"]="mm²"
 		report_metrics["path_length"]/=geometry.units_per_mm
-		for key in ["posterior_open_area","corneal_open_area","corneal_damage_area"]: report_metrics[key]/=geometry.units_per_mm*geometry.units_per_mm
+		for key in ["posterior_open_area","corneal_open_area","corneal_damage_area","extracted_area","retained_detached_area","cut_loss_area"]: report_metrics[key]/=geometry.units_per_mm*geometry.units_per_mm
 	ui.refresh({"director":state,"case_id":case_id,"room_view":room_view,"paused":paused,"status":status,"tools":hand_tools,"selected":selected,"latched":latched,"clock":clock,"pedal_stage":pedal_stage,"capsule":_last_capsule,"lens":_last_lens,"iol":_last_iol,"wound":incision.metrics(),"assisted":assisted,"debug":wireframe,"frame_count":recording.frames.size(),"reviewing":reviewing,"metrics":report_metrics,"machine":machine,"pupil_radius":pupil_radius,"ending":state.ending,"objective":objective,"show_briefing":not case_active and state.ending=="","practice":practice,"sound":_sound,"high_contrast":high_contrast,"reduced_motion":reduced_motion,"review_index":review_index,"injury":_last_injury})
 
 func preview_frame(index: int) -> void:

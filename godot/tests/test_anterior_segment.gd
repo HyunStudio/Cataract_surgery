@@ -52,8 +52,10 @@ func run()->void:
 	var wounds:=[[Vector3(1.32,.80,-.25),Vector3(1.32,.80,.25)]]
 	var passage:Dictionary=coordinator.resolve(Vector3(1.32,.52,0),Vector3(1.32,.95,0),.07,"injector",false,empty_cap,wounds)
 	check(not "cornea" in passage.contacts,"full-radius instrument fits the cylindrical wound through both sloped corneal surfaces")
-	passage=coordinator.resolve(Vector3(1.36,.52,0),Vector3(1.36,.95,0),.07,"injector",false,empty_cap,wounds)
+	passage=coordinator.resolve(Vector3(1.32,.52,.30),Vector3(1.32,.95,.30),.07,"injector",false,empty_cap,wounds)
 	check("cornea" in passage.contacts,"instrument footprint cannot overrun the dimensioned wound edge")
+	app._set_tip(0,Vector3(0,.75,0)); app.choose_tool("cannula")
+	check(app.hand_tools[0]=="forceps","dimensioned tool exchange requires withdrawing the current instrument")
 	app.start_practice(); app.choose_tool("phaco"); app._set_tip(0,Vector3(0,.20,0)); app.update_geometry()
 	var model:Node3D=app.display.tool_models[0]["phaco"]
 	var handle:Node3D=model.find_child("Handpiece",true,false)

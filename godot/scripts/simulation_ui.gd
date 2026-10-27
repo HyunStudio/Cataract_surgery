@@ -319,6 +319,7 @@ func _refresh_report(state: Dictionary,director: Dictionary,ending: String) -> v
 	var lens: Dictionary=state.get("lens",{}); var iol: Dictionary=state.get("iol",{})
 	var title: String="연습 종료" if state.get("practice",false) else ("사례 완료" if ending=="completed" else "안전 중단")
 	var lines: Array[String]=[title,"잔여 수정체 %.1f%%  ·  제거 질량 %.1f%%"%[float(lens.get("remaining_mass",1.))*100,float(lens.get("removed_mass",0.))*100],"IOL 전달 %.1f%%  ·  중심 정렬 %.1f%%"%[float(iol.get("delivered",0.))*100,float(iol.get("alignment",0.))*100],"","관찰 시간 %.1f s  ·  기구 이동 %.3f %s"%[observed.get("time_seconds",state.get("clock",0.)),observed.get("path_length",0.),observed.get("length_unit","sim")],"유화 작용 누적 %.3f  (상대 적분)"%observed.get("energy_exposure",0.),"홍채 접촉 %.2f s  ·  후방 접촉 %.2f s"%[observed.get("iris_contacts",0.),observed.get("posterior_contacts",0.)],"전낭 접촉 제한 %.2f s  ·  각막 접촉 제한 %.2f s"%[observed.get("capsule_contacts",0.),observed.get("cornea_contacts",0.)],"막 연결 파열 %d  ·  상처 누출 %.3f  (시뮬레이션 값)"%[observed.get("tissue_breaks",0),observed.get("wound_leak",0.)],"후낭 결손 면적 %.5f  ·  각막 전층 결손 %.5f  (%s)"%[observed.get("posterior_open_area",0.),observed.get("corneal_open_area",0.),observed.get("area_unit","모델 단위")],"각막 표면 손상 %.5f  (%s)"%[observed.get("corneal_damage_area",0.),observed.get("area_unit","모델 단위")],"","관찰 기록  /  TIMELINE"]
+	lines.insert(3,"전낭편 인출 %d개 · 인출 면적 %.3f · 안구 내 분리편 %.3f (%s)"%[observed.get("extracted_flaps",0),observed.get("extracted_area",0.),observed.get("retained_detached_area",0.),observed.get("area_unit","모델 단위")])
 	for event in timeline.slice(maxi(0,timeline.size()-100)):
 		if event is Dictionary: lines.append("%6.1fs   %s"%[event.get("time",0.),_event_caption(event)])
 	lines.append("\n수치 기록은 이 시뮬레이션 사례의 관찰값입니다.")
@@ -328,7 +329,7 @@ func report_text() -> String:
 	return _report.text
 
 func _event_caption(event: Dictionary) -> String:
-	var names: Dictionary={"case_started":"사례 시작","preparation":"준비 확인","operation_started":"수술 조작 시작","instrument_selected":"기구 선택","material_removed":"수정체 잔여물 제거 확인","implant_delivery":"IOL 전달 시작","implant_deployed":"IOL 전개 확인","implant_aligned":"IOL 중심 정렬 확인","entry_observed":"진입 상처 관찰","inspection":"최종 검사 확인","inspection_invalidated":"상태 변화로 검사 재확인 필요","patient_motion":"환자 움직임 감지","alert_acknowledged":"상태 평가 기록","completed":"사례 완료","safe_stop":"안전 중단","structural_injury":"조직 구조 손상"}
+	var names: Dictionary={"case_started":"사례 시작","preparation":"준비 확인","operation_started":"수술 조작 시작","instrument_selected":"기구 선택","capsule_flap_removed":"분리 전낭편 인출 확인","material_removed":"수정체 잔여물 제거 확인","implant_delivery":"IOL 전달 시작","implant_deployed":"IOL 전개 확인","implant_aligned":"IOL 중심 정렬 확인","entry_observed":"진입 상처 관찰","inspection":"최종 검사 확인","inspection_invalidated":"상태 변화로 검사 재확인 필요","patient_motion":"환자 움직임 감지","alert_acknowledged":"상태 평가 기록","completed":"사례 완료","safe_stop":"안전 중단","structural_injury":"조직 구조 손상"}
 	var kind: String=str(event.get("event",""))
 	var caption: String=names.get(kind,"관찰 이벤트")
 	var details: Dictionary=event.get("details",{})

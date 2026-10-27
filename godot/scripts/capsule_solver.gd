@@ -5,6 +5,16 @@ const RINGS := 6
 const SECTORS := 36
 const RADIUS := .88
 const MAX_DT := .1
+var tissue_boundary:RefCounted
+var _removed:=PackedByteArray()
+var _outside:=PackedByteArray()
+var _vertex_component:=PackedInt32Array()
+var _components:Array[Dictionary]=[]
+var _component_dirty:=true
+var _extracted_flaps:=0
+var _extracted_area:=0.
+var _initial_area:=0.
+var _retained_area:=0.
 var geometry:RefCounted
 var positions := PackedVector3Array()
 var rest_positions := PackedVector3Array()
@@ -42,6 +52,7 @@ func _init() -> void:
 	reset()
 
 func reset() -> void:
+	tissue_boundary=null; _extracted_flaps=0; _extracted_area=0.; _components=[]; _component_dirty=true
 	positions = PackedVector3Array([Vector3(0, .82, 0)])
 	anchored = PackedByteArray([0])
 	edges = []; _faces = []; _face_edges = []; _edge_map = {}
@@ -62,6 +73,7 @@ func reset() -> void:
 			var r:float=geometry.bag_radius*sin(theta)
 			var angle:float=TAU*((i-1)%SECTORS)/SECTORS if i>0 else 0.
 			positions[i]=Vector3(cos(angle)*r,0. if anchored[i]!=0 else geometry.bag_half_thickness*cos(theta),sin(angle)*r)
+	_removed.resize(positions.size()); _removed.fill(0); _outside.resize(positions.size()); _outside.fill(0)
 	rest_positions = positions.duplicate()
 	_previous = positions.duplicate()
 	_incident = []
@@ -76,7 +88,7 @@ func reset() -> void:
 			var d := _vertex(ring + 1, sector + 1)
 			_add_face(a, b, c)
 			_add_face(b, d, c)
-	_rebuild_triangles()
+	_rebuild_triangles(); _initial_area=_retained_area
 	_rest_area = PackedFloat64Array()
 	_rest_area.resize(positions.size())
 	for face in _faces:
@@ -104,14 +116,28 @@ func _edge(a: int, b: int) -> int:
 	return index
 
 func _rebuild_triangles() -> void:
-	triangles = PackedInt32Array()
+	triangles.clear(); _retained_area=0.
+	var support:=PackedInt32Array(); support.resize(_edge_a.size()); support.fill(0)
 	for i in range(_faces.size()):
-		var intact := true
+		var intact:=true
+		for v in _faces[i]:
+			if _removed[v]!=0: intact=false
 		for edge_id in _face_edges[i]:
-			if _edge_active[edge_id] == 0: intact = false
-		if intact:
-			for vertex_id in _faces[i]: triangles.append(vertex_id)
-	_dirty = false
+			if _edge_active[edge_id]==0: intact=false
+		if not intact: continue
+		for vertex_id in _faces[i]: triangles.append(vertex_id)
+		for edge_id in _face_edges[i]: support[edge_id]+=1
+		var face:Array=_faces[i]
+		_retained_area+=(rest_positions[face[1]]-rest_positions[face[0]]).cross(rest_positions[face[2]]-rest_positions[face[0]]).length()*.5
+	if geometry:
+		# An edge without any surviving membrane face cannot remain an invisible tether.
+		for edge_id in range(_edge_a.size()):
+			if support[edge_id]==0: _edge_active[edge_id]=0; edges[edge_id].active=false
+		for hand in _grasps.keys():
+			if not _connected(_grasps[hand]): _grasps.erase(hand)
+		_pinned=anchored.duplicate()
+		for vertex in _grasps.values(): _pinned[vertex]=1
+	_dirty=false; _component_dirty=true
 
 func release() -> void:
 	_grasps.clear()
@@ -153,25 +179,27 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		if not present.has(hand_id): _grasps.erase(hand_id)
 	for tool in tools:
 		if not tool.grip: _grasps.erase(tool.hand)
+	_refresh_components()
 	for tool in tools:
 		if not tool.grip or _grasps.has(tool.hand): continue
 		var nearest: float = tool.radius
 		var vertex := -1
 		for i in range(positions.size()):
-			if anchored[i] != 0 or i in _grasps.values() or not _connected(i): continue
+			if _removed[i]!=0 or anchored[i] != 0 or i in _grasps.values() or not _connected(i): continue
 			var distance: float = positions[i].distance_to(tool.tip)
 			if distance <= nearest: nearest = distance; vertex = i
 		if vertex >= 0: _grasps[tool.hand] = vertex
 	_pinned = anchored.duplicate()
 	for vertex in _grasps.values(): _pinned[vertex] = 1
 	for i in range(positions.size()):
-		_inverse_mass[i] = 0.0 if _pinned[i] != 0 else 1.0 / (surface_density * _rest_area[i])
+		_inverse_mass[i] = 0.0 if _pinned[i] != 0 or _removed[i]!=0 else 1.0 / (surface_density * _rest_area[i])
 	_integration_steps += 1
 	var damping_factor := clampf(damping, 0, 1)
 	for substep in range(substeps):
+		var contact_previous:=positions.duplicate() if tissue_boundary else PackedVector3Array()
 		var acceleration := _pressure_acceleration()
 		for i in range(positions.size()):
-			if anchored[i] != 0: continue
+			if anchored[i] != 0 or _removed[i]!=0: continue
 			var old := positions[i]
 			positions[i] += (positions[i] - _previous[i]) * damping_factor + acceleration[i] * h * h
 			_previous[i] = old
@@ -216,10 +244,11 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 			elif _pinned[i] != 0:
 				_previous[i] = positions[i]
 		if _dirty: _rebuild_triangles()
+		if tissue_boundary and geometry: _boundary_step(contact_previous)
 
 func _project_contact(tip: Vector3, radius: float) -> void:
 	for i in range(positions.size()):
-		if _pinned[i] != 0: continue
+		if _pinned[i] != 0 or _removed[i]!=0: continue
 		var offset := positions[i] - tip
 		if offset.length() < radius:
 			positions[i] = tip + (offset.normalized() if offset.length() > .000001 else Vector3.UP) * radius
@@ -228,9 +257,12 @@ func _pressure_acceleration() -> PackedVector3Array:
 	var forces := PackedVector3Array()
 	forces.resize(positions.size())
 	if pressure_load == 0.0: return forces
+	if geometry: _refresh_components()
 	# Oriented area vector gives pressure force along each intact face's current normal.
 	for offset in range(0, triangles.size(), 3):
 		var a := triangles[offset]
+		# A free flap is wetted on both sides by the same compartment.
+		if geometry and not _components[_vertex_component[a]].anchored: continue
 		var b := triangles[offset + 1]
 		var c := triangles[offset + 2]
 		var force := (positions[b] - positions[a]).cross(positions[c] - positions[a]) * (.5 * pressure_load / 3.0)
@@ -243,6 +275,7 @@ func _pressure_acceleration() -> PackedVector3Array:
 	return forces
 
 func _connected(vertex_id: int) -> bool:
+	if _removed[vertex_id]!=0: return false
 	for edge_id in _incident[vertex_id]:
 		if _edge_active[edge_id] != 0: return true
 	return false
@@ -253,6 +286,10 @@ static func _segment_distance(point: Vector3, a: Vector3, b: Vector3) -> float:
 	return point.distance_to(a + segment * clampf((point - a).dot(segment) / segment.length_squared(), 0, 1))
 
 func metrics() -> Dictionary:
+	_refresh_components()
+	var detached_area:=0.; var detached_count:=0
+	for component in _components:
+		if not component.anchored and component.area>1e-12: detached_area+=component.area; detached_count+=1
 	var finite := true
 	for point in positions:
 		if not point.is_finite(): finite = false
@@ -263,9 +300,74 @@ func metrics() -> Dictionary:
 		else:
 			var extension := positions[_edge_a[edge_id]].distance_to(positions[_edge_b[edge_id]]) - _edge_rest[edge_id]
 			energy += .5 * extension * extension
-	return {"max_strain": _peak_strain, "broken_edges": broken, "grasped": _grasps.get(0, -1), "grasps": _grasps.duplicate(), "integration_steps": _integration_steps, "finite": finite and is_finite(energy), "strain_energy": energy, "vertices": positions.size(), "triangles": triangles.size() / 3}
+	return {"initial_area":_initial_area,"retained_area":_retained_area,"cut_loss_area":maxf(0.,_initial_area-_retained_area-_extracted_area),"retained_detached_area":detached_area,"detached_flaps":detached_count,"extracted_flaps":_extracted_flaps,"extracted_area":_extracted_area,"max_strain": _peak_strain, "broken_edges": broken, "grasped": _grasps.get(0, -1), "grasps": _grasps.duplicate(), "integration_steps": _integration_steps, "finite": finite and is_finite(energy), "strain_energy": energy, "vertices": positions.size(), "triangles": triangles.size() / 3}
 
 func visual_state()->Dictionary:
 	var mirror_lambda:=PackedFloat64Array(); mirror_lambda.resize(edges.size())
 	for i in range(edges.size()): mirror_lambda[i]=edges[i]["lambda"]
 	return {"positions":positions.duplicate(),"triangles":triangles.duplicate(),"edge_a":_edge_a.duplicate(),"edge_b":_edge_b.duplicate(),"edge_rest":_edge_rest.duplicate(),"edge_active":_edge_active.duplicate(),"edge_lambda":mirror_lambda}
+
+func _refresh_components()->void:
+	if not _component_dirty: return
+	_component_dirty=false; _components=[]
+	_vertex_component.resize(positions.size()); _vertex_component.fill(-1)
+	var neighbors:Array=[]
+	for i in range(positions.size()): neighbors.append(PackedInt32Array())
+	for edge_id in range(_edge_a.size()):
+		if _edge_active[edge_id]==0: continue
+		var a:=_edge_a[edge_id]; var b:=_edge_b[edge_id]
+		neighbors[a].append(b); neighbors[b].append(a)
+	for seed in range(positions.size()):
+		if _removed[seed]!=0 or _vertex_component[seed]>=0: continue
+		var id:=_components.size(); var stack:=PackedInt32Array([seed]); var vertices:=PackedInt32Array(); var attached:=false
+		_vertex_component[seed]=id
+		while not stack.is_empty():
+			var v:=stack[stack.size()-1]; stack.resize(stack.size()-1); vertices.append(v)
+			if anchored[v]!=0: attached=true
+			for next in neighbors[v]:
+				if _vertex_component[next]<0: _vertex_component[next]=id; stack.append(next)
+		_components.append({"id":id,"vertices":vertices,"anchored":attached,"area":0.})
+	for i in range(0,triangles.size(),3):
+		var a:=triangles[i]; var b:=triangles[i+1]; var c:=triangles[i+2]
+		var id:=_vertex_component[a]
+		_components[id].area+=(rest_positions[b]-rest_positions[a]).cross(rest_positions[c]-rest_positions[a]).length()*.5
+func detached_components()->Array[Dictionary]:
+	_refresh_components()
+	var result:Array[Dictionary]=[]
+	for component in _components:
+		if not component.anchored and component.area>1e-12: result.append(component.duplicate(true))
+	return result
+func _boundary_step(before:PackedVector3Array)->void:
+	_refresh_components()
+	for component in _components:
+		if component.anchored or component.area<=1e-12: continue
+		for v in component.vertices:
+			var result:Dictionary=tissue_boundary.resolve(before[v],positions[v],_outside[v]!=0)
+			positions[v]=result.position; _outside[v]=1 if result.outside else 0
+			if result.contact or not result.valid: _previous[v]=positions[v]
+	var retire:Array[Dictionary]=[]
+	for component in _components:
+		if component.anchored or component.area<=1e-12: continue
+		var held:=false; var exterior:=true
+		for v in component.vertices:
+			if v in _grasps.values(): held=true
+			if _outside[v]==0: exterior=false
+		if held and exterior: retire.append(component)
+	for component in retire:
+		for v in component.vertices: _removed[v]=1
+		for hand in _grasps.keys():
+			if _removed[_grasps[hand]]!=0: _grasps.erase(hand)
+		_extracted_flaps+=1; _extracted_area+=component.area; _dirty=true
+	if not retire.is_empty():
+		for edge_id in range(_edge_a.size()):
+			if _removed[_edge_a[edge_id]]!=0 or _removed[_edge_b[edge_id]]!=0: _edge_active[edge_id]=0; edges[edge_id].active=false
+		_rebuild_triangles()
+func collision_triangles(hand:int)->PackedInt32Array:
+	_refresh_components()
+	if not _grasps.has(hand): return triangles
+	var id:=_vertex_component[_grasps[hand]]
+	if id<0 or _components[id].anchored: return triangles
+	var result:=PackedInt32Array()
+	for i in range(0,triangles.size(),3):
+		if _vertex_component[triangles[i]]!=id: result.append_array(PackedInt32Array([triangles[i],triangles[i+1],triangles[i+2]]))
+	return result
