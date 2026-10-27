@@ -15,6 +15,10 @@ class BodyFailure extends RefCounted:
 	func valid_body(body:Array)->bool: return inner.valid_body(body)
 	func project(_p,_t,_w,_body,_previous)->Dictionary:
 		calls+=1; return {"valid":false}
+class UncertainBody extends BodyFailure:
+	func project(p,_t,_w,_body,_previous)->Dictionary:
+		calls+=1
+		return {"valid":true,"positions":p.duplicate(),"contacts":0,"residual":0.,"uncertain":1}
 class BoundaryFailure extends RefCounted:
 	var calls:=0
 	func resolve(start:Vector3,_finish:Vector3,outside:bool)->Dictionary:
@@ -109,6 +113,10 @@ func _initialize()->void:
 	guard.step_tools(1./60.,body_tools)
 	check(body_failure.calls>0 and guard.native_failure.reason=="native_body_contact","native update retains actual tool-body contact projection")
 	check(guard.visual_state()==before and guard._previous==history and guard.metrics().integration_steps==0 and guard.metrics().grasped==-1,"tool-body failure rolls back the entire accepted acquisition and motion")
+	var uncertain_body:=UncertainBody.new(); guard._face_contact=uncertain_body
+	guard.step_tools(1./60.,body_tools)
+	check(uncertain_body.calls>0 and guard.native_failure.get("reason","")=="native_body_uncertain","zero numerical residual cannot certify an unresolved swept body interval")
+	check(guard.visual_state()==before and guard._previous==history and guard.metrics().integration_steps==0 and guard.metrics().grasped==-1,"uncertain body contact rolls back acquisition history and time")
 	guard._face_contact=load("res://scripts/membrane_contact.gd").new()
 	var center:Vector3=guard.positions[0]
 	var start_tip:=center+Vector3(0,.04,0); var end_tip:=center+Vector3(0,.01,0)

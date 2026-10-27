@@ -370,6 +370,11 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 				var before_body:=positions.duplicate() if stretch_backend else PackedVector3Array()
 				var projected:Dictionary=_face_contact.project(positions,triangles,_inverse_mass,body,body_previous)
 				if projected.valid:
+					# A small projection residual does not certify an unresolved
+					# swept interval. Native ticks require resolved body motion.
+					if stretch_backend and projected.uncertain>0:
+						native_failure={"reason":"native_body_uncertain","uncertain":projected.uncertain}
+						_backend_failed=true; return
 					positions=projected.positions
 					if stretch_backend: operator_motion=maxf(operator_motion,_position_correction(positions,before_body))
 					contact_residual=projected.residual
