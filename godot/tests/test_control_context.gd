@@ -78,5 +78,12 @@ func run()->void:
 	old_axis=app.rigs[0].axis
 	app._input(pitch); app._physics_process(1./60.)
 	check(app.rigs[0].axis.is_equal_approx(old_axis),"uncertified pivot rotation near tissue retains the accepted axis")
+	app.start_practice(); app.set_process_input(true); app.grip_down=true
+	var desktop_motion:=InputEventMouseMotion.new(); desktop_motion.position=Vector2.ZERO
+	Input.parse_input_event(desktop_motion); Input.flush_buffered_events()
+	check(not app.grip_down,"real event dispatch outside the microscope disarms operative grip")
+	app.set_process_input(false); app.grip_down=true
+	Input.parse_input_event(desktop_motion.duplicate()); Input.flush_buffered_events()
+	check(app.grip_down,"controlled trajectory fixture can isolate unrelated desktop event dispatch")
 	app.queue_free(); await process_frame
 	print("Control context: ",failures," failures"); quit(1 if failures else 0)

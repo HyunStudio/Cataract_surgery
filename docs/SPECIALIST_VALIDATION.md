@@ -2,6 +2,27 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
+## Latest verified milestone — production `be14d7f`
+
+This section supersedes the historical working-state reports below. Fresh standard Godot runner: **52 suites, exit0** (`admitted-flow-full52.log`). Fresh Python regression: **541 passed**; this includes19 export-validator checks, including an actual local Godot PCK collision regression. Production source was unchanged during export qualification; later changes only isolate controlled fixtures and add validation tooling/documentation.
+
+Current full normal encounter passes with0failures in three separate runs: headless source (`actual-admitted-flow-encounter.log`), NVIDIA GPU source (`admitted-flow-controlled-gpu.log`) and the identical Windows release engine mounting the compiled production PCK (`admitted-native-full.log`). Actual bounded target motion, bilateral entry/withdrawal/exchange, actual flap extraction, current admitted-flow material transport, nucleus/cortex removal, IOL delivery/alignment, wound checks, immutable review and reset assertions remain enabled. Final removed mass1.0, retained detached area0, extracted flaps1, no corneal/posterior breach. Retained/cut-loss/extracted rest areas3.253985/1.813249/.252092 and252broken edges expose the remaining coarse-cut limitation. Fresh GPU extraction/result images were inspected.
+
+GPU adverse source (`admitted-flow-adverse-gpu.log`) exits0 and verifies actual posterior damage/outflow, action stop, completion refusal and reset; fresh image inspected. Original exported `OphthoSim-Surgical.exe --quit-after 120` also exits0 on RTX3070Laptop/NVIDIA566.14 (`admitted-native-startup.log`); stderr is empty. This startup gate is separate from the mounted-pack fixture gate.
+
+Exported executable SHA256: `d34d36f3be1a6c49c56525ae86469b92e4f417ddf0b43cf00dd80c385c4b0562`.
+Production PCK SHA256: `a795b81dff7a7d65cad2ba3a18b1aaf40c941e215e7fe66580ff86af4da5775e`.
+
+`tools/validate_export.py` freezes both candidate files, builds a separate tokenized QA pack, and runs a byte-identical release executable. The bootstrap verifies the production PCK hash and mounts it with `replace_files=false`, preserving the trusted fixture namespace. A real collision regression demonstrates that an overlapping product path cannot replace assertions. Early nonzero fixture exits, colored engine errors, missing completion markers and changed artifacts fail qualification. Reports retain source state, raw/adapted fixture, adapter/editor/QA-pack hashes, logs and PID. No validation files are included in the user release.
+
+```powershell
+python tools/validate_export.py godot/build/candidate-be14d7f/OphthoSim-Surgical.exe --scenario control
+python tools/validate_export.py godot/build/candidate-be14d7f/OphthoSim-Surgical.exe --scenario adverse
+python tools/validate_export.py godot/build/candidate-be14d7f/OphthoSim-Surgical.exe --scenario normal
+```
+
+The compiled-resource test does not test the original main scene. Neither source nor native target-driven automation establishes human mouse/keyboard choreography, clinical validity, sustained real-time performance, fine CCC mechanics or actual corneal tunnel integration. Earlier47/50-suite claims and `b1f60f9` package references below are historical, not the current source result.
+
 ## Current working source: actual-part continuous motion
 
 Rigid motion now advances using the distance of the actual nominal part, following the normalized signed portal axis and the shared world-up render frame. Endpoint speed bounds include frame rotation and jaw articulation; numerical portal-distance allowances reduce the denominator bound. Existing chord/radial bounds only select candidate faces. They cannot independently create physical contacts or injury. A previous thin-triangle sleeve near miss is now certified clear rather than blocked. Near-pivot numerical padding cannot invent distant powered contact; a failing reproduction drove nominal-radius-only contact queries. Zero-insertion orientation changes remain unresolved unless all-axis halfspace pruning establishes clearance. Query and iteration exhaustion reject atomically with reasons.

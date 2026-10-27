@@ -105,6 +105,11 @@ func approach_material(app,chosen:Dictionary,tool:String)->void:
 	place(app,chosen.target,.005)
 func run()->void:
 	var app=load("res://scripts/simulator.gd").new(); root.add_child(app); app.set_physics_process(false)
+	# This fixture owns synthetic commands. Desktop pointer movement must
+	# not overwrite the target trajectory while a GPU capture yields.
+	app.set_process_input(false)
+	root.focus_exited.connect(func():
+		if is_instance_valid(app): print("GPU focus exited; grip=",app.grip_down," pedal=",app.pedal_down))
 	await process_frame
 	for id in ["patient","side","equipment"]: app.prepare_check(id)
 	check(app.begin_operation(),"dimensioned case begins after preparation")
@@ -148,8 +153,10 @@ func run()->void:
 	for p in [Vector3(edge.x,.90,0),Vector3(.9,.70,0),Vector3(1.32,.50,0),Vector3(1.32,.76,0),Vector3(1.80,1.0,0),Vector3(2.10,1.15,0)]:
 		walk(app,p)
 		if DisplayServer.get_name()!="headless" and p==Vector3(1.32,.76,0):
+			print("Flap capture before grip=",app.grip_down," grasp=",app.capsule.metrics().grasped)
 			await process_frame; await RenderingServer.frame_post_draw
 			root.get_texture().get_image().save_png("res://reports/capsule-extraction.png")
+			print("Flap capture after grip=",app.grip_down," grasp=",app.capsule.metrics().grasped)
 	tick(app,60)
 	check(app.capsule.metrics().extracted_flaps>0 and app.capsule.metrics().retained_detached_area<1e-8,"forceps carries the actual complete flap through the shared wound")
 	check(held_frame.capsule.triangles==held_indices and held_indices.size()>app.capsule.triangles.size(),"actual displayed earlier flap remains immutable after extraction")
