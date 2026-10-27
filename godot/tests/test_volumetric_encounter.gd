@@ -30,16 +30,52 @@ func walk(app,target:Vector3)->void:
 		if app.rigs[app.selected].tip.distance_to(tip)>.035:
 			check(false,"continuous extraction pose must remain reachable: requested %s resolved %s"%[tip,app.rigs[app.selected].tip]); return
 	check(app.rigs[app.selected].tip.distance_to(target)<.035,"constrained tool reaches intended extraction route point")
-func exchange(app,id:String)->void:
+func withdraw(app)->void:
 	app.release_controls()
-	for p in [Vector3(0,.70,0),Vector3(1.32,.52,0),Vector3(1.32,.95,0),Vector3(1.95,.95,0)]: place(app,p)
-	app.choose_tool(id); check(app.hand_tools[0]==id,"exchange after actual exterior withdrawal")
-	for p in [Vector3(1.32,.80,0),Vector3(1.32,.65,0),Vector3(.9,.68,0),Vector3(0,.75,0),Vector3(0,.20,0)]: place(app,p)
+	var side:=1. if app.selected==0 else -1.; var z:float=app.rigs[app.selected].portal.z
+	for p in [Vector3(0,.70,0),Vector3(side*1.32,.52,z),Vector3(side*1.32,.95,z),Vector3(side*1.95,.95,z)]: place(app,p)
+func enter(app)->void:
+	var side:=1. if app.selected==0 else -1.; var z:float=app.rigs[app.selected].portal.z
+	for p in [Vector3(side*1.32,.80,z),Vector3(side*1.32,.65,z),Vector3(side*.9,.68,z),Vector3(0,.75,0),Vector3(0,.20,0)]: place(app,p)
+func exchange(app,id:String)->void:
+	withdraw(app)
+	app.choose_tool(id); check(app.hand_tools[app.selected]==id,"exchange after actual exterior withdrawal")
+	enter(app)
+func use_hand(app,hand:int,id:String)->void:
+	if app.selected==hand: return
+	withdraw(app); app.switch_hand()
+	app.choose_tool(id); check(app.hand_tools[hand]==id,"opposite hand exchanges at its actual exterior pose")
+	enter(app)
+func body_path(app,hand:int,start:Vector3,finish:Vector3,tool:String)->Dictionary:
+	var portal:Vector3=app.rigs[hand].portal
+	return app._rigid_body.resolve(portal,start,(start-portal).normalized(),finish,(finish-portal).normalized(),tool,app.geometry.tip_radius(tool),false,{"iris":app.anatomy.iris,"posterior":app.anatomy.posterior})
+func clear_path(result:Dictionary)->bool:
+	return result.valid and result.fraction==1. and result.contacts.is_empty()
+func approach_material(app,p:Vector3,tool:String)->void:
+	var hand:int=app.selected
+	if not clear_path(body_path(app,hand,p,p,tool)):
+		hand=1-hand
+		check(clear_path(body_path(app,hand,p,p,tool)),"material target must have a nominal whole-instrument approach from an actual portal: "+str(p))
+		if failures: return
+		use_hand(app,hand,tool)
+	if not clear_path(body_path(app,hand,app.rigs[hand].tip,p,tool)):
+		app.release_controls(); place(app,Vector3(0,.20,0))
+	app.handle_pedal(false,false,true); app.handle_pedal(true,false,true,3 if tool=="phaco" else 2)
+	place(app,p,.025)
 func run()->void:
 	var app=load("res://scripts/simulator.gd").new(); root.add_child(app); app.set_physics_process(false)
 	await process_frame
 	for id in ["patient","side","equipment"]: app.prepare_check(id)
 	check(app.begin_operation(),"dimensioned case begins after preparation")
+	# A separate real blade trace creates the opposite portal; no pre-opened
+	# side port or injected inside instrument pose is used in this encounter.
+	app.switch_hand(); app.choose_tool("knife")
+	place(app,Vector3(-1.32,.95,0)); app.grip_down=true
+	for i in range(101): place(app,Vector3(-1.32,.80,.005*i))
+	check(app.incision.opened[1],"opposite portal requires its own actual blade trace")
+	app.release_controls()
+	for p in [Vector3(-1.32,.80,.25),Vector3(-1.32,.65,.25),Vector3(-.9,.68,.25),Vector3(0,.75,0),Vector3(-.9,.68,.25),Vector3(-1.32,.65,.25),Vector3(-1.32,.95,.25),Vector3(-1.95,.95,.25)]: place(app,p)
+	app.switch_hand()
 	app.choose_tool("knife"); place(app,Vector3(1.32,.95,-.25)); app.grip_down=true
 	for i in range(101): place(app,Vector3(1.32,.80,-.25+.005*i))
 	check(app.incision.opened[0],"dimensioned corneal tunnel requires actual blade trace")
@@ -110,12 +146,12 @@ func run()->void:
 		var found:=false; var target:=Vector3.ZERO; var nearest:=INF
 		for p in app.lens.particles:
 			if not p.active or p.cortex: continue
-			var d:float=p.position.distance_squared_to(app.rigs[0].tip)
+			var d:float=p.position.distance_squared_to(app.rigs[app.selected].tip)
 			if d<nearest: nearest=d; target=p.position; found=true
 		if not found: break
 		# Aspiration draws material into the .05 inlet; the instrument center
 		# need not occupy a peripheral particle's exact center against the bag.
-		place(app,safe_target(app,target),.025)
+		approach_material(app,safe_target(app,target),"phaco")
 		if failures: break
 		if step%200==0: await process_frame
 	print("Volumetric phaco: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
@@ -127,16 +163,18 @@ func run()->void:
 		var found:=false; var target:=Vector3.ZERO; var nearest:=INF
 		for p in app.lens.particles:
 			if not p.active: continue
-			var d:float=p.position.distance_squared_to(app.rigs[0].tip)
+			var d:float=p.position.distance_squared_to(app.rigs[app.selected].tip)
 			if d<nearest: nearest=d; target=p.position; found=true
 		if not found: break
-		place(app,safe_target(app,target),.025)
+		approach_material(app,safe_target(app,target),"ia")
 		if failures: break
 		if step%200==0: await process_frame
 	print("Volumetric IA: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().removed_mass>=.98,"dimensioned full encounter aspirates material through actual inlet")
 	if failures: app.queue_free(); await process_frame; quit(1); return
-	exchange(app,"injector"); place(app,Vector3.ZERO); app.grip_down=true
+	if app.selected!=0: use_hand(app,0,"injector")
+	else: exchange(app,"injector")
+	place(app,Vector3.ZERO); app.grip_down=true
 	tick(app,110); app.release_controls(); tick(app,180)
 	# The wider injector exits through the middle of the traced tunnel rather
 	# than sweeping upward along its inner edge with the narrow-tool route.
