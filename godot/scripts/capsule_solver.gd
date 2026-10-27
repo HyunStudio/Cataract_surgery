@@ -63,11 +63,29 @@ var _inverse_mass := PackedFloat64Array()
 var _integration_steps := 0
 var _peak_strain := 0.0
 var _dirty := false
+var stretch_backend:RefCounted
+var native_failure:Dictionary={}
+var _backend_failed:=false
+
+func set_stretch_backend(backend:RefCounted)->bool:
+	if backend and (not backend.has_method("project") or (backend.has_method("ready") and not backend.ready())): return false
+	stretch_backend=backend; native_failure={}; return true
+
+func _checkpoint()->Dictionary:
+	var saved:={}
+	for property in get_property_list():
+		if (int(property.usage)&PROPERTY_USAGE_SCRIPT_VARIABLE)==0: continue
+		var value=get(property.name)
+		if value is Array or value is Dictionary: value=value.duplicate(true)
+		elif typeof(value) in [TYPE_PACKED_BYTE_ARRAY,TYPE_PACKED_INT32_ARRAY,TYPE_PACKED_FLOAT64_ARRAY,TYPE_PACKED_VECTOR3_ARRAY]: value=value.duplicate()
+		saved[property.name]=value
+	return saved
 
 func _init() -> void:
 	reset()
 
 func reset() -> void:
+	native_failure={}; _backend_failed=false
 	body_contact_count=0; body_contact_residual=0.; body_contact_uncertain=0
 	tissue_boundary=null; _extracted_flaps=0; _extracted_area=0.; _components=[]; _component_dirty=true
 	positions = PackedVector3Array([Vector3(0, .82, 0)])
@@ -227,6 +245,17 @@ func step(dt: float, tool_tip: Vector3, tool_radius: float, grip: bool, cut: boo
 	step_tools(dt, tools)
 
 func step_tools(dt: float, tools: Array[Dictionary]) -> void:
+	if not stretch_backend:
+		_step_tools(dt,tools); return
+	var saved:=_checkpoint()
+	_backend_failed=false
+	_step_tools(dt,tools)
+	if _backend_failed:
+		var failure:=native_failure.duplicate(true)
+		for key in saved: set(key,saved[key])
+		native_failure=failure
+
+func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 	# Validate the whole batch first: malformed second-hand input cannot partly advance time.
 	if not is_finite(dt) or dt < .000001 or dt > MAX_DT or tools.size() > 16: return
 	if not is_finite(stretch_compliance) or stretch_compliance < 0 or not is_finite(damping) or not is_finite(tear_strain) or tear_strain <= 0: return
@@ -262,6 +291,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		for part in tool.get("body",[]):
 			for substep in range(substeps):
 				if not _face_contact.valid_body([ToolPath.interval(part,float(substep)/substeps,float(substep+1)/substeps)]): return
+	native_failure={}
 	for hand_id in _grasps.keys():
 		if not present.has(hand_id): _grasps.erase(hand_id); _grasp_faces.erase(hand_id); _grasp_offsets.erase(hand_id)
 	for tool in tools:
@@ -315,8 +345,8 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 			var a := _edge_a[edge_id]
 			var b := _edge_b[edge_id]
 			var strain := positions[a].distance_to(positions[b]) / _edge_rest[edge_id] - 1.0
-			_peak_strain = maxf(_peak_strain, strain)
-			var broken := strain > tear_strain
+			if not stretch_backend: _peak_strain = maxf(_peak_strain, strain)
+			var broken:bool = not stretch_backend and strain > tear_strain
 			if not broken:
 				for tool in tools:
 					if tool.cut and _segment_distance(tool.tip, positions[a], positions[b]) < tool.radius:
@@ -326,6 +356,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		if not body.is_empty() and _dirty: _rebuild_triangles()
 		for iteration in range(clampi(solver_iterations, 1, 16)):
 			_project_stretch(alpha)
+			if _backend_failed: return
 			if not body.is_empty():
 				var projected:Dictionary=_face_contact.project(positions,triangles,_inverse_mass,body,body_previous)
 				if projected.valid:
@@ -335,6 +366,8 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 					body_contact_uncertain+=projected.uncertain
 				else:
 					body_contact_uncertain+=1
+					if stretch_backend:
+						native_failure={"reason":"native_body_contact"}; _backend_failed=true; return
 		for i in range(positions.size()):
 			if anchored[i] != 0:
 				positions[i] = rest_positions[i]; _previous[i] = positions[i]
@@ -342,8 +375,31 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 				_previous[i] = positions[i]
 		if _dirty: _rebuild_triangles()
 		if tissue_boundary and geometry: _boundary_step(contact_previous)
+		if _backend_failed: return
+		if stretch_backend:
+			# Constitutive failure uses accepted motion, never the inertial predictor.
+			for edge_id in range(_edge_a.size()):
+				if _edge_active[edge_id]==0: continue
+				var strain:float=positions[_edge_a[edge_id]].distance_to(positions[_edge_b[edge_id]])/_edge_rest[edge_id]-1.
+				_peak_strain=maxf(_peak_strain,strain)
+				if strain>tear_strain:
+					_edge_active[edge_id]=0; edges[edge_id].active=false; _dirty=true
+			if _dirty: _rebuild_triangles()
 
 func _project_stretch(alpha:float)->void:
+	if stretch_backend:
+		var result:Dictionary=stretch_backend.project(positions,_inverse_mass,_edge_a,_edge_b,_edge_rest,_edge_active,_lambdas,alpha)
+		var valid:bool=result.get("valid",false) and result.get("positions") is PackedVector3Array and result.get("lambda") is PackedFloat64Array
+		if valid: valid=result.positions.size()==positions.size() and result["lambda"].size()==_lambdas.size()
+		if valid:
+			for i in range(positions.size()):
+				if not result.positions[i].is_finite() or result.positions[i].length_squared()>256. or (_inverse_mass[i]==0. and result.positions[i]!=positions[i]): valid=false; break
+		if valid:
+			for value in result["lambda"]:
+				if not is_finite(value): valid=false; break
+		if not valid:
+			native_failure={"reason":result.get("reason","native_output"),"status":result.get("status",-1)}; _backend_failed=true; return
+		positions=result.positions; _lambdas=result["lambda"]; return
 	for edge_id in range(_edge_a.size()):
 		if _edge_active[edge_id] == 0: continue
 		var a := _edge_a[edge_id]; var b := _edge_b[edge_id]
@@ -454,6 +510,8 @@ func _boundary_step(before:PackedVector3Array)->void:
 		if component.anchored or component.area<=1e-12: continue
 		for v in component.vertices:
 			var result:Dictionary=tissue_boundary.resolve(before[v],positions[v],_outside[v]!=0)
+			if stretch_backend and not result.valid:
+				native_failure={"reason":"native_tissue_boundary"}; _backend_failed=true; return
 			positions[v]=result.position; _outside[v]=1 if result.outside else 0
 			if result.contact or not result.valid: _previous[v]=positions[v]
 	var retire:Array[Dictionary]=[]
