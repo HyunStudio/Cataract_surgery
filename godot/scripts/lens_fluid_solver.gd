@@ -42,6 +42,8 @@ var _bond_b := PackedInt32Array()
 var _bond_rest := PackedFloat64Array()
 var _bond_active := PackedByteArray()
 var _bond_damage := PackedFloat64Array()
+var _cortex_flags:=PackedByteArray()
+var _bond_cortex:=PackedByteArray()
 var _damage_scale := 1.0
 var _fracture_strain := .5
 var _leak_rate := 0.0
@@ -95,6 +97,10 @@ func reset() -> void:
 
 	material.surface_flow=geometry!=null
 	material.reset(_positions,geometry.lens_radius*.76 if geometry else .5)
+	_cortex_flags.resize(_positions.size())
+	for i in range(_positions.size()): _cortex_flags[i]=1 if material.is_cortex(i) else 0
+	_bond_cortex.resize(_bond_a.size())
+	for i in range(_bond_a.size()): _bond_cortex[i]=1 if _cortex_flags[_bond_a[i]]!=0 or _cortex_flags[_bond_b[i]]!=0 else 0
 	_sync_public()
 
 func _append_particle(position: Vector3) -> void:
@@ -167,10 +173,10 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 			if nearest<0.22:
 				_bond_damage[bond_id]+=h*energy*10.0*(1.0-nearest/0.22)*_damage_scale
 		var threshold:=_fracture_strain
-		if layered and (material.is_cortex(a) or material.is_cortex(b)):
+		if layered and _bond_cortex[bond_id]!=0:
 			threshold=.32
 			# Aspiration can peel locally released cortical fibres; it adds no nuclear energy.
-			if aspiration and tissue_access and suction>0.:
+			if aspiration and tissue_access and suction>0. and ((_cortex_flags[a]!=0 and material.adhesion[a]<.35) or (_cortex_flags[b]!=0 and material.adhesion[b]<.35)):
 				_bond_damage[bond_id]+=h*suction*14.*material.peel_weight(a,b,tip,_positions)
 		if strain>threshold or _bond_damage[bond_id]>=1.0:
 			_break_bond(bond_id)

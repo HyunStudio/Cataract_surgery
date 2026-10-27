@@ -31,10 +31,16 @@ func _make_field(data:Dictionary)->Dictionary:
 	# Include the barycentric edge tolerance and float-vector rounding.
 	var padding:float=(max_y-min_y)*.000004+maxf(1.,maxf(absf(min_y),absf(max_y)))*.000001
 	field["min_y"]=min_y-padding; field["max_y"]=max_y+padding
+	var coefficients:=PackedFloat64Array(); coefficients.resize(field.triangles.size()/3*10)
 	for offset in range(0,field.triangles.size(),3):
 		var a:Vector3=field.positions[field.triangles[offset]]; var b:Vector3=field.positions[field.triangles[offset+1]]; var c:Vector3=field.positions[field.triangles[offset+2]]
 		var denominator:float=(b.z-c.z)*(a.x-c.x)+(c.x-b.x)*(a.z-c.z)
 		if absf(denominator)<1e-12: continue
+		var row:int=offset/3*10
+		coefficients[row]=b.z-c.z; coefficients[row+1]=c.x-b.x
+		coefficients[row+2]=c.z-a.z; coefficients[row+3]=a.x-c.x
+		coefficients[row+4]=c.x; coefficients[row+5]=c.z; coefficients[row+6]=denominator
+		coefficients[row+7]=a.y; coefficients[row+8]=b.y; coefficients[row+9]=c.y
 		var lo:=a.min(b).min(c); var hi:=a.max(b).max(c)
 		var from:=Vector2i(floori(lo.x/CELL),floori(lo.z/CELL)); var to:=Vector2i(floori(hi.x/CELL),floori(hi.z/CELL))
 		if (to.x-from.x+1)*(to.y-from.y+1)>4096: return {}
@@ -43,22 +49,22 @@ func _make_field(data:Dictionary)->Dictionary:
 				var key:=Vector2i(x,z)
 				if not field.bins.has(key): field.bins[key]=PackedInt32Array()
 				field.bins[key].append(offset)
+	field["coefficients"]=coefficients
 	return field
 func _heights(field:Dictionary,p:Vector3)->Vector4:
 	# Geometry is copied at configuration; reuse only identical XZ coordinates.
 	var key:=Vector2(p.x,p.z)
 	var cache:Dictionary=field.height_cache
 	if cache.has(key): return cache[key]
-	var positions:PackedVector3Array=field.positions
-	var triangles:PackedInt32Array=field.triangles
+	var coefficients:PackedFloat64Array=field.coefficients
 	var low:=INF; var high:=-INF; var low_face:=-1; var high_face:=-1
 	for offset in field.bins.get(Vector2i(floori(p.x/CELL),floori(p.z/CELL)),PackedInt32Array()):
-		var a:Vector3=positions[triangles[offset]]; var b:Vector3=positions[triangles[offset+1]]; var c:Vector3=positions[triangles[offset+2]]
-		var denominator:float=(b.z-c.z)*(a.x-c.x)+(c.x-b.x)*(a.z-c.z)
-		var u:float=((b.z-c.z)*(p.x-c.x)+(c.x-b.x)*(p.z-c.z))/denominator
-		var v:float=((c.z-a.z)*(p.x-c.x)+(a.x-c.x)*(p.z-c.z))/denominator
+		var row:int=offset/3*10
+		var x:float=p.x-coefficients[row+4]; var z:float=p.z-coefficients[row+5]
+		var u:float=(coefficients[row]*x+coefficients[row+1]*z)/coefficients[row+6]
+		var v:float=(coefficients[row+2]*x+coefficients[row+3]*z)/coefficients[row+6]
 		if u>=-1e-6 and v>=-1e-6 and u+v<=1.+1e-6:
-			var y:float=u*a.y+v*b.y+(1.-u-v)*c.y
+			var y:float=u*coefficients[row+7]+v*coefficients[row+8]+(1.-u-v)*coefficients[row+9]
 			if y<low: low=y; low_face=offset
 			if y>high: high=y; high_face=offset
 	var result:=Vector4(low,high,low_face,high_face)

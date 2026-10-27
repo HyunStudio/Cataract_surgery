@@ -83,9 +83,11 @@ var _sample_accum := 0.
 var _audio: AudioStreamPlayer
 var _audio_clock := 0.
 var _sound := false
+var _presentation_pending:=false
 
 func _ready() -> void:
-	Engine.max_physics_steps_per_frame=1
+	# Retain fixed tissue ticks below 60fps; publish geometry once per rendered frame.
+	Engine.max_physics_steps_per_frame=8
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui=Interface.new(); add_child(ui); ui.build(self)
 	viewport_box=ui.viewport_box; viewport_3d=ui.viewport_3d
@@ -127,6 +129,7 @@ func new_case(id: String) -> void:
 	capsule.tissue_boundary=_flap_boundary
 	implant_hand=-1; implant_nozzle=Vector3(0,_plane("injector"),0)
 	clock=0.; samples=[]; _sample_accum=0.; _ui_accum=0.
+	_presentation_pending=false
 	metrics={"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.,"capsule_contacts":0.,"cornea_contacts":0.}
 	case_active=false; practice=false; paused=false; reviewing=false; room_view=true
 	status="증례 선택 → 환자·부위·장비 확인 → 집도 시작"
@@ -398,11 +401,20 @@ func _physics_process(dt: float) -> void:
 	_sample_accum+=dt; _ui_accum+=dt
 	if _sample_accum>=.25 and samples.size()<12000:
 		_sample_accum=0.; samples.append({"time":clock,"capsule":_last_capsule.duplicate(),"lens":_last_lens.duplicate(),"iol":_last_iol.duplicate(),"metrics":metrics.duplicate()})
+	_presentation_pending=true
+	if not is_physics_processing(): _present_frame()
+	_audio_clock+=dt
+	if _sound and _audio_clock>.81: _audio_clock=0.; _audio.play()
+
+func _process(_dt:float)->void:
+	if _presentation_pending: _present_frame()
+
+func _present_frame()->void:
+	_presentation_pending=false
+	if not display or reviewing: return
 	update_geometry(false)
 	if recording.frames.is_empty() or clock-float(recording.frames[-1].time)>=recording.INTERVAL: recording.record(clock,display.capture_frame())
 	if _ui_accum>=.1: _ui_accum=0.; refresh_ui()
-	_audio_clock+=dt
-	if _sound and _audio_clock>.81: _audio_clock=0.; _audio.play()
 
 func _open_wounds()->Array:
 	return [incision.paths[0] if incision.opened[0] else [],incision.paths[1] if incision.opened[1] else []]
