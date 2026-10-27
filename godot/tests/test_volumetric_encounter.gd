@@ -120,6 +120,7 @@ func run()->void:
 	app.withdraw_tools(); tick(app,150)
 	print("Withdrawn wound ",app.incision.metrics()," lengths=",app.incision.lengths," depths=",[app.rigs[0].insertion,app.rigs[1].insertion]," injury=",app.injury.metrics())
 	for id in ["residual","implant","wound"]: check(app.inspect(id),"dimensioned final inspection "+id)
+	print("Final actual capsule/body state: ",app.capsule.metrics()," contacts=",app.capsule.body_contact_count," peak_residual=",app.capsule.body_contact_residual," uncertain=",app.capsule.body_contact_uncertain)
 	check(app.finish_case(),"default dimensioned case can actually complete")
 	check(not app.injury.metrics().posterior_breached and not app.injury.metrics().corneal_breached,"normal route preserves corneal and posterior structure")
 	var live:PackedVector3Array=app.capsule.positions.duplicate()

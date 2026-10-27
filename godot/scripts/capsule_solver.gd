@@ -6,6 +6,7 @@ const SECTORS := 36
 const RADIUS := .88
 const MAX_DT := .1
 const FaceContact=preload("res://scripts/membrane_contact.gd")
+const ToolPath=preload("res://scripts/instrument_path.gd")
 var _face_contact=FaceContact.new()
 var body_contact_count:=0
 var body_contact_residual:=0.
@@ -182,9 +183,18 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		if not (contact_radius is float or contact_radius is int) or not is_finite(contact_radius) or contact_radius<=0. or contact_radius>.3: return
 		if not tool.get("grip") is bool or not tool.get("cut") is bool: return
 		if tool.has("body") and (not tool.body is Array or not _face_contact.valid_body(tool.body)): return
+		for part in tool.get("body",[]):
+			if part.has("attachment"): return # Only the solver can bind its own grasp.
 		body_size+=tool.get("body",[]).size()
 		if body_size>64: return
 		present[tool.hand] = true
+		if tool.has("body"): substeps=maxi(substeps,ToolPath.steps(tool.body))
+	h=dt/substeps; alpha=stretch_compliance/(h*h)
+	if not is_finite(h) or h<=0. or not is_finite(alpha): return
+	for tool in tools:
+		for part in tool.get("body",[]):
+			for substep in range(substeps):
+				if not _face_contact.valid_body([ToolPath.interval(part,float(substep)/substeps,float(substep+1)/substeps)]): return
 	for hand_id in _grasps.keys():
 		if not present.has(hand_id): _grasps.erase(hand_id)
 	for tool in tools:
@@ -210,11 +220,8 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		var body:Array=[]
 		for tool in tools:
 			for segment in tool.get("body",[]):
-				var part:Dictionary=segment.duplicate()
-				part.previous_a=segment.previous_a.lerp(segment.a,float(substep)/substeps)
-				part.previous_b=segment.previous_b.lerp(segment.b,float(substep)/substeps)
-				part.a=segment.previous_a.lerp(segment.a,float(substep+1)/substeps)
-				part.b=segment.previous_b.lerp(segment.b,float(substep+1)/substeps)
+				var part:Dictionary=ToolPath.interval(segment,float(substep)/substeps,float(substep+1)/substeps)
+				if part.get("part","")=="jaw" and _grasps.has(tool.hand): part["attachment"]=_grasps[tool.hand]
 				body.append(part)
 		var body_previous:=positions.duplicate() if not body.is_empty() else PackedVector3Array()
 		var contact_previous:=positions.duplicate() if tissue_boundary else PackedVector3Array()
@@ -331,7 +338,7 @@ func metrics() -> Dictionary:
 		else:
 			var extension := positions[_edge_a[edge_id]].distance_to(positions[_edge_b[edge_id]]) - _edge_rest[edge_id]
 			energy += .5 * extension * extension
-	return {"initial_area":_initial_area,"retained_area":_retained_area,"cut_loss_area":maxf(0.,_initial_area-_retained_area-_extracted_area),"retained_detached_area":detached_area,"detached_flaps":detached_count,"extracted_flaps":_extracted_flaps,"extracted_area":_extracted_area,"max_strain": _peak_strain, "broken_edges": broken, "grasped": _grasps.get(0, -1), "grasps": _grasps.duplicate(), "integration_steps": _integration_steps, "finite": finite and is_finite(energy), "strain_energy": energy, "vertices": positions.size(), "triangles": triangles.size() / 3}
+	return {"body_contacts":body_contact_count,"body_projection_peak_residual":body_contact_residual,"body_uncertain":body_contact_uncertain,"initial_area":_initial_area,"retained_area":_retained_area,"cut_loss_area":maxf(0.,_initial_area-_retained_area-_extracted_area),"retained_detached_area":detached_area,"detached_flaps":detached_count,"extracted_flaps":_extracted_flaps,"extracted_area":_extracted_area,"max_strain": _peak_strain, "broken_edges": broken, "grasped": _grasps.get(0, -1), "grasps": _grasps.duplicate(), "integration_steps": _integration_steps, "finite": finite and is_finite(energy), "strain_energy": energy, "vertices": positions.size(), "triangles": triangles.size() / 3}
 
 func visual_state()->Dictionary:
 	var mirror_lambda:=PackedFloat64Array(); mirror_lambda.resize(edges.size())

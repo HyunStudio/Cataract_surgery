@@ -13,6 +13,8 @@ const IOL = preload("res://scripts/iol_dynamics.gd")
 const Director = preload("res://scripts/case_director.gd")
 const Injury=preload("res://scripts/tissue_injury.gd")
 const Contact = preload("res://scripts/anatomy_contact.gd")
+const ToolPath=preload("res://scripts/instrument_path.gd")
+var _body_poses:Array=[{},{}]
 const TIP_RADIUS:=.01
 const Incision = preload("res://scripts/incision_model.gd")
 const Recording = preload("res://scripts/case_recording.gd")
@@ -120,6 +122,7 @@ func new_case(id: String) -> void:
 		rigs[hand].allow_withdrawal=geometry!=null
 		rigs[hand].aim_at(Vector3(0,.65 if geometry else .8,0)); rigs[hand].set_insertion(-.2 if geometry else .12)
 		targets[hand]=rigs[hand].tip; previous_tips[hand]=rigs[hand].tip; target_valid[hand]=false
+		_body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"grip":false}
 	pupil_radius=geometry.pupil_radius(case_id=="small_pupil") if geometry else (.74 if case_id=="small_pupil" else .98)
 	anatomy.set_pupil(pupil_radius); last_contacts=[[],[]]
 	_flap_boundary=FlapBoundary.new() if geometry else null; _flap_revision=-1
@@ -344,7 +347,7 @@ func _advance_motion(dt: float) -> float:
 		if target_valid[hand]: _set_tip(hand,before.move_toward(targets[hand],dt*1.5))
 		if not incision.opened[hand] and hand_tools[hand]!="knife": rigs[hand].set_insertion(minf(.05 if geometry else .12,rigs[hand].insertion))
 		var wounds:Array=_open_wounds()
-		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,_radius(hand),hand_tools[hand],hand==selected and grip_down,capsule,wounds,hand)
+		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,_radius(hand),hand_tools[hand],hand==selected and grip_down,capsule,wounds,hand,geometry!=null)
 		_set_tip(hand,contact.position if contact.valid else previous_tips[hand])
 		for surface in contact.contacts:
 			metrics[surface+"_contacts"]+=dt
@@ -384,11 +387,15 @@ func _physics_process(dt: float) -> void:
 	var tools: Array[Dictionary]=[]
 	for hand in range(2):
 		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":_radius(hand),"grip":hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
+		if geometry:
+			var prior:Dictionary=_body_poses[hand]
+			tools[-1]["body"]=ToolPath.build(hand_tools[hand],_radius(hand),prior.tip,prior.axis,prior.grip,rigs[hand].tip,rigs[hand].axis,tools[-1].grip,tools[-1].cut)
 	if _flap_boundary:
 		_flap_boundary.wounds=_open_wounds()
 		if anatomy.cornea.revision!=_flap_revision:
 			_flap_boundary.configure(anatomy.cornea,anatomy.iris); _flap_revision=anatomy.cornea.revision
 	capsule.step_tools(dt,tools)
+	for hand in range(2): _body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"grip":tools[hand].grip}
 	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
 	if injecting and implant_hand==-1: implant_hand=selected
 	if implant_hand>=0 and hand_tools[implant_hand]=="injector": implant_nozzle=rigs[implant_hand].tip

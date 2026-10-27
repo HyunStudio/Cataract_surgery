@@ -3,11 +3,14 @@ extends RefCounted
 ## Previous-side swept candidates prevent a fast translating shaft from merely
 ## appearing on the opposite side. Unsatisfied constraints remain explicit.
 const Kernel=preload("res://scripts/capsule_surface.gd")
+const Path=preload("res://scripts/instrument_path.gd")
 var kernel:=Kernel.new()
 func valid_body(body:Array)->bool:
 	if body.size()>64: return false
 	for part in body:
 		if not part is Dictionary: return false
+		if not Path.valid(part): return false
+		if part.has("attachment") and (not part.attachment is int or part.attachment<0 or part.get("part","")!="jaw"): return false
 		for key in ["a","b","previous_a","previous_b"]:
 			if not part.get(key) is Vector3 or not part[key].is_finite() or part[key].length_squared()>256.: return false
 		if not (part.get("radius") is float or part.get("radius") is int) or not is_finite(part.radius) or part.radius<=0. or part.radius>.3: return false
@@ -16,21 +19,39 @@ func valid_body(body:Array)->bool:
 func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat64Array,body:Array,previous:PackedVector3Array,max_correction:float=.04)->Dictionary:
 	var out:={"valid":false,"positions":points.duplicate(),"contacts":0,"residual":0.,"uncertain":0}
 	if not valid_body(body) or masses.size()!=points.size() or previous.size()!=points.size() or faces.size()%3!=0 or not is_finite(max_correction) or max_correction<=0. or max_correction>1.: return out
+	var mesh_lo:=Vector3(INF,INF,INF); var mesh_hi:=Vector3(-INF,-INF,-INF)
 	for i in range(points.size()):
 		if not points[i].is_finite() or points[i].length_squared()>256. or not previous[i].is_finite() or previous[i].length_squared()>256. or not is_finite(masses[i]) or masses[i]<0. or masses[i]>1e12: return out
+		mesh_lo=mesh_lo.min(points[i]).min(previous[i]); mesh_hi=mesh_hi.max(points[i]).max(previous[i])
 	for id in faces:
 		if id<0 or id>=points.size(): return out
+	for part in body:
+		if part.has("attachment") and (part.attachment>=points.size() or masses[part.attachment]!=0.): return out
 	out.valid=true
+	# A vertex is kept within this total displacement budget for the entire
+	# projection pass, so it cannot create contacts beyond these padded bounds.
+	mesh_lo-=Vector3.ONE*max_correction; mesh_hi+=Vector3.ONE*max_correction
+	var lower:Array[Vector3]=[]; var upper:Array[Vector3]=[]
+	var active:Array=[]
+	for part in body:
+		var lo:Vector3=part.a.min(part.b).min(part.previous_a).min(part.previous_b)-Vector3.ONE*part.radius
+		var hi:Vector3=part.a.max(part.b).max(part.previous_a).max(part.previous_b)+Vector3.ONE*part.radius
+		if mesh_hi.x<lo.x or mesh_lo.x>hi.x or mesh_hi.y<lo.y or mesh_lo.y>hi.y or mesh_hi.z<lo.z or mesh_lo.z>hi.z: continue
+		active.append(part); lower.append(lo); upper.append(hi)
+	if active.is_empty(): return out
 	for off in range(0,faces.size(),3):
 		var ids:=PackedInt32Array([faces[off],faces[off+1],faces[off+2]])
-		for part in body:
-			var current:=PackedVector3Array([out.positions[ids[0]],out.positions[ids[1]],out.positions[ids[2]]])
-			var old:=PackedVector3Array([previous[ids[0]],previous[ids[1]],previous[ids[2]]])
-			var lo:Vector3=part.a.min(part.b).min(part.previous_a).min(part.previous_b)-Vector3.ONE*part.radius
-			var hi:Vector3=part.a.max(part.b).max(part.previous_a).max(part.previous_b)+Vector3.ONE*part.radius
-			var flo:=current[0].min(current[1]).min(current[2]).min(old[0]).min(old[1]).min(old[2])
-			var fhi:=current[0].max(current[1]).max(current[2]).max(old[0]).max(old[1]).max(old[2])
+		var oa:=previous[ids[0]]; var ob:=previous[ids[1]]; var oc:=previous[ids[2]]
+		var old_lo:=oa.min(ob).min(oc); var old_hi:=oa.max(ob).max(oc)
+		for part_index in range(active.size()):
+			var lo:=lower[part_index]; var hi:=upper[part_index]
+			var ca:Vector3=out.positions[ids[0]]; var cb:Vector3=out.positions[ids[1]]; var cc:Vector3=out.positions[ids[2]]
+			var flo:=ca.min(cb).min(cc).min(old_lo)
+			var fhi:=ca.max(cb).max(cc).max(old_hi)
 			if fhi.x<lo.x or flo.x>hi.x or fhi.y<lo.y or flo.y>hi.y or fhi.z<lo.z or flo.z>hi.z: continue
+			var part:Dictionary=active[part_index]
+			var current:=PackedVector3Array([ca,cb,cc])
+			var old:=PackedVector3Array([oa,ob,oc])
 			var topology:=PackedInt32Array([0,1,2])
 			var hit:Dictionary=kernel.query(part.a,part.b,part.radius,current,topology)
 			var before:Dictionary=kernel.query(part.previous_a,part.previous_b,part.radius,old,topology)
@@ -56,6 +77,9 @@ func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat
 			var weights:=_weights(witness,witness_face)
 			if weights==Vector3.ZERO:
 				out.uncertain+=1; out.residual=maxf(out.residual,part.radius); continue
+			var attachment:int=part.get("attachment",-1)
+			var local_attachment:int=ids.find(attachment)
+			if local_attachment>=0 and witness.distance_to(witness_face[local_attachment])<=maxf(.025,part.radius*2.): continue
 			var surface:=Vector3.ZERO
 			for i in range(3): surface+=out.positions[ids[i]]*weights[i]
 			var axis:Vector3=Geometry3D.get_closest_point_to_segment(surface,part.a,part.b)
@@ -68,8 +92,13 @@ func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat
 				largest=maxf(largest,masses[ids[i]]*weights[i])
 			if denominator<=1e-16: out.residual=maxf(out.residual,depth); continue
 			var delta:float=minf(depth/denominator,max_correction/maxf(largest,1e-16))
-			for i in range(3): out.positions[ids[i]]+=normal*(masses[ids[i]]*weights[i]*delta)
-			out.residual=maxf(out.residual,maxf(0.,depth-denominator*delta))
+			var achieved:=0.
+			for i in range(3):
+				var id:=ids[i]; var original:Vector3=out.positions[id]
+				var desired:Vector3=original+normal*(masses[id]*weights[i]*delta)
+				out.positions[id]=points[id]+(desired-points[id]).limit_length(max_correction)
+				achieved+=(out.positions[id]-original).dot(normal)*weights[i]
+			out.residual=maxf(out.residual,maxf(0.,depth-achieved))
 	return out
 
 ## Relative distance is Lipschitz in the sum of maximum endpoint and vertex

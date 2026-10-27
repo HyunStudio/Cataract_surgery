@@ -13,7 +13,7 @@ func set_pupil(radius:float)->void:
 	if not is_finite(radius): return
 	radius=clampf(radius,.45,1.1)
 	if geometry or not is_equal_approx(pupil,radius): pupil=radius; iris=geometry.iris(radius) if geometry else Shapes.iris(radius)
-func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,capsule,wounds:Array,hand:=-1)->Dictionary:
+func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,capsule,wounds:Array,hand:=-1,elastic_anterior:=false)->Dictionary:
 	var result:={"valid":true,"position":target,"contacts":[],"normal":Vector3.ZERO,"records":[]}
 	if not start.is_finite() or not target.is_finite() or not is_finite(radius) or radius<=0. or radius>.5: result.valid=false; result.position=start if start.is_finite() else Vector3.ZERO; return result
 	if start.distance_squared_to(target)<.00000000000001: return result
@@ -23,6 +23,7 @@ func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,
 	for attempt in range(4):
 		var first:Dictionary={}; var label:=""
 		for id in surfaces:
+			if id=="capsule" and elastic_anterior: continue
 			if id=="capsule" and tool=="knife" and cutting: continue
 			var surface:Dictionary=surfaces[id]
 			var ignore:=Callable()

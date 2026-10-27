@@ -57,4 +57,34 @@ func _initialize()->void:
 	check(not r.valid and r.positions==outside,"unsupported finite geometry cannot become certified clear")
 	r=solver.project(points,faces,PackedFloat64Array([1e300,1,1]),stationary,points,.1)
 	check(not r.valid and r.positions==points,"unsupported inverse mass rejects before overflow")
+	for attachment in ["bad",-2,99]:
+		var bad_attachment:Array=stationary.duplicate(true)
+		bad_attachment[0]["part"]="jaw"; bad_attachment[0]["attachment"]=attachment
+		r=solver.project(points,faces,masses,bad_attachment,points,.1)
+		check(not r.valid and r.positions==points,"malformed attachment metadata rejects before any projection")
+	var jaw:Array=stationary.duplicate(true)
+	jaw[0]["part"]="jaw"; jaw[0]["attachment"]=0
+	r=solver.project(points,faces,PackedFloat64Array([0,1,1]),jaw,points,.1)
+	check(r.contacts>0 and r.positions[1].y!=0.,"grasp exemption cannot hide distant contact on same retained face")
+	jaw[0].a=points[0]+Vector3(0,.001,0); jaw[0].b=jaw[0].a
+	jaw[0].previous_a=jaw[0].a; jaw[0].previous_b=jaw[0].a
+	r=solver.project(points,faces,PackedFloat64Array([0,1,1]),jaw,points,.1)
+	check(r.contacts==0 and r.positions==points,"only local owning jaw attachment is exempted")
+	var overlapping:Array=[]
+	for i in range(4): overlapping.append({"a":Vector3(0,.01,0),"b":Vector3(0,.01,0),"previous_a":Vector3(0,.01,0),"previous_b":Vector3(0,.01,0),"radius":.2})
+	r=solver.project(points,faces,masses,overlapping,points,.01)
+	for i in range(3): check(r.positions[i].distance_to(points[i])<=.010001,"correction budget bounds total vertex displacement across all parts")
+	var opposing:=[{"a":Vector3(0,-.01,0),"b":Vector3(0,-.01,0),"previous_a":Vector3(0,-.01,0),"previous_b":Vector3(0,-.01,0),"radius":.08},{"a":Vector3(0,.10,0),"b":Vector3(0,.10,0),"previous_a":Vector3(0,.10,0),"previous_b":Vector3(0,.10,0),"radius":.04}]
+	r=solver.project(points,faces,masses,opposing,points,.2)
+	check(r.contacts>=2,"global bounds retain later contact created by an earlier projection")
+	var one=load("res://scripts/capsule_solver.gd").new()
+	var six=load("res://scripts/capsule_solver.gd").new()
+	var midpoint:Vector3=(one.positions[0]+one.positions[1]+one.positions[2])/3.
+	var crossing:={"a":midpoint-Vector3(0,.08,0),"b":midpoint-Vector3(0,.08,0),"previous_a":midpoint+Vector3(0,.08,0),"previous_b":midpoint+Vector3(0,.08,0),"radius":.02}
+	var crossing_tools:Array[Dictionary]=[{"hand":0,"tip":Vector3(3,3,3),"radius":.02,"grip":false,"cut":false,"body":[crossing]}]
+	one.solver_iterations=1; six.solver_iterations=6
+	for membrane in [one,six]:
+		membrane.stretch_compliance=100.; membrane.tear_strain=100.; membrane.damping=0.
+		membrane.step_tools(.0001,crossing_tools)
+	check(six.positions[0].y<one.positions[0].y-.01,"remaining XPBD iterations retain the original side of a correction-limited crossing")
 	print("Membrane contact: ",failures," failures"); quit(1 if failures else 0)

@@ -2,6 +2,14 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
+## Current source: elastic anterior body integration in progress
+
+The working source now connects dimensioned full-tool paths to anterior face response, with angular bounds, solver-owned local jaw attachments, atomic interval validation and correction-bounded broadphase. The prior rigid anterior-tip blocker is disabled only where this elastic path takes responsibility. Cornea/iris/posterior full-body and actual entry-mesh integration remain pending.
+
+The new instrument-path, membrane and default-app press tests pass; an actual NVIDIA GPU press run exits0 (44projections/37uncertain moving queries over25manual ticks). The fresh47-suite runner **stops at the volumetric encounter**:100% material removed, implant/wound checks passed, cornea/posterior intact, but final completion is correctly refused with2retained detached pieces, area.03565669. Coarse additional tearing, moving-query budget exhaustion and performance remain open. The original-side constraints are retained through all XPBD iterations; invalid metadata and interval/compliance overflow reject before mutation. Independent review verified the scoped fixes.
+
+No new release/archive or full active GPU success is claimed for this work-in-progress source. The Windows ZIP still corresponds to the prior instrument-profile milestone below. See [current integration evidence and next actions](superpowers/plans/2026-10-28-instrument-body-contact.md).
+
 ## Instrument profile and contact foundations — 2026-10-28
 
 Default dimensioned instruments now share generic rod dimensions and orientation with the prospective contact profiles. Both forceps jaws are tracked by unique names and update their complete endpoint geometry, including angle and length, during closure/reopening. Applied and reviewed frames restore the same shape. This is the app-visible change in this milestone.
