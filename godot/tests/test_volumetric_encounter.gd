@@ -54,22 +54,23 @@ func body_path(app,hand:int,start:Vector3,finish:Vector3,tool:String)->Dictionar
 	return app._rigid_body.resolve(portal,start,(start-portal).normalized(),finish,(finish-portal).normalized(),tool,app.geometry.tip_radius(tool),false,{"iris":app.anatomy.iris,"posterior":app.anatomy.posterior})
 func clear_path(result:Dictionary)->bool:
 	return result.valid and result.fraction==1. and result.contacts.is_empty()
-func material_pose(app,p:Vector3,tool:String,free:bool)->Dictionary:
+func material_pose(app,p:Vector3,tool:String,free:bool,flow_only:=false)->Dictionary:
 	var hand:int=app.selected
 	# Operate near the material: a free fragment must actually travel into
 	# the inlet, and a bound link must actually fracture/peel. The search
 	# stays inside the existing local effect radius, without moving tissue.
-	var reach:=.40 if free else (.20 if tool=="phaco" else .14)
+	var reach:=.40 if free or flow_only else (.20 if tool=="phaco" else .14)
 	var inward:=Vector3(-p.x,0,-p.z).normalized()
 	for lift in [0.,.05,.10,.15,.20,.25,.30,.35,.40]:
 		for inset in [0.,.05,.10]:
 			var candidate:=safe_target(app,p+Vector3.UP*lift+inward*inset)
 			# Rounding allowance remains below unchanged .44 capture / .22
-			# energy / .16 peel radii. Bound material never uses capture reach.
+			# energy / .16 peel radii. Flow-only poses do not assert isolation
+			# or local energy contact; connected drag must actually move tissue.
 			if candidate.distance_to(p)>reach+.000001: continue
 			for candidate_hand in [hand,1-hand]:
 				if clear_path(body_path(app,candidate_hand,candidate,candidate,tool)):
-					return {"hand":candidate_hand,"target":candidate}
+					return {"hand":candidate_hand,"target":candidate,"mode":"flow" if flow_only else ("free" if free else "local")}
 	return {}
 func next_material(app,tool:String)->Dictionary:
 	var candidates:Array=[]
@@ -81,6 +82,14 @@ func next_material(app,tool:String)->Dictionary:
 	for candidate in candidates:
 		var i:int=candidate.index
 		var pose:=material_pose(app,app.lens.particles[i].position,tool,app.lens._degree[i]==0)
+		if not pose.is_empty(): return pose
+	# Exhaust actual local fracture/peel targets before trying weak admitted
+	# flow on a retained connected piece. The solver still forbids capture
+	# until every link of a particle has actually failed.
+	for candidate in candidates:
+		var i:int=candidate.index
+		if app.lens._degree[i]==0: continue
+		var pose:=material_pose(app,app.lens.particles[i].position,tool,false,true)
 		if not pose.is_empty(): return pose
 	if not candidates.is_empty():
 		var capture:=FileAccess.open("res://reports/material-no-access.bin",FileAccess.WRITE)
@@ -181,7 +190,7 @@ func run()->void:
 		# need not occupy a peripheral particle's exact center against the bag.
 		approach_material(app,chosen,"phaco")
 		if failures: break
-		if step%200==0: print("Phaco progress ",step," ",app.lens.metrics()," tip=",app.rigs[app.selected].tip); await process_frame
+		if step%200==0: print("Phaco progress ",step," ",app.lens.metrics()," tip=",app.rigs[app.selected].tip," mode=",chosen.mode); await process_frame
 	print("Volumetric phaco: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().nucleus_remaining<.01,"powered local tool removes volumetric nucleus")
 	if failures: app.queue_free(); await process_frame; quit(1); return
@@ -192,7 +201,7 @@ func run()->void:
 		if chosen.is_empty(): break
 		approach_material(app,chosen,"ia")
 		if failures: break
-		if step%200==0: print("IA progress ",step," ",app.lens.metrics()," tip=",app.rigs[app.selected].tip); await process_frame
+		if step%200==0: print("IA progress ",step," ",app.lens.metrics()," tip=",app.rigs[app.selected].tip," mode=",chosen.mode); await process_frame
 	print("Volumetric IA: ",app.lens.metrics()," alert=",app.director.snapshot().alert)
 	check(app.lens.metrics().removed_mass>=.98,"dimensioned full encounter aspirates material through actual inlet")
 	if failures: app.queue_free(); await process_frame; quit(1); return

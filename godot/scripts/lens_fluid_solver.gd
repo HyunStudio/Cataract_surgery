@@ -189,6 +189,16 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 			_accelerations[a]+=force
 			_accelerations[b]-=force
 	var obstruction := 0.0
+	for i in range(_positions.size()):
+		if _active[i]==0: continue
+		var distance:float=_positions[i].distance_to(tip)
+		if distance<0.12:
+			var occupied:float=(1.0-distance/0.12)*(0.95 if _degree[i]>0 else 0.5)
+			obstruction=maxf(obstruction,occupied)
+	# Admit this substep's boundary flow before applying material drag.
+	# Previous outer-step averages cannot supply forces after depletion.
+	_integrate_compartment(h,aspiration,obstruction)
+	var admitted_aspiration:=maxf(0.,_outflow_rate-_leak_rate-_rupture_rate)
 	var decay := exp(-4.0*h)
 	for i in range(_positions.size()):
 		if _active[i]==0: continue
@@ -196,9 +206,6 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 		if layered: _accelerations[i]+=material.adhesion_acceleration(i,position)
 		var to_tip := tip-position
 		var distance := to_tip.length()
-		if distance<0.12:
-			var occupied := (1.0-distance/0.12)*(0.95 if _degree[i]>0 else 0.5)
-			obstruction=maxf(obstruction,occupied)
 		# Solid contact exists for every retained tool, including an unpowered probe.
 		# Accumulate contact accelerations once, then integrate this particle once.
 		for contact_tip in _contact_tips:
@@ -207,17 +214,20 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 			if contact_distance<0.085:
 				var direction := away/contact_distance if contact_distance>0.00001 else Vector3.UP
 				_accelerations[i]+=direction*(0.085-contact_distance)*90.0
-		# Only free particles can travel into the aspiration port. Bound tissue obstructs it.
-		if aspiration and tissue_access and suction>0.0 and _degree[i]==0 and distance<0.44:
-			if distance<=INLET_RADIUS:
+		# Connected material can follow admitted flow while retaining all
+		# bonds and mass. Weak drag is a reduced engineering approximation,
+		# not calibrated vacuum holding. Only isolated material can enter.
+		if aspiration and tissue_access and suction>0.0 and admitted_aspiration>0. and distance<0.44:
+			if _degree[i]==0 and distance<=INLET_RADIUS:
 				_remove_at_inlet(i)
 				continue
-			_accelerations[i]+=to_tip/maxf(distance,0.00001)*suction*24.0*(1.0-distance/0.44)
+			var draw:=clampf(admitted_aspiration/.08,0.,1.)*(.035 if _degree[i]>0 else 1.)
+			_accelerations[i]+=to_tip/maxf(distance,0.00001)*draw*24.0*(1.0-distance/0.44)
 		var velocity := (_velocities[i]+_accelerations[i]*h)*decay
 		velocity=velocity.limit_length(2.4)
 		var next := position+velocity*h
 		# Swept inlet test avoids missing the port between substeps.
-		if aspiration and tissue_access and suction>0.0 and _degree[i]==0:
+		if aspiration and tissue_access and suction>0.0 and admitted_aspiration>0. and _degree[i]==0:
 			var segment := next-position
 			var t := clampf(to_tip.dot(segment)/maxf(segment.length_squared(),0.000000001),0,1)
 			if (position+segment*t).distance_to(tip)<=INLET_RADIUS:
@@ -239,7 +249,6 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 			velocity.y*=0.2
 		_velocities[i]=velocity
 		_positions[i]=next
-	_integrate_compartment(h,aspiration,obstruction)
 	if layered: material.step(h,tip,hydro_flow*(_inflow_rate/.08),_positions,_active)
 
 func _remove_at_inlet(index: int) -> void:

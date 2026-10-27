@@ -84,6 +84,34 @@ func run()->void:
 	solver.suction=1.0
 	for i in range(180): solver.step(1.0/60.0,Vector3(.42,.68,0),false,true)
 	check(solver.metrics().removed_mass==0.0,"Suction cannot delete connected intact tissue")
+	# Flow can move a retained connected piece without declaring it free or
+	# deleting it. Keep the tip outside solid contact to isolate advection.
+	var following=script.new(); var closed=script.new(); var empty=script.new(); var quiet=script.new()
+	for model in [following,closed,empty,quiet]: model.inflow=1.; model.suction=1.
+	closed.tissue_access=false; empty.inflow=0.; empty._volume=empty.MIN_VOLUME; quiet.suction=0.
+	var flow_tip:=Vector3(1.0,.68,0)
+	for i in range(120):
+		for model in [following,closed,empty,quiet]: model.step(1./60.,flow_tip,false,true)
+	var follow_shift:=Vector3.ZERO; var closed_shift:=Vector3.ZERO; var empty_shift:=Vector3.ZERO; var quiet_shift:=Vector3.ZERO
+	for i in range(initial.size()):
+		follow_shift+=following.particles[i].position-initial[i].position
+		closed_shift+=closed.particles[i].position-initial[i].position
+		empty_shift+=empty.particles[i].position-initial[i].position
+		quiet_shift+=quiet.particles[i].position-initial[i].position
+	check(follow_shift.x/initial.size()>.0001,"admitted aspiration transports connected material toward the port without requiring prior isolation")
+	check(closed_shift.length()/initial.size()<1e-5 and empty_shift.length()/initial.size()<1e-5 and quiet_shift.length()/initial.size()<1e-5,"connected flow drag requires tissue access, admitted aspiration and suction")
+	check(following.metrics().removed_mass==0. and following.metrics().fragments==1,"weak connected flow cannot emulate fracture or delete intact material")
+	var depleted=script.new(); depleted.suction=1.; depleted._volume=depleted.MIN_VOLUME+.001
+	depleted.step(.05,Vector3(2,.68,0),false,true)
+	check(depleted.metrics().outflow>0. and depleted.metrics().volume==depleted.MIN_VOLUME,"depletion history leaves an averaged past boundary flow")
+	depleted.step(depleted.SUBSTEP,flow_tip,false,true)
+	var depleted_speed:=0.
+	for particle in depleted.particles: depleted_speed=maxf(depleted_speed,particle.velocity.length())
+	check(depleted.metrics().outflow==0. and depleted_speed<1e-6,"past admitted flow cannot exert connected drag after current supply is exhausted")
+	var dry_free=script.new(); dry_free.suction=1.; dry_free._volume=dry_free.MIN_VOLUME
+	dry_free._bond_active.fill(0)
+	dry_free.step(dry_free.SUBSTEP,Vector3(0,.68,0),false,true)
+	check(dry_free.metrics().removed_mass==0.,"free material inside an inlet cannot be captured without current admitted aspiration")
 	# Maximum accepted steps, moving contact, and extreme controls remain bounded.
 	solver.inflow=5.0
 	solver.suction=2.0
