@@ -14,6 +14,9 @@ func show_frame(name: String) -> void:
 func place(p: Vector3) -> void:
 	app.rigs[app.selected].aim_at(p)
 	app.rigs[app.selected].set_insertion(app.rigs[app.selected].portal.distance_to(p))
+func enter_chamber(side:float,z:float) -> void:
+	for p in [Vector3(side*1.32,.84,z),Vector3(side*1.22,.847,z),Vector3(side*1.1,.864,z),Vector3(side*.9,.885,z),Vector3(0,.9,0)]:
+		place(p); app._physics_process(1./60.)
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://reports"))
 	app=load("res://scripts/simulator.gd").new()
@@ -23,22 +26,30 @@ func run() -> void:
 	app.start_practice()
 	await show_frame("physics_01_intact")
 	app.wireframe=true
+	enter_chamber(1.,0.)
 	place(Vector3(0,.82,0))
 	app.grip_down=true
 	app._physics_process(1./60.)
 	check(app.capsule.metrics().grasped>=0,"constrained tool attaches at actual tissue contact")
 	for i in range(12):
-		place(Vector3(.012*i,.82+.018*i,0))
+		place(Vector3(.012*i,minf(.89,.82+.018*i),0))
 		app._physics_process(1./60.)
 	await show_frame("physics_02_traction")
 	for i in range(12,40):
-		place(Vector3(.012*i,.82+.018*i,0))
+		place(Vector3(.012*i,minf(.89,.82+.018*i),0))
 		app._physics_process(1./60.)
 	check(app.capsule.metrics().broken_edges>0,"actual constrained traction tears capsule")
 	await show_frame("physics_03_rupture")
 	app.release_controls()
 	app.selected=1
 	app.hand_tools[1]="phaco"
+	enter_chamber(-1.,.25)
+	# Prepare a local physical opening for this hand; do not bypass the membrane.
+	app.choose_tool("knife"); app.grip_down=true
+	for i in range(40):
+		place(Vector3(.42,.81,-.10+.005*i)); app._physics_process(1./60.)
+	app.release_controls(); app.choose_tool("phaco")
+	place(Vector3(.42,.70,0)); app._physics_process(1./60.)
 	app.slider_values.energy=1.
 	app.slider_values.suction=1.
 	place(Vector3(.42,.68,0))

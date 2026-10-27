@@ -24,6 +24,7 @@ func run()->void:
 	check(lens.particles==before_particles and capsule.positions==before_capsule and iol.positions==before_iol,"Applying display state never mutates authoritative solvers")
 	check(display.membrane.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]==capsule.positions,"Membrane mesh follows actual numerical positions")
 	check(display.lens_display.mesh.get_surface_count()>0,"Smooth continuous lens mesh is integrated")
+	check(display.has_node("NumericalEye/ComputedCornea") and display.has_node("NumericalEye/ComputedPosteriorCapsule"),"shared anatomical surfaces are rendered")
 	check(not display.iol_display.visible,"Undelivered IOL cannot appear in eye")
 	for hand in range(2):
 		var id="forceps" if hand==0 else "phaco"

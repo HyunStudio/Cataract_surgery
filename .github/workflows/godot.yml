@@ -19,7 +19,7 @@ jobs:
           echo "/tmp/godot" >> "$GITHUB_PATH"
       - name: Domain, assets and input tests
         run: |
-          for suite in test_session test_world test_input test_integration test_playthrough test_capsule_solver test_lens_fluid_solver test_instrument_rig test_simulator test_case_director test_case_recording test_incision_model test_iol_dynamics test_lens_surface test_operating_app test_simulation_ui test_surgical_display test_full_encounter test_lens_material test_layered_lens; do
+          for suite in test_session test_world test_input test_integration test_playthrough test_capsule_solver test_lens_fluid_solver test_instrument_rig test_simulator test_case_director test_case_recording test_incision_model test_iol_dynamics test_lens_surface test_operating_app test_simulation_ui test_surgical_display test_full_encounter test_lens_material test_layered_lens test_surface_contact test_anatomy_contact test_anatomical_app; do
             Godot_v4.7.2-stable_linux.x86_64 --headless --path godot --script "res://tests/$suite.gd"
           done
       - name: Rendered integration

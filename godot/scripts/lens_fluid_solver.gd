@@ -6,6 +6,7 @@ const MaterialModel=preload("res://scripts/lens_material.gd")
 var material=MaterialModel.new()
 var layered:=false
 var hydro_flow:=0.0
+var tissue_access:=true
 const CENTER := Vector3(0.0,0.68,0.0)
 const INITIAL_MASS := 1.0
 const MIN_VOLUME := 0.2
@@ -55,7 +56,7 @@ func reset() -> void:
 	energy=0.0
 	hardness=.4
 	wound_leak=0.0
-	hydro_flow=0.0
+	hydro_flow=0.0; tissue_access=true
 	passive_tips.clear()
 	_contact_tips.clear()
 	_removed_mass=0.0
@@ -151,7 +152,7 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 		var rest := _bond_rest[bond_id]
 		var strain := absf(distance-rest)/maxf(0.01,rest)
 		# Only strained links or links at an active local tip can fail.
-		if active and energy>0.0:
+		if active and tissue_access and energy>0.0:
 			var nearest := minf(pa.distance_to(tip),pb.distance_to(tip))
 			if nearest<0.22:
 				_bond_damage[bond_id]+=h*energy*10.0*(1.0-nearest/0.22)*_damage_scale
@@ -159,7 +160,7 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 		if layered and (material.is_cortex(a) or material.is_cortex(b)):
 			threshold=.32
 			# Aspiration can peel locally released cortical fibres; it adds no nuclear energy.
-			if aspiration and suction>0.:
+			if aspiration and tissue_access and suction>0.:
 				_bond_damage[bond_id]+=h*suction*14.*material.peel_weight(a,b,tip,_positions)
 		if strain>threshold or _bond_damage[bond_id]>=1.0:
 			_break_bond(bond_id)
@@ -191,7 +192,7 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 				var direction := away/contact_distance if contact_distance>0.00001 else Vector3.UP
 				_accelerations[i]+=direction*(0.085-contact_distance)*90.0
 		# Only free particles can travel into the aspiration port. Bound tissue obstructs it.
-		if aspiration and suction>0.0 and _degree[i]==0 and distance<0.44:
+		if aspiration and tissue_access and suction>0.0 and _degree[i]==0 and distance<0.44:
 			if distance<=INLET_RADIUS:
 				_remove_at_inlet(i)
 				continue
@@ -200,7 +201,7 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 		velocity=velocity.limit_length(2.4)
 		var next := position+velocity*h
 		# Swept inlet test avoids missing the port between substeps.
-		if aspiration and suction>0.0 and _degree[i]==0:
+		if aspiration and tissue_access and suction>0.0 and _degree[i]==0:
 			var segment := next-position
 			var t := clampf(to_tip.dot(segment)/maxf(segment.length_squared(),0.000000001),0,1)
 			if (position+segment*t).distance_to(tip)<=INLET_RADIUS:

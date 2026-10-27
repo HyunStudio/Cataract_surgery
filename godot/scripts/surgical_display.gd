@@ -1,5 +1,6 @@
 extends Node3D
 ## Rendering adapter only. Numerical solvers and captured frames remain read-only.
+const Shapes=preload("res://scripts/anatomy_surfaces.gd")
 const WorldScript=preload("res://scripts/surgical_world.gd")
 const SurfaceScript=preload("res://scripts/lens_surface.gd")
 var world: Node3D
@@ -44,12 +45,18 @@ func build()->void:
 	world.name="World"
 	add_child(world)
 	world.build()
-	for label in ["CapsuleMembrane","LensRegions","CortexRegions","IOL","Iris","PupilRim","TutorialTargets","AspirationFragments"]:
+	for label in ["CapsuleMembrane","LensRegions","CortexRegions","IOL","Iris","PupilRim","TutorialTargets","AspirationFragments","Cornea","Pupil"]:
 		var old:Node3D=world.find_child(label,true,false)
 		if old: old.visible=false
 	_physical=Node3D.new()
 	_physical.name="NumericalEye"
 	add_child(_physical)
+	var cornea_node:=_node("ComputedCornea",_physical)
+	cornea_node.mesh=Shapes.mesh(Shapes.cornea())
+	cornea_node.material_override=_material(Color(.68,.9,.97,.045),.08)
+	var posterior_node:=_node("ComputedPosteriorCapsule",_physical)
+	posterior_node.mesh=Shapes.mesh(Shapes.posterior())
+	posterior_node.material_override=_material(Color(.045,.075,.07),.35)
 	membrane=_node("ComputedCapsuleSurface",_physical)
 	membrane.mesh=_capsule_mesh
 	membrane.material_override=_material(Color(.76,.87,.88,.26),.24)
@@ -131,7 +138,7 @@ func apply(capsule,lens,iol,rigs:Array,hand_tools:Array,selected:int,actions:Arr
 	var radius:=clampf(float(options.get("pupil_radius",.98)),.55,1.15)
 	if not is_equal_approx(radius,_pupil_radius):
 		_pupil_radius=radius
-		_iris.mesh=_iris_mesh(radius)
+		_iris.mesh=Shapes.mesh(Shapes.iris(radius))
 	_set_view(bool(options.get("room",false)))
 	var rig_data:Array=[]
 	for rig in rigs: rig_data.append({"tip":rig.tip,"axis":rig.axis,"portal":rig.portal,"insertion":rig.insertion})
@@ -294,29 +301,6 @@ func _lines(mesh:ArrayMesh,points:PackedVector3Array)->void:
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX]=points
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES,arrays)
-
-func _iris_mesh(inner:float)->ArrayMesh:
-	var vertices:=PackedVector3Array()
-	var normals:=PackedVector3Array()
-	var uv:=PackedVector2Array()
-	var indices:=PackedInt32Array()
-	for ring in range(2):
-		var radius:=inner if ring==0 else 1.40
-		for i in range(129):
-			var point:=Vector3(cos(i*TAU/128.0)*radius,.855,sin(i*TAU/128.0)*radius)
-			vertices.append(point)
-			normals.append(Vector3.UP)
-			uv.append(Vector2(point.x,point.z)/2.8+Vector2(.5,.5))
-	for i in range(128): indices.append_array(PackedInt32Array([i,i+129,i+1,i+1,i+129,i+130]))
-	var arrays:=[]
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX]=vertices
-	arrays[Mesh.ARRAY_NORMAL]=normals
-	arrays[Mesh.ARRAY_TEX_UV]=uv
-	arrays[Mesh.ARRAY_INDEX]=indices
-	var mesh:=ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
-	return mesh
 
 func capture_frame()->Dictionary:
 	return _last_frame.duplicate(true)

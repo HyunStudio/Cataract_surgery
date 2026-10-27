@@ -137,6 +137,8 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		if not tool.get("hand") is int or tool.hand < 0 or tool.hand > 15 or present.has(tool.hand): return
 		if not tool.get("tip") is Vector3 or not tool.tip.is_finite(): return
 		if not (tool.get("radius") is float or tool.get("radius") is int) or not is_finite(tool.radius) or tool.radius <= 0 or tool.radius > .3: return
+		var contact_radius=tool.get("contact_radius",tool.radius)
+		if not (contact_radius is float or contact_radius is int) or not is_finite(contact_radius) or contact_radius<=0. or contact_radius>.3: return
 		if not tool.get("grip") is bool or not tool.get("cut") is bool: return
 		present[tool.hand] = true
 	for hand_id in _grasps.keys():
@@ -169,7 +171,7 @@ func step_tools(dt: float, tools: Array[Dictionary]) -> void:
 			if _grasps.has(tool.hand):
 				var vertex: int = _grasps[tool.hand]
 				positions[vertex] = positions[vertex].move_toward(tool.tip, .08)
-			_project_contact(tool.tip, tool.radius)
+			_project_contact(tool.tip, tool.get("contact_radius",tool.radius))
 		for edge_id in range(_edge_a.size()):
 			_lambdas[edge_id] = 0.0
 			if _edge_active[edge_id] == 0: continue

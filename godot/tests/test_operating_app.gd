@@ -6,6 +6,16 @@ func _initialize() -> void: call_deferred("run")
 func place(app,hand: int,p: Vector3) -> void:
 	app.rigs[hand].aim_at(p)
 	app.rigs[hand].set_insertion(app.rigs[hand].portal.distance_to(p))
+func enter_chamber(app,hand:int) -> void:
+	# Route through the actual prepared corneal window and above the iris.
+	for p in [Vector3(1.32,.84,0),Vector3(1.22,.847,0),Vector3(1.1,.864,0),Vector3(.9,.89,0),Vector3(0,.9,0)]:
+		place(app,hand,p); app._physics_process(1./60.)
+func open_capsule(app) -> void:
+	app.choose_tool("knife"); enter_chamber(app,app.selected); app.grip_down=true
+	for i in range(100):
+		var angle:=TAU*i/99.
+		place(app,app.selected,Vector3(.32*cos(angle),.81,.32*sin(angle))); app._physics_process(1./60.)
+	app.release_controls()
 func run() -> void:
 	var source=load("res://scripts/simulator.gd")
 	if not source.can_instantiate(): push_error("app does not load"); quit(1); return
@@ -29,6 +39,7 @@ func run() -> void:
 	check(app.incision.opened[0],"actual continuous blade path opens entry")
 	app.release_controls()
 	app.choose_tool("forceps")
+	enter_chamber(app,0)
 	place(app,0,Vector3(0,.82,0))
 	app.grip_down=true
 	app._physics_process(1./60.)
@@ -44,7 +55,9 @@ func run() -> void:
 	check(not app.pedal_down and app.pedal_stage==0,"camera switch disarms equipment")
 	app.start_practice()
 	check(app.practice and app.incision.opened[0],"practice supplies explicit prepared entry anatomy")
-	app.choose_tool("cannula"); place(app,app.selected,Vector3(.66,.76,0))
+	open_capsule(app)
+	app.choose_tool("cannula"); place(app,app.selected,Vector3(.32,.76,0)); app._physics_process(1./60.)
+	place(app,app.selected,Vector3(.66,.76,0))
 	app.set_machine("inflow",1.)
 	app.handle_pedal(false,false,true,1); app.handle_pedal(true,false,true,1)
 	for i in range(40): app._physics_process(1./60.)

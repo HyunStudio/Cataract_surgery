@@ -80,7 +80,7 @@ func run() -> void:
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://reports/professional-results.png")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://reports"))
-	var file:=FileAccess.open("res://reports/full-encounter.json",FileAccess.WRITE)
+	var file:=FileAccess.open("res://reports/full-encounter.json" if DisplayServer.get_name()=="headless" else "res://reports/full-encounter-gpu.json",FileAccess.WRITE)
 	file.store_string(JSON.stringify({"failures":failures,"steps":steps,"report":app.director.snapshot(),"lens":app.lens.metrics(),"iol":app.iol.metrics(),"frames":app.recording.frames.size()},"  "))
 	app.queue_free(); await process_frame
 	print("Full operating encounter: ",failures," failures")

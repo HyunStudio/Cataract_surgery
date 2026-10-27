@@ -2,6 +2,33 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
+## Continuous anatomical tip contact milestone — 2026-10-27
+
+- Fresh standard runner: **23 Godot suites passed**, including surface-contact, anatomical-coordinator and anatomical-application suites. Existing Python source/tests were unchanged in this milestone.
+- The swept sphere kernel checks triangle faces, edge cylinders and vertex spheres, with two-sided contact and bounded sliding. Tests cover fast crossings, actual missing triangles, tangent withdrawal, internal coplanar seams, malformed topology and nonfinite/overflowing coordinates.
+- Shared generated corneal dome, conical finite-thickness iris and posterior bowl now drive rendering and collision. The previous displayed iris height and old numeric depth guard disagreed; both were replaced. The anatomical dimensions and app tip radius `.01` are synthetic engineering choices, not calibrated anatomical/tool data.
+- In the actual app, intact capsule blocks a phaco tip and interposed membrane prevents its energy from acting on lens material. Fluid aspiration in the anterior compartment remains possible. A blade-created opening permits subsequent local phaco entry. Grasp reach and physical contact radius are separate.
+- Full layered encounter passed both headless and on the NVIDIA GPU with the new contacts: entry → membrane opening → cannula local flow release → nuclear phaco → separate cortical IA → IOL → final inspections → completed. Captured GPU report: `godot/reports/full-encounter-gpu.json`.
+- GPU traction/local aspiration suite passed after its old teleporting fixtures were replaced with actual chamber routing and a blade-created local access opening. Intact/traction/rupture/local-removal images were visually inspected.
+- Independent review reproduced a corneal aperture that accepted a sphere whose center fit but whose footprint overlapped intact surface. Fixed by testing projected surface distance plus the full tip radius. Reviewer independently reran edge/center crossings at radii `.01` and `.018` and the large-coordinate rejection; all passed. All three new suites are in the local runner and CI workflow (remote CI not claimed).
+- Interior contact query averaged **1.737 ms before broad bounds rejection, 0.770 ms after** in the 120-query microbenchmark. Rendering/solver performance is separately measured below.
+
+### Actual moving, powered workload
+
+`benchmark_active.gd` prepared a real membrane opening, then continuously moved a powered phaco tip in the chamber for 30 seconds at 1920×1080. First 2 seconds discarded. This is the first new-mode measurement with local fracture/aspiration and continuous contact active rather than an idle field.
+
+| Metric | Observed |
+|---|---|
+| Sampled frames | 1,295 |
+| Mean FPS / frame time | 46.12 fps / 21.683 ms |
+| P95 frame time | 29.294 ms |
+| Removed mass at end | 48.65% of initial total mass |
+| Finite model state | true |
+
+This does **not** satisfy a stable 60fps active-operation target; profiling/optimization and longer duration acceptance remain required. It is not comparable to the earlier idle measurements as if they were the same workload.
+
+Tip collision is a sphere approximation, not complete shaft/jaw/blade contact. Contact-limited movement is recorded per hand and summed; those metrics are not tissue force or damage. Corneal and posterior structural injury, tearing/leak coupling, full hardware/tool shapes and complete pointer-driven workflow verification remain open in [overall completion criteria](REALISM_COMPLETION_KO.md). Overall goal remains active.
+
 ## Layered material milestone — 2026-10-27
 
 The default app now enables nuclear/cortical material identity, localized capsule-cortex adhesion and cortical aspiration peeling. Homogeneous kernel fixtures remain available as the explicit legacy solver mode.

@@ -5,6 +5,8 @@ const Lens = preload("res://scripts/lens_fluid_solver.gd")
 const Rig = preload("res://scripts/instrument_rig.gd")
 const IOL = preload("res://scripts/iol_dynamics.gd")
 const Director = preload("res://scripts/case_director.gd")
+const Contact = preload("res://scripts/anatomy_contact.gd")
+const TIP_RADIUS:=.01
 const Incision = preload("res://scripts/incision_model.gd")
 const Recording = preload("res://scripts/case_recording.gd")
 const Display = preload("res://scripts/surgical_display.gd")
@@ -17,6 +19,8 @@ var lens = Lens.new()
 var iol = IOL.new()
 var director = Director.new()
 var incision = Incision.new()
+var anatomy=Contact.new()
+var last_contacts:=[[],[]]
 var recording = Recording.new()
 var rigs: Array = [Rig.new(),Rig.new()]
 var hand_tools := ["forceps","phaco"]
@@ -45,7 +49,7 @@ var status := "증례와 수술 준비를 확인하세요."
 var machine := {"inflow":.35,"suction":.35,"energy":.25,"focus":1.,"illumination":1.}
 var slider_values: Dictionary = machine
 var samples: Array = []
-var metrics := {"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.}
+var metrics := {"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.,"capsule_contacts":0.,"cornea_contacts":0.}
 var targets := [Vector3.ZERO,Vector3.ZERO]
 var target_valid := [false,false]
 var previous_tips := [Vector3.ZERO,Vector3.ZERO]
@@ -98,9 +102,10 @@ func new_case(id: String) -> void:
 		rigs[hand].aim_at(Vector3(0,.8,0)); rigs[hand].set_insertion(.12)
 		targets[hand]=rigs[hand].tip; previous_tips[hand]=rigs[hand].tip; target_valid[hand]=false
 	pupil_radius=.74 if case_id=="small_pupil" else .98
+	anatomy.set_pupil(pupil_radius); last_contacts=[[],[]]
 	implant_hand=-1; implant_nozzle=Vector3(0,.72,0)
 	clock=0.; samples=[]; _sample_accum=0.; _ui_accum=0.
-	metrics={"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.}
+	metrics={"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.,"capsule_contacts":0.,"cornea_contacts":0.}
 	case_active=false; practice=false; paused=false; reviewing=false; room_view=true
 	status="증례 선택 → 환자·부위·장비 확인 → 집도 시작"
 	_cache_metrics(); update_geometry()
@@ -121,6 +126,7 @@ func start_practice() -> void:
 	for check_id in ["patient","side","equipment"]: director.prepare(check_id)
 	practice=true; case_active=true; room_view=false
 	incision.opened=[true,true]; incision.lengths=[.18,.18]
+	incision.paths=[[Vector3(1.32,.84,-.1),Vector3(1.32,.84,.1)],[Vector3(-1.32,.84,.15),Vector3(-1.32,.84,.35)]]
 	status="자유 술기 연습: 미리 준비된 진입부에서 조직과 장비 반응을 연습합니다."
 	update_geometry()
 
@@ -299,11 +305,15 @@ func _advance_motion(dt: float) -> float:
 		var before: Vector3=rigs[hand].tip
 		if target_valid[hand]: _set_tip(hand,before.move_toward(targets[hand],dt*1.5))
 		if not incision.opened[hand] and hand_tools[hand]!="knife": rigs[hand].set_insertion(minf(.12,rigs[hand].insertion))
-		var tip: Vector3=rigs[hand].tip
-		if tip.y<.77 and Vector2(tip.x,tip.z).length()>pupil_radius and hand_tools[hand]!="knife":
-			_set_tip(hand,Vector3(tip.x,.83,tip.z)); metrics.iris_contacts+=dt
-		if tip.y<.52 and Vector2(tip.x,tip.z).length()<.88:
-			_set_tip(hand,Vector3(tip.x,.54,tip.z)); metrics.posterior_contacts+=dt
+		var wounds:Array=[incision.paths[0] if incision.opened[0] else [],incision.paths[1] if incision.opened[1] else []]
+		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,TIP_RADIUS,hand_tools[hand],hand==selected and grip_down,capsule,wounds)
+		_set_tip(hand,contact.position if contact.valid else previous_tips[hand])
+		for surface in contact.contacts:
+			metrics[surface+"_contacts"]+=dt
+		if not contact.contacts.is_empty() and contact.contacts!=last_contacts[hand]:
+			var labels:={"capsule":"전낭","cornea":"각막","iris":"홍채","posterior":"후낭"}
+			status="기구 접촉: "+str(labels.get(contact.contacts[0],contact.contacts[0]))+" · 깊이와 진입 경로를 확인하세요."
+		last_contacts[hand]=contact.contacts.duplicate()
 		distance+=previous_tips[hand].distance_to(rigs[hand].tip)
 		previous_tips[hand]=rigs[hand].tip
 	return distance
@@ -322,7 +332,8 @@ func _physics_process(dt: float) -> void:
 	var powered:=flow_active and pedal_stage==3 and tool=="phaco"
 	lens.inflow=machine.inflow if flow_active else 0.
 	lens.suction=machine.suction; lens.energy=machine.energy
-	lens.hydro_flow=1. if flow_active and tool=="cannula" else 0.
+	lens.tissue_access=anatomy.lens_access(tip,capsule,TIP_RADIUS) if flow_active else true
+	lens.hydro_flow=1. if flow_active and tool=="cannula" and lens.tissue_access else 0.
 	lens.wound_leak=incision.metrics().leak
 	lens.passive_tips=PackedVector3Array([rigs[1-selected].tip])
 	lens.step(dt,tip,powered,aspirating)
@@ -330,7 +341,7 @@ func _physics_process(dt: float) -> void:
 	capsule.pressure_load=.3*(float(_last_lens.pressure)-1.)
 	var tools: Array[Dictionary]=[]
 	for hand in range(2):
-		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"grip":hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
+		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":TIP_RADIUS,"grip":hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
 	capsule.step_tools(dt,tools)
 	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
 	if injecting and implant_hand==-1: implant_hand=selected
