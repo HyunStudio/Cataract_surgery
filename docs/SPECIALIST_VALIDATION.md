@@ -2,6 +2,18 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
+## Current working source: pivot-constrained iris/posterior bodies
+
+The current source adds rigid generic shaft/sleeve/working-part envelopes against actual iris/posterior meshes. Tip interpolation and normalized signed portal axes remain constrained; no off-pivot overlap translation is applied. A second-order normalization bound encloses centerline curves; radial envelopes enclose off-axis parts. Initial overlap/uncertainty blocks rather than inventing clearance. Corneal body/tunnel integration remains pending.
+
+Immutable packed-array geometry snapshots and face AABB candidate filtering retain original face IDs/revisions. Same-revision edits invalidate the cache; an indexed/exhaustive actual-anatomy comparison matches exactly. Explicit geometry/query/kernel budgets fail closed; missing-witness exhaustion cannot publish triangle-1 as injury evidence. Only an exact nominal part query can promote an envelope candidate to proved contact. Physical part witness movement, including articulation, supplies the relative load.
+
+Injury dispatch preserves per-part cutting/energy eligibility and suppresses unproved conservative candidates. Stationary actual tip power is neither suppressed nor diluted by a same-face body candidate. Accepted binary articulation is tested after accepted pose motion and consistently used by rendering, ToolPath geometry and history. Capsule grasp intent additionally requires active user intent, preventing re-grasp after release. Tool replacement clears articulation. This sequential rigid acceptance does not prove a unique simultaneous elastic pose/articulation path; capsule ToolPath still interpolates endpoint states.
+
+Focused default rigid-body, part dispatch and pivot geometry tests pass, including actual-iris shaft-only contact, speed/pivot/reset, blocked jaw opening with clear closed-jaw withdrawal, eventual opening, source mutation, false envelope witnesses, prior jaw state and budget exhaustion. Actual NVIDIA default rigid-body GPU test exits0, screenshot inspected. No new sustained GPU measurement or native/archive export is claimed. The standard runner now includes50suites but no fresh all50-pass result is claimed.
+
+Current full-route investigation: entry, opening and actual flap extraction pass, but the old hydro driver aims at near-entry cortex around(1.0278,-.1542,0); the actual cannula stops around(.4825,.0337,0)at shaft/iris contact. A120-step diagnostic confirmed the repeated blocked target. The4500-step run was intentionally stopped after this geometric cause was confirmed, not because an observation wait expired. An opposite-hemisphere admitted-flow propagation probe is in progress. Existing direct-teleport adverse fixture also fails its posterior-puncture assertions under the new body constraint and needs a physically admissible adverse route. These are unresolved integration issues; the ZIP below remains the previousb1f60f9verified milestone.
+
 ## Continuous pointer control investigation — current continuation
 
 The first unintended noncut tear in the previous driver was traced to a2.055645-unit cannula teleport in.05seconds. The canonical default encounter now uses normal target controls and bounded continuous movement, persistent hydro targets, actual aspiration transport and unchanged outcome gates. A real signed-pivot entry stall was reproduced and fixed by retracting to the pivot before crossing between inside/outside poses. Rig and integrated default-app approach regressions pass; independent scoped review found no substantive issue.

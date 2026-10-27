@@ -14,7 +14,10 @@ const Director = preload("res://scripts/case_director.gd")
 const Injury=preload("res://scripts/tissue_injury.gd")
 const Contact = preload("res://scripts/anatomy_contact.gd")
 const ToolPath=preload("res://scripts/instrument_path.gd")
+const RigidBody=preload("res://scripts/pivot_body_contact.gd")
+var _rigid_body=RigidBody.new()
 var _body_poses:Array=[{},{}]
+var _resolved_grips:=[false,false]
 const TIP_RADIUS:=.01
 const Incision = preload("res://scripts/incision_model.gd")
 const Recording = preload("res://scripts/case_recording.gd")
@@ -113,6 +116,7 @@ func new_case(id: String) -> void:
 	display.reset_lens_geometry()
 	anatomy.cornea=injury.surfaces.cornea; anatomy.posterior=injury.surfaces.posterior
 	_contact_records=[[],[]]
+	_resolved_grips=[false,false]
 	lens.layered=true
 	lens.hardness=.8 if case_id=="dense" else .4
 	selected=0; hand_tools=["forceps","phaco"]; latched=[false,false]
@@ -170,6 +174,8 @@ func choose_tool(id: String) -> void:
 		_disarm_actions(); status="열린 통로로 현재 기구를 완전히 인출한 뒤 교체하세요."; refresh_ui(); return
 	if selected==implant_hand and iol.metrics().delivered<1. and id!="injector":
 		status="부분 전달 중인 인젝터를 유지하세요. 다른 손은 Tab으로 선택할 수 있습니다."; refresh_ui(); return
+	if id!=hand_tools[selected]:
+		_resolved_grips[selected]=false; _body_poses[selected].grip=false
 	_disarm_actions(); latched[selected]=false; capsule.release_hand(selected)
 	hand_tools[selected]=id; target_planes[selected]=_plane(id); target_valid[selected]=false
 	status="%s 기구: %s" % ["왼손" if selected==0 else "오른손",id]
@@ -348,6 +354,28 @@ func _advance_motion(dt: float) -> float:
 		var wounds:Array=_open_wounds()
 		var contact:Dictionary=anatomy.resolve(previous_tips[hand],rigs[hand].tip,_radius(hand),hand_tools[hand],hand==selected and grip_down,capsule,wounds,hand,geometry!=null)
 		_set_tip(hand,contact.position if contact.valid else previous_tips[hand])
+		if geometry:
+			var prior:Dictionary=_body_poses[hand]
+			var requested_grip:bool=hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down))
+			var surfaces:={"iris":anatomy.iris,"posterior":anatomy.posterior}
+			var body:Dictionary=_rigid_body.resolve(rigs[hand].portal,previous_tips[hand],prior.axis,rigs[hand].tip,rigs[hand].axis,hand_tools[hand],_radius(hand),prior.grip,surfaces,prior.grip)
+			_resolved_grips[hand]=prior.grip
+			if not body.valid:
+				rigs[hand].axis=prior.axis; _set_tip(hand,previous_tips[hand])
+				contact.contacts=[]; contact.records=[]
+				status="기구 몸통 경로를 확인할 수 없습니다: "+body.reason
+			else:
+				rigs[hand].axis=body.axis; _set_tip(hand,body.tip)
+				if body.fraction<1.: contact.contacts=[]; contact.records=[]
+				if requested_grip!=prior.grip:
+					var transition:Dictionary=_rigid_body.resolve(rigs[hand].portal,rigs[hand].tip,rigs[hand].axis,rigs[hand].tip,rigs[hand].axis,hand_tools[hand],_radius(hand),requested_grip,surfaces,prior.grip)
+					if transition.valid and transition.fraction==1. and transition.contacts.is_empty(): _resolved_grips[hand]=requested_grip
+					else:
+						body.contacts.append_array(transition.contacts)
+						status="집게 턱이 조직과 접촉합니다. 기구 위치를 조절하세요."
+				for record in body.contacts:
+					if record.surface not in contact.contacts: contact.contacts.append(record.surface)
+					contact.records.append(record)
 		for surface in contact.contacts:
 			metrics[surface+"_contacts"]+=dt
 		if not contact.contacts.is_empty() and contact.contacts!=last_contacts[hand]:
@@ -385,16 +413,16 @@ func _physics_process(dt: float) -> void:
 	capsule.pressure_load=.3*(float(_last_lens.pressure)-1.)
 	var tools: Array[Dictionary]=[]
 	for hand in range(2):
-		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":_radius(hand),"grip":hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
+		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":_radius(hand),"grip":hand_tools[hand]=="forceps" and _actual_grip(hand) and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
 		if geometry:
 			var prior:Dictionary=_body_poses[hand]
-			tools[-1]["body"]=ToolPath.build(hand_tools[hand],_radius(hand),prior.tip,prior.axis,prior.grip,rigs[hand].tip,rigs[hand].axis,tools[-1].grip,tools[-1].cut)
+			tools[-1]["body"]=ToolPath.build(hand_tools[hand],_radius(hand),prior.tip,prior.axis,prior.grip,rigs[hand].tip,rigs[hand].axis,_actual_grip(hand),tools[-1].cut)
 	if _flap_boundary:
 		_flap_boundary.wounds=_open_wounds()
 		if anatomy.cornea.revision!=_flap_revision:
 			_flap_boundary.configure(anatomy.cornea,anatomy.iris); _flap_revision=anatomy.cornea.revision
 	capsule.step_tools(dt,tools)
-	for hand in range(2): _body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"grip":tools[hand].grip}
+	for hand in range(2): _body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"grip":hand_tools[hand]=="forceps" and _actual_grip(hand)}
 	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
 	if injecting and implant_hand==-1: implant_hand=selected
 	if implant_hand>=0 and hand_tools[implant_hand]=="injector": implant_nozzle=rigs[implant_hand].tip
@@ -434,11 +462,17 @@ func _update_injury(dt:float)->void:
 			for current in anatomy.stationary(rigs[hand].tip,_radius(hand),_open_wounds()):
 				var duplicate:=false
 				for moving in local:
-					if moving.surface==current.surface and moving.triangle==current.triangle and moving.revision==current.revision: duplicate=true; break
+					if not moving.get("conservative",false) and moving.surface==current.surface and moving.triangle==current.triangle and moving.revision==current.revision and moving.get("part","working_tip")=="working_tip": duplicate=true; break
 				if not duplicate: local.append(current)
+		var energy_contacts:=0
 		for record in local:
-			record["tool"]=hand_tools[hand]; record["cutting"]=hand==selected and grip_down and hand_tools[hand]=="knife"
-			record["energy"]=machine.energy/maxi(1,local.size()) if powered else 0.
+			if not record.get("conservative",false) and (not record.has("part") or record.get("energy",false)==true): energy_contacts+=1
+		for record in local:
+			if record.get("conservative",false): continue
+			var cutting_part:bool=not record.has("part") or record.get("cutting",false)==true
+			var energy_part:bool=not record.has("part") or record.get("energy",false)==true
+			record["tool"]=hand_tools[hand]; record["cutting"]=cutting_part and hand==selected and grip_down and hand_tools[hand]=="knife"
+			record["energy"]=machine.energy/maxi(1,energy_contacts) if powered and energy_part else 0.
 			records.append(record)
 	injury.step(dt,records); _last_injury=injury.metrics()
 
@@ -455,10 +489,13 @@ func _observation(movement:=0.,energy:=0.) -> Dictionary:
 func _cache_metrics() -> void:
 	_last_capsule=capsule.metrics(); _last_lens=lens.metrics(); _last_iol=iol.metrics(); _last_injury=injury.metrics()
 
+func _actual_grip(hand:int)->bool:
+	return _resolved_grips[hand] if geometry and hand_tools[hand]=="forceps" else latched[hand] or (grip_down and hand==selected)
+
 func update_geometry(update_ui:=true) -> void:
 	if not display: return
 	var actions: Array=[]
-	for hand in range(2): actions.append({"grip":latched[hand] or (grip_down and hand==selected),"pedal":pedal_stage if hand==selected else 0})
+	for hand in range(2): actions.append({"grip":_actual_grip(hand),"pedal":pedal_stage if hand==selected else 0})
 	display.apply(capsule,lens,iol,rigs,hand_tools,selected,actions,{"dimensioned":geometry!=null,"room":room_view,"wireframe":wireframe,"pupil_radius":pupil_radius,"wounds":incision.paths,"anatomy":_anatomy_state(),"injury":_last_injury})
 	tool_models=display.tool_models
 	_apply_optics()

@@ -6,7 +6,11 @@ func _initialize()->void: call_deferred("run")
 func tick(app,n:=1)->void:
 	for i in range(n): app._physics_process(1./60.)
 func place(app,p:Vector3)->void:
-	app._set_tip(0,p); tick(app)
+	app.targets[0]=p; app.target_valid[0]=true
+	for i in range(200):
+		tick(app)
+		if app.rigs[0].tip.distance_to(p)<.001: return
+	check(false,"exchange route remains reachable through normal control: "+str(p)+" -> "+str(app.rigs[0].tip))
 func run()->void:
 	var app=load("res://scripts/simulator.gd").new(); root.add_child(app); app.set_physics_process(false)
 	await process_frame
