@@ -12,8 +12,14 @@ func advance(model,old_tip:Vector3,tip:Vector3,grip:bool,old_grip:bool)->bool:
 	var body:Array=Path.build("forceps",.018,old_tip,axis0,old_grip,tip,axis1,grip,false)
 	var tools:Array[Dictionary]=[{"hand":0,"tip":tip,"radius":.065,"contact_radius":.018,"grip":grip,"cut":false,"body":body}]
 	var before:PackedVector3Array=model.positions.duplicate()
+	var saved:Dictionary=model._checkpoint()
 	model.step_tools(1./60.,tools); ticks+=1
 	if not model.native_failure.is_empty():
+		check(model.positions==before and model._previous==saved._previous and model.metrics().integration_steps==saved._integration_steps,"rejected actual extraction step preserves tissue history and time")
+		for key in saved.keys():
+			if typeof(saved[key])==TYPE_OBJECT: saved.erase(key)
+		var capture:=FileAccess.open("res://rejected-extraction-step.bin",FileAccess.WRITE)
+		if capture: capture.store_var({"state":saved,"tools":tools,"tick":ticks,"failure":model.native_failure})
 		check(false,"refined extraction numerical failure at tick "+str(ticks)+": "+str(model.native_failure)); return false
 	total_contacts+=model.metrics().body_contacts; total_uncertain+=model.metrics().body_uncertain
 	if model.metrics().cut_loss_area>1e-10:

@@ -14,7 +14,7 @@ func _initialize()->void:
 	var knives:Array=path.build("knife",.018,Vector3.ZERO,Vector3.LEFT,false,Vector3.ZERO,Vector3.LEFT,false,true)
 	check(knives.size()==1 and knives[0].part=="shaft","active cutting exempts blade contact only, never shaft")
 	var jaws:Array=path.build("forceps",.018,Vector3.ZERO,Vector3.LEFT,false,Vector3.ZERO,Vector3.LEFT,true,false)
-	check(path.sample(jaws[0],1.).a.is_equal_approx(Vector3(0,0,-.00875)),"closing jaw path reaches shared rendered endpoint")
+	check(path.sample(jaws[0],1.).a.is_equal_approx(Vector3(0,0,-.010)),"closing jaw path reaches shared rendered endpoint")
 	check(path.build("phaco",.055,Vector3.ZERO,Vector3.ZERO,false,Vector3.ZERO,Vector3.LEFT,false,false).is_empty(),"invalid prior axis rejects path")
 	var cap=load("res://scripts/capsule_solver.gd").new()
 	cap.stretch_compliance=1e303

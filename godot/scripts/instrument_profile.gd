@@ -17,7 +17,9 @@ static func segments(id:String,tip_radius:float,grip:bool=false)->Array[Dictiona
 			# radius includes its entire YZ cross section.
 			result.append(_segment(Vector3.ZERO,Vector3(.18,0,0),sqrt(.06*.06+.0075*.0075),"blade",true))
 		"forceps":
-			var closure:=.35 if grip else 1.
+			# Opposing round jaw envelopes meet at their tips when closed.
+			# A smaller offset overlaps solid jaws and makes nearby tissue contact infeasible.
+			var closure:=.4 if grip else 1.
 			for side in [-1.,1.]:
 				result.append(_segment(Vector3(0,0,side*.025*closure),Vector3(.22,0,side*.045*closure),.010,"jaw"))
 		"cannula":
