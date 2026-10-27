@@ -20,6 +20,7 @@ func run() -> void:
 	root.add_child(app)
 	app.set_process_input(false)
 	app.set_physics_process(false)
+	app.start_practice()
 	await show_frame("physics_01_intact")
 	app.wireframe=true
 	place(Vector3(0,.82,0))
@@ -41,7 +42,8 @@ func run() -> void:
 	app.slider_values.energy=1.
 	app.slider_values.suction=1.
 	place(Vector3(.42,.68,0))
-	app.pedal_down=true
+	app.handle_pedal(false,false,true,3)
+	app.handle_pedal(true,false,true,3)
 	for i in range(180): app._physics_process(1./60.)
 	check(app.lens.metrics().removed_mass>0.,"coupled workbench aspiration transports material into tool")
 	check(app.lens.metrics().remaining_mass>.5,"local aspiration does not clear global field")

@@ -1,327 +1,412 @@
 extends Control
-## Research numerical workbench. No phase timer, target completion, or game score.
+## Specialist simulation game: numerical tissue, instrument constraints and evidence-based cases.
 const Capsule = preload("res://scripts/capsule_solver.gd")
 const Lens = preload("res://scripts/lens_fluid_solver.gd")
 const Rig = preload("res://scripts/instrument_rig.gd")
-const World = preload("res://scripts/surgical_world.gd")
-const UISkinSource = preload("res://scripts/main.gd")
+const IOL = preload("res://scripts/iol_dynamics.gd")
+const Director = preload("res://scripts/case_director.gd")
+const Incision = preload("res://scripts/incision_model.gd")
+const Recording = preload("res://scripts/case_recording.gd")
+const Display = preload("res://scripts/surgical_display.gd")
+const Interface = preload("res://scripts/simulation_ui.gd")
 const InputGate = preload("res://scripts/operative_input.gd")
-const IDS := ["forceps","knife","phaco","ia","cannula","injector","manipulator"]
-const LABELS := ["집게 / 견인","절개도 / 국소 절단","유화 프로브","관류·흡인","관류 캐뉼라","IOL 인젝터 (표시)","조작 기구"]
+const IDS := ["knife","forceps","cannula","phaco","ia","injector","manipulator"]
+const PLANES := {"knife":.84,"forceps":.82,"cannula":.76,"phaco":.68,"ia":.68,"injector":.72,"manipulator":.72}
 var capsule = Capsule.new()
 var lens = Lens.new()
+var iol = IOL.new()
+var director = Director.new()
+var incision = Incision.new()
+var recording = Recording.new()
 var rigs: Array = [Rig.new(),Rig.new()]
 var hand_tools := ["forceps","phaco"]
 var selected := 0
+var latched := [false,false]
 var grip_down := false
 var pedal_down := false
+var pedal_stage := 0
 var pedal_gate = InputGate.new()
 var paused := false
 var wireframe := false
-var target_plane := .82
+var assisted := true
+var high_contrast := false
+var reduced_motion := false
+var room_view := true
+var practice := false
+var case_active := false
+var reviewing := false
+var review_index := 0
+var implant_hand := -1
+var implant_nozzle := Vector3(0,.72,0)
+var case_id := "standard"
+var pupil_radius := .98
+var clock := 0.
+var status := "증례와 수술 준비를 확인하세요."
+var machine := {"inflow":.35,"suction":.35,"energy":.25,"focus":1.,"illumination":1.}
+var slider_values: Dictionary = machine
+var samples: Array = []
+var metrics := {"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.}
+var targets := [Vector3.ZERO,Vector3.ZERO]
+var target_valid := [false,false]
+var previous_tips := [Vector3.ZERO,Vector3.ZERO]
+var target_planes := [.82,.68]
+var display
+var ui
 var world
 var viewport_3d: SubViewport
 var viewport_box: SubViewportContainer
 var membrane: MeshInstance3D
-var lens_display: MultiMeshInstance3D
+var lens_display: MeshInstance3D
 var tool_models: Array = []
 var diagnostics: Label
-var tool_status: Label
 var explanation: Label
 var hand_button: Button
-var capsule_material: StandardMaterial3D
-var wire_display: MeshInstance3D
-var slider_values: Dictionary = {}
-var clock := 0.
-var samples: Array = []
+var _last_lens: Dictionary = {}
+var _last_capsule: Dictionary = {}
+var _last_iol: Dictionary = {}
+var _ui_accum := 0.
+var _sample_accum := 0.
+var _audio: AudioStreamPlayer
+var _audio_clock := 0.
+var _sound := false
 
 func _ready() -> void:
-	# A slow research solver must not queue eight stale mechanical updates
-	# before displaying fresh input. Simulation time remains explicit below.
-	Engine.max_physics_steps_per_frame = 1
+	Engine.max_physics_steps_per_frame=1
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var skin = UISkinSource.new()
-	skin.build_theme()
-	theme = skin.theme
-	skin.free()
-	rigs[1].portal = Vector3(-1.44,.86,.25)
-	rigs[1].aim_at(Vector3(0,.68,0))
-	rigs[0].aim_at(Vector3(0,.82,0))
-	for rig in rigs: rig.set_insertion(.12)
-	build_ui()
-	build_physics_display()
+	ui=Interface.new(); add_child(ui); ui.build(self)
+	viewport_box=ui.viewport_box; viewport_3d=ui.viewport_3d
+	explanation=ui.explanation; diagnostics=ui.diagnostics; hand_button=ui.hand_button
+	display=Display.new(); viewport_3d.add_child(display); display.build()
+	world=display.world; membrane=display.membrane; lens_display=display.lens_display; tool_models=display.tool_models
+	var optics := ShaderMaterial.new()
+	optics.shader=load("res://assets/microscope.gdshader"); viewport_box.material=optics
+	_build_audio()
+	new_case("standard")
 	resized.connect(release_controls)
 
-func text(value: String, size_px := 15, color := Color("e4edf0")) -> Label:
-	var node := Label.new()
-	node.text = value
-	node.add_theme_font_size_override("font_size",size_px)
-	node.add_theme_color_override("font_color",color)
-	return node
-func action(value: String, callback: Callable) -> Button:
-	var b := Button.new()
-	b.text = value
-	b.custom_minimum_size.y = 42
-	b.pressed.connect(callback)
-	return b
-func build_ui() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color("08151c")
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left","right","top","bottom"]: margin.add_theme_constant_override("margin_"+side,18)
-	add_child(margin)
-	var all := VBoxContainer.new()
-	margin.add_child(all)
-	all.add_child(text("OPHTHOSIM  /  SURGICAL SIMULATION",24,Color("82dfc2")))
-	all.add_child(text("물리 기반 실험 모드 · 비보정 연구 모델 · 임상적 정확성 미검증",13,Color("edc38b")))
-	var row := HBoxContainer.new()
-	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	all.add_child(row)
-	var left := VBoxContainer.new()
-	left.custom_minimum_size.x = 240
-	row.add_child(left)
-	left.add_child(text("INSTRUMENTS",12,Color("819da5")))
-	hand_button = action("왼손 기구 선택  [Tab]",switch_hand)
-	left.add_child(hand_button)
-	for i in range(IDS.size()):
-		var id: String = IDS[i]
-		left.add_child(action("%d  %s" % [i+1,LABELS[i]],func(): release_controls(); hand_tools[selected]=id))
-	left.add_child(HSeparator.new())
-	add_slider(left,"inflow","관류 유입 (연구값)",0.)
-	add_slider(left,"suction","흡인 (연구값)",.35)
-	add_slider(left,"energy","유화 작용 (연구값)",.25)
-	left.add_child(action("조직 모델 초기화  [R]",reset_simulation))
-	left.add_child(action("모델 격자  [F2]",func(): wireframe=not wireframe))
-	left.add_child(action("일시정지  [Esc]",func(): release_controls(); paused=not paused))
-	left.add_child(action("수치 기록 저장  [S]",export_observations))
-	var center := VBoxContainer.new()
-	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(center)
-	viewport_box = SubViewportContainer.new()
-	viewport_box.stretch = true
-	viewport_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	viewport_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	viewport_box.mouse_filter = Control.MOUSE_FILTER_STOP
-	center.add_child(viewport_box)
-	viewport_3d = SubViewport.new()
-	viewport_3d.size = Vector2i(900,700)
-	viewport_3d.msaa_3d = Viewport.MSAA_2X
-	viewport_box.add_child(viewport_3d)
-	world = World.new()
-	viewport_3d.add_child(world)
-	world.build()
-	world.set_room_view(false)
-	world.update_state({"phase":"PHACO","tutorial":false,"eye":{"opacity":0.,"cortex":0.}},Vector3(.5,.5,0),"",false)
-	world.find_child("CapsuleMembrane",true,false).hide()
-	world.target.hide()
-	tool_status = text("",14,Color("82dfc2"))
-	center.add_child(tool_status)
-	explanation = text("마우스: 기구 축 방향 · 휠: 삽입 깊이 · Q/E: 상하 각도\n왼쪽 누름: 집게 견인/절개 · Space: 유화·흡인 페달 · Shift+휠: 현미경 확대",13,Color("819da5"))
-	center.add_child(explanation)
-	var right := VBoxContainer.new()
-	right.custom_minimum_size.x = 250
-	row.add_child(right)
-	right.add_child(text("NUMERICAL OBSERVATIONS",12,Color("819da5")))
-	diagnostics = text("",15)
-	right.add_child(diagnostics)
-	var notes := text("진행률·게임 점수를 사용하지 않습니다.\n\n접촉·견인·변형률·파열과 파편 이동을 수치 모델에서 계산합니다.\n\n압력·유량 표시는 단일 구획 연구값이며 실제 안압이나 수술 장비 설정값이 아닙니다.\n\nIOL 재료역학·정밀 광학·조직 물성 보정은 아직 구현되지 않았습니다.",13,Color("819da5"))
-	notes.custom_minimum_size.x = 245
-	notes.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	right.add_child(notes)
-
-func add_slider(parent: VBoxContainer, key: String, caption: String, value: float) -> void:
-	parent.add_child(text(caption,13,Color("819da5")))
-	var slider := HSlider.new()
-	slider.min_value = 0.
-	slider.max_value = 1.
-	slider.step = .01
-	slider.value = value
-	parent.add_child(slider)
-	slider_values[key] = value
-	slider.value_changed.connect(func(v): slider_values[key]=v)
-
-func build_physics_display() -> void:
-	membrane = MeshInstance3D.new()
-	membrane.name = "ComputedCapsuleSurface"
-	capsule_material = StandardMaterial3D.new()
-	capsule_material.albedo_color = Color(.78,.9,.92,.42)
-	capsule_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	capsule_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	capsule_material.roughness = .22
-	membrane.material_override = capsule_material
-	world.add_child(membrane)
-	wire_display = MeshInstance3D.new()
-	var wire_mat := StandardMaterial3D.new()
-	wire_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	wire_mat.albedo_color = Color("75d8bf")
-	wire_display.material_override = wire_mat
-	world.add_child(wire_display)
-	lens_display = MultiMeshInstance3D.new()
-	lens_display.name = "ComputedLensParticles"
-	var multi := MultiMesh.new()
-	multi.transform_format = MultiMesh.TRANSFORM_3D
-	var sphere := SphereMesh.new()
-	sphere.radius = .12
-	sphere.height = .24
-	sphere.radial_segments = 12
-	sphere.rings = 6
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color("cbb074")
-	mat.roughness = .48
-	sphere.material = mat
-	multi.mesh = sphere
-	multi.instance_count = lens.particles.size()
-	lens_display.multimesh = multi
-	world.add_child(lens_display)
+func new_case(id: String) -> void:
+	release_controls()
+	case_id=id if id in ["standard","dense","small_pupil","motion"] else "standard"
+	director.reset(case_id,7)
+	capsule.reset(); lens.reset(); iol.reset(); incision.reset(); recording.reset()
+	lens.hardness=.8 if case_id=="dense" else .4
+	selected=0; hand_tools=["forceps","phaco"]; latched=[false,false]
+	target_planes=[PLANES.forceps,PLANES.phaco]
+	rigs[0].portal=Vector3(1.44,.86,0); rigs[1].portal=Vector3(-1.44,.86,.25)
 	for hand in range(2):
-		var models := {}
-		for id in IDS:
-			var model: Node3D = world.tools[id].duplicate()
-			model.visible = false
-			world.add_child(model)
-			models[id] = model
-		tool_models.append(models)
+		rigs[hand].aim_at(Vector3(0,.8,0)); rigs[hand].set_insertion(.12)
+		targets[hand]=rigs[hand].tip; previous_tips[hand]=rigs[hand].tip; target_valid[hand]=false
+	pupil_radius=.74 if case_id=="small_pupil" else .98
+	implant_hand=-1; implant_nozzle=Vector3(0,.72,0)
+	clock=0.; samples=[]; _sample_accum=0.; _ui_accum=0.
+	metrics={"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"posterior_contacts":0.}
+	case_active=false; practice=false; paused=false; reviewing=false; room_view=true
+	status="증례 선택 → 환자·부위·장비 확인 → 집도 시작"
+	_cache_metrics(); update_geometry()
+
+func prepare_check(id: String) -> void:
+	director.prepare(id); refresh_ui()
+
+func begin_operation() -> bool:
+	if not director.ready():
+		status="환자·수술 부위·장비의 세 가지 준비 확인이 필요합니다."
+		refresh_ui(); return false
+	case_active=true; room_view=false; paused=false
+	status="현미경 진입. 절개도로 진입부를 만들거나 도움말에서 조작을 확인하세요."
+	update_geometry(); return true
+
+func start_practice() -> void:
+	new_case(case_id)
+	for check_id in ["patient","side","equipment"]: director.prepare(check_id)
+	practice=true; case_active=true; room_view=false
+	incision.opened=[true,true]; incision.lengths=[.18,.18]
+	status="자유 술기 연습: 미리 준비된 진입부에서 조직과 장비 반응을 연습합니다."
 	update_geometry()
 
+func choose_tool(id: String) -> void:
+	if id not in IDS: return
+	if selected==implant_hand and iol.metrics().delivered<1. and id!="injector":
+		status="부분 전달 중인 인젝터를 유지하세요. 다른 손은 Tab으로 선택할 수 있습니다."; refresh_ui(); return
+	_disarm_actions(); latched[selected]=false; capsule.release_hand(selected)
+	hand_tools[selected]=id; target_planes[selected]=PLANES[id]; target_valid[selected]=false
+	status="%s 기구: %s" % ["왼손" if selected==0 else "오른손",id]
+	update_geometry()
+
+func _disarm_actions() -> void:
+	grip_down=false; pedal_down=false; pedal_stage=0; pedal_gate.block()
+
 func release_controls() -> void:
-	grip_down = false
-	pedal_down = false
-	pedal_gate.block()
-	capsule.release()
-func handle_pedal(pressed: bool, echo: bool, inside: bool) -> void:
-	if echo: return
-	if pressed: pedal_gate.press(inside and not paused)
-	else: pedal_gate.release()
-	pedal_down = pedal_gate.allowed
+	_disarm_actions(); latched=[false,false]; capsule.release()
+	for hand in range(2): incision.cut(hand,rigs[hand].tip,false)
+
 func switch_hand() -> void:
+	_disarm_actions()
+	if not latched[selected]: capsule.release_hand(selected)
+	selected=1-selected
+	status="%s 조작. G로 접촉한 집게의 파지를 유지할 수 있습니다." % ("왼손" if selected==0 else "오른손")
+	refresh_ui()
+
+func toggle_latch() -> void:
+	if hand_tools[selected]!="forceps":
+		status="파지 유지는 집게에서 사용할 수 있습니다."; refresh_ui(); return
+	if latched[selected]:
+		latched[selected]=false; capsule.release_hand(selected)
+	else:
+		var near := false
+		for p in capsule.positions:
+			if p.distance_to(rigs[selected].tip)<.08: near=true; break
+		if near: latched[selected]=true
+		else: status="조직과 접촉한 뒤 G를 누르세요."
+	refresh_ui()
+
+func handle_pedal(pressed: bool, echo: bool, inside: bool, stage := 3) -> void:
+	if echo: return
+	if pressed: pedal_gate.press(inside and _can_operate())
+	else: pedal_gate.release()
+	pedal_down=pedal_gate.allowed
+	pedal_stage=clampi(stage,1,3) if pedal_down else 0
+
+func _can_operate() -> bool:
+	return case_active and not paused and not reviewing and not room_view and director.snapshot().ending=="" and director.snapshot().alert=="" and not ui._help.visible
+
+func set_room_view(value: bool) -> void:
+	release_controls(); room_view=value; update_geometry()
+func toggle_help() -> void:
+	release_controls(); ui._help.visible=not ui._help.visible
+func toggle_pause() -> void:
+	release_controls(); paused=not paused; refresh_ui()
+func set_assisted(value: bool) -> void:
+	release_controls(); assisted=value; target_valid=[false,false]; refresh_ui()
+func set_high_contrast(value: bool) -> void:
+	high_contrast=value; _apply_optics(); refresh_ui()
+func set_reduced_motion(value: bool) -> void:
+	reduced_motion=value; refresh_ui()
+func set_sound(value: bool) -> void:
+	_sound=value
+	if not value: _audio.stop()
+	refresh_ui()
+func toggle_debug() -> void:
+	wireframe=not wireframe; update_geometry()
+func set_machine(key: String, value: float) -> void:
+	if machine.has(key) and is_finite(value):
+		machine[key]=clampf(value,.5,1.5) if key=="illumination" else clampf(value,0.,1.)
+	_apply_optics(); refresh_ui()
+func set_preset(name: String) -> void:
+	var presets := {"balanced":[.35,.35,.25],"gentle":[.25,.20,.15],"dense":[.42,.48,.55]}
+	var values: Array=presets.get(name,presets.balanced)
+	for i in range(3): machine[["inflow","suction","energy"][i]]=values[i]
+	status="장비 프리셋: "+name+" · 시뮬레이터 상대값"; refresh_ui()
+
+func withdraw_tools() -> void:
 	release_controls()
-	selected = 1-selected
-	hand_button.text = ("왼손" if selected==0 else "오른손")+" 기구 선택  [Tab]"
+	for hand in range(2): rigs[hand].set_insertion(.06); target_valid[hand]=false
+	status="기구 인출. 진입부가 안정된 뒤 최종 검사를 수행하세요."
+	update_geometry()
+
+func acknowledge() -> void:
+	release_controls(); director.acknowledge(); status="상태 확인 기록. 페달과 마우스를 놓은 뒤 재개하세요."; refresh_ui()
+func inspect(id: String) -> bool:
+	var accepted: bool=director.inspect(id)
+	status="확인 기록: "+id if accepted else "현재 조직 상태가 확인 조건을 충족하지 않습니다: "+id
+	refresh_ui(); return accepted
+func finish_case() -> bool:
+	if practice:
+		abort_case("술기 연습 종료"); return true
+	if not director.finish():
+		status="잔여물·IOL 전달/정렬·기구 인출 후 진입부 상태와 세 최종 검사를 확인하세요."
+		refresh_ui(); return false
+	_end_encounter(); return true
+func abort_case(reason := "사용자 안전 중단") -> void:
+	director.abort(reason); _end_encounter()
+func _end_encounter() -> void:
+	release_controls(); reviewing=false; room_view=false
+	update_geometry(); recording.record(clock,display.capture_frame(),true); refresh_ui()
+
 func reset_simulation() -> void:
-	release_controls()
-	capsule.reset()
-	lens.reset()
-	clock = 0.
-	samples.clear()
-	if membrane: update_geometry()
+	if practice: start_practice()
+	else: new_case(case_id)
 
 func _input(event: InputEvent) -> void:
 	if not viewport_box: return
-	if event is InputEventMouseMotion and viewport_box.get_global_rect().has_point(event.position):
-		var local: Vector2 = event.position-viewport_box.global_position
-		var origin: Vector3 = world.microscope.project_ray_origin(local)
-		var direction: Vector3 = world.microscope.project_ray_normal(local)
-		var hit = Plane(Vector3.UP,target_plane).intersects_ray(origin,direction)
-		if hit!=null and not grip_down: rigs[selected].aim_at(hit)
-		elif hit!=null: rigs[selected].aim_at(hit)
-	elif event is InputEventMouseMotion:
-		release_controls()
+	if reviewing:
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode==KEY_ESCAPE: end_review(); get_viewport().set_input_as_handled()
+			elif event.keycode==KEY_S: save_session(); get_viewport().set_input_as_handled()
+		return
+	if ui._help.visible:
+		if event is InputEventKey and event.keycode==KEY_ESCAPE and event.pressed:
+			toggle_help(); get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseMotion:
+		if _pointer_inside(event.position) and _can_operate():
+			var local: Vector2=event.position-viewport_box.global_position
+			var origin: Vector3=world.microscope.project_ray_origin(local)
+			var ray: Vector3=world.microscope.project_ray_normal(local)
+			var hit=Plane(Vector3.UP,target_planes[selected]).intersects_ray(origin,ray)
+			if hit!=null:
+				if assisted: targets[selected]=hit
+				else: targets[selected]=rigs[selected].portal+(hit-rigs[selected].portal).normalized()*rigs[selected].insertion
+				target_valid[selected]=true
+		elif grip_down or pedal_down: _disarm_actions()
 	if event is InputEventMouseButton:
-		var inside: bool = viewport_box.get_global_rect().has_point(event.position)
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			grip_down = event.pressed and inside
-			if not grip_down: capsule.release()
-		elif inside and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
-			var sign_value := 1. if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1.
-			if event.shift_pressed: world.microscope.size = clampf(world.microscope.size-sign_value*.2,2.8,6.)
-			else: rigs[selected].set_insertion(rigs[selected].insertion+sign_value*.025)
+		var inside: bool=_pointer_inside(event.position)
+		if event.button_index==MOUSE_BUTTON_LEFT:
+			grip_down=event.pressed and inside and _can_operate()
+			if not grip_down and not latched[selected]: capsule.release_hand(selected)
 		elif event.button_index==MOUSE_BUTTON_RIGHT and event.pressed: release_controls()
+		elif event.pressed and inside and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
+			var direction:=1. if event.button_index==MOUSE_BUTTON_WHEEL_UP else -1.
+			if event.shift_pressed: world.microscope.size=clampf(world.microscope.size-direction*.2,2.8,6.4)
+			elif _can_operate():
+				rigs[selected].set_insertion(rigs[selected].insertion+direction*.03)
+				target_planes[selected]=rigs[selected].tip.y; target_valid[selected]=false
 	if event is InputEventKey:
 		if event.keycode==KEY_SPACE:
-			handle_pedal(event.pressed,event.echo,viewport_box.get_global_rect().has_point(get_global_mouse_position()))
+			var stage:=1 if event.ctrl_pressed else (2 if event.shift_pressed else 3)
+			handle_pedal(event.pressed,event.echo,_pointer_inside(get_global_mouse_position()),stage)
 			get_viewport().set_input_as_handled()
 		if event.pressed and not event.echo:
-			get_viewport().set_input_as_handled()
+			if event.keycode in [KEY_TAB,KEY_G,KEY_R,KEY_ESCAPE,KEY_F2,KEY_S,KEY_Q,KEY_E,KEY_A,KEY_X,KEY_V,KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7]: get_viewport().set_input_as_handled()
 			match event.keycode:
 				KEY_TAB: switch_hand()
+				KEY_G: toggle_latch()
 				KEY_R: reset_simulation()
-				KEY_ESCAPE: release_controls(); paused=not paused
-				KEY_F2: wireframe=not wireframe
-				KEY_S: export_observations()
-				KEY_Q: rigs[selected].adjust_pitch(-.025)
-				KEY_E: rigs[selected].adjust_pitch(.025)
-				KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7:
-					release_controls(); hand_tools[selected]=IDS[event.keycode-KEY_1]
+				KEY_ESCAPE: toggle_pause()
+				KEY_F2: toggle_debug()
+				KEY_S: save_session()
+				KEY_A: acknowledge()
+				KEY_X: abort_case()
+				KEY_V: set_room_view(not room_view)
+				KEY_Q,KEY_E:
+					if _can_operate():
+						rigs[selected].adjust_pitch(-.02 if event.keycode==KEY_Q else .02)
+						target_planes[selected]=rigs[selected].tip.y; target_valid[selected]=false
+				KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7: choose_tool(IDS[event.keycode-KEY_1])
+
+func _pointer_inside(point: Vector2) -> bool:
+	return viewport_box.get_global_rect().has_point(point) and not ui.briefing.visible and not ui.debrief.visible and not ui.alert_popup.visible and not ui._help.visible
 
 func _notification(what: int) -> void:
 	if what in [MainLoop.NOTIFICATION_APPLICATION_FOCUS_OUT,NOTIFICATION_WM_WINDOW_FOCUS_OUT]: release_controls()
 
-func _physics_process(dt: float) -> void:
-	if paused or not world: return
-	var tip: Vector3 = rigs[selected].tip
-	var id: String = hand_tools[selected]
-	lens.inflow = slider_values.get("inflow",0.)
-	lens.suction = slider_values.get("suction",.35)
-	lens.energy = slider_values.get("energy",.25)
-	lens.passive_tips = PackedVector3Array([rigs[1-selected].tip])
-	lens.step(dt,tip,pedal_down and id=="phaco",pedal_down and id in ["phaco","ia"])
-	capsule.pressure_load = .3*(float(lens.metrics().pressure)-1.)
-	capsule.passive_tips = PackedVector3Array([rigs[1-selected].tip])
-	capsule.step(dt,tip,.09,grip_down and id=="forceps",grip_down and id=="knife")
-	clock += dt
-	if samples.size()<18000 and (samples.is_empty() or clock-float(samples[-1].time)>=.1):
-		samples.append({"time":clock,"tip":[tip.x,tip.y,tip.z],"capsule":capsule.metrics(),"lens":lens.metrics()})
-	update_geometry()
+func _set_tip(hand: int, target: Vector3) -> void:
+	rigs[hand].aim_at(target); rigs[hand].set_insertion(rigs[hand].portal.distance_to(target))
 
-func update_geometry() -> void:
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = capsule.positions
-	arrays[Mesh.ARRAY_INDEX] = capsule.triangles
-	var normals := PackedVector3Array()
-	normals.resize(capsule.positions.size())
-	normals.fill(Vector3.ZERO)
-	for i in range(0,capsule.triangles.size(),3):
-		var a: int = capsule.triangles[i]
-		var b: int = capsule.triangles[i+1]
-		var c: int = capsule.triangles[i+2]
-		var area_normal: Vector3 = (capsule.positions[b]-capsule.positions[a]).cross(capsule.positions[c]-capsule.positions[a])
-		normals[a] += area_normal
-		normals[b] += area_normal
-		normals[c] += area_normal
-	for i in range(normals.size()): normals[i]=normals[i].normalized() if normals[i].length_squared()>.00000001 else Vector3.UP
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	var surface := ArrayMesh.new()
-	if capsule.triangles.size()>0: surface.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
-	membrane.mesh = surface
-	wire_display.visible = wireframe
-	if wireframe:
-		var lines := ImmediateMesh.new()
-		lines.surface_begin(Mesh.PRIMITIVE_LINES)
-		for edge in capsule.edges:
-			if edge.active:
-				lines.surface_add_vertex(capsule.positions[edge.a]+Vector3(0,.003,0))
-				lines.surface_add_vertex(capsule.positions[edge.b]+Vector3(0,.003,0))
-		lines.surface_end()
-		wire_display.mesh = lines
-	for i in range(lens.particles.size()):
-		var particle: Dictionary = lens.particles[i]
-		var basis := Basis.IDENTITY if particle.active else Basis.IDENTITY.scaled(Vector3.ZERO)
-		lens_display.multimesh.set_instance_transform(i,Transform3D(basis,particle.position))
+func _advance_motion(dt: float) -> float:
+	var distance:=0.
 	for hand in range(2):
-		for id in tool_models[hand]:
-			var model: Node3D = tool_models[hand][id]
-			model.visible = id==hand_tools[hand]
-			if model.visible:
-				model.position = rigs[hand].tip
-				# Existing models extend +X from their origin-tip. Rotate shaft
-				# back along the actual constrained axis toward the incision.
-				var toward_portal: Vector3 = -rigs[hand].axis
-				var side := toward_portal.cross(Vector3.UP).normalized()
-				if side.length()<.01: side=Vector3.FORWARD
-				var shaft_frame := Basis(toward_portal,side.cross(toward_portal).normalized(),side)
-				var local_shaft := Vector3(1.55,.52,.20).normalized()
-				model.basis = shaft_frame*Basis(Quaternion(local_shaft,Vector3.RIGHT))
-	var cm: Dictionary = capsule.metrics()
-	var lm: Dictionary = lens.metrics()
-	diagnostics.text = "전낭 막 정점  %d\n남은 삼각형  %d\n끊어진 연결  %d\n최대 인장 변형률  %.3f\n집게 접점  %s\n\n수정체 질량  %.3f\n흡인된 질량  %.3f\n분리 파편  %d\n\n전방 체적  %.3f\n구획 압력  %.3f\n유입 / 유출  %.3f / %.3f\n\n계산 시간  %.1f s" % [capsule.positions.size(),capsule.triangles.size()/3,cm.broken_edges,cm.max_strain,str(cm.grasped),lm.remaining_mass,lm.removed_mass,lm.fragments,lm.volume,lm.pressure,lm.inflow,lm.outflow,clock]
-	tool_status.text = "%s  ·  %s  ·  삽입 %.3f  ·  팁 Y %.3f  ·  %s" % ["왼손" if selected==0 else "오른손",hand_tools[selected],rigs[selected].insertion,rigs[selected].tip.y,"일시정지" if paused else ("작동" if grip_down or pedal_down else "대기")]
+		var before: Vector3=rigs[hand].tip
+		if target_valid[hand]: _set_tip(hand,before.move_toward(targets[hand],dt*1.5))
+		if not incision.opened[hand] and hand_tools[hand]!="knife": rigs[hand].set_insertion(minf(.12,rigs[hand].insertion))
+		var tip: Vector3=rigs[hand].tip
+		if tip.y<.77 and Vector2(tip.x,tip.z).length()>pupil_radius and hand_tools[hand]!="knife":
+			_set_tip(hand,Vector3(tip.x,.83,tip.z)); metrics.iris_contacts+=dt
+		if tip.y<.52 and Vector2(tip.x,tip.z).length()<.88:
+			_set_tip(hand,Vector3(tip.x,.54,tip.z)); metrics.posterior_contacts+=dt
+		distance+=previous_tips[hand].distance_to(rigs[hand].tip)
+		previous_tips[hand]=rigs[hand].tip
+	return distance
+
+func _physics_process(dt: float) -> void:
+	if not display or not _can_operate(): return
+	if not is_finite(dt) or dt<=0 or dt>.05: return
+	var movement:=_advance_motion(dt)
+	metrics.path_length+=movement
+	var tip: Vector3=rigs[selected].tip
+	var tool: String=hand_tools[selected]
+	for hand in range(2): incision.cut(hand,rigs[hand].tip,hand==selected and grip_down and hand_tools[hand]=="knife")
+	incision.update(dt,[rigs[0].insertion,rigs[1].insertion])
+	var flow_active:=pedal_down and tool in ["phaco","ia","cannula"]
+	var aspirating:=flow_active and pedal_stage>=2 and tool in ["phaco","ia"]
+	var powered:=flow_active and pedal_stage==3 and tool=="phaco"
+	lens.inflow=machine.inflow if flow_active else 0.
+	lens.suction=machine.suction; lens.energy=machine.energy
+	lens.wound_leak=incision.metrics().leak
+	lens.passive_tips=PackedVector3Array([rigs[1-selected].tip])
+	lens.step(dt,tip,powered,aspirating)
+	_last_lens=lens.metrics()
+	capsule.pressure_load=.3*(float(_last_lens.pressure)-1.)
+	var tools: Array[Dictionary]=[]
+	for hand in range(2):
+		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"grip":hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
+	capsule.step_tools(dt,tools)
+	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
+	if injecting and implant_hand==-1: implant_hand=selected
+	if implant_hand>=0 and hand_tools[implant_hand]=="injector": implant_nozzle=rigs[implant_hand].tip
+	iol.step(dt,implant_nozzle,injecting,tip,tool=="manipulator" and grip_down)
+	clock+=dt; metrics.energy_exposure+=(machine.energy*dt if powered else 0.)
+	_cache_metrics()
+	director.observe(dt,_observation(movement,machine.energy if powered else 0.))
+	if director.snapshot().alert!="": release_controls(); status="환자 움직임. 기구·페달을 멈추고 상태를 평가하세요."
+	_sample_accum+=dt; _ui_accum+=dt
+	if _sample_accum>=.25 and samples.size()<12000:
+		_sample_accum=0.; samples.append({"time":clock,"capsule":_last_capsule.duplicate(),"lens":_last_lens.duplicate(),"iol":_last_iol.duplicate(),"metrics":metrics.duplicate()})
+	update_geometry(false)
+	if recording.frames.is_empty() or clock-float(recording.frames[-1].time)>=recording.INTERVAL: recording.record(clock,display.capture_frame())
+	if _ui_accum>=.1: _ui_accum=0.; refresh_ui()
+	_audio_clock+=dt
+	if _sound and _audio_clock>.81: _audio_clock=0.; _audio.play()
+
+func _observation(movement:=0.,energy:=0.) -> Dictionary:
+	return {"capsule":_last_capsule,"lens":_last_lens,"iol":_last_iol,"wound":incision.metrics().sealed,"energy":energy,"movement":movement,"tool":hand_tools[selected]}
+
+func _cache_metrics() -> void:
+	_last_capsule=capsule.metrics(); _last_lens=lens.metrics(); _last_iol=iol.metrics()
+
+func update_geometry(update_ui:=true) -> void:
+	if not display: return
+	var actions: Array=[]
+	for hand in range(2): actions.append({"grip":latched[hand] or (grip_down and hand==selected),"pedal":pedal_stage if hand==selected else 0})
+	display.apply(capsule,lens,iol,rigs,hand_tools,selected,actions,{"room":room_view,"wireframe":wireframe,"pupil_radius":pupil_radius,"wounds":incision.paths})
+	_apply_optics()
+	if update_ui: _cache_metrics(); refresh_ui()
+
+func _apply_optics() -> void:
+	if not viewport_box or not viewport_box.material: return
+	viewport_box.material.set_shader_parameter("focus",machine.focus)
+	viewport_box.material.set_shader_parameter("illumination",machine.illumination)
+	viewport_box.material.set_shader_parameter("vignette_strength",.12 if room_view else .55)
+	viewport_box.material.set_shader_parameter("high_contrast",high_contrast)
+
+func refresh_ui() -> void:
+	if not ui: return
+	var state: Dictionary=director.snapshot()
+	var objective: String=state.objective
+	if case_active and state.ending=="" and state.alert=="":
+		if incision.metrics().entry_count==0: objective="절개도로 진입부 형성 · 각막 주변의 짧은 연속 경로"
+		elif _last_capsule.get("broken_edges",0)==0 and _last_lens.get("remaining_mass",1.)>.98: objective="집게·절개도로 전낭 접근과 개방 · 조직 반응 관찰"
+	var report_metrics:=metrics.duplicate()
+	report_metrics["time_seconds"]=clock; report_metrics["lens_removed"]=1.-float(_last_lens.get("remaining_mass",1.))
+	report_metrics["iol_alignment"]=_last_iol.get("alignment",0.); report_metrics["tissue_breaks"]=_last_capsule.get("broken_edges",0)
+	report_metrics["wound_leak"]=incision.metrics().leak
+	ui.refresh({"director":state,"case_id":case_id,"room_view":room_view,"paused":paused,"status":status,"tools":hand_tools,"selected":selected,"latched":latched,"clock":clock,"pedal_stage":pedal_stage,"capsule":_last_capsule,"lens":_last_lens,"iol":_last_iol,"wound":incision.metrics(),"assisted":assisted,"debug":wireframe,"frame_count":recording.frames.size(),"reviewing":reviewing,"metrics":report_metrics,"machine":machine,"pupil_radius":pupil_radius,"ending":state.ending,"objective":objective,"show_briefing":not case_active and state.ending=="","practice":practice,"sound":_sound,"high_contrast":high_contrast,"reduced_motion":reduced_motion,"review_index":review_index})
+
+func preview_frame(index: int) -> void:
+	var frame: Dictionary=recording.frame_at(index)
+	if frame.is_empty(): return
+	release_controls(); reviewing=true; review_index=index; room_view=false; display.apply_frame(frame); refresh_ui()
+
+func end_review() -> void:
+	reviewing=false; update_geometry()
+
+func save_session() -> void:
+	var report: Dictionary=director.snapshot()
+	report["simulation_metrics"]=metrics.duplicate(); report["model"]="specialist-simulation-1 / uncalibrated"
+	var raw: String=recording.export_json(report)
+	if raw.to_utf8_buffer().size()>32000000: status="기록 용량 한도 초과. 세션을 나누어 저장하세요."; refresh_ui(); return
+	var path: String="user://case_%s_%d.json" % [case_id,Time.get_unix_time_from_system()]
+	var file:=FileAccess.open(path,FileAccess.WRITE)
+	if file: file.store_string(raw); status="저장: "+ProjectSettings.globalize_path(path)
+	else: status="저장할 수 없습니다. 폴더 권한과 저장 공간을 확인하세요."
+	refresh_ui()
 
 func export_observations() -> void:
-	var file := FileAccess.open("user://physics_observations.json",FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify({"model":"uncalibrated-research-1","samples":samples}))
-		explanation.text = "수치 관측 기록: "+ProjectSettings.globalize_path("user://physics_observations.json")
+	save_session()
+
+func _build_audio() -> void:
+	_audio=AudioStreamPlayer.new(); add_child(_audio)
+	var stream:=AudioStreamWAV.new()
+	stream.format=AudioStreamWAV.FORMAT_16_BITS; stream.mix_rate=22050
+	var data:=PackedByteArray(); data.resize(2205*2)
+	for i in range(2205): data.encode_s16(i*2,int(sin(i/22050.*TAU*880.)*sin(i/2205.*PI)*1800.))
+	stream.data=data; _audio.stream=stream

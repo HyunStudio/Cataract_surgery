@@ -1,8 +1,8 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
-**Target clarification (2026-10-26):** The requested product is a surgical simulation, not a procedural game. The game edition below is a baseline UI/graphics implementation and does **not** fulfill physical surgical simulation. [Corrected scope and numerical-model plan](docs/PHYSICS_SIMULATOR_SCOPE_KO.md).
+**Current version (2026-10-27):** The default Godot application is an integrated specialist simulation game: preparation, microscope/theatre, two persistent instruments, continuous incision and numerical capsule/lens interaction, equipment pedals, elastic IOL delivery, final inspections, debrief and recorded visual review. The intended feel is a detailed vehicle/flight simulator. Tissue models remain uncalibrated approximations; this is not a clinically validated surgical trainer.
 
-The default Godot scene is now an **uncalibrated numerical research workbench**: anchored XPBD capsule deformation/traction/rupture, connected lens particles with local fracture and aspiration transport, incision-pivot instrument poses and one-compartment volume/pressure feedback. These are physical approximations, not validated tissue mechanics or a finished surgical trainer. [Research mode controls and validation](docs/PHYSICS_SIMULATOR_KO.md). `tools/run-godot.ps1` starts this mode; `-Game` explicitly opens the previous procedural game.
+Run `tools/run-godot.ps1` or the new Windows release `godot/build/OphthoSim-Surgical.exe` beside its `.pck`. [Current Korean guide](docs/SPECIALIST_SIMULATOR_KO.md) · [Current validation](docs/SPECIALIST_VALIDATION.md). `-Game` opens the earlier procedural edition. Historical Python and Godot notes below describe their own versions, not the default mode.
 
 ## Godot 3D game edition (2026-10-26)
 

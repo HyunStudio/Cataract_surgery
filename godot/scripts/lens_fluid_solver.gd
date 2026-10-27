@@ -14,6 +14,8 @@ var bonds: Array[Dictionary] = []
 var inflow: float = 0.0
 var suction: float = 0.0
 var energy: float = 0.0
+var hardness: float = 0.4
+var wound_leak: float = 0.0
 var passive_tips := PackedVector3Array()
 var _contact_tips := PackedVector3Array()
 var _removed_mass: float = 0.0
@@ -22,6 +24,21 @@ var _inflow_rate: float = 0.0
 var _outflow_rate: float = 0.0
 var _accelerations := PackedVector3Array()
 var _degree := PackedInt32Array()
+## Packed numerical authority; public dictionaries are read-only presentation mirrors.
+var _positions := PackedVector3Array()
+var _velocities := PackedVector3Array()
+var _masses := PackedFloat64Array()
+var _active := PackedByteArray()
+var _bond_a := PackedInt32Array()
+var _bond_b := PackedInt32Array()
+var _bond_rest := PackedFloat64Array()
+var _bond_active := PackedByteArray()
+var _bond_damage := PackedFloat64Array()
+var _damage_scale := 1.0
+var _fracture_strain := .5
+var _leak_rate := 0.0
+var _fragment_count := 1
+var _fragments_dirty := false
 
 func _init() -> void:
 	reset()
@@ -32,12 +49,16 @@ func reset() -> void:
 	inflow=0.0
 	suction=0.0
 	energy=0.0
+	hardness=.4
+	wound_leak=0.0
 	passive_tips.clear()
 	_contact_tips.clear()
 	_removed_mass=0.0
 	_volume=1.0
 	_inflow_rate=0.0
 	_outflow_rate=0.0
+	_leak_rate=0.0
+	_fragment_count=1; _fragments_dirty=false
 	# Three interlinked layers, each with 1+6+12+18 particles; no region masks.
 	for layer in range(-1,2):
 		var radial_scale: float = 0.86 if layer!=0 else 1.0
@@ -55,6 +76,12 @@ func reset() -> void:
 				bonds.append({"a":i,"b":j,"rest":distance,"active":true,"damage":0.0})
 	_accelerations.resize(particles.size())
 	_degree.resize(particles.size())
+	_positions=PackedVector3Array(); _velocities=PackedVector3Array(); _masses=PackedFloat64Array(); _active=PackedByteArray()
+	for particle in particles:
+		_positions.append(particle.position); _velocities.append(particle.velocity); _masses.append(particle.mass); _active.append(1)
+	_bond_a=PackedInt32Array(); _bond_b=PackedInt32Array(); _bond_rest=PackedFloat64Array(); _bond_active=PackedByteArray(); _bond_damage=PackedFloat64Array()
+	for bond in bonds:
+		_bond_a.append(bond.a); _bond_b.append(bond.b); _bond_rest.append(bond.rest); _bond_active.append(1); _bond_damage.append(0.0)
 
 func _append_particle(position: Vector3) -> void:
 	particles.append({"position":position,"velocity":Vector3.ZERO,"mass":0.0,"active":true})
@@ -75,10 +102,23 @@ func step(dt: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 	inflow=_control(inflow)
 	suction=_control(suction)
 	energy=_control(energy)
+	hardness=clampf(hardness,0.0,1.0) if is_finite(hardness) else .4
+	wound_leak=_control(wound_leak)
+	_damage_scale=1.0/(1.0+2.0*(hardness-.4))
+	_fracture_strain=.5+.5*(hardness-.4)
 	var count := ceili(dt/SUBSTEP)
 	var h := dt/count
 	for i in range(count):
 		_integrate(h,tip,active,aspiration)
+	_sync_public()
+
+func _sync_public() -> void:
+	for i in range(_positions.size()):
+		particles[i].position=_positions[i]
+		particles[i].velocity=_velocities[i]
+		particles[i].active=_active[i]!=0
+	for i in range(_bond_a.size()):
+		bonds[i].damage=_bond_damage[i]
 
 func _control(value: float) -> float:
 	return clampf(value,0.0,1.0) if is_finite(value) else 0.0
@@ -86,38 +126,39 @@ func _control(value: float) -> float:
 func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 	_accelerations.fill(Vector3.ZERO)
 	_degree.fill(0)
-	for bond in bonds:
-		if not bond.active: continue
-		var a: int = bond.a
-		var b: int = bond.b
-		if not particles[a].active or not particles[b].active:
-			bond.active=false
+	for bond_id in range(_bond_a.size()):
+		if _bond_active[bond_id]==0: continue
+		var a := _bond_a[bond_id]
+		var b := _bond_b[bond_id]
+		if _active[a]==0 or _active[b]==0:
+			_break_bond(bond_id)
 			continue
-		var pa: Vector3 = particles[a].position
-		var pb: Vector3 = particles[b].position
+		var pa := _positions[a]
+		var pb := _positions[b]
 		var delta := pb-pa
 		var distance := delta.length()
-		var strain := absf(distance-float(bond.rest))/maxf(0.01,float(bond.rest))
+		var rest := _bond_rest[bond_id]
+		var strain := absf(distance-rest)/maxf(0.01,rest)
 		# Only strained links or links at an active local tip can fail.
 		if active and energy>0.0:
 			var nearest := minf(pa.distance_to(tip),pb.distance_to(tip))
 			if nearest<0.22:
-				bond.damage=float(bond.damage)+h*energy*10.0*(1.0-nearest/0.22)
-		if strain>0.50 or float(bond.damage)>=1.0:
-			bond.active=false
+				_bond_damage[bond_id]+=h*energy*10.0*(1.0-nearest/0.22)*_damage_scale
+		if strain>_fracture_strain or _bond_damage[bond_id]>=1.0:
+			_break_bond(bond_id)
 			continue
 		_degree[a]+=1
 		_degree[b]+=1
 		if distance>0.000001:
 			# Equal masses: symmetric acceleration conserves internal momentum.
-			var force := delta/distance*(distance-float(bond.rest))*38.0
+			var force := delta/distance*(distance-rest)*38.0
 			_accelerations[a]+=force
 			_accelerations[b]-=force
 	var obstruction := 0.0
-	for i in range(particles.size()):
-		var particle: Dictionary = particles[i]
-		if not particle.active: continue
-		var position: Vector3 = particle.position
+	var decay := exp(-4.0*h)
+	for i in range(_positions.size()):
+		if _active[i]==0: continue
+		var position := _positions[i]
 		var to_tip := tip-position
 		var distance := to_tip.length()
 		if distance<0.12:
@@ -137,7 +178,7 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 				_remove_at_inlet(i)
 				continue
 			_accelerations[i]+=to_tip/maxf(distance,0.00001)*suction*24.0*(1.0-distance/0.44)
-		var velocity: Vector3 = (particle.velocity+_accelerations[i]*h)*exp(-4.0*h)
+		var velocity := (_velocities[i]+_accelerations[i]*h)*decay
 		velocity=velocity.limit_length(2.4)
 		var next := position+velocity*h
 		# Swept inlet test avoids missing the port between substeps.
@@ -145,7 +186,7 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 			var segment := next-position
 			var t := clampf(to_tip.dot(segment)/maxf(segment.length_squared(),0.000000001),0,1)
 			if (position+segment*t).distance_to(tip)<=INLET_RADIUS:
-				particle.position=position+segment*t
+				_positions[i]=position+segment*t
 				_remove_at_inlet(i)
 				continue
 		# A simple bounded chamber wall, not anatomical contact or hydrodynamics.
@@ -159,22 +200,31 @@ func _integrate(h: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 		if next.y<0.36 or next.y>1.04:
 			next.y=clampf(next.y,0.36,1.04)
 			velocity.y*=0.2
-		particle.velocity=velocity
-		particle.position=next
+		_velocities[i]=velocity
+		_positions[i]=next
 	_integrate_compartment(h,aspiration,obstruction)
 
 func _remove_at_inlet(index: int) -> void:
-	var particle: Dictionary = particles[index]
-	if not particle.active: return
-	_removed_mass+=float(particle.mass)
-	particle.active=false
-	particle.velocity=Vector3.ZERO
+	if _active[index]==0: return
+	_removed_mass+=_masses[index]
+	_active[index]=0
+	_velocities[index]=Vector3.ZERO
+	_fragments_dirty=true
+
+func _break_bond(index: int) -> void:
+	_bond_active[index]=0
+	bonds[index].active=false
+	_fragments_dirty=true
 
 func _integrate_compartment(h: float, aspiration: bool, obstruction: float) -> void:
 	_inflow_rate=0.08*inflow
-	_outflow_rate=0.08*suction*(1.0-clampf(obstruction,0.0,0.98)) if aspiration else 0.0
+	var aspiration_rate := 0.08*suction*(1.0-clampf(obstruction,0.0,0.98)) if aspiration else 0.0
+	_leak_rate=0.08*wound_leak
+	var requested_outflow := aspiration_rate+_leak_rate
+	_outflow_rate=requested_outflow
 	# Limit actual boundary flows so reported volume obeys the same balance law.
 	_outflow_rate=minf(_outflow_rate,(_volume-MIN_VOLUME)/h+_inflow_rate)
+	if requested_outflow>0: _leak_rate*=_outflow_rate/requested_outflow
 	_inflow_rate=minf(_inflow_rate,(MAX_VOLUME-_volume)/h+_outflow_rate)
 	_volume+=(_inflow_rate-_outflow_rate)*h
 	_volume=clampf(_volume,MIN_VOLUME,MAX_VOLUME)
@@ -182,30 +232,26 @@ func _integrate_compartment(h: float, aspiration: bool, obstruction: float) -> v
 func metrics() -> Dictionary:
 	var remaining := 0.0
 	var finite := is_finite(_volume) and is_finite(_removed_mass) and is_finite(_inflow_rate) and is_finite(_outflow_rate)
-	var neighbors: Array[Array] = []
-	for i in range(particles.size()):
-		neighbors.append([])
-		var particle: Dictionary = particles[i]
-		finite=finite and particle.position.is_finite() and particle.velocity.is_finite() and is_finite(float(particle.mass))
-		if particle.active: remaining+=float(particle.mass)
-	for bond in bonds:
-		finite=finite and is_finite(float(bond.rest)) and is_finite(float(bond.damage))
-		if bond.active and particles[bond.a].active and particles[bond.b].active:
-			neighbors[bond.a].append(bond.b)
-			neighbors[bond.b].append(bond.a)
-	var visited := PackedByteArray()
-	visited.resize(particles.size())
-	visited.fill(0)
-	var fragments := 0
-	for i in range(particles.size()):
-		if visited[i]!=0 or not particles[i].active: continue
-		fragments+=1
-		var pending: Array[int] = [i]
-		visited[i]=1
-		while not pending.is_empty():
-			var index: int = pending.pop_back()
-			for other in neighbors[index]:
-				if visited[other]==0:
-					visited[other]=1
-					pending.append(other)
-	return {"remaining_mass":remaining,"removed_mass":_removed_mass,"fragments":fragments,"volume":_volume,"pressure":pow(_volume,2.0),"inflow":_inflow_rate,"outflow":_outflow_rate,"finite":finite}
+	for i in range(_positions.size()):
+		finite=finite and _positions[i].is_finite() and _velocities[i].is_finite() and is_finite(_masses[i])
+		if _active[i]!=0: remaining+=_masses[i]
+	for i in range(_bond_rest.size()):
+		finite=finite and is_finite(_bond_rest[i]) and is_finite(_bond_damage[i])
+	if _fragments_dirty: _count_fragments()
+	return {"remaining_mass":remaining,"removed_mass":_removed_mass,"fragments":_fragment_count,"volume":_volume,"pressure":pow(_volume,2.0),"inflow":_inflow_rate,"outflow":_outflow_rate,"leak_outflow":_leak_rate,"finite":finite}
+
+func _count_fragments() -> void:
+	var parents := PackedInt32Array()
+	parents.resize(_positions.size())
+	for i in range(parents.size()): parents[i]=i
+	for i in range(_bond_a.size()):
+		var a := _bond_a[i]
+		var b := _bond_b[i]
+		if _bond_active[i]==0 or _active[a]==0 or _active[b]==0: continue
+		while parents[a]!=a: a=parents[a]
+		while parents[b]!=b: b=parents[b]
+		if a!=b: parents[b]=a
+	_fragment_count=0
+	for i in range(parents.size()):
+		if _active[i]!=0 and parents[i]==i: _fragment_count+=1
+	_fragments_dirty=false

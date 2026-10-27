@@ -8,6 +8,10 @@ func run()->void:
 	check(script!=null and script.can_instantiate(),"Lens/fluid solver must load")
 	if script==null or not script.can_instantiate(): finish(); return
 	var solver=script.new()
+	var bench=script.new()
+	var started:=Time.get_ticks_usec()
+	for i in range(180): bench.step(1.0/60.0,Vector3(2,.68,0),false,false)
+	print("Lens benchmark: ",(Time.get_ticks_usec()-started)/180000.0," ms per 60Hz step;111 particles, baseline material")
 	solver.reset()
 	check(solver.particles.size()>=80 and solver.particles.size()<=150,"Lens is a bounded connected particle material")
 	var initial=solver.particles.duplicate(true)
@@ -118,6 +122,53 @@ func run()->void:
 	solver.set("passive_tips",PackedVector3Array([Vector3(NAN,0,0)]))
 	solver.step(1.0/60.0,Vector3(.4,.68,0),true,true)
 	check(solver.particles==before_bad and solver.metrics()==metrics_before_bad,"Invalid passive contact is rejected before any integration")
+	var standard=script.new()
+	var dense=script.new()
+	dense.set("hardness",.8)
+	standard.energy=1.0; dense.energy=1.0
+	# Compare before both exposures saturate the same local neighborhood.
+	for i in range(9):
+		standard.step(1.0/60.0,Vector3(.42,.68,0),true,false)
+		dense.step(1.0/60.0,Vector3(.42,.68,0),true,false)
+	var standard_broken:=0
+	var dense_broken:=0
+	for bond in standard.bonds:
+		if not bond.active: standard_broken+=1
+	for bond in dense.bonds:
+		if not bond.active: dense_broken+=1
+	print("Material fracture comparison: standard=",standard_broken,", dense=",dense_broken)
+	check(dense_broken<standard_broken,"Dense material fractures fewer links for the same local energy exposure")
+	solver.reset()
+	solver.set("wound_leak",.5)
+	var volume_before:float=solver.metrics().volume
+	solver.step(1.0/60.0,Vector3(2,.68,0),false,false)
+	state=solver.metrics()
+	check(state.volume<volume_before and absf(state.outflow-.04)<1e-6,"External wound leakage lowers volume and appears in actual outflow")
+	check(absf(state.volume-volume_before-(state.inflow-state.outflow)/60.0)<1e-6,"Leak compartment obeys its reported volume balance")
+	check(state.remaining_mass>0.99999 and state.removed_mass==0.0,"Wound leakage does not delete lens mass")
+	check(absf(state.leak_outflow-state.outflow)<1e-6,"Leak is reported separately and included once in total outflow")
+	solver.reset(); solver.hardness=100.0; solver.wound_leak=INF
+	solver.step(1.0/60.0,Vector3(2,.68,0),false,false)
+	check(solver.hardness==1.0 and solver.wound_leak==0.0 and solver.metrics().finite,"Hardness clamps and nonfinite leakage safely disables external flow")
+	solver.hardness=NAN; solver.wound_leak=-100.0
+	solver.step(1.0/60.0,Vector3(2,.68,0),false,false)
+	check(solver.hardness==.4 and solver.wound_leak==0.0,"Nonfinite hardness returns to baseline and negative leakage clamps")
+	solver.reset(); solver.energy=1.0; solver.suction=1.0; solver.inflow=1.0
+	var sweep_tip:=Vector3(.66,.68,0)
+	for i in range(3000):
+		var nearest:=INF
+		var found:=false
+		for particle in solver.particles:
+			if not particle.active: continue
+			var distance:float=particle.position.distance_squared_to(sweep_tip)
+			if distance<nearest:
+				nearest=distance; tip=particle.position; found=true
+		if not found: break
+		sweep_tip=tip
+		solver.step(1.0/60.0,sweep_tip,true,true)
+	state=solver.metrics()
+	check(state.removed_mass>=.98 and absf(state.remaining_mass+state.removed_mass-1)<1e-6,"Adaptive physical phaco/aspiration sweep can remove at least98percent with mass conservation")
+	print("Adaptive sweep removed mass: ",state.removed_mass)
 	finish()
 func finish()->void:
 	for message in failures: push_error(message)

@@ -15,6 +15,7 @@ func run() -> void:
 	root.add_child(app)
 	app.set_physics_process(false)
 	await process_frame
+	app.start_practice()
 	check(app.capsule.positions.size()>100,"actual deformable membrane in simulation")
 	check(app.rigs.size()==2,"independent two instrument poses")
 	var grip_world: Vector3 = app.tool_models[0]["forceps"].to_global(Vector3(1.55,.52,.20))

@@ -9,6 +9,11 @@ func check(value: bool, label: String) -> void:
 
 func _initialize() -> void:
 	var s = Solver.new()
+	var bench = Solver.new()
+	bench.pressure_load = .15
+	var started := Time.get_ticks_usec()
+	for i in range(180): bench.step(1.0 / 60, Vector3(3, 3, 3), .06, false, false)
+	print("Capsule benchmark: ", (Time.get_ticks_usec() - started) / 180000.0, " ms per 60Hz step;217 vertices,6 iterations,pressure .15")
 	var rest: PackedVector3Array = s.positions.duplicate()
 	check(rest.size() >= 180 and s.triangles.size() >= 900, "triangulated disk has spatial resolution")
 	for i in range(120):
@@ -69,5 +74,45 @@ func _initialize() -> void:
 	s.reset(); s.passive_tips = PackedVector3Array([Vector3(NAN, 0, 0)])
 	s.step(1.0 / 60, Vector3(0, .81, 0), .1, false, false)
 	check(s.positions == s.rest_positions and s.metrics().finite, "invalid passive tips rejected before mutation")
+	s.reset()
+	var tools: Array[Dictionary] = [
+		{"hand": 0, "tip": Vector3(0, .82, 0), "radius": .05, "grip": true, "cut": false},
+		{"hand": 1, "tip": Vector3(.1466667, .819444, 0), "radius": .05, "grip": true, "cut": false}]
+	s.step_tools(1.0 / 60, tools)
+	var grasp_metrics: Dictionary = s.metrics()
+	check(grasp_metrics.grasps.size() == 2 and grasp_metrics.grasps[0] != grasp_metrics.grasps[1], "two hands hold distinct local vertices")
+	check(grasp_metrics.integration_steps == 1, "bimanual tools integrate once")
+	var left_vertex: int = grasp_metrics.grasps[0]
+	s.release_hand(1)
+	check(s.metrics().grasps.has(0) and not s.metrics().grasps.has(1), "release one hand preserves other")
+	tools[0].tip = Vector3(0, .85, 0)
+	tools[1].grip = false
+	tools[1].tip = Vector3(.3, .82, 0)
+	for i in range(5): s.step_tools(1.0 / 60, tools)
+	check(s.metrics().grasps[0] == left_vertex, "left grasp survives other hand operations")
+	check(s.positions[left_vertex].distance_to(tools[0].tip) < .00001, "retained left grasp tracks its own target")
+	var before: PackedVector3Array = s.positions.duplicate()
+	tools[1].tip = Vector3(NAN, 0, 0)
+	s.step_tools(1.0 / 60, tools)
+	check(s.positions == before and s.metrics().grasps.has(0), "invalid tool batch rejects atomically")
+	s.release()
+	check(s.metrics().grasps.is_empty(), "release all hands")
+	s.reset()
+	tools = [{"hand": 1, "tip": Vector3(0, .82, 0), "radius": .09, "grip": false, "cut": true}]
+	s.step_tools(1.0 / 60, tools)
+	check(s.metrics().broken_edges > 0, "second hand cuts local topology")
+	s.reset(); s.pressure_load = .3
+	tools = [{"hand": 0, "tip": Vector3(3, 3, 3), "radius": .05, "grip": false, "cut": false}, {"hand": 1, "tip": Vector3(3, 3, 3), "radius": .05, "grip": false, "cut": false}]
+	for i in range(30): s.step_tools(1.0 / 60, tools)
+	check(s.positions[0].y > s.rest_positions[0].y and s.metrics().finite, "bimanual interface retains pressure force")
+	var single = Solver.new()
+	var batch = Solver.new()
+	single.pressure_load = .2; batch.pressure_load = .2
+	single.passive_tips = PackedVector3Array([Vector3(.3, .81, 0)])
+	tools = [{"hand": 0, "tip": Vector3(0, .81, 0), "radius": .06, "grip": false, "cut": false}, {"hand": 1, "tip": Vector3(.3, .81, 0), "radius": .06, "grip": false, "cut": false}]
+	for i in range(10):
+		single.step(1.0 / 60, tools[0].tip, .06, false, false)
+		batch.step_tools(1.0 / 60, tools)
+	check(single.positions == batch.positions and batch.metrics().integration_steps == 10, "batch and legacy wrapper have identical single integration")
 	print("Capsule solver tests: ", "PASS" if failures == 0 else str(failures) + " failures")
 	quit(0 if failures == 0 else 1)
