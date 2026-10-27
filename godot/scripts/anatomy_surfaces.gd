@@ -40,6 +40,7 @@ static func iris(inner:float)->Dictionary:
 	return {"positions":points,"triangles":ids}
 static func mesh(data:Dictionary)->ArrayMesh:
 	var points:PackedVector3Array=data.positions; var ids:PackedInt32Array=data.triangles
+	if ids.is_empty(): return ArrayMesh.new()
 	var normals:=PackedVector3Array(); normals.resize(points.size()); normals.fill(Vector3.ZERO)
 	var uv:=PackedVector2Array()
 	for p in points: uv.append(Vector2(p.x,p.z)/2.84+Vector2(.5,.5))

@@ -21,6 +21,8 @@ var suction: float = 0.0
 var energy: float = 0.0
 var hardness: float = 0.4
 var wound_leak: float = 0.0
+var rupture_leak:=0.0
+var _rupture_rate:=0.0
 var passive_tips := PackedVector3Array()
 var _contact_tips := PackedVector3Array()
 var _removed_mass: float = 0.0
@@ -55,7 +57,7 @@ func reset() -> void:
 	suction=0.0
 	energy=0.0
 	hardness=.4
-	wound_leak=0.0
+	wound_leak=0.0; rupture_leak=0.0; _rupture_rate=0.0
 	hydro_flow=0.0; tissue_access=true
 	passive_tips.clear()
 	_contact_tips.clear()
@@ -112,14 +114,19 @@ func step(dt: float, tip: Vector3, active: bool, aspiration: bool) -> void:
 	suction=_control(suction)
 	energy=_control(energy)
 	hardness=clampf(hardness,0.0,1.0) if is_finite(hardness) else .4
-	wound_leak=_control(wound_leak)
+	wound_leak=_control(wound_leak); rupture_leak=_control(rupture_leak)
 	hydro_flow=_control(hydro_flow)
 	_damage_scale=1.0/(1.0+2.0*(hardness-.4))
 	_fracture_strain=.5+.5*(hardness-.4)
 	var count := ceili(dt/SUBSTEP)
 	var h := dt/count
+	var total_in:=0.; var total_out:=0.; var total_leak:=0.; var total_rupture:=0.
 	for i in range(count):
 		_integrate(h,tip,active,aspiration)
+		total_in+=_inflow_rate*h; total_out+=_outflow_rate*h
+		total_leak+=_leak_rate*h; total_rupture+=_rupture_rate*h
+	_inflow_rate=total_in/dt; _outflow_rate=total_out/dt
+	_leak_rate=total_leak/dt; _rupture_rate=total_rupture/dt
 	_sync_public()
 
 func _sync_public() -> void:
@@ -241,11 +248,15 @@ func _integrate_compartment(h: float, aspiration: bool, obstruction: float) -> v
 	_inflow_rate=0.08*inflow
 	var aspiration_rate := 0.08*suction*(1.0-clampf(obstruction,0.0,0.98)) if aspiration else 0.0
 	_leak_rate=0.08*wound_leak
-	var requested_outflow := aspiration_rate+_leak_rate
+	# Pressure-derived flow to an unmodeled posterior reservoir; reduced one-way boundary.
+	_rupture_rate=.08*rupture_leak*_volume
+	var requested_outflow := aspiration_rate+_leak_rate+_rupture_rate
 	_outflow_rate=requested_outflow
 	# Limit actual boundary flows so reported volume obeys the same balance law.
 	_outflow_rate=minf(_outflow_rate,(_volume-MIN_VOLUME)/h+_inflow_rate)
-	if requested_outflow>0: _leak_rate*=_outflow_rate/requested_outflow
+	if requested_outflow>0:
+		_leak_rate*=_outflow_rate/requested_outflow
+		_rupture_rate*=_outflow_rate/requested_outflow
 	_inflow_rate=minf(_inflow_rate,(MAX_VOLUME-_volume)/h+_outflow_rate)
 	_volume+=(_inflow_rate-_outflow_rate)*h
 	_volume=clampf(_volume,MIN_VOLUME,MAX_VOLUME)
@@ -259,7 +270,7 @@ func metrics() -> Dictionary:
 	for i in range(_bond_rest.size()):
 		finite=finite and is_finite(_bond_rest[i]) and is_finite(_bond_damage[i])
 	if _fragments_dirty: _count_fragments()
-	var result:Dictionary={"remaining_mass":remaining,"removed_mass":_removed_mass,"fragments":_fragment_count,"volume":_volume,"pressure":pow(_volume,2.0),"inflow":_inflow_rate,"outflow":_outflow_rate,"leak_outflow":_leak_rate,"finite":finite}
+	var result:Dictionary={"remaining_mass":remaining,"removed_mass":_removed_mass,"fragments":_fragment_count,"volume":_volume,"pressure":pow(_volume,2.0),"inflow":_inflow_rate,"outflow":_outflow_rate,"leak_outflow":_leak_rate,"rupture_outflow":_rupture_rate,"finite":finite}
 	if layered: result.merge(material.metrics(_active,_masses))
 	return result
 

@@ -17,6 +17,8 @@ var _ending := ""
 var _motion_issued := false
 var _milestones: Dictionary = {}
 var _last_tool := ""
+var _injury_seen:=false
+var _injury_area:Dictionary={"posterior":0.,"corneal":0.}
 
 func _init() -> void:
 	reset("standard",1)
@@ -27,7 +29,7 @@ func reset(case_id: String = "standard", seed_id: int = 1) -> void:
 	_preparation={"patient":false,"side":false,"equipment":false}
 	_inspection={"residual":false,"implant":false,"wound":false}
 	_latest={}; _timeline=[]
-	_milestones={}; _last_tool=""
+	_milestones={}; _last_tool=""; _injury_seen=false; _injury_area={"posterior":0.,"corneal":0.}
 	_event("case_started",{"case_id":_case,"seed":_seed})
 
 func _event(kind: String, details: Dictionary = {}) -> void:
@@ -48,6 +50,13 @@ func observe(dt: float, observation: Dictionary) -> void:
 	if not ready() or not is_finite(dt) or dt<=0. or dt>.1 or not _valid_observation(observation): return
 	_elapsed+=dt
 	_latest=observation.duplicate(true)
+	var injury:Dictionary=observation.get("injury",{})
+	for surface in ["posterior","corneal"]:
+		var area:float=injury.get(surface+"_open_area",0.)
+		if area>float(_injury_area[surface])+.00000001:
+			_injury_seen=true; _alert="tissue_injury"
+			var evidence:=injury.duplicate(true); evidence["new_surface"]=surface; evidence["increase"]=area-float(_injury_area[surface])
+			_event("structural_injury",evidence); _injury_area[surface]=area
 	var observed_tool: String = str(observation.get("tool",""))
 	if observed_tool!=_last_tool:
 		_last_tool=observed_tool; _event("instrument_selected",{"tool":observed_tool})
@@ -79,14 +88,24 @@ func _valid_observation(o: Dictionary) -> bool:
 	for key in ["energy","movement"]:
 		var value = o.get(key,0.)
 		if not (value is float or value is int) or not is_finite(value) or value<0.: return false
+	if o.has("injury"):
+		var injury=o.injury
+		if not injury is Dictionary or injury.get("finite")!=true: return false
+		for key in ["posterior_breached","corneal_breached"]:
+			if not injury.get(key) is bool: return false
+		for key in ["posterior_open_area","corneal_open_area"]:
+			var value=injury.get(key)
+			if not (value is float or value is int) or not is_finite(value) or value<0.: return false
+		for surface in ["posterior","corneal"]:
+			if injury[surface+"_breached"]!=(injury[surface+"_open_area"]>.00000001): return false
 	return true
 
 func _satisfied(check_id: String) -> bool:
 	if _latest.is_empty(): return false
 	match check_id:
 		"residual": return _latest.lens.remaining_mass<=.02 and _latest.lens.removed_mass>=.98
-		"implant": return _latest.iol.delivered>=.999999 and _latest.iol.deployed and _latest.iol.alignment>=.9
-		"wound": return _latest.wound
+		"implant": return not _latest.get("injury",{}).get("posterior_breached",false) and _latest.iol.delivered>=.999999 and _latest.iol.deployed and _latest.iol.alignment>=.9
+		"wound": return _latest.wound and not _injury_seen
 	return false
 
 func inspect(check_id: String) -> bool:
@@ -96,7 +115,7 @@ func inspect(check_id: String) -> bool:
 	return true
 
 func finish() -> bool:
-	if not ready() or _alert!="" or false in _inspection.values(): return false
+	if not ready() or _alert!="" or _injury_seen or false in _inspection.values(): return false
 	for check_id in INSPECTIONS:
 		if not _satisfied(check_id): return false
 	_stage="debrief"; _ending="completed"; _event("completed")
@@ -120,4 +139,4 @@ func snapshot() -> Dictionary:
 	if ready():
 		objective="상태 평가 후 조작 재개" if _alert!="" else ("수정체 잔여물 제거" if not _satisfied("residual") else ("IOL 전달·전개·중심 정렬" if not _satisfied("implant") else ("진입 상처 확인" if not _satisfied("wound") else "잔여물·렌즈·상처 최종 검사")))
 	elif _ending!="": objective="사례 기록 검토"
-	return {"case_id":_case,"seed":_seed,"stage":_stage,"ready":ready(),"preparation":_preparation.duplicate(),"inspection":_inspection.duplicate(),"objective":objective,"alert":_alert,"ending":_ending,"elapsed":_elapsed,"timeline":_timeline.duplicate(true),"latest":_latest.duplicate(true),"metrics":{"active_time":_active_time,"clinical_grade":false}}
+	return {"case_id":_case,"seed":_seed,"stage":_stage,"ready":ready(),"preparation":_preparation.duplicate(),"inspection":_inspection.duplicate(),"objective":objective,"alert":_alert,"ending":_ending,"elapsed":_elapsed,"timeline":_timeline.duplicate(true),"latest":_latest.duplicate(true),"metrics":{"active_time":_active_time,"clinical_grade":false,"structural_injury":_injury_seen}}

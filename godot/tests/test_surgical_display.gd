@@ -56,6 +56,15 @@ func run()->void:
 	check(display.capture_frame().capsule.positions==captured_before_move.capsule.positions,"Visual capture remains the last applied state after live solver changes")
 	display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false})
 	check(display.membrane.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX][1].is_equal_approx(capsule.positions[1]),"Geometry cache invalidates on actual membrane deformation")
+	for x in [.2,-.3]:
+		var damage=load("res://scripts/tissue_injury.gd").new()
+		var data:Dictionary=damage.surfaces.posterior
+		var query=load("res://scripts/surface_contact.gd").new()
+		var hit:Dictionary=query.sweep(Vector3(x,.7,0),Vector3(x,.4,0),.01,data.positions,data.triangles)
+		damage.step(.02,[{"surface":"posterior","point":hit.surface_point,"triangle":hit.triangle,"revision":0,"load":.03,"energy":0.,"cutting":true,"tool":"knife"}])
+		display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false,"anatomy":{"posterior":damage.surfaces.posterior}})
+		var posterior=display.get_node("NumericalEye/ComputedPosteriorCapsule")
+		check(posterior.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]==damage.surfaces.posterior.positions,"same revision from another recorded case still uses its own geometry")
 	display.free()
 	finish()
 func finish()->void:

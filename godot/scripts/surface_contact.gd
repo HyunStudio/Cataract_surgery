@@ -44,13 +44,13 @@ func sweep(start:Vector3,finish:Vector3,radius:float,points:PackedVector3Array,i
 			contact["surface_point"]=contact.position-n*(contact.position-a).dot(n) if n.length_squared()>.5 else contact.position
 			if ignore.is_valid() and ignore.call(contact): continue
 			if not result.hit or contact.time<result.time:
-				result.merge(contact,true); result.hit=true; result.triangle=offset/3
+				result.merge(contact,true); result.hit=true; result.triangle=int(offset/3)
 	return result
 func _inside(p:Vector3,a:Vector3,b:Vector3,c:Vector3)->bool:
 	var v0:=b-a; var v1:=c-a; var v2:=p-a
 	var d00:=v0.dot(v0); var d01:=v0.dot(v1); var d11:=v1.dot(v1)
 	var denominator:=d00*d11-d01*d01
-	if absf(denominator)<EPS: return false
+	if denominator<=maxf(.000000000000000000000001,d00*d11*.000000000001): return false
 	var u:=(d11*v2.dot(v0)-d01*v2.dot(v1))/denominator
 	var v:=(d00*v2.dot(v1)-d01*v2.dot(v0))/denominator
 	return u>=-EPS and v>=-EPS and u+v<=1.+EPS
@@ -83,3 +83,39 @@ func _edge(start:Vector3,delta:Vector3,a:Vector3,b:Vector3,radius:float)->Dictio
 	var n:=(center-closest).normalized()
 	if n.length_squared()<EPS: n=-speed.normalized()
 	return {"time":t,"position":closest+n*radius,"normal":n}
+
+func overlap(center:Vector3,radius:float,points:PackedVector3Array,indices:PackedInt32Array,ignore:Callable=Callable())->Dictionary:
+	# Reuse complete atomic validation; the zero-length sweep does not manufacture motion.
+	var result:=sweep(center,center,radius,points,indices)
+	if not result.valid or points.is_empty(): return result
+	var bounds:=AABB(points[0],Vector3.ZERO)
+	for p in points: bounds=bounds.expand(p)
+	if not bounds.grow(radius+.00005).has_point(center): return result
+	var nearest:=radius+.00005
+	for offset in range(0,indices.size(),3):
+		var a:=points[indices[offset]]; var b:=points[indices[offset+1]]; var c:=points[indices[offset+2]]
+		var lo:=a.min(b).min(c)-Vector3.ONE*nearest; var hi:=a.max(b).max(c)+Vector3.ONE*nearest
+		if center.x<lo.x or center.x>hi.x or center.y<lo.y or center.y>hi.y or center.z<lo.z or center.z>hi.z: continue
+		var closest:=_closest(center,a,b,c)
+		var distance:=center.distance_to(closest)
+		if distance>nearest: continue
+		var normal:=(center-closest).normalized()
+		if normal.length_squared()<EPS: normal=(b-a).cross(c-a).normalized()
+		if normal.length_squared()<EPS: continue
+		var candidate:={"hit":true,"position":center,"surface_point":closest,"normal":normal,"triangle":int(offset/3)}
+		if ignore.is_valid() and ignore.call(candidate): continue
+		nearest=distance
+		result.merge(candidate,true)
+	return result
+func _closest(p:Vector3,a:Vector3,b:Vector3,c:Vector3)->Vector3:
+	var normal:=(b-a).cross(c-a)
+	if normal.length_squared()>EPS*EPS:
+		normal=normal.normalized()
+		var projected:=p-normal*(p-a).dot(normal)
+		if _inside(projected,a,b,c): return projected
+	var closest:=a; var distance:=INF
+	for edge in [[a,b],[b,c],[c,a]]:
+		var candidate:=Geometry3D.get_closest_point_to_segment(p,edge[0],edge[1])
+		var squared:=candidate.distance_squared_to(p)
+		if squared<distance: distance=squared; closest=candidate
+	return closest

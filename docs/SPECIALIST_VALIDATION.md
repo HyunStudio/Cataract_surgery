@@ -2,6 +2,18 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
+## Local structural injury milestone — 2026-10-27
+
+- Fresh standard runner: **27 Godot suites passed**. Added local injury, posterior boundary flow, persistent injury case state and actual-application suites. Python implementation/tests unchanged in this milestone.
+- Actual local corneal/posterior contact exposure now refines nearby triangles and removes a bounded aperture. Collision and display use the resulting shared topology, with measured missing area and persistent case evidence. Distant geometry remains, topology is capped at 8,192 vertices/faces per surface, stale revisions are ignored and malformed batches reject atomically.
+- Posterior and corneal missing area drive separately reported boundary conductance. Every macrostep's averaged actual flows obey compartment volume balance, including lower/upper bounds; posterior outflow does not delete lens mass. This remains a single compartment with an unmodeled downstream reservoir, not vitreous or dropped-nucleus dynamics.
+- Actual application tests verify blade puncture, powered stationary contact, energy after switching tools at a resting contact, alert/release, completion rejection after acknowledgment, reset and immutable pre/post injury review. Independent review reproduced stationary power falsely contacting an existing incision; moving and stationary contact now share the same full-radius wound exclusion. A second structural injury raises a new event after acknowledgment.
+- Independent reviewer reran injury application/case, geometry contact and injury component suites with zero failures. Additional tests cover tiny refined face contact, excluded-nearer-face handling, non-energy-tool exposure rejection and area/flag consistency.
+- Healthy full layered encounter and adverse application tests passed on NVIDIA RTX 3070 Laptop GPU. Captures: `godot/reports/injury-contact.png`, `injury-debrief.png`, `professional-results.png`. The healthy fixture releases the blade and follows the open chamber route before anterior cutting; an active blade swept through intact cornea causes real injury instead of being exempted.
+- Fresh 30-second moving powered workload, 1920×1080, 2-second warmup: **1,198 frames; mean 42.75 fps / 23.392 ms; P95 32.419 ms; removed mass 48.65%; finite true**. No concurrent GPU test during this measured run. This fails the stable 60fps target; performance optimization remains open.
+- All injury thresholds, loads, aperture radius and conductance coefficients are synthetic engineering choices. They are not tissue failure force or clinically validated limits. Anatomical barrier reference: [AAO posterior capsule rupture signs](https://eyewiki.aao.org/Intraoperative_Signs_of_Posterior_Capsular_Rupture).
+- Editor import and Windows release export exited 0; the exported native OpenGL executable ran 120 frames and exited 0 without script/shader errors. The refreshed nine-file ZIP passed CRC verification. Overall goal remains active for shaft/jaw contact, vitreous/dropped material/implant support, complication handling, richer anatomy/room assets, full pointer workflow and sustained performance.
+
 ## Continuous anatomical tip contact milestone — 2026-10-27
 
 - Fresh standard runner: **23 Godot suites passed**, including surface-contact, anatomical-coordinator and anatomical-application suites. Existing Python source/tests were unchanged in this milestone.
@@ -27,7 +39,7 @@ This report applies to the new default `simulator.tscn`, not the earlier procedu
 
 This does **not** satisfy a stable 60fps active-operation target; profiling/optimization and longer duration acceptance remain required. It is not comparable to the earlier idle measurements as if they were the same workload.
 
-Tip collision is a sphere approximation, not complete shaft/jaw/blade contact. Contact-limited movement is recorded per hand and summed; those metrics are not tissue force or damage. Corneal and posterior structural injury, tearing/leak coupling, full hardware/tool shapes and complete pointer-driven workflow verification remain open in [overall completion criteria](REALISM_COMPLETION_KO.md). Overall goal remains active.
+Tip collision is a sphere approximation, not complete shaft/jaw/blade contact. Contact-limited movement is recorded per hand and summed; those metrics are not tissue force or damage. This older milestone preceded the structural injury implementation above. Full hardware/tool shapes and complete pointer-driven workflow verification remain open in [overall completion criteria](REALISM_COMPLETION_KO.md). Overall goal remains active.
 
 ## Layered material milestone — 2026-10-27
 
@@ -70,7 +82,7 @@ This is a short shared-desktop observation, not a 60fps guarantee, endurance tes
 
 ## Model scope and remaining fidelity work
 
-The playable integrated path is verified. It is an initial specialist simulation game, not the completion of the entire historical 32-work-package roadmap. The models are uncalibrated: 217-node XPBD membrane, 111-particle connected lens, single fluid compartment, elastic point implant and traced incision gap. Mesh surface interpolation follows physical positions/connectivity. Mechanical tip contact and local energy/aspiration are implemented; full shaft/cornea/posterior-capsule contact, anatomical layer hydrodissection, separate cortical material, physiological feedback, real device calibration, photorealistic assets and clinical/haptic validation are not.
+The playable integrated path is verified. It is an initial specialist simulation game, not the completion of the entire historical 32-work-package roadmap. The models are uncalibrated: 217-node XPBD membrane, 111-particle connected lens, single fluid compartment, elastic point implant and traced incision gap. Mesh surface interpolation follows physical positions/connectivity. Mechanical tip contact and local energy/aspiration are implemented; full shaft/jaw/blade contact, continuum layer hydraulics, vitreous/dropped-material dynamics, physiological feedback, real device calibration, photorealistic assets and clinical/haptic validation are not. Later milestones above add shared corneal/posterior tip contact, separate cortical material and local structural injury.
 
 Record review uses sampled immutable visual states (2-second interval, 900 frames, 32MB export limit); it is not deterministic physical input replay. The director checks simulation evidence and provides no clinical skill grade. See [Korean controls and scope](SPECIALIST_SIMULATOR_KO.md).
 

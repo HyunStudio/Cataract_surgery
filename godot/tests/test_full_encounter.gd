@@ -18,6 +18,10 @@ func run() -> void:
 	for i in range(41):
 		place(app,Vector3(1.32,.84,-.1+.005*i)); tick(app,1)
 	check(app.incision.opened[0],"continuous blade trace creates real entry")
+	app.release_controls()
+	for p in [Vector3(1.32,.84,0),Vector3(1.22,.847,0),Vector3(1.1,.864,0),Vector3(.9,.89,0),Vector3(0,.9,0)]:
+		app._set_tip(0,p); app._physics_process(1./60.)
+	app.grip_down=true
 	# Open the membrane through a local blade trace.
 	for i in range(100):
 		var angle:=TAU*i/99.

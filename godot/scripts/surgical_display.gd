@@ -22,6 +22,8 @@ var _optic: MeshInstance3D
 var _haptics: MeshInstance3D
 var _iris: MeshInstance3D
 var _pupil_radius:float=-1.0
+var _surface_revision:Dictionary={"cornea":0,"posterior":0}
+var _surface_data:Dictionary={}
 var _last_frame:Dictionary={}
 var _built:=false
 var _forceps_jaws:Array[Array]=[[],[]]
@@ -127,6 +129,7 @@ func _material(color:Color,roughness:float,unshaded:bool=false)->StandardMateria
 func apply(capsule,lens,iol,rigs:Array,hand_tools:Array,selected:int,actions:Array,options:Dictionary)->void:
 	if not _built: build()
 	var iol_metrics:Dictionary=iol.metrics()
+	_render_anatomy(options.get("anatomy",{}))
 	_render_capsule(capsule,bool(options.get("wireframe",false)))
 	_render_lens(lens)
 	var free_count:=mini(111,_surface.detached_positions.size())
@@ -143,6 +146,18 @@ func apply(capsule,lens,iol,rigs:Array,hand_tools:Array,selected:int,actions:Arr
 	var rig_data:Array=[]
 	for rig in rigs: rig_data.append({"tip":rig.tip,"axis":rig.axis,"portal":rig.portal,"insertion":rig.insertion})
 	_last_frame={"capsule":{"positions":capsule.positions.duplicate(),"triangles":capsule.triangles.duplicate(),"edges":capsule.edges.duplicate(true)},"lens":{"particles":lens.particles.duplicate(true),"bonds":lens.bonds.duplicate(true)},"iol":{"positions":iol.positions.duplicate(),"optic_count":int(iol.optic_count),"metrics":iol_metrics.duplicate(true)},"rigs":rig_data,"hand_tools":hand_tools.duplicate(true),"selected":selected,"actions":actions.duplicate(true),"options":options.duplicate(true)}
+
+func _render_anatomy(state:Dictionary)->void:
+	for id in ["cornea","posterior"]:
+		var revision:int=state.get(id,{}).get("revision",0)
+		if revision==_surface_revision[id]:
+			if not state.has(id): continue
+			var cached:Dictionary=_surface_data.get(id,{})
+			if not cached.is_empty() and cached.positions==state[id].positions and cached.triangles==state[id].triangles: continue
+		var data:Dictionary=state[id] if state.has(id) else (Shapes.cornea() if id=="cornea" else Shapes.posterior())
+		var node:MeshInstance3D=_physical.get_node("ComputedCornea" if id=="cornea" else "ComputedPosteriorCapsule")
+		node.mesh=Shapes.mesh(data); _surface_revision[id]=revision
+		_surface_data[id]={"positions":data.positions.duplicate(),"triangles":data.triangles.duplicate()}
 
 func _set_view(room:bool)->void:
 	world.set_room_view(room)

@@ -12,7 +12,7 @@ func set_pupil(radius:float)->void:
 	radius=clampf(radius,.45,1.1)
 	if not is_equal_approx(pupil,radius): pupil=radius; iris=Shapes.iris(radius)
 func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,capsule,wounds:Array)->Dictionary:
-	var result:={"valid":true,"position":target,"contacts":[],"normal":Vector3.ZERO}
+	var result:={"valid":true,"position":target,"contacts":[],"normal":Vector3.ZERO,"records":[]}
 	if not start.is_finite() or not target.is_finite() or not is_finite(radius) or radius<=0. or radius>.5: result.valid=false; result.position=start if start.is_finite() else Vector3.ZERO; return result
 	if start.distance_squared_to(target)<.00000000000001: return result
 	var current:=start; var desired:=target
@@ -31,6 +31,7 @@ func resolve(start:Vector3,target:Vector3,radius:float,tool:String,cutting:bool,
 		if label not in result.contacts: result.contacts.append(label)
 		result.normal=first.normal
 		var remaining:Vector3=desired-first.position
+		result.records.append({"surface":label,"point":first.surface_point,"center":first.position,"normal":first.normal,"triangle":first.triangle,"revision":surfaces[label].get("revision",0),"load":maxf(0.,-remaining.dot(first.normal))})
 		current=first.position+first.normal*.00001
 		# Slide the remaining movement along the contacted surface, then recast.
 		var into:float=remaining.dot(first.normal)
@@ -57,3 +58,14 @@ func lens_access(tip:Vector3,capsule,radius:=.018)->bool:
 	if tip.y<=.53: return true
 	var hit:Dictionary=_kernel.sweep(tip,Vector3(tip.x,.53,tip.z),radius,capsule.positions,capsule.triangles)
 	return hit.valid and not hit.hit
+
+func stationary(tip:Vector3,radius:float,wounds:Array=[])->Array:
+	var records:Array=[]
+	for id in ["cornea","posterior"]:
+		var surface:Dictionary=cornea if id=="cornea" else posterior
+		var ignore:=Callable()
+		if id=="cornea": ignore=func(hit): return _corneal_window(hit.surface_point,wounds,false,radius)
+		var hit:Dictionary=_kernel.overlap(tip,radius,surface.positions,surface.triangles,ignore)
+		if hit.valid and hit.hit:
+			records.append({"surface":id,"point":hit.surface_point,"center":tip,"normal":hit.normal,"triangle":hit.triangle,"revision":surface.get("revision",0),"load":0.})
+	return records
