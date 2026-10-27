@@ -118,27 +118,62 @@ func project(points:PackedVector3Array,faces:PackedInt32Array,masses:PackedFloat
 			out.residual=maxf(out.residual,maxf(0.,depth-achieved))
 	return out
 
-## Relative distance is Lipschitz in the sum of maximum endpoint and vertex
-## speeds. An inflated broadphase is never sufficient evidence for projection.
-func _moving_hit(part:Dictionary,old:PackedVector3Array,current:PackedVector3Array)->Dictionary:
-	var speed:float=maxf(part.previous_a.distance_to(part.a),part.previous_b.distance_to(part.b))
-	var tissue_speed:=0.
-	for i in range(3): tissue_speed=maxf(tissue_speed,old[i].distance_to(current[i]))
-	speed+=tissue_speed
-	var t:=0.
-	for iteration in range(128):
+func _relative_point(p0:Vector3,p1:Vector3,a0:Vector3,a1:Vector3,t:float)->Vector3:
+	var out:=Vector3.ZERO
+	for axis in range(3): out[axis]=lerpf(float(p0[axis])-a0[axis],float(p1[axis])-a1[axis],t)
+	return out
+
+## Every linear endpoint trajectory lies in the convex hull of its interval
+## endpoints. A separating projection of those two hulls certifies the entire
+## interval. Scalar doubles retain small gaps in translated float32 scenes.
+func _interval_separated(part:Dictionary,old:PackedVector3Array,current:PackedVector3Array,lo:float,hi:float,query:Dictionary)->bool:
+	var n:=PackedFloat64Array(); var squared:=0.
+	for axis in range(3):
+		var value:float=float(query.axis_point[axis])-query.surface_point[axis]
+		n.append(value); squared+=value*value
+	if not is_finite(squared) or squared<=0.: return false
+	var length:=sqrt(squared)
+	for axis in range(3): n[axis]/=length
+	var body_lo:=0.; var body_hi:=0.; var face_lo:=INF; var face_hi:=-INF; var scale:=1.
+	for t in [lo,hi]:
+		var projection:=0.
+		for axis in range(3):
+			var value:float=lerpf(float(part.previous_b[axis])-part.previous_a[axis],float(part.b[axis])-part.a[axis],t)
+			projection+=n[axis]*value; scale=maxf(scale,absf(value))
+		body_lo=minf(body_lo,projection); body_hi=maxf(body_hi,projection)
+		for vertex in range(3):
+			projection=0.
+			for axis in range(3):
+				var value:float=lerpf(float(old[vertex][axis])-part.previous_a[axis],float(current[vertex][axis])-part.a[axis],t)
+				projection+=n[axis]*value; scale=maxf(scale,absf(value))
+			face_lo=minf(face_lo,projection); face_hi=maxf(face_hi,projection)
+	var gap:=maxf(body_lo-face_hi,face_lo-body_hi)
+	return gap>part.radius+Kernel.CONTACT_EPS+1e-12*scale
+
+## Return a verified sampled contact, or clear only when every time interval
+## has a whole-hull separation certificate. This is not an exact impact time.
+func _moving_hit(part:Dictionary,old:PackedVector3Array,current:PackedVector3Array,max_queries:int=128)->Dictionary:
+	if max_queries<1 or max_queries>128: return {"valid":false,"hit":false,"uncertain":true,"evaluations":0}
+	var pending:Array=[[0.,1.,0]]; var evaluations:=0
+	while not pending.is_empty():
+		if evaluations>=max_queries: return {"valid":true,"hit":false,"uncertain":true,"evaluations":evaluations}
+		var interval:Array=pending.pop_back(); var lo:float=interval[0]; var hi:float=interval[1]; var depth:int=interval[2]
+		var t:float=(lo+hi)*.5
 		var face:=PackedVector3Array()
-		for i in range(3): face.append(old[i].lerp(current[i],t))
-		var hit:Dictionary=kernel.query(part.previous_a.lerp(part.a,t),part.previous_b.lerp(part.b,t),part.radius,face,PackedInt32Array([0,1,2]))
-		if not hit.valid: return {"valid":false}
-		if hit.hit: return {"valid":true,"hit":true,"uncertain":false,"surface_point":hit.surface_point,"face":face}
-		var gap:float=hit.distance-part.radius
-		if speed<1e-12 or gap>speed*(1.-t)+1e-7: return {"valid":true,"hit":false,"uncertain":false}
-		var advance:float=.9*gap/speed
-		if advance<1e-12: return {"valid":true,"hit":false,"uncertain":true}
-		t+=advance
-		if t>1.: return {"valid":true,"hit":false,"uncertain":false}
-	return {"valid":true,"hit":false,"uncertain":true}
+		for i in range(3): face.append(_relative_point(old[i],current[i],part.previous_a,part.a,t))
+		var end:=_relative_point(part.previous_b,part.b,part.previous_a,part.a,t)
+		var hit:Dictionary=kernel.query(Vector3.ZERO,end,part.radius,face,PackedInt32Array([0,1,2]))
+		evaluations+=1
+		if not hit.valid: return {"valid":false,"evaluations":evaluations}
+		if hit.hit:
+			var world_face:=PackedVector3Array(); var witness:=Vector3.ZERO
+			for i in range(3): world_face.append(old[i].lerp(current[i],t))
+			for axis in range(3): witness[axis]=lerpf(part.previous_a[axis],part.a[axis],t)+hit.surface_point[axis]
+			return {"valid":true,"hit":true,"uncertain":false,"surface_point":witness,"face":world_face,"evaluations":evaluations}
+		if _interval_separated(part,old,current,lo,hi,hit): continue
+		if depth>=32 or t<=lo or t>=hi: return {"valid":true,"hit":false,"uncertain":true,"evaluations":evaluations}
+		pending.append([t,hi,depth+1]); pending.append([lo,t,depth+1])
+	return {"valid":true,"hit":false,"uncertain":false,"evaluations":evaluations}
 
 func _weights(p:Vector3,t:PackedVector3Array)->Vector3:
 	var n:=(t[1]-t[0]).cross(t[2]-t[0])

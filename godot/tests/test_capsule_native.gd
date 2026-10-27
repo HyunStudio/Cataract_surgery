@@ -119,6 +119,7 @@ func _initialize()->void:
 	check(guard.native_failure.is_empty() and guard.metrics().integration_steps==1,"actual moving forceps body accepts a native elastic/contact step: "+str(guard.native_failure))
 	check(guard.metrics().body_contacts>0 and guard.positions!=before.positions,"actual shaft sweep moves tissue through the retained face-contact operator")
 	check(guard.metrics().cut_loss_area<1e-10,"gentle shaft contact does not spuriously remove material")
+	check(guard.metrics().body_uncertain==0,"accepted gentle native body motion has no unresolved swept contacts")
 	print("Native body metrics: ",guard.metrics())
 	print("Native capsule: ",failures," failures")
 	quit(1 if failures else 0)
