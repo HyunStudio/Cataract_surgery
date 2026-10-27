@@ -3,6 +3,7 @@
 #include <cmath>
 #include <limits>
 #include <vector>
+#include "membrane_sparse.h"
 
 namespace {
 using Vec = std::vector<double>;
@@ -83,22 +84,6 @@ struct Problem {
         }
     }
 
-    bool has_negative_coordinate_curvature(const Vec& normals) const {
-        Vec curvature(3*n);
-        for (int k = 0; k < 3*n; ++k) curvature[k] = mass[k/3];
-        for (int e = 0; e < edges; ++e) {
-            double tangent = normals[4*e+3];
-            for (int axis = 0; axis < 3; ++axis) {
-                double normal = normals[4*e+axis];
-                double diagonal = stiffness*(tangent+(1.-tangent)*normal*normal);
-                if (mass[a[e]] > 0.) curvature[3*a[e]+axis] += diagonal;
-                if (mass[b[e]] > 0.) curvature[3*b[e]+axis] += diagonal;
-            }
-        }
-        for (int k = 0; k < 3*n; ++k)
-            if (mass[k/3] > 0. && curvature[k] < 0.) return true;
-        return false;
-    }
 };
 
 int solve(int n, double* output, const double* inverse, int edges,
@@ -121,63 +106,41 @@ int solve(int n, double* output, const double* inverse, int edges,
         if (a[e] < 0 || a[e] >= n || b[e] < 0 || b[e] >= n || a[e] == b[e] ||
             !(rest[e] > 0.) || !std::isfinite(rest[e])) return -1;
     Vec x = problem.predicted, gradient(3*n), normals(4*edges), diagonal(3*n);
-    Vec direction(3*n), residual(3*n), z(3*n), p(3*n), hp(3*n);
+    Vec direction(3*n), hp(3*n);
     Vec trial(3*n), trial_g(3*n), trial_normals(4*edges), trial_diag(3*n);
     double energy = 0.;
     int evaluations = 1, completed = 0, status = 1;
     double damping = 1e-3; // Levenberg regularization affects directions, never the objective.
-    int cg_iterations = 0;
+    int factorizations = 0;
     double relative_residual = 0., minimum_step = 1.;
     if (!problem.evaluate(x, energy, gradient, normals, diagonal)) return 2;
+    membrane::SparseSystem system(n,edges,a,b,problem.mass);
     for (;;) {
         if (infinity_norm(gradient) <= tolerance) {
-            // A negative coordinate diagonal certifies an unstable stationary point.
-            // Passing this screen is NOT a full second-order minimum certificate.
-            status = problem.has_negative_coordinate_curvature(normals) ? 3 : 0;
+            if (!system.assemble(normals,problem.mass,problem.stiffness,0.,diagonal)) { status = 2; break; }
+            ++factorizations;
+            status = system.factorize();
             break;
         }
         if (completed >= budget) break;
-        double initial_residual = dot(gradient, gradient);
-        // Exact distance Hessian includes transverse geometric stiffness. Compression
-        // can make it indefinite; retry with stronger direction regularization.
+        bool solved = false;
+        // Exact compressed-spring curvature can be indefinite. Require a positive
+        // damped factorization before using a direction; the objective stays unchanged.
         for (int attempt = 0; attempt < 12; ++attempt) {
-            std::fill(direction.begin(), direction.end(), 0.);
-            for (int k = 0; k < 3*n; ++k) {
-                residual[k] = -gradient[k];
-                z[k] = residual[k]/((1.+damping)*diagonal[k]);
+            if (!system.assemble(normals,problem.mass,problem.stiffness,damping,diagonal)) break;
+            ++factorizations;
+            int curvature = system.factorize();
+            if (curvature == 2) break;
+            if (curvature == 0) {
+                if (system.direction(gradient,direction,relative_residual)) { solved = true; break; }
+                if (!std::isfinite(relative_residual)) break;
             }
-            p = z;
-            double rz = dot(residual, z);
-            bool negative_curvature = false;
-            for (int cg = 0; cg < std::min(3*n, 512); ++cg) {
-                ++cg_iterations;
-                problem.multiply(p, normals, hp);
-                for (int k = 0; k < 3*n; ++k) hp[k] += damping*diagonal[k]*p[k];
-                double curvature = dot(p, hp);
-                if (!(curvature > 0.) || !std::isfinite(curvature) || !(rz > 0.)) {
-                    negative_curvature = true; break;
-                }
-                double step = rz/curvature;
-                for (int k = 0; k < 3*n; ++k) {
-                    direction[k] += step*p[k];
-                    residual[k] -= step*hp[k];
-                }
-                if (dot(residual, residual) <= 1e-6*initial_residual) break;
-                for (int k = 0; k < 3*n; ++k) z[k] = residual[k]/((1.+damping)*diagonal[k]);
-                double next_rz = dot(residual, z), beta = next_rz/rz;
-                for (int k = 0; k < 3*n; ++k) p[k] = z[k]+beta*p[k];
-                rz = next_rz;
-            }
-            if (!negative_curvature) break;
-            if (attempt == 11) break; // Keep diagnostics equal to the matrix actually attempted.
+            if (attempt == 11) break;
             damping = std::min(1e12,damping*10.);
         }
-        relative_residual = std::sqrt(dot(residual,residual)/initial_residual);
+        if (!solved) { status = 2; break; }
         double slope = dot(gradient, direction);
-        if (!(slope < 0.) || !std::isfinite(slope)) {
-            for (int k = 0; k < 3*n; ++k) direction[k] = -gradient[k]/diagonal[k];
-            slope = dot(gradient, direction);
-        }
+        if (!(slope < 0.) || !std::isfinite(slope)) { status = 2; break; }
         bool accepted = false;
         double step = 1., next_energy = energy;
         for (int line = 0; line < 32; ++line, step *= .5) {
@@ -201,7 +164,7 @@ int solve(int n, double* output, const double* inverse, int edges,
     std::copy(x.begin(), x.end(), output);
     stats[0] = energy; stats[1] = infinity_norm(gradient);
     stats[2] = completed; stats[3] = evaluations;
-    stats[4] = cg_iterations; stats[5] = relative_residual;
+    stats[4] = factorizations; stats[5] = relative_residual;
     stats[6] = minimum_step; stats[7] = damping;
     return status;
 }

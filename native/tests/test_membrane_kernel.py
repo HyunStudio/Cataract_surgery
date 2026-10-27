@@ -90,11 +90,31 @@ class KernelTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(x, original)
 
+    def test_collective_buckling_with_positive_coordinate_diagonals_is_rejected(self):
+        original = [[-.25, 0, 0], [.25, 0, 0], [-1.25, 0, 0], [1.25, 0, 0]]
+        code, x, stats = self.run_kernel(original, [.05, .05, 0, 0],
+                                          [0, 0, 1], [1, 2, 3], [1, 1.5, 1.5])
+        self.assertEqual(code, 3)
+        self.assertEqual(x, original)
+        self.assertEqual(stats[1], 0)
+        # Each free Y diagonal is+5, but the relative Y mode has eigenvalue-5.
+        displaced_energy = 20*.01**2 + (math.hypot(.5,.02)-1)**2/.2
+        displaced_energy += 2*(math.hypot(1,.01)-1.5)**2/.2
+        self.assertLess(displaced_energy, stats[0])
+
     def test_small_edge_uses_its_actual_rest_length(self):
         code, x, stats = self.run_kernel([[0, 0, 0], [2e-8, 0, 0]], [0, 1e12],
                                           [0], [1], [1e-8], tol=1e-16)
         self.assertEqual(code, 0, stats)
         self.assertAlmostEqual(x[1][0], 1e-8, delta=1e-15)
+
+    def test_overflowing_linear_norm_does_not_report_zero_residual(self):
+        original = [[i*10., 0, 0] for i in range(4)]+[[i*10.+1, 0, 0] for i in range(4)]
+        code, x, stats = self.run_kernel(original, [1]*4+[0]*4,
+                                          [0, 1, 2, 3], [4, 5, 6, 7], [.3]*4, alpha=1/1.7e308)
+        self.assertEqual(code, 2)
+        self.assertEqual(x, original)
+        self.assertTrue(math.isinf(stats[5]))
 
     def test_rotated_spring_and_empty_edge_set(self):
         code, x, _ = self.run_kernel([[3, -2, 1], [3, 0, 1]], [1, 2], [0], [1], [1])
