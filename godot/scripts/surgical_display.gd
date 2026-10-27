@@ -1,5 +1,6 @@
 extends Node3D
 ## Rendering adapter only. Numerical solvers and captured frames remain read-only.
+const Snapshot=preload("res://scripts/visual_snapshot.gd")
 const Shapes=preload("res://scripts/anatomy_surfaces.gd")
 const WorldScript=preload("res://scripts/surgical_world.gd")
 const SurfaceScript=preload("res://scripts/lens_surface.gd")
@@ -145,7 +146,9 @@ func apply(capsule,lens,iol,rigs:Array,hand_tools:Array,selected:int,actions:Arr
 	_set_view(bool(options.get("room",false)))
 	var rig_data:Array=[]
 	for rig in rigs: rig_data.append({"tip":rig.tip,"axis":rig.axis,"portal":rig.portal,"insertion":rig.insertion})
-	_last_frame={"capsule":{"positions":capsule.positions.duplicate(),"triangles":capsule.triangles.duplicate(),"edges":capsule.edges.duplicate(true)},"lens":{"particles":lens.particles.duplicate(true),"bonds":lens.bonds.duplicate(true)},"iol":{"positions":iol.positions.duplicate(),"optic_count":int(iol.optic_count),"metrics":iol_metrics.duplicate(true)},"rigs":rig_data,"hand_tools":hand_tools.duplicate(true),"selected":selected,"actions":actions.duplicate(true),"options":options.duplicate(true)}
+	var lens_state:Dictionary=lens.visual_state() if lens is Object and lens.has_method("visual_state") else {"particles":lens.particles.duplicate(true),"bonds":lens.bonds.duplicate(true)}
+	var cap_state:Dictionary=capsule.visual_state() if capsule is Object and capsule.has_method("visual_state") else {"positions":capsule.positions.duplicate(),"triangles":capsule.triangles.duplicate(),"edges":capsule.edges.duplicate(true)}
+	_last_frame={"capsule":cap_state,"lens":lens_state,"iol":{"positions":iol.positions.duplicate(),"optic_count":int(iol.optic_count),"metrics":iol_metrics.duplicate(true)},"rigs":rig_data,"hand_tools":hand_tools.duplicate(true),"selected":selected,"actions":actions.duplicate(true),"options":options.duplicate(true)}
 
 func _render_anatomy(state:Dictionary)->void:
 	for id in ["cornea","posterior"]:
@@ -318,7 +321,10 @@ func _lines(mesh:ArrayMesh,points:PackedVector3Array)->void:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_LINES,arrays)
 
 func capture_frame()->Dictionary:
-	return _last_frame.duplicate(true)
+	var frame:=_last_frame.duplicate(true)
+	if frame.has("lens"): frame.lens=Snapshot.expand_lens(frame.lens)
+	if frame.has("capsule"): frame.capsule=Snapshot.expand_capsule(frame.capsule)
+	return frame
 func apply_frame(frame:Dictionary)->void:
 	if not frame.has_all(["capsule","lens","iol","rigs","hand_tools","selected","actions","options"]): return
 	var copy:=frame.duplicate(true)

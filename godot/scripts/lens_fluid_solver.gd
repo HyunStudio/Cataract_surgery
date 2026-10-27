@@ -289,3 +289,9 @@ func _count_fragments() -> void:
 	for i in range(parents.size()):
 		if _active[i]!=0 and parents[i]==i: _fragment_count+=1
 	_fragments_dirty=false
+
+func visual_state()->Dictionary:
+	# Copies packed numerical authority, so future solver writes cannot change the displayed state.
+	var cortex:=PackedByteArray(); cortex.resize(_positions.size())
+	for i in range(cortex.size()): cortex[i]=1 if material.is_cortex(i) else 0
+	return {"positions":_positions.duplicate(),"velocities":_velocities.duplicate(),"masses":_masses.duplicate(),"active":_active.duplicate(),"cortex":cortex,"adhesion":material.adhesion.duplicate(),"bond_a":_bond_a.duplicate(),"bond_b":_bond_b.duplicate(),"bond_rest":_bond_rest.duplicate(),"bond_active":_bond_active.duplicate(),"bond_damage":_bond_damage.duplicate()}

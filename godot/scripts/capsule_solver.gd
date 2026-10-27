@@ -256,3 +256,8 @@ func metrics() -> Dictionary:
 			var extension := positions[_edge_a[edge_id]].distance_to(positions[_edge_b[edge_id]]) - _edge_rest[edge_id]
 			energy += .5 * extension * extension
 	return {"max_strain": _peak_strain, "broken_edges": broken, "grasped": _grasps.get(0, -1), "grasps": _grasps.duplicate(), "integration_steps": _integration_steps, "finite": finite and is_finite(energy), "strain_energy": energy, "vertices": positions.size(), "triangles": triangles.size() / 3}
+
+func visual_state()->Dictionary:
+	var mirror_lambda:=PackedFloat64Array(); mirror_lambda.resize(edges.size())
+	for i in range(edges.size()): mirror_lambda[i]=edges[i]["lambda"]
+	return {"positions":positions.duplicate(),"triangles":triangles.duplicate(),"edge_a":_edge_a.duplicate(),"edge_b":_edge_b.duplicate(),"edge_rest":_edge_rest.duplicate(),"edge_active":_edge_active.duplicate(),"edge_lambda":mirror_lambda}

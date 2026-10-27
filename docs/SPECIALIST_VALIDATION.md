@@ -2,6 +2,16 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
+## Packed visual snapshot milestone — 2026-10-27
+
+- Fresh standard runner: **28 Godot suites passed**, including packed visual state preservation/isolation. Independent review reran packed snapshot and surgical display tests; no substantive findings.
+- Display updates now freeze copied packed numerical lens/membrane arrays. Rich particle/bond/edge dictionaries are reconstructed only on explicit capture for the existing recording/review format. No solver integration, geometry or injury logic changed; dictionary replay fixtures retain their original compatibility path.
+- Regression checks cover all current public fields (position, velocity, mass, active flags, material identity, adhesion, bond damage/rest/endpoints, membrane edge values/topology), live state changes after apply, cut topology, caller mutation isolation, and old rich replay fixtures.
+- 500-copy headless microbenchmark: lens rich rows **1.928ms** versus packed **0.058ms**; capsule edge rich rows **1.174ms** versus full packed capsule snapshot **0.122ms**. Reconstructed rich values exactly matched mirrors. These timings measure the copy operation, not total frame rate.
+- Fresh 30-second moving powered workload at 1920×1080, 2-second warmup, RTX 3070 Laptop: **1,570 frames; 56.01fps / 17.855ms mean; 22.786ms P95; removed mass 48.65%; finite state**. All other test/export processes had finished before measurement. Previous injury build measured 42.75fps / 23.392ms in the same workload; this is a shared-desktop observation, not a guaranteed 31% gain on every machine or a stable 60fps result.
+- GPU full encounter passed with complete removal, IOL delivery/alignment, final inspections and immutable review. Editor import and native export passed; exported OpenGL application ran 120 frames and exited 0 without script/shader errors. Refreshed nine-file Windows ZIP passed CRC verification.
+- Overall realism goal remains active. Anatomy proportions and tool shaft clearance require a coupled geometry/kinematics improvement; this performance milestone does not resolve them.
+
 ## Local structural injury milestone — 2026-10-27
 
 - Fresh standard runner: **27 Godot suites passed**. Added local injury, posterior boundary flow, persistent injury case state and actual-application suites. Python implementation/tests unchanged in this milestone.

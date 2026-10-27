@@ -12,7 +12,7 @@ if (-not (Test-Path -LiteralPath $engineExe)) {
 }
 $projectDir = Join-Path $repoRoot 'godot'
 if ($Test) {
-    foreach ($suite in @('test_session', 'test_world', 'test_input', 'test_integration', 'test_playthrough', 'test_capsule_solver', 'test_lens_fluid_solver', 'test_instrument_rig', 'test_simulator', 'test_case_director', 'test_case_recording', 'test_incision_model', 'test_iol_dynamics', 'test_lens_surface', 'test_operating_app', 'test_simulation_ui', 'test_surgical_display', 'test_full_encounter', 'test_lens_material', 'test_layered_lens', 'test_surface_contact', 'test_anatomy_contact', 'test_anatomical_app', 'test_tissue_injury', 'test_injury_flow', 'test_injury_case', 'test_injury_app')) {
+    foreach ($suite in @('test_session', 'test_world', 'test_input', 'test_integration', 'test_playthrough', 'test_capsule_solver', 'test_lens_fluid_solver', 'test_instrument_rig', 'test_simulator', 'test_case_director', 'test_case_recording', 'test_incision_model', 'test_iol_dynamics', 'test_lens_surface', 'test_operating_app', 'test_simulation_ui', 'test_surgical_display', 'test_full_encounter', 'test_lens_material', 'test_layered_lens', 'test_surface_contact', 'test_anatomy_contact', 'test_anatomical_app', 'test_tissue_injury', 'test_injury_flow', 'test_injury_case', 'test_injury_app', 'test_visual_snapshot')) {
         & $engineExe --headless --path $projectDir --script "res://tests/$suite.gd"
         if ($LASTEXITCODE -ne 0) { throw "Godot test failed: $suite" }
     }

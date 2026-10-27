@@ -52,6 +52,9 @@ func run()->void:
 	for i in range(3): display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false})
 	check(get_node_count()==node_count and display.membrane.material_override.get_instance_id()==material_id,"Frame updates reuse scene nodes and materials")
 	var captured_before_move=display.capture_frame()
+	lens.energy=1.; lens.suction=1.
+	for i in range(20): lens.step(.02,Vector3(0,.68,0),true,true)
+	check(display.capture_frame().lens==captured_before_move.lens,"live lens motion fracture and velocities cannot change the last applied frame")
 	capsule.positions[1]+=Vector3(0,.025,0)
 	check(display.capture_frame().capsule.positions==captured_before_move.capsule.positions,"Visual capture remains the last applied state after live solver changes")
 	display.apply(capsule,lens,iol,rigs,["forceps","phaco"],1,actions,{"room":false})
