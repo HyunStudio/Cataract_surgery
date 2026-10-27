@@ -4,6 +4,7 @@ const EntryWindow=preload("res://scripts/incision_window.gd")
 var portals:Array=[]
 const Kernel=preload("res://scripts/surface_contact.gd")
 const CELL:=.16
+const HEIGHT_CACHE_LIMIT:=512
 var wounds:Array=[]
 var radius:=.004
 var wound_radius:=.085
@@ -24,7 +25,12 @@ func _make_field(data:Dictionary)->Dictionary:
 	if not data.get("positions") is PackedVector3Array or not data.get("triangles") is PackedInt32Array: return {}
 	if data.positions.is_empty() or data.positions.size()>8192 or data.triangles.size()>24576: return {}
 	if not Kernel.new().sweep(Vector3.ZERO,Vector3.ZERO,.01,data.positions,data.triangles).valid: return {}
-	var field:={"positions":data.positions.duplicate(),"triangles":data.triangles.duplicate(),"bins":{}}
+	var field:={"positions":data.positions.duplicate(),"triangles":data.triangles.duplicate(),"bins":{},"height_cache":{}}
+	var min_y:=INF; var max_y:=-INF
+	for p in field.positions: min_y=minf(min_y,p.y); max_y=maxf(max_y,p.y)
+	# Include the barycentric edge tolerance and float-vector rounding.
+	var padding:float=(max_y-min_y)*.000004+maxf(1.,maxf(absf(min_y),absf(max_y)))*.000001
+	field["min_y"]=min_y-padding; field["max_y"]=max_y+padding
 	for offset in range(0,field.triangles.size(),3):
 		var a:Vector3=field.positions[field.triangles[offset]]; var b:Vector3=field.positions[field.triangles[offset+1]]; var c:Vector3=field.positions[field.triangles[offset+2]]
 		var denominator:float=(b.z-c.z)*(a.x-c.x)+(c.x-b.x)*(a.z-c.z)
@@ -39,9 +45,15 @@ func _make_field(data:Dictionary)->Dictionary:
 				field.bins[key].append(offset)
 	return field
 func _heights(field:Dictionary,p:Vector3)->Vector4:
+	# Geometry is copied at configuration; reuse only identical XZ coordinates.
+	var key:=Vector2(p.x,p.z)
+	var cache:Dictionary=field.height_cache
+	if cache.has(key): return cache[key]
+	var positions:PackedVector3Array=field.positions
+	var triangles:PackedInt32Array=field.triangles
 	var low:=INF; var high:=-INF; var low_face:=-1; var high_face:=-1
 	for offset in field.bins.get(Vector2i(floori(p.x/CELL),floori(p.z/CELL)),PackedInt32Array()):
-		var a:Vector3=field.positions[field.triangles[offset]]; var b:Vector3=field.positions[field.triangles[offset+1]]; var c:Vector3=field.positions[field.triangles[offset+2]]
+		var a:Vector3=positions[triangles[offset]]; var b:Vector3=positions[triangles[offset+1]]; var c:Vector3=positions[triangles[offset+2]]
 		var denominator:float=(b.z-c.z)*(a.x-c.x)+(c.x-b.x)*(a.z-c.z)
 		var u:float=((b.z-c.z)*(p.x-c.x)+(c.x-b.x)*(p.z-c.z))/denominator
 		var v:float=((c.z-a.z)*(p.x-c.x)+(a.x-c.x)*(p.z-c.z))/denominator
@@ -49,7 +61,10 @@ func _heights(field:Dictionary,p:Vector3)->Vector4:
 			var y:float=u*a.y+v*b.y+(1.-u-v)*c.y
 			if y<low: low=y; low_face=offset
 			if y>high: high=y; high_face=offset
-	return Vector4(low,high,low_face,high_face)
+	var result:=Vector4(low,high,low_face,high_face)
+	if cache.size()>=HEIGHT_CACHE_LIMIT: cache.clear()
+	cache[key]=result
+	return result
 func _wound(p:Vector3)->bool:
 	return EntryWindow.contains(p,wounds,radius,wound_radius,portals)
 
@@ -61,6 +76,7 @@ func _blocked(p:Vector3,exterior:=false)->bool:
 	if not exterior and _limbal_guard(p): return true
 	for index in range(2):
 		var field:Dictionary=_cornea if index==0 else _iris
+		if p.y<field.min_y-radius or p.y>field.max_y+radius: continue
 		if index==0 and _wound(p): continue
 		var heights:=_heights(field,p)
 		if p.y>=heights.x-radius and p.y<=heights.y+radius: return true

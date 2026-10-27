@@ -2,6 +2,19 @@
 
 This report applies to the new default `simulator.tscn`, not the earlier procedural `main.tscn`.
 
+## Detached-boundary performance milestone — 2026-10-28
+
+The retained-flap workload now measures **40.21 fps / 24.872 ms mean, 28.957 ms P95** at 1920×1080, 30 seconds with 2 seconds warmup discarded, RTX 3070 Laptop. The same retained-flap workload before this change measured 22.92 fps / 43.634 ms mean / 49.221 ms P95. No other test/export process ran during the accepted rendered measurements. Actual removed mass was 9.009%, tissue access true, finite state and no alert. Timing-sensitive GPU workloads perform more physics steps when frame throughput improves; removed-mass differences are not a deterministic physics equivalence test. This remains below stable 60 fps and is not endurance acceptance. The app currently caps physics catch-up at one step per rendered frame (`Engine.max_physics_steps_per_frame=1`), so simulation time slows under this load. With energy fixed at 1.0, recorded active energy integrals correspond to about 11.15 simulated seconds before and 19.63 after, over 30 wall-clock seconds. This is not verified real-time 60Hz tissue operation; timestep/throughput work remains necessary.
+
+- A 600-step deterministic diagnostic identified boundary resolve as 12.072 s of 23.340 s instrumented physics time; most was repeated actual-triangle height interpolation. Final instrumented run was 13.925 s physics / 2.844 s boundary. This is a local diagnostic with timing wrappers, not a portable CPU guarantee.
+- The configured field now owns a bounded 512-entry exact-XZ height cache. Coordinates are not quantized, Y remains irrelevant to triangle height, and source geometry is copied. Successful reconfiguration atomically replaces geometry and its cache; rejected configuration retains both. Packed geometry references are bound once per query instead of repeatedly looked up inside the face loop.
+- An actual-vertex Y envelope rejects impossible surface-contact queries before interpolation. Padding includes accepted barycentric edge extrapolation and float-vector rounding. This is conservative broadphase only; no movement, contact sample, boundary resolution, exterior history or extraction check is skipped.
+- All capsule vertex coordinates and lens/capsule metrics after the same 600 deterministic active steps exactly matched the prior implementation. A separate 1000-query old/new comparison returned identical contact/outside/result dictionaries. Independent full-mesh interpolation tests cover 1400 random field queries, repeat/Y independence, caller edits, geometry replacement/rejection, bounded memory, closely spaced coordinates and barycentric-edge contact. Independent review found no substantive issue and reran boundary/cache suites successfully.
+
+Fresh local runner: **38 suites passed**, including the new independent query-equivalence suite. Default full encounter and posterior-injury routes also passed with the actual NVIDIA GPU. Editor import and Windows release export exited 0; the exported OpenGL application ran 120 frames and exited 0 without script/shader errors. Python implementation is unchanged; no new Python or remote CI result is claimed.
+
+The full realism objective remains active. This change reduces existing boundary work without adding missing adaptive cut topology, full-tool contact, dynamic lens/bag mechanics, surgical assets or complete human pointer verification.
+
 ## Supported capsule extraction milestone — 2026-10-28
 
 Fresh local `tools/run-godot.ps1 -Test`: **37 suites passed** (37 engine invocations, zero errors, runner exit 0), including four new extraction/boundary/director/exchange suites. Existing Python implementation/tests are unchanged. Remote GitHub CI has not been run.
