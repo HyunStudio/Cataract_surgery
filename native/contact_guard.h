@@ -85,6 +85,78 @@ inline bool axis_separates(const std::array<V,3>& body,const std::array<V,6>& fa
     return std::max(flo-bhi,blo-fhi)>radius+error;
 }
 
+// Outward-rounded Bernstein coefficients retain the shared time parameter.
+// A fixed swept hull can overlap even when a rotating plane stays clear.
+struct Bound {
+    Real lo=0,hi=0;
+    Bound()=default;
+    Bound(Real x):lo(x),hi(x) {}
+    Bound(Real l,Real h):lo(l),hi(h) {}
+};
+inline Real down(Real x) { return std::nextafter(x,-std::numeric_limits<Real>::infinity()); }
+inline Real up(Real x) { return std::nextafter(x,std::numeric_limits<Real>::infinity()); }
+inline Bound operator+(Bound a,Bound b) { return {down(a.lo+b.lo),up(a.hi+b.hi)}; }
+inline Bound operator-(Bound a,Bound b) { return {down(a.lo-b.hi),up(a.hi-b.lo)}; }
+inline Bound operator*(Bound a,Bound b) {
+    std::array<Real,4> p{a.lo*b.lo,a.lo*b.hi,a.hi*b.lo,a.hi*b.hi};
+    return {down(*std::min_element(p.begin(),p.end())),up(*std::max_element(p.begin(),p.end()))};
+}
+inline Bound operator/(Bound a,int b) { return {down(a.lo/b),up(a.hi/b)}; } // positive integer only
+using BV=std::array<Bound,3>;
+inline BV bv(V v) { return {Bound(v[0]),Bound(v[1]),Bound(v[2])}; }
+inline BV bsub(const BV& a,const BV& b) { return {a[0]-b[0],a[1]-b[1],a[2]-b[2]}; }
+inline BV badd(const BV& a,const BV& b) { return {a[0]+b[0],a[1]+b[1],a[2]+b[2]}; }
+inline BV bhalf(const BV& a) { return {a[0]/2,a[1]/2,a[2]/2}; }
+inline BV bcross(const BV& a,const BV& b) {
+    return {a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]};
+}
+inline Bound bdot(const BV& a,const BV& b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+inline BV binterpolate(V a,V b,Real t) {
+    BV result{};
+    for (int k=0;k<3;++k) result[k]=Bound(a[k])*(Bound(1)-Bound(t))+Bound(b[k])*Bound(t);
+    return result;
+}
+inline bool moving_plane_separates(const Motion& motion,const std::array<V,3>& old,
+                                  const std::array<V,3>& current,Real lo,Real hi,Real gap) {
+    std::array<BV,3> first{},last{};
+    Real scale=1;
+    for (int j=0;j<3;++j) {
+        first[j]=binterpolate(old[j],current[j],lo); last[j]=binterpolate(old[j],current[j],hi);
+        for (Real v:old[j]) scale=std::max(scale,std::abs(v));
+        for (Real v:current[j]) scale=std::max(scale,std::abs(v));
+    }
+    BV e0=bsub(first[1],first[0]),e1=bsub(last[1],last[0]);
+    BV f0=bsub(first[2],first[0]),f1=bsub(last[2],last[0]);
+    // Quadratic Bernstein normal of an affine triangle.
+    std::array<BV,3> normal{bcross(e0,f0),bhalf(badd(bcross(e0,f1),bcross(e1,f0))),bcross(e1,f1)};
+    constexpr int choose[7][7]={{1},{1,1},{1,2,1},{1,3,3,1},{1,4,6,4,1},{1,5,10,10,5,1},{1,6,15,20,15,6,1}};
+    std::array<Bound,5> norm4{};
+    for (int i=0;i<3;++i) for (int j=0;j<3;++j)
+        norm4[i+j]=norm4[i+j]+bdot(normal[i],normal[j])*(Bound(choose[2][i]*choose[2][j])/choose[4][i+j]);
+    std::array<Bound,7> norm6{};
+    for (int i=0;i<5;++i) for (int j=0;j<3;++j)
+        norm6[i+j]=norm6[i+j]+norm4[i]*(Bound(choose[4][i]*choose[2][j])/choose[6][i+j]);
+    Bound radius=Bound(motion.data[12])-Bound(gap)+Bound(motion.padding(lo,hi))+Bound(motion.numeric)+
+        Bound(512*std::numeric_limits<Real>::epsilon()*scale);
+    Bound radius2=radius*radius;
+    bool positive=true,negative=true;
+    for (int end=0;end<2;++end) {
+        BV r0=bsub(bv(motion.sample(end,lo)),first[0]),r1=bsub(bv(motion.sample(end,hi)),last[0]);
+        // Signed plane numerator has degree3. Both endpoints must stay on
+        // the same side, then squared distance clearance bounds the segment.
+        std::array<Bound,4> numerator{};
+        for (int i=0;i<3;++i) for (int j=0;j<2;++j)
+            numerator[i+j]=numerator[i+j]+bdot(normal[i],j?r1:r0)*(Bound(choose[2][i])/choose[3][i+j]);
+        for (Bound value:numerator) { positive=positive && value.lo>0; negative=negative && value.hi<0; }
+        if (!positive && !negative) return false;
+        std::array<Bound,7> squared{};
+        for (int i=0;i<4;++i) for (int j=0;j<4;++j)
+            squared[i+j]=squared[i+j]+numerator[i]*numerator[j]*(Bound(choose[3][i]*choose[3][j])/choose[6][i+j]);
+        for (int k=0;k<7;++k) if (!((squared[k]-radius2*norm6[k]).lo>0)) return false;
+    }
+    return true;
+}
+
 inline bool separated(const Motion& motion,const std::array<V,3>& old,const std::array<V,3>& current,
                       Real lo,Real hi,Real gap,V nearest) {
     V a0=motion.sample(0,lo),a1=motion.sample(0,hi);
@@ -101,6 +173,7 @@ inline bool separated(const Motion& motion,const std::array<V,3>& old,const std:
     Real error=motion.numeric+512*std::numeric_limits<Real>::epsilon()*scale;
     auto test=[&](V n) { return axis_separates(body,face,n,radius,error); };
     if (test({1,0,0}) || test({0,1,0}) || test({0,0,1}) || test(nearest)) return true;
+    if (moving_plane_separates(motion,old,current,lo,hi,gap)) return true;
     for (int i=0;i<4;++i) for (int j=i+1;j<5;++j) for (int k=j+1;k<6;++k)
         if (test(contact::cross(contact::sub(face[j],face[i]),contact::sub(face[k],face[i])))) return true;
     if (test(contact::cross(contact::sub(body[1],body[0]),contact::sub(body[2],body[0])))) return true;

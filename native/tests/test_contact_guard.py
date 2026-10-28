@@ -128,16 +128,80 @@ class ContactGuardTests(unittest.TestCase):
         self.assertEqual(list(packets),data['packets'])
         self.assertEqual(stats[1],2772); self.assertGreater(stats[5],0)
 
-    def test_actual_second_substep_budget_exhaustion_cannot_accept(self):
+    def test_actual_second_substep_is_certified_with_original_query_limit(self):
         data=json.loads((ROOT/'native/tests/fixtures/joint_motion261_second.json').read_text())
         d=lambda values:(ct.c_double*len(values))(*values)
         ints=lambda values:(ct.c_int*len(values))(*values)
         old=d(data['previous']); current=d(data['current']); packets=d(data['packets'])
         faces=ints(data['triangles']); kinds=ints(data['kinds']); stats=d([99.]*8)
         code=self.guard(len(old)//3,old,current,len(faces)//3,faces,len(kinds),kinds,packets,128,1e-9,stats)
-        self.assertEqual(code,2,list(stats))
-        self.assertEqual(list(stats)[2:4],[40.,1.]); self.assertEqual(stats[7],1)
+        self.assertEqual(code,0,list(stats))
+        self.assertEqual(list(stats)[2:4],[-1.,-1.]); self.assertEqual(stats[7],0)
         self.assertEqual(list(old),data['previous']); self.assertEqual(list(current),data['current'])
+
+    def test_actual_tick262_intermediate_penetration_must_reject(self):
+        data=json.loads((ROOT/'native/tests/fixtures/joint_motion262.json').read_text())
+        d=lambda values:(ct.c_double*len(values))(*values)
+        ints=lambda values:(ct.c_int*len(values))(*values)
+        old=d(data['previous']); current=d(data['current']); packets=d(data['packets'])
+        faces=ints(data['triangles']); kinds=ints(data['kinds']); stats=d([99.]*8)
+        code=self.guard(len(old)//3,old,current,len(faces)//3,faces,len(kinds),kinds,packets,128,1e-9,stats)
+        self.assertEqual(code,1,list(stats)); self.assertEqual(list(stats)[2:4],[40.,1.])
+        self.assertLess(stats[4],-8e-8)
+        self.assertEqual(list(old),data['previous']); self.assertEqual(list(current),data['current'])
+
+    def test_moving_plane_retains_time_correlation_at_contact(self):
+        old=self.face(); current=self.face()
+        slope=.01
+        for j in range(3):
+            old[3*j+1]=-slope*old[3*j]
+            current[3*j+1]=slope*current[3*j]
+        height=.1*math.sqrt(1+slope*slope)
+        packet=linear([0.,height,0.],[0.,height,0.],.1)
+        for order in itertools.permutations(range(3)):
+            code,stats=self.query(old,current,packet,indices=order,budget=3)
+            self.assertEqual(code,0,stats)
+            self.assertEqual(stats[0],3)
+
+    def test_independent_interior_plane_witnesses_cannot_be_certified_clear(self):
+        cases=json.loads((ROOT/'native/tests/fixtures/moving_plane_crossings.json').read_text())['cases']
+        dot=lambda a,b:sum(x*y for x,y in zip(a,b))
+        sub=lambda a,b:[x-y for x,y in zip(a,b)]
+        cross=lambda a,b:[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]
+        for case in cases:
+            t=case['witness_t']
+            face=[x*(1-t)+y*t for x,y in zip(case['old'],case['current'])]
+            point=[x*(1-t)+y*t for x,y in zip(case['a'],case['b'])]
+            e=sub(face[3:6],face[:3]); f=sub(face[6:9],face[:3]); n=cross(e,f)
+            relative=sub(point,face[:3]); n2=dot(n,n); numerator=dot(relative,n)
+            distance=abs(numerator)/math.sqrt(n2)
+            projected=[x-y*numerator/n2 for x,y in zip(relative,n)]
+            ee,ff,ef=dot(e,e),dot(f,f),dot(e,f)
+            er,fr=dot(e,projected),dot(f,projected)
+            u=(ff*er-ef*fr)/(ee*ff-ef*ef); v=(ee*fr-ef*er)/(ee*ff-ef*ef)
+            self.assertGreaterEqual(min(u,v,1-u-v),0.)
+            self.assertLess(distance,.06); self.assertAlmostEqual(distance,case['witness_distance'],places=12)
+            packet=linear(case['a'],case['b'],.1)
+            # Endpoints and midpoint are clear; a true interior witness is
+            # closer than radius. Neither a cheap plane test nor exhaustion
+            # may return a clear interval.
+            self.assertNotEqual(self.query(case['old'],case['current'],packet,budget=3)[0],0)
+            self.assertEqual(self.query(case['old'],case['current'],packet)[0],1)
+
+    def test_capsule_endpoints_on_opposite_plane_sides_reject(self):
+        face=self.face(); packet=linear([0.,.3,0.],[0.,.3,0.],.1)
+        packet[3:6]=packet[9:12]=[0.,-.3,0.]
+        self.assertEqual(self.query(face,face,packet)[0],1)
+
+    def test_off_midpoint_triangle_collapse_cannot_hide_later_crossing(self):
+        # e(t)=(1-4t,0,0) vanishes at .25; f(t)=(0,1-t,t).
+        # At .75 the sphere center is .05*e(t)+.125*f(t), strictly
+        # inside the restored triangle. At0,.5,1 its distance exceeds .1.
+        old=[0.,0.,0.,1.,0.,0.,0.,1.,0.]
+        current=[0.,0.,0.,-3.,0.,0.,0.,0.,1.]
+        packet=linear([.05,1.25,.375],[-.15,-.375,0.],.1)
+        self.assertEqual(self.query(old,current,packet,budget=3)[0],2)
+        self.assertNotEqual(self.query(old,current,packet)[0],0)
 
     def test_collision_away_from_midpoint_requires_interval_search(self):
         angle=-math.pi/4
