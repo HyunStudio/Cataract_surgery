@@ -5,6 +5,15 @@ var total_contacts:=0
 var total_uncertain:=0
 const Path=preload("res://scripts/instrument_path.gd")
 const ENTRY=Vector3(1.32,.8,0)
+class JointBackend extends RefCounted:
+	var kernel=ClassDB.instantiate("MembraneContactKernel")
+	var calls:=0
+	var last_stats:=PackedFloat64Array()
+	func solve_contact(request:Dictionary)->Dictionary:
+		calls+=1
+		var result:Dictionary=kernel.solve_contact(request); last_stats=result.stats.duplicate()
+		return result
+	func diagnostics()->Dictionary: return {"calls":calls,"last_stats":last_stats}
 func check(ok:bool,message:String)->void:
 	if not ok: failures+=1; push_error(message)
 func advance(model,old_tip:Vector3,tip:Vector3,grip:bool,old_grip:bool)->bool:
@@ -34,7 +43,9 @@ func _initialize()->void:
 	var model=load("res://scripts/capsule_solver.gd").new(); model.geometry=shape; model.reset()
 	var backend=load("res://scripts/native_membrane_backend.gd").new()
 	backend.diagnostic_capture="res://native-extraction-failure.json"
-	check(model.set_stretch_backend(backend),"native backend available")
+	if "--joint-contact" in OS.get_cmdline_user_args():
+		backend=JointBackend.new(); check(model.set_contact_backend(backend),"packed64 joint backend available")
+	else: check(model.set_stretch_backend(backend),"native backend available")
 	var initial:float=model.metrics().initial_area
 	var radius:=.4; var y:float=shape.bag_front(radius); var prior:=Vector3(radius,y,0)
 	for i in range(1,65):

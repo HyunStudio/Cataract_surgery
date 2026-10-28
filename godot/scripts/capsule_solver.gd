@@ -12,6 +12,7 @@ const FaceContact=preload("res://scripts/membrane_contact.gd")
 const ToolPath=preload("res://scripts/instrument_path.gd")
 const Cutter=preload("res://scripts/membrane_cut.gd")
 const Refinement=preload("res://scripts/membrane_refinement.gd")
+const Precision=preload("res://scripts/membrane_precision.gd")
 var _cutter=Cutter.new()
 var _incision_events:=0
 var _retired_breaks:=0
@@ -67,12 +68,25 @@ var _integration_steps := 0
 var _peak_strain := 0.0
 var _dirty := false
 var stretch_backend:RefCounted
+var contact_backend:RefCounted
+var _physical_xyz:=PackedFloat64Array()
+var _physical_previous:=PackedFloat64Array()
+var _physical_rest:=PackedFloat64Array()
+var joint_stats:=PackedFloat64Array()
+var _joint_tip_history:Dictionary={}
 var native_failure:Dictionary={}
 var _backend_failed:=false
 
 func set_stretch_backend(backend:RefCounted)->bool:
+	if backend and contact_backend: return false
 	if backend and (not backend.has_method("project") or (backend.has_method("ready") and not backend.ready())): return false
 	stretch_backend=backend; native_failure={}; return true
+
+func set_contact_backend(backend:RefCounted)->bool:
+	if backend and (stretch_backend or not backend.has_method("solve_contact")): return false
+	if backend and not contact_backend:
+		_physical_xyz=Precision.pack(positions); _physical_previous=Precision.pack(_previous); _physical_rest=Precision.pack(rest_positions)
+	contact_backend=backend; native_failure={}; return true
 
 func _checkpoint()->Dictionary:
 	var saved:={}
@@ -135,6 +149,9 @@ func reset() -> void:
 		for vertex_id in face: _rest_area[vertex_id] += area / 3.0
 	_inverse_mass.resize(positions.size())
 	_pinned = anchored.duplicate()
+	_physical_xyz=Precision.pack(positions); _physical_previous=Precision.pack(_previous); _physical_rest=Precision.pack(rest_positions)
+	joint_stats=PackedFloat64Array()
+	_joint_tip_history={}
 
 func _vertex(ring: int, sector: int) -> int:
 	return 1 + (ring - 1) * SECTORS + posmod(sector, SECTORS)
@@ -200,9 +217,17 @@ func incise(start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float)->D
 			if live>=0: grasp_faces[hand]=live
 	var prepared:Dictionary=Refinement.transfer({"rest":rest_positions,"previous":_previous,"anchored":anchored,"removed":_removed,"outside":_outside,"indices":triangles,"face_areas":_triangle_area,"grasps":_grasps,"grasp_faces":grasp_faces},cut,surface_density)
 	if not prepared.valid: return {"valid":false,"changed":false,"reason":prepared.reason}
+	var next_xyz:=PackedFloat64Array(); var next_previous:=PackedFloat64Array(); var next_rest:=PackedFloat64Array()
+	if contact_backend:
+		next_xyz=Precision.transfer(_physical_xyz,cut.bindings)
+		next_previous=Precision.transfer(_physical_previous,cut.bindings)
+		next_rest=Precision.transfer(_physical_rest,cut.bindings)
 	for active in _edge_active:
 		if active==0: _retired_breaks+=1
 	positions=cut.points; rest_positions=prepared.rest; _previous=prepared.previous
+	if contact_backend:
+		_physical_xyz=next_xyz; _physical_previous=next_previous; _physical_rest=next_rest
+		positions=Precision.publish(_physical_xyz); rest_positions=Precision.publish(_physical_rest); _previous=Precision.publish(_physical_previous)
 	anchored=prepared.anchored; _removed=prepared.removed; _outside=prepared.outside
 	_rest_area=prepared.lumped; _inverse_mass=prepared.inverse
 	_grasps=prepared.grasps; _grasp_faces=prepared.grasp_faces
@@ -213,6 +238,9 @@ func incise(start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float)->D
 	_incident=[]
 	for i in range(positions.size()): _incident.append([])
 	for off in range(0,cut.indices.size(),3): _add_face(cut.indices[off],cut.indices[off+1],cut.indices[off+2],prepared.face_areas[off/3])
+	if contact_backend:
+		for e in range(_edge_a.size()):
+			_edge_rest[e]=Precision.distance(_physical_rest,_edge_a[e],_edge_b[e]); edges[e].rest=_edge_rest[e]
 	_pinned=anchored.duplicate()
 	for v in _grasps.values(): _pinned[v]=1
 	_rebuild_triangles(); _incision_events+=1
@@ -248,7 +276,7 @@ func step(dt: float, tool_tip: Vector3, tool_radius: float, grip: bool, cut: boo
 	step_tools(dt, tools)
 
 func step_tools(dt: float, tools: Array[Dictionary]) -> void:
-	if not stretch_backend:
+	if not stretch_backend and not contact_backend:
 		_step_tools(dt,tools); return
 	var saved:=_checkpoint()
 	_backend_failed=false
@@ -282,6 +310,8 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 		if not (contact_radius is float or contact_radius is int) or not is_finite(contact_radius) or contact_radius<=0. or contact_radius>.3: return
 		if not tool.get("grip") is bool or not tool.get("cut") is bool: return
 		if tool.has("body") and (not tool.body is Array or not _face_contact.valid_body(tool.body)): return
+		if contact_backend and tool.grip and tool.get("body",[]).is_empty():
+			_joint_failure("native_joint_requires_grasp_body"); return
 		for part in tool.get("body",[]):
 			if part.has("attachment"): return # Only the solver can bind its own grasp.
 		body_size+=tool.get("body",[]).size()
@@ -322,6 +352,9 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 	_integration_steps += 1
 	body_contact_count=0; body_contact_residual=0.; body_contact_uncertain=0
 	var damping_factor := clampf(damping, 0, 1)
+	var joint_tip_starts:={}
+	if contact_backend:
+		for tool in tools: joint_tip_starts[tool.hand]=_joint_tip_history.get(tool.hand,tool.tip)
 	for substep in range(substeps):
 		var body:Array=[]
 		for tool in tools:
@@ -329,8 +362,19 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 				var part:Dictionary=ToolPath.interval(segment,float(substep)/substeps,float(substep+1)/substeps)
 				if part.get("part","")=="jaw" and _grasps.has(tool.hand): part["attachment"]=_grasps[tool.hand]
 				body.append(part)
+		if contact_backend:
+			for tool in tools:
+				if not tool.get("body",[]).is_empty(): continue
+				var start:Vector3=joint_tip_starts[tool.hand]
+				var old_tip:Vector3=start.lerp(tool.tip,float(substep)/substeps)
+				var new_tip:Vector3=start.lerp(tool.tip,float(substep+1)/substeps)
+				body.append({"a":new_tip,"b":new_tip,"previous_a":old_tip,"previous_b":old_tip,"radius":tool.get("contact_radius",tool.radius)})
 		var body_previous:=positions.duplicate() if not body.is_empty() else PackedVector3Array()
 		var contact_previous:=positions.duplicate() if tissue_boundary else PackedVector3Array()
+		if contact_backend:
+			if not _joint_substep(h,alpha,damping_factor,tools,body,float(substep+1)/substeps,grasp_starts,acquired,body_previous,contact_previous): return
+			for tool in tools: _joint_tip_history[tool.hand]=tool.tip
+			continue
 		var acceleration := _pressure_acceleration()
 		for i in range(positions.size()):
 			if anchored[i] != 0 or _removed[i]!=0: continue
@@ -416,6 +460,76 @@ func _step_tools(dt: float, tools: Array[Dictionary]) -> void:
 					_edge_active[edge_id]=0; edges[edge_id].active=false; _dirty=true
 			if _dirty: _rebuild_triangles()
 			if tissue_boundary and geometry: _retire_exterior_flaps()
+
+func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Dictionary],body:Array,t:float,grasp_starts:Dictionary,acquired:Dictionary,body_previous:PackedVector3Array,contact_previous:PackedVector3Array)->bool:
+	# External edits to rendering/history proxies cannot silently reset physics.
+	if Precision.publish(_physical_xyz)!=positions or Precision.publish(_physical_previous)!=_previous:
+		return _joint_failure("native_joint_proxy_mutation")
+	for tool in tools:
+		if tool.cut: return _joint_failure("native_joint_requires_geometric_incision")
+	var old:=_physical_xyz.duplicate(); var predicted:=old.duplicate()
+	var acceleration:=_pressure_acceleration()
+	for v in range(positions.size()):
+		if anchored[v]!=0 or _removed[v]!=0: continue
+		for axis in range(3): predicted[3*v+axis]+=(old[3*v+axis]-_physical_previous[3*v+axis])*damping_factor+float(acceleration[v][axis])*h*h
+	var initial:=old.duplicate()
+	for tool in tools:
+		if not _grasps.has(tool.hand): continue
+		var v:int=_grasps[tool.hand]
+		var target:Vector3=positions[v].move_toward(_grasp_target(tool,t,grasp_starts[tool.hand],acquired.has(tool.hand)),.08)
+		for axis in range(3):
+			# Retain the exact physical point when the prescribed proxy did not move.
+			var value:float=old[3*v+axis]+float(target[axis])-float(positions[v][axis])
+			predicted[3*v+axis]=value; initial[3*v+axis]=value
+	var a:=PackedInt32Array(); var b:=PackedInt32Array(); var rest:=PackedFloat64Array()
+	for e in range(_edge_a.size()):
+		if _edge_active[e]==0: continue
+		a.append(_edge_a[e]); b.append(_edge_b[e]); rest.append(_edge_rest[e])
+	var capsules:=PackedFloat64Array()
+	for part in body:
+		for point in [part.a,part.b]:
+			for axis in range(3): capsules.append(point[axis])
+		capsules.append(part.radius)
+	var result:Dictionary=contact_backend.solve_contact({"predicted":predicted,"initial":initial,"inverse":_inverse_mass,"a":a,"b":b,"rest":rest,"alpha":alpha,"triangles":triangles,"capsules":capsules,"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11})
+	if result.get("status",-1)!=0: return _joint_failure("native_joint_solve",result.get("status",-1))
+	if not result.get("xyz") is PackedFloat64Array or result.xyz.size()!=old.size() or not result.get("stats") is PackedFloat64Array or result.stats.size()!=12: return _joint_failure("native_joint_output")
+	for i in range(old.size()):
+		if not is_finite(result.xyz[i]) or absf(result.xyz[i])>16. or (_inverse_mass[i/3]==0. and result.xyz[i]!=predicted[i]): return _joint_failure("native_joint_output")
+	for index in range(4):
+		if not is_finite(result.stats[index]) or result.stats[index]<0.: return _joint_failure("native_joint_output")
+	if result.stats[1]>1e-8 or result.stats[2]>1e-9 or result.stats[3]>1e-11: return _joint_failure("native_joint_residual")
+	positions=Precision.publish(result.xyz)
+	if not body.is_empty():
+		_face_contact.begin_substep(true)
+		var checked:Dictionary=_face_contact.project(positions,triangles,_inverse_mass,body,body_previous)
+		if not checked.valid or checked.uncertain>0: return _joint_failure("native_joint_body_unresolved")
+		if not is_finite(checked.get("residual",INF)) or checked.residual<0. or checked.residual>1e-9: return _joint_failure("native_joint_body_residual")
+		# The swept/original-side guard may reject, never project a converged
+		# physical candidate out of force balance. Anatomical coupling is pending.
+		if checked.positions!=positions: return _joint_failure("native_joint_body_correction")
+		body_contact_count+=checked.contacts; body_contact_residual=maxf(body_contact_residual,checked.residual)
+	if tissue_boundary and geometry:
+		var proxy:=positions.duplicate()
+		_project_boundary(contact_previous)
+		if _backend_failed: return false
+		if positions!=proxy: return _joint_failure("native_joint_boundary_correction")
+	_physical_xyz=result.xyz.duplicate(); _physical_previous=old
+	joint_stats=result.stats.duplicate()
+	for v in range(positions.size()):
+		if _pinned[v]!=0 or _removed[v]!=0:
+			for axis in range(3): _physical_previous[3*v+axis]=_physical_xyz[3*v+axis]
+	_previous=Precision.publish(_physical_previous)
+	for e in range(_edge_a.size()):
+		if _edge_active[e]==0: continue
+		var strain:=Precision.distance(_physical_xyz,_edge_a[e],_edge_b[e])/_edge_rest[e]-1.
+		_peak_strain=maxf(_peak_strain,strain)
+		if strain>tear_strain: _edge_active[e]=0; edges[e].active=false; _dirty=true
+	if _dirty: _rebuild_triangles()
+	if tissue_boundary and geometry: _retire_exterior_flaps()
+	return true
+
+func _joint_failure(reason:String,status:int=-1)->bool:
+	native_failure={"reason":reason,"status":status}; _backend_failed=true; return false
 
 func _position_correction(a:PackedVector3Array,b:PackedVector3Array)->float:
 	var motion:=0.
@@ -558,9 +672,9 @@ func _project_boundary(before:PackedVector3Array)->void:
 		if component.anchored or component.area<=1e-12: continue
 		for v in component.vertices:
 			var result:Dictionary=tissue_boundary.resolve(before[v],positions[v],_outside[v]!=0)
-			if stretch_backend and not result.valid:
+			if (stretch_backend or contact_backend) and not result.valid:
 				native_failure={"reason":"native_tissue_boundary"}; _backend_failed=true; return
-			if stretch_backend and _inverse_mass[v]==0. and result.position!=positions[v]:
+			if (stretch_backend or contact_backend) and _inverse_mass[v]==0. and result.position!=positions[v]:
 				native_failure={"reason":"native_kinematic_boundary","vertex":v}; _backend_failed=true; return
 			positions[v]=result.position; _outside[v]=1 if result.outside else 0
 			if result.contact or not result.valid: _previous[v]=positions[v]

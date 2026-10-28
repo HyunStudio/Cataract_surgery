@@ -12,9 +12,13 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--raw-import",action="store_true",help="Reproduce upstream editor shutdown race without its timing workaround")
 parser.add_argument("--capsule",action="store_true",help="Run the actual capsule integration test against frozen product sources")
 parser.add_argument("--capsule-extraction",action="store_true",help="Run refined native flap extraction with real forceps-body and anatomical contact")
+parser.add_argument("--coupled-capsule",action="store_true",help="Run packed64 actual joint capsule timestep checks")
+parser.add_argument("--coupled-extraction",action="store_true",help="Replay the canonical complete extraction with the packed64 joint backend")
 options = parser.parse_args()
-options.capsule = options.capsule or options.capsule_extraction
-report = ROOT/("godot/reports/native-capsule-extraction-validation.json" if options.capsule_extraction else "godot/reports/native-capsule-validation.json" if options.capsule else "godot/reports/native-extension-validation-no-delay.json" if options.raw_import else "godot/reports/native-extension-validation.json")
+if options.coupled_capsule and (options.capsule_extraction or options.coupled_extraction): parser.error("Select one coupled validation scope")
+options.capsule_extraction = options.capsule_extraction or options.coupled_extraction
+options.capsule = options.capsule or options.capsule_extraction or options.coupled_capsule
+report = ROOT/("godot/reports/native-coupled-extraction-validation.json" if options.coupled_extraction else "godot/reports/native-coupled-capsule-validation.json" if options.coupled_capsule else "godot/reports/native-capsule-extraction-validation.json" if options.capsule_extraction else "godot/reports/native-capsule-validation.json" if options.capsule else "godot/reports/native-extension-validation-no-delay.json" if options.raw_import else "godot/reports/native-extension-validation.json")
 report.parent.mkdir(parents=True,exist_ok=True)
 report.write_text(json.dumps({"qualified":False,"state":"preparing","validator_sha256":sha256(Path(__file__))}),encoding="utf-8")
 source = ROOT/".tools/native-godot"
@@ -33,7 +37,7 @@ if options.capsule:
     for name in tracked:
         path = ROOT/name
         if path.is_file() and name != "godot/project.godot": intended[str(path.relative_to(ROOT/"godot"))] = path
-    intended["test_capsule.gd"] = ROOT/("godot/tests/test_capsule_native_extraction.gd" if options.capsule_extraction else "godot/tests/test_capsule_native.gd")
+    intended["test_capsule.gd"] = ROOT/("godot/tests/test_capsule_coupled.gd" if options.coupled_capsule else "godot/tests/test_capsule_native_extraction.gd" if options.capsule_extraction else "godot/tests/test_capsule_native.gd")
     adapter = ROOT/"godot/scripts/native_membrane_backend.gd"
     if adapter.exists(): intended["scripts/native_membrane_backend.gd"] = adapter
 test_sources = source_hashes([*intended.values(),Path(__file__).resolve()])
@@ -48,7 +52,7 @@ verify_sources(test_sources)
 expected = {name:sha256(probe/name) for name in [*intended,"bin/membrane.dll"]}
 editor = ROOT/".tools/godot/Godot_v4.7.2-stable_win64_console.exe"
 engine = editor.with_name("Godot_v4.7.2-stable_win64.exe")
-scope = ("optional actual capsule native refined extraction with forceps-body and anatomical contact; not whole-app qualification" if options.capsule_extraction else
+scope = ("optional packed64 joint canonical extraction with actual bodies and anatomical guards; not whole-app qualification" if options.coupled_extraction else "optional packed64 joint actual capsule timestep and incision/rollback; not whole-app qualification" if options.coupled_capsule else "optional actual capsule native refined extraction with forceps-body and anatomical contact; not whole-app qualification" if options.capsule_extraction else
          "optional actual capsule native integration: refined rest/traction, gentle moving body contact and transactional failures; not whole-app qualification"
          if options.capsule else "isolated native bridge first import and headless packed-array contract")
 proof = {"scope":scope,
@@ -59,9 +63,10 @@ proof = {"scope":scope,
 # fast headless import shutdown. Delay editor frames only; never change physics.
 import_args = ["--editor","--import"]+([] if options.raw_import else ["--frame-delay","1000"])
 runtime_script = "res://test_capsule.gd" if options.capsule else "res://test_bridge.gd"
-runtime_marker = "Native capsule extraction: 0 failures" if options.capsule_extraction else "Native capsule: 0 failures" if options.capsule else "Native Godot bridge: 0 failures"
+runtime_marker = "Native coupled capsule: 0 failures" if options.coupled_capsule else "Native capsule extraction: 0 failures" if options.capsule_extraction else "Native capsule: 0 failures" if options.capsule else "Native Godot bridge: 0 failures"
+runtime_args = ["--script",runtime_script]+(["--","--joint-contact"] if options.coupled_extraction else [])
 for name, args, marker in [("fresh_import",import_args,None),
-                            ("capsule" if options.capsule else "bridge",["--script",runtime_script],runtime_marker)]:
+                            ("capsule" if options.capsule else "bridge",runtime_args,runtime_marker)]:
     log = probe/f"{name}.log"
     print(f"Native validation {name}: {probe}",flush=True)
     with log.open("wb") as output:
