@@ -15,6 +15,16 @@ func _initialize()->void:
 	check(knives.size()==1 and knives[0].part=="shaft","active cutting exempts blade contact only, never shaft")
 	var jaws:Array=path.build("forceps",.018,Vector3.ZERO,Vector3.LEFT,false,Vector3.ZERO,Vector3.LEFT,true,false)
 	check(path.sample(jaws[0],1.).a.is_equal_approx(Vector3(0,0,-.010)),"closing jaw path reaches shared rendered endpoint")
+	var rotating:Array=path.build("forceps",.018,Vector3.ZERO,Vector3.LEFT,true,Vector3.ZERO,Vector3(-1,.03,0).normalized(),true,false)
+	var interval:Dictionary=path.interval(rotating[0],0.,.5)
+	check(interval.get("physical_radius",INF)==.010,"rotation preserves the actual rendered jaw thickness")
+	check(interval.radius>.010 and interval.get("sweep_padding",0.)>0. and absf(interval.radius-interval.get("physical_radius",INF)-interval.get("sweep_padding",0.))<1e-15,"angular enclosure padding remains explicit for swept checks")
+	check(not path.valid(interval.merged({"physical_radius":interval.radius+.001},true)),"physical body cannot exceed its swept enclosure")
+	for malformed in [{"physical_radius":.01,"radius":"bad"},{"physical_radius":NAN,"radius":.02},{"physical_radius":-.01,"radius":.02},{"sweep_padding":-1.},{"physical_radius":.01,"radius":INF}]:
+		check(path.valid(malformed)==false,"malformed physical/enclosure metadata rejects explicitly")
+	var enclosed:Dictionary={"a":Vector3.ZERO,"b":Vector3.RIGHT,"previous_a":Vector3.ZERO,"previous_b":Vector3.RIGHT,"radius":.03,"physical_radius":.01,"sweep_padding":.02}
+	var retained:Dictionary=path.interval(enclosed,0.,.5)
+	check(path.valid(enclosed) and retained.radius==enclosed.radius and retained.physical_radius==.01 and retained.sweep_padding>0.,"explicit chord-only enclosure is retained instead of losing caller padding")
 	check(path.build("phaco",.055,Vector3.ZERO,Vector3.ZERO,false,Vector3.ZERO,Vector3.LEFT,false,false).is_empty(),"invalid prior axis rejects path")
 	var cap=load("res://scripts/capsule_solver.gd").new()
 	cap.stretch_compliance=1e303

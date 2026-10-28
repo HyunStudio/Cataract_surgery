@@ -19,6 +19,12 @@ static func build(id:String,radius:float,tip0:Vector3,axis0:Vector3,grip0:bool,t
 	return out
 
 static func valid(part:Dictionary)->bool:
+	if part.has("physical_radius"):
+		var enclosure=part.get("radius",0.)
+		if not (enclosure is float or enclosure is int) or not is_finite(enclosure) or enclosure<=0.: return false
+		if not (part.physical_radius is float or part.physical_radius is int) or not is_finite(part.physical_radius) or part.physical_radius<=0. or part.physical_radius>enclosure: return false
+	if part.has("sweep_padding"):
+		if not (part.sweep_padding is float or part.sweep_padding is int) or not is_finite(part.sweep_padding) or part.sweep_padding<0.: return false
 	if not part.has("path"): return true
 	if not part.path is Dictionary: return false
 	for key in ["tip0","tip1","a0","b0","a1","b1"]:
@@ -43,10 +49,15 @@ static func steps(body:Array)->int:
 static func interval(part:Dictionary,t0:float,t1:float)->Dictionary:
 	var out:=part.duplicate(); var start:=sample(part,t0); var finish:=sample(part,t1)
 	out.previous_a=start.a; out.previous_b=start.b; out.a=finish.a; out.b=finish.b
+	# A temporal enclosure is deliberately wider than the physical endpoint
+	# body. Keep its arc padding out of static unilateral force constraints.
+	out.physical_radius=part.get("physical_radius",part.radius)
+	out.sweep_padding=part.radius-out.physical_radius
 	if part.has("path"):
 		var p:Dictionary=part.path
 		var angle:float=p.rotation0.angle_to(p.rotation1)*(t1-t0)
 		var reach:float=maxf(maxf(p.a0.length(),p.a1.length()),maxf(p.b0.length(),p.b1.length()))
 		var change:float=maxf(p.a0.distance_to(p.a1),p.b0.distance_to(p.b1))*(t1-t0)
-		out.radius+=reach*(1.-cos(angle*.5))+change*sin(angle*.5)
+		out.sweep_padding=reach*(1.-cos(angle*.5))+change*sin(angle*.5)
+		out.radius=out.physical_radius+out.sweep_padding
 	return out

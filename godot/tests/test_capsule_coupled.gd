@@ -29,6 +29,16 @@ class UnsettledBoundary extends RefCounted:
 func _initialize()->void:
 	var source=load("res://scripts/capsule_solver.gd")
 	if not source or not source.can_instantiate(): quit(1); return
+	var physical_check=source.new(); var physical_record:=RecordingKernel.new(); physical_check.set_contact_backend(physical_record)
+	var pose=load("res://scripts/instrument_path.gd")
+	var far_pose:=Vector3(3,3,3)
+	var moving_body:Array=pose.build("forceps",.018,far_pose,Vector3.LEFT,true,far_pose,Vector3(-1,.03,0).normalized(),true,false)
+	var moving_tools:Array[Dictionary]=[{"hand":0,"tip":far_pose,"radius":.018,"grip":false,"cut":false,"body":moving_body}]
+	physical_check.step_tools(1./120.,moving_tools)
+	check(physical_check.native_failure.is_empty() and physical_record.requests.size()==1,"rotating actual body reaches the joint static contact request")
+	if physical_record.requests.size()==1:
+		var packed:PackedFloat64Array=physical_record.requests[0].capsules
+		check(packed[6]==.010 and packed[13]==.010 and packed[20]==.020,"joint endpoint forces use physical jaw/shaft radii while swept guards retain their enclosures")
 	var model=source.new()
 	check(model.has_method("set_contact_backend"),"actual capsule supports the packed64 joint timestep")
 	if failures: quit(1); return

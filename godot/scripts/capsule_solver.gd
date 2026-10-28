@@ -489,7 +489,7 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 	for part in body:
 		for point in [part.a,part.b]:
 			for axis in range(3): capsules.append(point[axis])
-		capsules.append(part.radius)
+		capsules.append(part.get("physical_radius",part.radius))
 	var result:Dictionary=contact_backend.solve_contact({"predicted":predicted,"initial":initial,"inverse":_inverse_mass,"a":a,"b":b,"rest":rest,"alpha":alpha,"triangles":triangles,"capsules":capsules,"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11})
 	if result.get("status",-1)!=0: return _joint_failure("native_joint_solve",result.get("status",-1))
 	if not result.get("xyz") is PackedFloat64Array or result.xyz.size()!=old.size() or not result.get("stats") is PackedFloat64Array or result.stats.size()!=12: return _joint_failure("native_joint_output")
