@@ -183,6 +183,11 @@ inline int solve(int n,const double* predicted,double* output,const double* inve
     int status=1,outer=0,inner_total=0,factors=0;
     double last_violation=std::numeric_limits<double>::infinity();
     State state;
+    auto meets_gates=[&](const State& current) {
+        double force=current.gradient.size()?current.gradient.lpNorm<Eigen::Infinity>():0;
+        double comp=current.updated_dual.size()?(current.updated_dual.array()*current.constraints.array()).abs().maxCoeff():0;
+        return force<=force_tol && current.penetration<=gap_tol && comp<=comp_tol;
+    };
     for (;;) {
         status=problem.evaluate(x,dual,rho,state);
         if (status) break;
@@ -201,6 +206,7 @@ inline int solve(int n,const double* predicted,double* output,const double* inve
         if (outer>=budget) { status=1; break; }
         for (int inner=0;inner<32;++inner) {
             ++inner_total;
+            if (meets_gates(state)) break;
             if (station<=force_tol*.25) break;
             if (!problem.size) { status=3; break; }
             Matrix base=state.hessian+rho*(state.jacobian.transpose()*state.jacobian);
@@ -233,6 +239,11 @@ inline int solve(int n,const double* predicted,double* output,const double* inve
             station=state.gradient.lpNorm<Eigen::Infinity>();
         }
         if (status) break;
+        // A valid inner candidate already carries its own updated contact
+        // reactions. Re-enter the unchanged outer acceptance/curvature screen
+        // before another dual update or a stricter auxiliary inner solve can
+        // discard it. The caller's three physical tolerances are unchanged.
+        if (meets_gates(state)) { ++outer; continue; }
         dual=state.updated_dual;
         // Do not amplify distance roundoff after primal feasibility is already
         // within the requested scene-unit tolerance. Continue dual/stationarity

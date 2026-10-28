@@ -184,7 +184,13 @@ class CoupledContactTests(unittest.TestCase):
         self.assertLessEqual(max(abs(force[3*i+k]) for i, w in enumerate(p["inverse"]) if w > 0. for k in range(3)), 1e-8)
 
     def test_actual_packed64_tick264_converges_without_changing_predictor(self):
-        p = json.loads((ROOT/"native/tests/fixtures/joint_tick264.json").read_text())
+        self.assert_packed_request("joint_tick264.json")
+
+    def test_actual_physical_jaws_second_substep_reaches_requested_kkt_gates(self):
+        self.assert_packed_request("joint_physical264_second.json")
+
+    def assert_packed_request(self, name):
+        p = json.loads((ROOT/"native/tests/fixtures"/name).read_text())
         p["triangles"] = [p["triangles"][i:i+3] for i in range(0,len(p["triangles"]),3)]
         p["capsules"] = [{"a":p["capsules"][i:i+3],"b":p["capsules"][i+3:i+6],"radius":p["capsules"][i+6]}
                          for i in range(0,len(p["capsules"]),7)]

@@ -40,6 +40,8 @@ if options.capsule:
     intended["test_capsule.gd"] = ROOT/("godot/tests/test_capsule_coupled.gd" if options.coupled_capsule else "godot/tests/test_capsule_native_extraction.gd" if options.capsule_extraction else "godot/tests/test_capsule_native.gd")
     adapter = ROOT/"godot/scripts/native_membrane_backend.gd"
     if adapter.exists(): intended["scripts/native_membrane_backend.gd"] = adapter
+if options.coupled_capsule:
+    intended["joint_physical264_second.json"] = ROOT/"native/tests/fixtures/joint_physical264_second.json"
 test_sources = source_hashes([*intended.values(),Path(__file__).resolve()])
 for name,path in intended.items():
     (probe/name).parent.mkdir(parents=True,exist_ok=True)

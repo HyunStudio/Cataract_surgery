@@ -27,6 +27,14 @@ class UnsettledBoundary extends RefCounted:
 	func resolve(_before:Vector3,after:Vector3,outside:bool)->Dictionary:
 		return {"valid":true,"position":after+Vector3(.001,0,0),"outside":outside,"contact":true}
 func _initialize()->void:
+	var physical_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://joint_physical264_second.json"))
+	for key in ["initial","predicted","inverse","rest","capsules"]: physical_request[key]=PackedFloat64Array(physical_request[key])
+	for key in ["a","b","triangles"]: physical_request[key]=PackedInt32Array(physical_request[key])
+	physical_request.budget=int(physical_request.budget)
+	var static_kernel=ClassDB.instantiate("MembraneContactKernel")
+	var static_result:Dictionary=static_kernel.solve_contact(physical_request)
+	check(static_result.status==0,"physical second-substep reaches requested KKT gates before unnecessary inner oversolving: "+str(static_result.stats))
+	print("Physical second-substep static stats: ",static_result.status," ",static_result.stats)
 	var source=load("res://scripts/capsule_solver.gd")
 	if not source or not source.can_instantiate(): quit(1); return
 	var physical_check=source.new(); var physical_record:=RecordingKernel.new(); physical_check.set_contact_backend(physical_record)
