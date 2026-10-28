@@ -7,6 +7,7 @@ const Path=preload("res://scripts/instrument_path.gd")
 const ENTRY=Vector3(1.32,.8,0)
 class JointBackend extends RefCounted:
 	var kernel=ClassDB.instantiate("MembraneContactKernel")
+	func guard_motion(request:Dictionary)->Dictionary: return kernel.guard_motion(request)
 	var calls:=0
 	var last_stats:=PackedFloat64Array()
 	func solve_contact(request:Dictionary)->Dictionary:

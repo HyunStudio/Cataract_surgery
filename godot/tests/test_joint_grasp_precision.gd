@@ -3,6 +3,8 @@ extends SceneTree
 var failures:=0
 class PrescribedKernel extends RefCounted:
 	var request:Dictionary={}
+	func guard_motion(_value:Dictionary)->Dictionary:
+		return {"status":0,"stats":PackedFloat64Array([0,0,-1,-1,INF,0,0,0])}
 	func solve_contact(value:Dictionary)->Dictionary:
 		request=value.duplicate(true)
 		return {"status":0,"xyz":value.initial.duplicate(),"stats":PackedFloat64Array([0,0,0,0,0,0,0,0,0,0,0,0])}

@@ -8,17 +8,17 @@ class FailedKernel extends RefCounted:
 class RecordingKernel extends RefCounted:
 	var inner=ClassDB.instantiate("MembraneContactKernel")
 	var requests:Array[Dictionary]=[]
+	func guard_motion(request:Dictionary)->Dictionary: return inner.guard_motion(request)
 	func solve_contact(request:Dictionary)->Dictionary:
 		requests.append(request.duplicate(true)); return inner.solve_contact(request)
-class UncertainBody extends RefCounted:
-	var inner=load("res://scripts/membrane_contact.gd").new()
-	func valid_body(body:Array)->bool: return inner.valid_body(body)
-	func begin_substep(_mode:bool)->void: pass
-	func project(points,_faces,_inverse,_body,_previous)->Dictionary:
-		return {"valid":true,"positions":points.duplicate(),"contacts":0,"residual":0.,"uncertain":1}
+class UncertainKernel extends RefCounted:
+	var inner=ClassDB.instantiate("MembraneContactKernel")
+	func solve_contact(request:Dictionary)->Dictionary: return inner.solve_contact(request)
+	func guard_motion(_request:Dictionary)->Dictionary: return {"status":2}
 class FailedSecond extends RefCounted:
 	var inner=ClassDB.instantiate("MembraneContactKernel")
 	var calls:=0
+	func guard_motion(request:Dictionary)->Dictionary: return inner.guard_motion(request)
 	func solve_contact(request:Dictionary)->Dictionary:
 		calls+=1
 		if calls==2: return {"status":1}
@@ -97,8 +97,7 @@ func _initialize()->void:
 	var accepted:Dictionary=model._checkpoint()
 	var invalid:Dictionary=model.incise(Vector3.ZERO,Vector3.ZERO,Vector3.UP,.1)
 	check(not invalid.changed and model._physical_xyz==accepted._physical_xyz and model._physical_previous==accepted._physical_previous,"rejected incision preserves double state")
-	var body_guard=source.new(); body_guard.set_contact_backend(ClassDB.instantiate("MembraneContactKernel"))
-	body_guard._face_contact=UncertainBody.new()
+	var body_guard=source.new(); body_guard.set_contact_backend(UncertainKernel.new())
 	var far:=Vector3(3,3,3)
 	var tools:Array[Dictionary]=[{"hand":0,"tip":far,"radius":.018,"grip":false,"cut":false,"body":[{"a":far,"b":far+Vector3.RIGHT*.1,"previous_a":far,"previous_b":far+Vector3.RIGHT*.1,"radius":.018}]}]
 	var guarded:Dictionary=body_guard._checkpoint(); body_guard.step_tools(1./120.,tools)

@@ -26,6 +26,9 @@ static func valid(part:Dictionary)->bool:
 	if part.has("sweep_padding"):
 		if not (part.sweep_padding is float or part.sweep_padding is int) or not is_finite(part.sweep_padding) or part.sweep_padding<0.: return false
 	if not part.has("path"): return true
+	for key in ["path_t0","path_t1"]:
+		if part.has(key) and (not (part[key] is float or part[key] is int) or not is_finite(part[key])): return false
+	if part.get("path_t0",0.)<0. or part.get("path_t1",1.)>1. or part.get("path_t0",0.)>=part.get("path_t1",1.): return false
 	if not part.path is Dictionary: return false
 	for key in ["tip0","tip1","a0","b0","a1","b1"]:
 		if not part.path.get(key) is Vector3 or not part.path[key].is_finite() or part.path[key].length_squared()>256.: return false
@@ -54,6 +57,7 @@ static func interval(part:Dictionary,t0:float,t1:float)->Dictionary:
 	out.physical_radius=part.get("physical_radius",part.radius)
 	out.sweep_padding=part.radius-out.physical_radius
 	if part.has("path"):
+		out.path_t0=t0; out.path_t1=t1
 		var p:Dictionary=part.path
 		var angle:float=p.rotation0.angle_to(p.rotation1)*(t1-t0)
 		var reach:float=maxf(maxf(p.a0.length(),p.a1.length()),maxf(p.b0.length(),p.b1.length()))
@@ -61,3 +65,27 @@ static func interval(part:Dictionary,t0:float,t1:float)->Dictionary:
 		out.sweep_padding=reach*(1.-cos(angle*.5))+change*sin(angle*.5)
 		out.radius=out.physical_radius+out.sweep_padding
 	return out
+
+static func motion_request(previous:PackedFloat64Array,current:PackedFloat64Array,faces:PackedInt32Array,body:Array)->Dictionary:
+	var packets:=PackedFloat64Array(); var kinds:=PackedInt32Array()
+	for part in body:
+		var packet:=PackedFloat64Array(); packet.resize(41)
+		var index:=0
+		for point in [part.previous_a,part.previous_b,part.a,part.b]:
+			for axis in range(3): packet[index]=point[axis]; index+=1
+		# Without a recorded pose, preserve any caller-supplied enclosure.
+		packet[12]=part.radius
+		kinds.append(1 if part.has("path") else 0)
+		if part.has("path"):
+			packet[12]=part.get("physical_radius",part.radius)
+			var p:Dictionary=part.path
+			index=13
+			for point in [p.tip0,p.tip1]:
+				for axis in range(3): packet[index]=point[axis]; index+=1
+			for rotation in [p.rotation0,p.rotation1]:
+				for value in [rotation.x,rotation.y,rotation.z,rotation.w]: packet[index]=value; index+=1
+			for point in [p.a0,p.b0,p.a1,p.b1]:
+				for axis in range(3): packet[index]=point[axis]; index+=1
+			packet[39]=part.get("path_t0",0.); packet[40]=part.get("path_t1",1.)
+		packets.append_array(packet)
+	return {"previous":previous,"current":current,"triangles":faces,"kinds":kinds,"packets":packets,"budget":128,"gap_tolerance":1e-9}

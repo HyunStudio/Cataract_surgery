@@ -500,14 +500,16 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 	if result.stats[1]>1e-8 or result.stats[2]>1e-9 or result.stats[3]>1e-11: return _joint_failure("native_joint_residual")
 	positions=Precision.publish(result.xyz)
 	if not body.is_empty():
-		_face_contact.begin_substep(true)
-		var checked:Dictionary=_face_contact.project(positions,triangles,_inverse_mass,body,body_previous)
-		if not checked.valid or checked.uncertain>0: return _joint_failure("native_joint_body_unresolved")
-		if not is_finite(checked.get("residual",INF)) or checked.residual<0. or checked.residual>1e-9: return _joint_failure("native_joint_body_residual")
-		# The swept/original-side guard may reject, never project a converged
-		# physical candidate out of force balance. Anatomical coupling is pending.
-		if checked.positions!=positions: return _joint_failure("native_joint_body_correction")
-		body_contact_count+=checked.contacts; body_contact_residual=maxf(body_contact_residual,checked.residual)
+		if not contact_backend.has_method("guard_motion"): return _joint_failure("native_joint_body_unavailable")
+		var checked:Dictionary=contact_backend.guard_motion(ToolPath.motion_request(old,result.xyz,triangles,body))
+		if checked.get("status",-1)!=0: return _joint_failure("native_joint_body_unresolved",checked.get("status",-1))
+		if not checked.get("stats") is PackedFloat64Array or checked.stats.size()!=8: return _joint_failure("native_joint_body_output")
+		var gap:float=checked.stats[4]
+		if is_nan(gap) or gap==-INF or gap< -1e-9: return _joint_failure("native_joint_body_residual")
+		if result.get("dual") is PackedFloat64Array:
+			for reaction in result.dual:
+				if reaction>0.: body_contact_count+=1
+		body_contact_residual=maxf(body_contact_residual,maxf(0.,-gap))
 	if tissue_boundary and geometry:
 		var proxy:=positions.duplicate()
 		_project_boundary(contact_previous)
