@@ -102,6 +102,12 @@ class TrajectoryContactTests(unittest.TestCase):
         self.assertEqual(code,0,stats)
         self.assert_kkt(p,p['previous'],p['packets'],p['kinds'],p['times'],x,dual)
 
+    def test_actual264_three_layer_force_stagnation_reaches_original_gates(self):
+        p=json.loads((ROOT/'native/tests/fixtures/joint_trajectory264_second.json').read_text())
+        code,x,dual,stats=self.run_problem(p,p['previous'],p['packets'],p['kinds'],p['times'])
+        self.assertEqual(code,0,stats)
+        self.assert_kkt(p,p['previous'],p['packets'],p['kinds'],p['times'],x,dual)
+
     def test_exhaustion_preserves_positions_and_all_layer_reactions(self):
         p,old,packet=self.arc_problem()
         code,x,dual,_=self.run_problem(p,old,packet,[1],[.5,1.],budget=0)

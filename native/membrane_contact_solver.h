@@ -119,10 +119,9 @@ struct Problem {
         return 0;
     }
 
-    // Sufficient numerical screen: positive H_L+rho*J'J is positive on the
-    // active tangent space. Contact Hessians are finite-differenced, not exact.
-    int curvature(const Vector& x,const State& state,const Vector& dual,double rho) const {
-        if (!size) return 0;
+    // Hessian of energy minus the active weighted contact constraints.
+    // Central differences are a numerical model, not exact derivatives.
+    int lagrangian_hessian(const Vector& x,const State& state,const Vector& dual,Matrix& lagrangian) const {
         std::vector<Triplet> entries;
         for (int col=0;col<state.hessian.outerSize();++col)
             for (Matrix::InnerIterator it(state.hessian,col);it;++it) entries.emplace_back(it.row(),it.col(),it.value());
@@ -147,7 +146,17 @@ struct Problem {
                 if (row>=0 && col>=0) entries.emplace_back(row,col,-dual[pair]*local(i,j));
             }
         }
-        Matrix lagrangian(size,size); lagrangian.setFromTriplets(entries.begin(),entries.end());
+        lagrangian.resize(size,size); lagrangian.setFromTriplets(entries.begin(),entries.end());
+        return 0;
+    }
+
+    // Sufficient numerical screen: positive H_L+rho*J'J is positive on the
+    // active tangent space. The final acceptance screen remains undamped.
+    int curvature(const Vector& x,const State& state,const Vector& dual,double rho) const {
+        if (!size) return 0;
+        Matrix lagrangian;
+        int status=lagrangian_hessian(x,state,dual,lagrangian);
+        if (status) return status;
         Matrix normal=state.jacobian.transpose()*state.jacobian;
         for (int attempt=0;attempt<8;++attempt,rho*=10) {
             Matrix matrix=lagrangian+rho*normal;
@@ -229,7 +238,14 @@ inline int solve(int n,const double* predicted,double* output,const double* inve
             if (meets_gates(state)) break;
             if (station<=force_tol*.25) break;
             if (!problem.size) { status=3; break; }
-            Matrix base=state.hessian+rho*(state.jacobian.transpose()*state.jacobian);
+            Matrix lagrangian;
+            int model_status=problem.lagrangian_hessian(x,state,state.updated_dual,lagrangian);
+            // Inconclusive perturbed geometry cannot define contact curvature.
+            // Retain the prior descent model in that case; exact merit/force
+            // and the original strict final curvature screen still decide.
+            if (model_status) { lagrangian=state.hessian; ++stats[11]; }
+            else ++stats[10];
+            Matrix base=lagrangian+rho*(state.jacobian.transpose()*state.jacobian);
             Vector direction(problem.size); bool solved=false; double damping=1e-8;
             double norm=state.gradient.stableNorm();
             if (!std::isfinite(norm) || !(norm>0)) { status=2; break; }

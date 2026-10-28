@@ -38,6 +38,20 @@ func _initialize()->void:
 	var static_result:Dictionary=static_kernel.solve_contact(physical_request)
 	check(static_result.status==0,"physical second-substep reaches requested KKT gates before unnecessary inner oversolving: "+str(static_result.stats))
 	print("Physical second-substep static stats: ",static_result.status," ",static_result.stats)
+	var stalled_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://joint_trajectory264_second.json"))
+	for key in ["initial","predicted","inverse","rest","previous","packets","times"]: stalled_request[key]=PackedFloat64Array(stalled_request[key])
+	for key in ["a","b","triangles","kinds"]: stalled_request[key]=PackedInt32Array(stalled_request[key])
+	stalled_request.budget=int(stalled_request.budget)
+	var stalled_before:Dictionary=stalled_request.duplicate(true)
+	var recovered:Dictionary=static_kernel.solve_trajectory(stalled_request)
+	check(recovered.status==0,"actual264 three-layer force stagnation reaches original gates: "+str(recovered.stats))
+	check(stalled_request==stalled_before,"trajectory bridge preserves the captured predictor, material and motion")
+	if recovered.status==0:
+		check(recovered.stats[1]<=1e-8 and recovered.stats[2]<=1e-9 and recovered.stats[3]<=1e-11,"actual264 trajectory satisfies the unchanged force, gap and complementarity gates")
+		for vertex in range(stalled_request.inverse.size()):
+			if stalled_request.inverse[vertex]!=0.: continue
+			for axis in range(3): check(recovered.xyz[vertex*3+axis]==stalled_request.initial[vertex*3+axis],"actual264 prescribed coordinates remain exact")
+	print("Actual264 three-layer stats: ",recovered.status," ",recovered.stats)
 	var source=load("res://scripts/capsule_solver.gd")
 	if not source or not source.can_instantiate(): quit(1); return
 	var trajectory_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://joint_static262.json"))
