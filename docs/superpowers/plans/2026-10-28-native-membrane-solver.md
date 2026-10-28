@@ -152,10 +152,10 @@ Previous goal turn made authoritative progress in b8d2b0b/a08bdff/2fc75d7, with 
 
 Ruling: prepare the actual local endpoint hulls in scalar doubles, retain the query-direction fast path, then try at most20additional triangle-hull directions. Every direction, including one from a non-hull triple, must pass the unchanged whole-hull gap test; no assumption that a candidate is an actual hull face. Direction generation alone never certifies separation. Keep128nearest queries, depth32, contact skin1e-7, roundoff allowance1e-12scale, all native rejection/rollback and material parameters. This is a bounded extra set of certificate directions, not exact distance CCD.
 
-- [ ] Confirm actual262fixture RED (done:128uncertain).
-- [ ] Refactor scalar-double hull projection into a shared direction test; add20bounded triple normals after the fast query-axis test.
-- [ ] Verify fixture, triangle reindexing, crossings/skin/budget tests and existing contact/normal suites.
-- [ ] Freeze native basic and full extraction, inspect actual results without redefining success, record review and commit.
+- [x] Confirm actual262fixture RED (done:128uncertain).
+- [x] Refactor scalar-double hull projection into a shared direction test; add20bounded triple normals after the fast query-axis test.
+- [x] Verify fixture, triangle reindexing, crossings/skin/budget tests and existing contact/normal suites.
+- [x] Freeze native basic and full extraction, inspect actual results without redefining success, record review and commit.
 
 ### Swept hull face-direction results
 
@@ -164,3 +164,7 @@ Ruling: prepare the actual local endpoint hulls in scalar doubles, retain the qu
 - Read-only review found no substantive issue in the scalar-double hull proof,20triple loops, fresh normalization storage or conservative degenerate handling. Cost is bounded by128nearest queries and2688axis checks per invocation, not unchanged total work.
 - Isolated warmed headless5batches×10calls fixture benchmark (engine/helper/fixture hashes retained in hull-direction-fixture-benchmark.json): original11query fixture median1.0196→1.8845ms; new262fixture old128uncertain10.4532ms vs new75resolved14.4867ms. Fewer nearest queries does not imply lower latency. These are individual engineering fixtures, not FPS or realtime application qualification; the additional certificate directions improve correctness at a measured runtime cost.
 - Task checklist above is complete for this scoped change. Next architectural investigation must solve actual simultaneous elastic/contact constraints, preserving full rejection/rollback and retained-plane checks rather than counting cancellation as convergence.
+
+## Coupled architecture diagnostic checkpoint
+
+The exact rejected263step was exported to engine-independent diagnostic data. Independent IPC1.6.1distance derivatives and a reduced constrained solve support a nearby feasible local configuration: three free source vertices,11selected vertices,14incident springs,10affected faces,3capsules. Maximum movement is about4.166e-5. The initial unscaled optimization failed; scaled-coordinate and canonical fixture-only reruns succeeded with checked contact derivatives and force residual. Neighbor freezing is strictly diagnostic and cannot qualify the actual745vertex world. Canonical input and next-stage plan are `native/tests/fixtures/local_jaw_contact.json` and `2026-10-28-coupled-membrane-contact.md`. The verified diagnostic wheel is isolated under ignored tools; product dependencies/DLL are unchanged. No native joint-contact implementation or complete extraction success is claimed. All validation, installation and diagnostic jobs are terminal.

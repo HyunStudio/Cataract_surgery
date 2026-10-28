@@ -1,0 +1,68 @@
+# Coupled membrane contact implementation plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** Replace the failing optional native elastic/body alternation with a joint constrained physical substep, then prove actual refined flap extraction. The complete surgical-simulator goal remains unchanged.
+
+**Architecture:** Freeze the inertial predictor once per physical substep. Minimize its mass-weighted compliant-distance energy together with unilateral capsule/triangle constraints. Recompute geometric witnesses and require explicit force/contact feasibility, bounded CCD and transactional rollback before rupture or extraction.
+
+**Tech Stack:** Godot4.7.2, Zig0.17.0, Eigen5.0.1 and optional GDExtension. Python3.12/NumPy/SciPy/IPC Toolkit1.6.1 currently supply independent diagnostics only.
+
+**Spec:** `docs/REALISM_COMPLETION_KO.md` and `docs/superpowers/plans/2026-10-28-native-membrane-solver.md`.
+
+## Global constraints
+
+- Preserve the full user goal: actual input, complete case, anatomy/device/fluids, 3D assets, sustained performance, GPU and Windows delivery.
+- Preserve masses, rest area, grasp material coordinates, prescribed points, velocity history, original tear strength and anatomical/body interactions.
+- Keep native rollback on failed solving, unresolved CCD, incompatible prescribed points or unsettled contact. A rejected tick never advances physical time.
+- Whole-cycle cancellation cannot justify acceptance. A joint solver needs its own force/complementarity/feasibility checks; do not simply remove individual-operator gates.
+- Keep all work bounds explicit; preserve failed probes and source/artifact provenance.
+- The reduced fixture is an engineering diagnostic, not full-world feasibility, clinical accuracy or realtime qualification.
+
+## Evidence and architectural decision
+
+Commit4063280 resolves the strict262clearance fixture. Actual extraction accepts262ticks with0uncertain/0loss/0broken, then rejects263: operator3.0290155e-4, constitutive7.805708e-5, retained-plane1.927087e-5. Raising budgets/thresholds, changing the route or removing bodies is not the next action.
+
+The last pass alternates on triangles40/627sharing vertex1. A reduced independent constrained solve varies source vertices1/222/741and freezes all selected neighbors at the captured last elastic iterate. The reduced problem contains11vertices,14incident springs,10affected triangles and3capsules. It has a nearby feasible local configuration; this does not establish feasibility of the complete745vertex world.
+
+Canonical input: `native/tests/fixtures/local_jaw_contact.json`, SHA256a3a42402f9de39742a60371668e9f9449d52bae2bd31ab3b1d24b6120b8fc561. It records initial/predicted state, source IDs, masses, rest lengths, alpha and bodies. Intentional neighbor freezing must never be copied into actual integration.
+
+Independent diagnostic uses IPC squared point/triangle and edge/edge distances/derivatives plus an explicit segment/triangle intersection test. SLSQP on coordinates scaled by.001scene units solves15iterations: maximum movement4.1658976e-5, final minimum gap over all affected face/body pairs about-9e-16. Contact Jacobian central-difference discrepancy1.0072e-7; active NNLS reactions are positive and physical stationarity infinity is about3.8e-11after undoing coordinate/objective scaling. The initial unscaled attempt failed line search. This is local numerical evidence, not a global minimum/uniqueness certificate or actual extraction.
+
+Official references: [Toolkit scope/license](https://github.com/ipc-sim/ipc-toolkit), [Python setup](https://ipctk.xyz/build/python.html), [C++ dependencies](https://ipctk.xyz/about/dependencies.html), [IPC paper](https://ipc-sim.github.io/file/IPC-paper-fullRes.pdf). The toolkit supplies collision/contact functions, not a complete physics solver. Diagnostic ipctk1.6.1cp312win_amd64wheel SHA25603f141b0527728a7fb435e429d9e12aed6e2fdeaf230782c6d448b38cc3c11f8was checked against published PyPI metadata, then installed under ignored `.tools/ipc-probe-python`; product/global Python dependencies were unchanged.
+
+## Review focus
+
+- Unsigned distance on the wrong side and missed axis/triangle intersection cannot certify safety.
+- Near-parallel/skinny geometry requires correct feature classification and conservative degeneracy handling.
+- Duplicate/opposing constraints or prescribed-point infeasibility must solve or fail explicitly.
+- Residuals must refer to the fixed predictor and final represented state.
+- Topology/removal changes must invalidate relevant contact/factorization caches.
+
+### Task1: Native distance and derivatives
+
+Files: create `native/contact_distance.h`, `native/tests/test_contact_distance.py`; extend the existing native build only as needed. Inspect the minimal official IPC source/dependency graph before selecting a pinned native subset or independently verified implementation.
+
+- [ ] Write and observe RED analytical tests: sphere/face, finite endpoint/edge, axis/triangle intersection, crossing side, near-parallel and skinny/degenerate geometry.
+- [ ] Add derivative checks away from feature changes and explicit conservative behavior at degeneracy.
+- [ ] Implement the bounded native component with finite/index/shape validation and dependency/license provenance.
+- [ ] Compare actual local fixture features/derivatives against independent IPC diagnostics; verify, review and commit.
+
+### Task2: Joint constrained energy
+
+Files: create `native/membrane_contact_solver.h`, `native/tests/test_coupled_contact.py`; expose a separate C ABI from `native/membrane_kernel.cpp`, retaining the existing unconstrained ABI.
+
+- [ ] Write RED tests for analytic contact reaction, separating inactive contact, duplicate/opposing constraints, prescribed-point infeasibility, exhaustion/numerical failure and the local fixture.
+- [ ] Use the original fixed predictor/masses/rest/alpha; expose primal, stationarity, complementarity, geometry residuals and duals/status.
+- [ ] Implement bounded joint solving with consistent derivatives and safeguarded steps. Initial penetration requires an explicit feasibility strategy, never silently successful barrier evaluation.
+- [ ] Verify final geometry/force balance and constrained tangent curvature as appropriate. Legitimate contact reactions do not require unconstrained zero force. Review/provenance/commit.
+
+### Task3: Actual complete-substep integration
+
+Files: confirm and extend the existing native bridge, `godot/scripts/native_membrane_backend.gd`, `godot/scripts/capsule_solver.gd`, body/anatomical adapters, native tests and validator.
+
+- [ ] Write RED transactional, pinned, shape and uncertainty tests for the complete-substep interface; retain failure injection coverage.
+- [ ] Freeze the actual predictor once and include every original free point/current topology. Jointly generate/update body and anatomical constraints; do not freeze free neighbors as in the diagnostic.
+- [ ] Preserve actual grasp coordinates, history, boundary side, incision/material/extraction accounting and rollback. Check CCD from the physical previous state to the accepted candidate.
+- [ ] Replay actual263, then canonical full refined extraction and acceptance guards. A later honest failure is another unfinished gate, not a reason to weaken criteria.
+- [ ] Qualify default regressions, sustained performance, actual GPU and packaging before backend promotion. Keep the complete goal unproven until every user requirement is verified.
