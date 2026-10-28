@@ -159,14 +159,14 @@ class ContactGuardTests(unittest.TestCase):
                         ints(data['triangles']),len(data['kinds']),ints(data['kinds']),d(data['packets']),128,1e-9,stats)
         self.assertEqual(code,1,list(stats)); self.assertLess(stats[4],-1e-9)
 
-    def test_refined263_finite_edge_uncertainty_cannot_accept(self):
+    def test_refined263_finite_edge_motion_is_certified_with_original_limits(self):
         data=json.loads((ROOT/'native/tests/fixtures/joint_motion263_refined.json').read_text())
         d=lambda values:(ct.c_double*len(values))(*values)
         ints=lambda values:(ct.c_int*len(values))(*values)
         stats=d([99.]*8)
         code=self.guard(len(data['previous'])//3,d(data['previous']),d(data['current']),len(data['triangles'])//3,
                         ints(data['triangles']),len(data['kinds']),ints(data['kinds']),d(data['packets']),128,1e-9,stats)
-        self.assertEqual(code,2,list(stats)); self.assertEqual(list(stats)[2:4],[40.,1.]); self.assertEqual(stats[7],1)
+        self.assertEqual(code,0,list(stats)); self.assertEqual(list(stats)[2:4],[-1.,-1.]); self.assertEqual(stats[7],0)
 
     def test_moving_plane_retains_time_correlation_at_contact(self):
         old=self.face(); current=self.face()
@@ -180,6 +180,37 @@ class ContactGuardTests(unittest.TestCase):
             code,stats=self.query(old,current,packet,indices=order,budget=2)
             self.assertEqual(code,0,stats)
             self.assertEqual(stats[0],2)
+
+    def finite_rotating_case(self,feature,penetration=0.):
+        angle=.01; radius=.1; height=(radius-penetration)/math.cos(angle)
+        def rotate(point,theta):
+            x,y,z=point
+            return [x*math.cos(theta)-y*math.sin(theta),x*math.sin(theta)+y*math.cos(theta),z]
+        points=[[0.,0.,0.],[1.,0.,0.],[0.,1.,0.]]
+        center=[.5,-height,0.] if feature!='vertex' else [-height/math.sqrt(2),-height/math.sqrt(2),0.]
+        a=center[:]; b=center[:]
+        if feature=='edge_edge': a[2]=-.3; b[2]=.3
+        old=[v for point in points for v in rotate(point,-angle)]
+        current=[v for point in points for v in rotate(point,angle)]
+        packet=rotate(a,-angle)+rotate(b,-angle)+rotate(a,angle)+rotate(b,angle)+[radius]+[0.]*28
+        return old,current,packet
+
+    def test_moving_finite_edge_vertex_and_skew_axis_contact(self):
+        # All affine paths share a rotating/scaling matrix. Its minimum
+        # singular value is cos(angle), so height chosen above gives exact
+        # radius tangency at midtime. The face-plane distance is identically0.
+        for feature in ['edge','vertex','edge_edge']:
+            old,current,packet=self.finite_rotating_case(feature)
+            for order in itertools.permutations(range(3)):
+                code,stats=self.query(old,current,packet,indices=order,budget=3)
+                self.assertEqual(code,0,(feature,order,stats))
+                self.assertLessEqual(stats[0],3)
+
+    def test_finite_feature_midtime_penetration_is_not_certified_clear(self):
+        for feature in ['edge','vertex','edge_edge']:
+            old,current,packet=self.finite_rotating_case(feature,penetration=1e-6)
+            code,stats=self.query(old,current,packet)
+            self.assertEqual(code,1,(feature,stats)); self.assertLess(stats[4],-9e-7)
 
     def test_independent_interior_plane_witnesses_cannot_be_certified_clear(self):
         cases=json.loads((ROOT/'native/tests/fixtures/moving_plane_crossings.json').read_text())['cases']

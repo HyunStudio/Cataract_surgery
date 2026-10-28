@@ -157,6 +157,115 @@ inline bool moving_plane_separates(const Motion& motion,const std::array<V,3>& o
     return true;
 }
 
+inline int binomial(int n,int k) {
+    int result=1; for (int i=1;i<=k;++i) result=result*(n-i+1)/i; return result;
+}
+template<size_t A,size_t B>
+inline std::array<Bound,A+B-1> poly_dot(const std::array<BV,A>& a,const std::array<BV,B>& b) {
+    std::array<Bound,A+B-1> out{};
+    for (size_t i=0;i<A;++i) for (size_t j=0;j<B;++j)
+        out[i+j]=out[i+j]+bdot(a[i],b[j])*(Bound(binomial(A-1,i)*binomial(B-1,j))/binomial(A+B-2,i+j));
+    return out;
+}
+template<size_t A,size_t B>
+inline std::array<BV,A+B-1> poly_cross(const std::array<BV,A>& a,const std::array<BV,B>& b) {
+    std::array<BV,A+B-1> out{};
+    for (size_t i=0;i<A;++i) for (size_t j=0;j<B;++j) {
+        BV value=bcross(a[i],b[j]);
+        Bound factor=Bound(binomial(A-1,i)*binomial(B-1,j))/binomial(A+B-2,i+j);
+        for (int k=0;k<3;++k) out[i+j][k]=out[i+j][k]+value[k]*factor;
+    }
+    return out;
+}
+template<size_t A,size_t B>
+inline std::array<Bound,A+B-1> poly_product(const std::array<Bound,A>& a,const std::array<Bound,B>& b) {
+    std::array<Bound,A+B-1> out{};
+    for (size_t i=0;i<A;++i) for (size_t j=0;j<B;++j)
+        out[i+j]=out[i+j]+a[i]*b[j]*(Bound(binomial(A-1,i)*binomial(B-1,j))/binomial(A+B-2,i+j));
+    return out;
+}
+using Linear=std::array<BV,2>;
+template<size_t N,size_t M>
+inline bool finite_plane_certificate(const std::array<BV,N>& normal,const std::array<Linear,2>& body,
+                                     const std::array<Linear,M>& opposite,Bound radius) {
+    bool positive=true,negative=true;
+    for (const auto& relative:opposite) for (Bound h:poly_dot(normal,relative)) {
+        positive=positive && h.hi<=0; negative=negative && h.lo>=0;
+    }
+    if (!positive && !negative) return false;
+    // Multiplication by the constant quadratic1 elevates ||n||^2 two degrees.
+    auto norm=poly_product(poly_dot(normal,normal),std::array<Bound,3>{Bound(1),Bound(1),Bound(1)});
+    Bound radius2=radius*radius;
+    for (const auto& endpoint:body) {
+        auto d=poly_dot(normal,endpoint);
+        for (Bound h:d) { positive=positive && h.lo>0; negative=negative && h.hi<0; }
+        if (!positive && !negative) return false;
+        auto squared=poly_product(d,d);
+        for (size_t k=0;k<squared.size();++k) if (!((squared[k]-radius2*norm[k]).lo>0)) return false;
+    }
+    return true;
+}
+inline bool finite_midpoint_possible(V normal,V origin,const std::array<V,2>& body,
+                                    const std::array<V,3>& face,int exempt0,int exempt1,Real radius) {
+    Real length=std::sqrt(contact::dot(normal,normal));
+    if (!(length>0)) return false;
+    normal=contact::mul(normal,1/length);
+    bool positive=true,negative=true;
+    for (int j=0;j<3;++j) if (j!=exempt0 && j!=exempt1) {
+        Real h=contact::dot(normal,contact::sub(face[j],origin));
+        positive=positive && h<=0; negative=negative && h>=0;
+    }
+    for (V point:body) {
+        Real h=contact::dot(normal,contact::sub(point,origin));
+        positive=positive && h>radius; negative=negative && h< -radius;
+    }
+    return positive || negative; // candidate filter only; never a certificate
+}
+inline bool moving_finite_separates(const Motion& motion,const std::array<V,3>& old,
+                                   const std::array<V,3>& current,Real lo,Real hi,Real gap) {
+    std::array<Linear,3> face{}; std::array<Linear,2> body{};
+    std::array<V,3> middle_face{}; std::array<V,2> middle_body{};
+    Real scale=1;
+    for (int j=0;j<3;++j) {
+        face[j]={binterpolate(old[j],current[j],lo),binterpolate(old[j],current[j],hi)};
+        middle_face[j]=contact::interpolate(old[j],current[j],(lo+hi)/2);
+        for (Real x:old[j]) scale=std::max(scale,std::abs(x));
+        for (Real x:current[j]) scale=std::max(scale,std::abs(x));
+    }
+    for (int end=0;end<2;++end) {
+        V a=motion.sample(end,lo),b=motion.sample(end,hi);
+        body[end]={bv(a),bv(b)}; middle_body[end]=contact::interpolate(a,b,Real(.5));
+    }
+    Bound radius=Bound(motion.data[12])-Bound(gap)+Bound(motion.padding(lo,hi))+Bound(motion.numeric)+
+        Bound(512*std::numeric_limits<Real>::epsilon()*scale);
+    for (int vertex=0;vertex<3;++vertex) {
+        std::array<Linear,2> relative_body{};
+        std::array<Linear,3> relative_face{};
+        for (int end=0;end<2;++end) for (int k=0;k<2;++k) relative_body[end][k]=bsub(body[end][k],face[vertex][k]);
+        for (int j=0;j<3;++j) for (int k=0;k<2;++k) relative_face[j][k]=bsub(face[j][k],face[vertex][k]);
+        int next=(vertex+1)%3,third=(vertex+2)%3;
+        Linear edge=relative_face[next];
+        V e=contact::sub(middle_face[next],middle_face[vertex]);
+        for (int seed=0;seed<2;++seed) {
+            V r=contact::sub(middle_body[seed],middle_face[vertex]);
+            if (finite_midpoint_possible(r,middle_face[vertex],middle_body,middle_face,vertex,-1,radius.hi)) {
+                if (finite_plane_certificate(relative_body[seed],relative_body,std::array<Linear,2>{relative_face[next],relative_face[third]},radius)) return true;
+            }
+            V n=contact::cross(e,contact::cross(r,e));
+            if (finite_midpoint_possible(n,middle_face[vertex],middle_body,middle_face,vertex,next,radius.hi)) {
+                auto normal=poly_cross(edge,poly_cross(relative_body[seed],edge));
+                if (finite_plane_certificate(normal,relative_body,std::array<Linear,1>{relative_face[third]},radius)) return true;
+            }
+        }
+        V n=contact::cross(e,contact::sub(middle_body[1],middle_body[0]));
+        if (finite_midpoint_possible(n,middle_face[vertex],middle_body,middle_face,vertex,next,radius.hi)) {
+            Linear axis{bsub(body[1][0],body[0][0]),bsub(body[1][1],body[0][1])};
+            if (finite_plane_certificate(poly_cross(edge,axis),relative_body,std::array<Linear,1>{relative_face[third]},radius)) return true;
+        }
+    }
+    return false;
+}
+
 inline bool separated(const Motion& motion,const std::array<V,3>& old,const std::array<V,3>& current,
                       Real lo,Real hi,Real gap,V nearest,bool try_plane=true) {
     V a0=motion.sample(0,lo),a1=motion.sample(0,hi);
@@ -180,7 +289,7 @@ inline bool separated(const Motion& motion,const std::array<V,3>& old,const std:
     for (int i=0;i<2;++i) for (int j=i+1;j<3;++j)
         for (int k=0;k<5;++k) for (int l=k+1;l<6;++l)
             if (test(contact::cross(contact::sub(body[j],body[i]),contact::sub(face[l],face[k])))) return true;
-    return false;
+    return try_plane && moving_finite_separates(motion,old,current,lo,hi,gap);
 }
 
 inline int check(int n,const double* previous,const double* current,int faces,const int* triangles,
