@@ -183,6 +183,37 @@ class CoupledContactTests(unittest.TestCase):
                     for k in range(3): force[3*v+k] -= multiplier*out[11+3*j+k]/body["radius"]**2
         self.assertLessEqual(max(abs(force[3*i+k]) for i, w in enumerate(p["inverse"]) if w > 0. for k in range(3)), 1e-8)
 
+    def test_actual_packed64_tick264_converges_without_changing_predictor(self):
+        p = json.loads((ROOT/"native/tests/fixtures/joint_tick264.json").read_text())
+        p["triangles"] = [p["triangles"][i:i+3] for i in range(0,len(p["triangles"]),3)]
+        p["capsules"] = [{"a":p["capsules"][i:i+3],"b":p["capsules"][i+3:i+6],"radius":p["capsules"][i+6]}
+                         for i in range(0,len(p["capsules"]),7)]
+        status, x, dual, stats = self.run_problem(p)
+        self.assertEqual(status, 0, stats)
+        force = [(x[3*v+k]-p["predicted"][3*v+k])/w if w>0 else 0.
+                 for v,w in enumerate(p["inverse"]) for k in range(3)]
+        for v,w in enumerate(p["inverse"]):
+            if w==0: self.assertEqual(x[3*v:3*v+3],p["initial"][3*v:3*v+3])
+        for a,b,rest in zip(p["a"],p["b"],p["rest"]):
+            delta=[x[3*a+k]-x[3*b+k] for k in range(3)]
+            length=math.sqrt(sum(v*v for v in delta))
+            for k in range(3):
+                value=(length-rest)*delta[k]/(length*p["alpha"])
+                force[3*a+k]+=value; force[3*b+k]-=value
+        for f,triangle in enumerate(p["triangles"]):
+            for b,body in enumerate(p["capsules"]):
+                segment=(ct.c_double*6)(*(body["a"]+body["b"]))
+                face=(ct.c_double*9)(*(x[3*v+k] for v in triangle for k in range(3)))
+                out=(ct.c_double*22)()
+                self.assertIn(self.distance(segment,face,body["radius"],out),(0,3))
+                self.assertGreaterEqual(math.sqrt(out[0])-body["radius"],-1e-9)
+                multiplier=dual[f*len(p["capsules"])+b]
+                self.assertGreaterEqual(multiplier,0.)
+                self.assertLessEqual(abs(multiplier*(out[0]/body["radius"]**2-1)),1e-11)
+                for j,v in enumerate(triangle):
+                    for k in range(3): force[3*v+k]-=multiplier*out[11+3*j+k]/body["radius"]**2
+        self.assertLessEqual(max(abs(force[3*v+k]) for v,w in enumerate(p["inverse"]) if w>0 for k in range(3)),1e-8)
+
 
 if __name__ == "__main__":
     unittest.main()

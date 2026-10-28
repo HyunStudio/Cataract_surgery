@@ -234,7 +234,10 @@ inline int solve(int n,const double* predicted,double* output,const double* inve
         }
         if (status) break;
         dual=state.updated_dual;
-        if (state.penetration>last_violation*.25) rho=std::min(1e12,rho*10);
+        // Do not amplify distance roundoff after primal feasibility is already
+        // within the requested scene-unit tolerance. Continue dual/stationarity
+        // iterations at the current penalty; all acceptance gates still apply.
+        if (state.penetration>gap_tol && state.penetration>last_violation*.25) rho=std::min(1e12,rho*10);
         last_violation=state.penetration;
         ++outer;
     }

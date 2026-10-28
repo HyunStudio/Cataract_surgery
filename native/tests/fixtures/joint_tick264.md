@@ -1,0 +1,9 @@
+# Actual packed64 request, canonical extraction tick264
+
+`joint_tick264.json` SHA256: `954a753e025a2a3fdaf8f63a308ad0c413623244e8b8a9155a47ce67241424bc`.
+
+This is the first physical substep of rejected outer tick264 in the optional joint backend, using the unmodified extraction route, forceps geometry,64curved geometric cuts, and accepted packed64 state/history/rest. It contains745vertices,708free points,1668material edges,924triangles and3capsules; alpha=.07200000000000001. No free neighbors have been frozen. Pins, fixed predictor, initial iterate, all current faces and material lengths are preserved.
+
+Source: the timestep checkpoint committed as56ff1c5, before its review fixes, frozen validation project `.tools/membrane-validation-gyjc5pia`. That replay accepted263outer ticks with no material loss/breakage/uncertain contacts, then rejected264with native status2. The binary rejected state retained exact packed doubles. `.tools/replay_joint264.gd` restored the specimen/anatomy and substituted a recording kernel which exports the request using `JSON.stringify(...,full_precision=true)` and then rejects without advancing time. The JSON has the packed bridge schema; triangles and capsules are flattened.
+
+The original standalone solver reproduces numerical failure2 after19outer/607inner iterations with penalty13984.208153201935, recorded force1.43886e-6and penetration3.9644e-15. The engine replay reports slightly different iteration counts, with the same failure class; both builds use O3, and the exact source of that variation was not diagnosed. This regression checks accepted native status, original pins and independently reassembled physical forces, contact feasibility and complementarity. It is a static numerical test, not a whole anatomical/CCD/realtime or clinical qualification.
