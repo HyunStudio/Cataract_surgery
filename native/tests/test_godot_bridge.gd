@@ -10,6 +10,20 @@ func _initialize()->void:
 	check(ClassDB.class_exists("MembraneContactKernel"),"native coupled contact kernel registers separately")
 	if failures: quit(1); return
 	var coupled=ClassDB.instantiate("MembraneContactKernel")
+	check(coupled.has_method("guard_motion"),"coupled bridge exposes nonmutating whole-interval guard")
+	if failures: quit(1); return
+	var guard_face:=PackedFloat64Array([-1,0,-1,1,0,-1,0,0,1])
+	var packet:=PackedFloat64Array([0,1,0,0,1,0,0,-1,0,0,-1,0,.1])
+	packet.resize(41)
+	var guard_request:Dictionary={"previous":guard_face,"current":guard_face.duplicate(),"triangles":PackedInt32Array([0,1,2]),"kinds":PackedInt32Array([0]),"packets":packet,"budget":128,"gap_tolerance":1e-9}
+	var saved_guard:=guard_request.duplicate(true)
+	var crossing:Dictionary=coupled.guard_motion(guard_request)
+	check(crossing.status==1 and crossing.stats.size()==8,"clear endpoints cannot hide intermediate penetration through bridge")
+	check(guard_request==saved_guard,"guard does not mutate packed caller state")
+	var uncertain:Dictionary=coupled.guard_motion(guard_request.merged({"budget":0},true))
+	check(uncertain.status==2,"guard exhaustion remains uncertain through bridge")
+	for malformed in [{},guard_request.merged({"previous":PackedVector3Array()},true),guard_request.merged({"packets":PackedFloat64Array([0])},true),guard_request.merged({"kinds":PackedInt32Array()},true),guard_request.merged({"budget":1.5},true)]:
+		check(coupled.guard_motion(malformed).status==-1,"guard malformed types and shapes reject before pointer access")
 	var local:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://local_jaw_contact.json"))
 	var face_ids:=PackedInt32Array(); var body_data:=PackedFloat64Array()
 	for face in local.triangles:

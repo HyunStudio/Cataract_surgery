@@ -11,6 +11,8 @@ extern "C" int membrane_solve(int,double*,const double*,int,const int*,const int
                                const double*,double,int,double,double*);
 extern "C" int membrane_solve_contact(int,const double*,double*,const double*,int,const int*,const int*,
     const double*,double,int,const int*,int,const double*,int,double,double,double,double*,double*);
+extern "C" int membrane_guard_motion(int,const double*,const double*,int,const int*,int,const int*,
+    const double*,int,double,double*);
 
 namespace godot {
 class MembraneKernel : public RefCounted {
@@ -46,8 +48,34 @@ class MembraneContactKernel : public RefCounted {
 protected:
     static void _bind_methods() {
         ClassDB::bind_method(D_METHOD("solve_contact","request"),&MembraneContactKernel::solve_contact);
+        ClassDB::bind_method(D_METHOD("guard_motion","request"),&MembraneContactKernel::guard_motion);
     }
 public:
+    Dictionary guard_motion(const Dictionary& request) {
+        PackedFloat64Array stats; stats.resize(8); stats.fill(0.);
+        stats.set(2,-1.); stats.set(3,-1.); stats.set(4,std::numeric_limits<double>::infinity());
+        bool valid=true;
+        for (const char* key: {"previous","current","packets"})
+            if (!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+        for (const char* key: {"triangles","kinds"})
+            if (!request.has(key) || request[key].get_type()!=Variant::PACKED_INT32_ARRAY) valid=false;
+        if (!request.has("budget") || request["budget"].get_type()!=Variant::INT) valid=false;
+        if (!request.has("gap_tolerance") || (request["gap_tolerance"].get_type()!=Variant::FLOAT && request["gap_tolerance"].get_type()!=Variant::INT)) valid=false;
+        int status=-1;
+        if (valid) {
+            PackedFloat64Array previous=request["previous"],current=request["current"],packets=request["packets"];
+            PackedInt32Array triangles=request["triangles"],kinds=request["kinds"];
+            int64_t budget=request["budget"];
+            valid=previous.size()>0 && previous.size()%3==0 && previous.size()==current.size() &&
+                previous.size()/3<=4096 && triangles.size()%3==0 && triangles.size()/3<=16384 &&
+                kinds.size()<=64 && packets.size()==kinds.size()*41 && (triangles.size()/3)*kinds.size()<=65536 &&
+                budget>=0 && budget<=128;
+            if (valid) status=membrane_guard_motion(static_cast<int>(previous.size()/3),previous.ptr(),current.ptr(),
+                static_cast<int>(triangles.size()/3),triangles.ptr(),static_cast<int>(kinds.size()),kinds.ptr(),
+                packets.ptr(),static_cast<int>(budget),static_cast<double>(request["gap_tolerance"]),stats.ptrw());
+        }
+        Dictionary answer; answer["status"]=status; answer["stats"]=stats; return answer;
+    }
     Dictionary solve_contact(const Dictionary& request) {
         PackedFloat64Array result,dual,stats;
         stats.resize(12); stats.fill(0.);

@@ -1,0 +1,200 @@
+// Bounded, nonmutating continuous clearance. Not an exact-predicate CCD proof.
+#pragma once
+#include "contact_distance.h"
+
+namespace membrane::guard {
+using contact::Real; using contact::V;
+using Q=std::array<Real,4>;
+inline V read(const double* p,int off) { return {p[off],p[off+1],p[off+2]}; }
+inline Q unit(Q q) {
+    Real n=0; for (Real v:q) n+=v*v;
+    n=std::sqrt(n); for (Real& v:q) v/=n; return q;
+}
+inline V rotate(Q q,V v) {
+    V axis{q[0],q[1],q[2]};
+    V twice=contact::mul(contact::cross(axis,v),2);
+    return contact::add(v,contact::add(contact::mul(twice,q[3]),contact::cross(axis,twice)));
+}
+
+// Packet41: recorded axes0(6),axes1(6),radius; original tip0/tip1(6),
+// quaternion0/quaternion1 XYZW(8),local a0/b0/a1/b1(12),global t0/t1(2).
+// Kind0 is linear recorded endpoints. Kind1 is shortest spherical pose motion,
+// with an affine correction that exactly honors the recorded substep endpoints.
+struct Motion {
+    const double* data=nullptr;
+    bool pose=false;
+    Q q0{},q1{};
+    Real theta=0,reach=0,change=0,numeric=0;
+    std::array<V,2> correction0{},correction1{};
+    void init(const double* p,int kind) {
+        data=p; pose=kind==1;
+        Real scale=1; for (int i=0;i<41;++i) scale=std::max(scale,std::abs(Real(p[i])));
+        numeric=64*std::numeric_limits<double>::epsilon()*scale;
+        if (!pose) return;
+        q0=unit({p[19],p[20],p[21],p[22]});
+        q1=unit({p[23],p[24],p[25],p[26]});
+        Real dot=0; for (int i=0;i<4;++i) dot+=q0[i]*q1[i];
+        if (dot<0) { for (Real& v:q1) v=-v; dot=-dot; }
+        theta=std::acos(std::clamp(dot,Real(0),Real(1)));
+        for (int off:{27,30,33,36}) reach=std::max(reach,std::sqrt(contact::dot(read(p,off),read(p,off))));
+        for (int end=0;end<2;++end) {
+            V delta=contact::sub(read(p,33+3*end),read(p,27+3*end));
+            change=std::max(change,std::sqrt(contact::dot(delta,delta)));
+            correction0[end]=contact::sub(read(p,3*end),ideal(end,p[39]));
+            correction1[end]=contact::sub(read(p,6+3*end),ideal(end,p[40]));
+        }
+        numeric+=64*std::numeric_limits<double>::epsilon()*(reach+change);
+    }
+    Q orientation(Real t) const {
+        Q q{};
+        if (theta<1e-9L) for (int i=0;i<4;++i) q[i]=q0[i]+t*(q1[i]-q0[i]);
+        else {
+            Real denominator=std::sin(theta);
+            Real a=std::sin((1-t)*theta)/denominator,b=std::sin(t*theta)/denominator;
+            for (int i=0;i<4;++i) q[i]=a*q0[i]+b*q1[i];
+        }
+        return unit(q);
+    }
+    V ideal(int end,Real t) const {
+        V tip=contact::interpolate(read(data,13),read(data,16),t);
+        V local=contact::interpolate(read(data,27+3*end),read(data,33+3*end),t);
+        return contact::add(tip,rotate(orientation(t),local));
+    }
+    V sample(int end,Real t) const {
+        if (t==0) return read(data,3*end);
+        if (t==1) return read(data,6+3*end);
+        if (!pose) return contact::interpolate(read(data,3*end),read(data,6+3*end),t);
+        Real global=Real(data[39])+t*(Real(data[40])-data[39]);
+        return contact::add(ideal(end,global),contact::interpolate(correction0[end],correction1[end],t));
+    }
+    Real padding(Real lo,Real hi) const {
+        if (!pose) return 0;
+        Real width=(Real(data[40])-data[39])*(hi-lo),half_angle=theta*width;
+        // Affine endpoint corrections have zero deviation from their chord.
+        return reach*(1-std::cos(half_angle))+change*width*std::sin(half_angle);
+    }
+};
+
+inline bool axis_separates(const std::array<V,3>& body,const std::array<V,6>& face,V n,Real radius,Real error) {
+    Real squared=contact::dot(n,n);
+    if (!(squared>0) || !std::isfinite(squared)) return false;
+    n=contact::mul(n,1/std::sqrt(squared));
+    Real blo=contact::dot(body[0],n),bhi=blo,flo=contact::dot(face[0],n),fhi=flo;
+    for (V v:body) { Real d=contact::dot(v,n); blo=std::min(blo,d); bhi=std::max(bhi,d); }
+    for (V v:face) { Real d=contact::dot(v,n); flo=std::min(flo,d); fhi=std::max(fhi,d); }
+    return std::max(flo-bhi,blo-fhi)>radius+error;
+}
+
+inline bool separated(const Motion& motion,const std::array<V,3>& old,const std::array<V,3>& current,
+                      Real lo,Real hi,Real gap,V nearest) {
+    V a0=motion.sample(0,lo),a1=motion.sample(0,hi);
+    std::array<V,3> body{V{},contact::sub(motion.sample(1,lo),a0),contact::sub(motion.sample(1,hi),a1)};
+    std::array<V,6> face{};
+    Real scale=1;
+    for (int i=0;i<3;++i) {
+        face[i]=contact::sub(contact::interpolate(old[i],current[i],lo),a0);
+        face[i+3]=contact::sub(contact::interpolate(old[i],current[i],hi),a1);
+    }
+    for (V v:face) for (Real value:v) scale=std::max(scale,std::abs(value));
+    for (V v:body) for (Real value:v) scale=std::max(scale,std::abs(value));
+    Real radius=Real(motion.data[12])-gap+motion.padding(lo,hi);
+    Real error=motion.numeric+512*std::numeric_limits<Real>::epsilon()*scale;
+    auto test=[&](V n) { return axis_separates(body,face,n,radius,error); };
+    if (test({1,0,0}) || test({0,1,0}) || test({0,0,1}) || test(nearest)) return true;
+    for (int i=0;i<4;++i) for (int j=i+1;j<5;++j) for (int k=j+1;k<6;++k)
+        if (test(contact::cross(contact::sub(face[j],face[i]),contact::sub(face[k],face[i])))) return true;
+    if (test(contact::cross(contact::sub(body[1],body[0]),contact::sub(body[2],body[0])))) return true;
+    for (int i=0;i<2;++i) for (int j=i+1;j<3;++j)
+        for (int k=0;k<5;++k) for (int l=k+1;l<6;++l)
+            if (test(contact::cross(contact::sub(body[j],body[i]),contact::sub(face[l],face[k])))) return true;
+    return false;
+}
+
+inline int check(int n,const double* previous,const double* current,int faces,const int* triangles,
+                 int bodies,const int* kinds,const double* packets,int budget,double gap,double* output) {
+    if (!previous || !current || !output || n<1 || n>4096 || faces<0 || faces>16384 ||
+        bodies<0 || bodies>64 || faces*bodies>65536 || (faces && !triangles) ||
+        (bodies && (!kinds || !packets)) || budget<0 || budget>128 || !(gap>0) || !std::isfinite(gap)) return -1;
+    for (int i=0;i<3*n;++i) if (!std::isfinite(previous[i]) || !std::isfinite(current[i]) ||
+        std::abs(previous[i])>16 || std::abs(current[i])>16) return -1;
+    for (int f=0;f<faces;++f) {
+        for (int k=0;k<3;++k) if (triangles[3*f+k]<0 || triangles[3*f+k]>=n) return -1;
+        if (triangles[3*f]==triangles[3*f+1] || triangles[3*f]==triangles[3*f+2] || triangles[3*f+1]==triangles[3*f+2]) return -1;
+    }
+    std::array<Motion,64> motions{};
+    for (int b=0;b<bodies;++b) {
+        const double* p=packets+41*b;
+        if (kinds[b]!=0 && kinds[b]!=1) return -1;
+        for (int k=0;k<41;++k) if (!std::isfinite(p[k])) return -1;
+        for (int k=0;k<12;++k) if (std::abs(p[k])>16) return -1;
+        if (!(p[12]>gap) || p[12]>.3) return -1;
+        if (kinds[b]==1) {
+            for (int k=13;k<39;++k) if (std::abs(p[k])>16) return -1;
+            for (int off:{19,23}) {
+                double norm=0; for (int k=0;k<4;++k) norm+=p[off+k]*p[off+k];
+                if (std::abs(norm-1)>.001) return -1;
+            }
+            if (p[39]<0 || p[40]>1 || !(p[39]<p[40])) return -1;
+        }
+        motions[b].init(p,kinds[b]);
+    }
+    std::array<double,8> stats{0,0,-1,-1,std::numeric_limits<double>::infinity(),0,0,0};
+    auto finish=[&](int status,int f,int b,int reason) {
+        if (status) { stats[2]=f; stats[3]=b; stats[7]=reason; }
+        std::copy(stats.begin(),stats.end(),output); return status;
+    };
+    struct Node { Real lo,hi; int depth; };
+    for (int f=0;f<faces;++f) {
+        std::array<V,3> old{},next{};
+        for (int j=0;j<3;++j) { old[j]=read(previous,3*triangles[3*f+j]); next[j]=read(current,3*triangles[3*f+j]); }
+        for (int b=0;b<bodies;++b) {
+            ++stats[1]; const Motion& motion=motions[b];
+            Real margin=motion.data[12]+motion.padding(0,1)+motion.numeric;
+            bool disjoint=false;
+            for (int axis=0;axis<3;++axis) {
+                Real tlo=old[0][axis],thi=tlo,blo=motion.data[axis],bhi=blo;
+                for (V v:old) { tlo=std::min(tlo,v[axis]); thi=std::max(thi,v[axis]); }
+                for (V v:next) { tlo=std::min(tlo,v[axis]); thi=std::max(thi,v[axis]); }
+                for (int off:{0,3,6,9}) { blo=std::min(blo,Real(motion.data[off+axis])); bhi=std::max(bhi,Real(motion.data[off+axis])); }
+                if (thi<blo-margin || tlo>bhi+margin) disjoint=true;
+            }
+            if (disjoint) continue;
+            int queries=0;
+            auto sample=[&](Real t,V& nearest) {
+                if (queries>=budget) return 2;
+                ++queries; ++stats[0];
+                V a=motion.sample(0,t),end=motion.sample(1,t);
+                double segment[6],triangle[9];
+                for (int k=0;k<3;++k) { segment[k]=static_cast<double>(a[k]); segment[3+k]=static_cast<double>(end[k]); }
+                for (int j=0;j<3;++j) {
+                    V v=contact::interpolate(old[j],next[j],t);
+                    for (int k=0;k<3;++k) triangle[3*j+k]=static_cast<double>(v[k]);
+                }
+                auto result=contact::distance(segment,triangle,motion.data[12]);
+                if (result.status<0 || result.status==2) return 3;
+                double distance_gap=std::sqrt(std::max(0.,result.values[0]))-motion.data[12];
+                stats[4]=std::min(stats[4],distance_gap);
+                nearest=contact::sub(read(result.values.data(),5),read(result.values.data(),2));
+                if (Real(distance_gap)<-Real(gap)-motion.numeric) return 1;
+                return 0;
+            };
+            V nearest{};
+            for (Real t:{Real(0),Real(1)}) {
+                int status=sample(t,nearest);
+                if (status) return finish(status==1?1:2,f,b,status==1?4:(status==2?1:2));
+            }
+            std::array<Node,65> pending{}; int count=1; pending[0]={0,1,0};
+            while (count) {
+                Node node=pending[--count]; Real t=(node.lo+node.hi)/2;
+                int status=sample(t,nearest);
+                if (status) return finish(status==1?1:2,f,b,status==1?4:(status==2?1:2));
+                stats[6]=std::max(stats[6],double(node.depth));
+                if (separated(motion,old,next,node.lo,node.hi,gap,nearest)) continue;
+                if (node.depth>=32 || t<=node.lo || t>=node.hi || count+2>int(pending.size())) return finish(2,f,b,3);
+                ++stats[5]; pending[count++]={t,node.hi,node.depth+1}; pending[count++]={node.lo,t,node.depth+1};
+            }
+        }
+    }
+    return finish(0,-1,-1,0);
+}
+} // namespace membrane::guard
