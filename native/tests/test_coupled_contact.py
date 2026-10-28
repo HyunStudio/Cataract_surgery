@@ -189,6 +189,25 @@ class CoupledContactTests(unittest.TestCase):
     def test_actual_physical_jaws_second_substep_reaches_requested_kkt_gates(self):
         self.assert_packed_request("joint_physical264_second.json")
 
+    def test_actual265_unresolved_static_substep_rejects_atomically(self):
+        p=json.loads((ROOT/"native/tests/fixtures/joint_static265.json").read_text())
+        p["triangles"]=[p["triangles"][i:i+3] for i in range(0,len(p["triangles"]),3)]
+        flat=p["capsules"]
+        p["capsules"]=[{"a":flat[i:i+3],"b":flat[i+3:i+6],"radius":flat[i+6]} for i in range(0,len(flat),7)]
+        status,x,dual,stats=self.run_problem(p)
+        self.assertEqual(status,2,stats)
+        self.assertEqual(x,p["initial"])
+        self.assertEqual(dual,[99.]*(len(p["triangles"])*len(p["capsules"])))
+        self.assertGreater(stats[1],1e-8)
+
+    def test_all_invalid_line_trials_without_contact_progress_fail_atomically(self):
+        p={"initial":[16.,0.,0.,15.,0.,0.],"predicted":[16.,0.,0.,15.,0.,0.],
+           "inverse":[1.,0.],"a":[0],"b":[1],"rest":[2.],"alpha":.1,"triangles":[],"capsules":[]}
+        status,x,dual,stats=self.run_problem(p)
+        self.assertEqual(status,2,stats)
+        self.assertEqual(x,p["initial"]); self.assertEqual(dual,[])
+        self.assertLess(stats[4],100)
+
     def assert_packed_request(self, name):
         p = json.loads((ROOT/"native/tests/fixtures"/name).read_text())
         p["triangles"] = [p["triangles"][i:i+3] for i in range(0,len(p["triangles"]),3)]
