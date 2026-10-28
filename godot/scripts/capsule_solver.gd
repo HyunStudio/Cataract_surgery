@@ -479,7 +479,7 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 		var target:Vector3=positions[v].move_toward(_grasp_target(tool,t,grasp_starts[tool.hand],acquired.has(tool.hand)),.08)
 		for axis in range(3):
 			# Retain the exact physical point when the prescribed proxy did not move.
-			var value:float=old[3*v+axis]+float(target[axis])-float(positions[v][axis])
+			var value:float=old[3*v+axis]+(float(target[axis])-float(positions[v][axis]))
 			predicted[3*v+axis]=value; initial[3*v+axis]=value
 	var a:=PackedInt32Array(); var b:=PackedInt32Array(); var rest:=PackedFloat64Array()
 	for e in range(_edge_a.size()):
