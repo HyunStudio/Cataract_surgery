@@ -6,6 +6,7 @@ const SECTORS := 36
 const RADIUS := .88
 const MAX_DT := .1
 const NATIVE_COUPLING_BUDGET:=32
+const NATIVE_TRAJECTORY_BUDGET:=8
 ## Scene-unit numerical tolerance above float32 publication noise, not tear strength.
 const NATIVE_COUPLING_TOLERANCE:=1e-6
 const FaceContact=preload("res://scripts/membrane_contact.gd")
@@ -73,6 +74,7 @@ var _physical_xyz:=PackedFloat64Array()
 var _physical_previous:=PackedFloat64Array()
 var _physical_rest:=PackedFloat64Array()
 var joint_stats:=PackedFloat64Array()
+var joint_times:=PackedFloat64Array()
 var _joint_tip_history:Dictionary={}
 var native_failure:Dictionary={}
 var _backend_failed:=false
@@ -151,6 +153,7 @@ func reset() -> void:
 	_pinned = anchored.duplicate()
 	_physical_xyz=Precision.pack(positions); _physical_previous=Precision.pack(_previous); _physical_rest=Precision.pack(rest_positions)
 	joint_stats=PackedFloat64Array()
+	joint_times=PackedFloat64Array()
 	_joint_tip_history={}
 
 func _vertex(ring: int, sector: int) -> int:
@@ -490,26 +493,10 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 		for point in [part.a,part.b]:
 			for axis in range(3): capsules.append(point[axis])
 		capsules.append(part.get("physical_radius",part.radius))
-	var result:Dictionary=contact_backend.solve_contact({"predicted":predicted,"initial":initial,"inverse":_inverse_mass,"a":a,"b":b,"rest":rest,"alpha":alpha,"triangles":triangles,"capsules":capsules,"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11})
-	if result.get("status",-1)!=0: return _joint_failure("native_joint_solve",result.get("status",-1))
-	if not result.get("xyz") is PackedFloat64Array or result.xyz.size()!=old.size() or not result.get("stats") is PackedFloat64Array or result.stats.size()!=12: return _joint_failure("native_joint_output")
-	for i in range(old.size()):
-		if not is_finite(result.xyz[i]) or absf(result.xyz[i])>16. or (_inverse_mass[i/3]==0. and result.xyz[i]!=predicted[i]): return _joint_failure("native_joint_output")
-	for index in range(4):
-		if not is_finite(result.stats[index]) or result.stats[index]<0.: return _joint_failure("native_joint_output")
-	if result.stats[1]>1e-8 or result.stats[2]>1e-9 or result.stats[3]>1e-11: return _joint_failure("native_joint_residual")
+	var solved:=_joint_contact_candidate({"predicted":predicted,"initial":initial,"inverse":_inverse_mass,"a":a,"b":b,"rest":rest,"alpha":alpha,"triangles":triangles,"capsules":capsules,"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11},body,old)
+	if solved.is_empty(): return false
+	var result:Dictionary=solved.result
 	positions=Precision.publish(result.xyz)
-	if not body.is_empty():
-		if not contact_backend.has_method("guard_motion"): return _joint_failure("native_joint_body_unavailable")
-		var checked:Dictionary=contact_backend.guard_motion(ToolPath.motion_request(old,result.xyz,triangles,body))
-		if checked.get("status",-1)!=0: return _joint_failure("native_joint_body_unresolved",checked.get("status",-1))
-		if not checked.get("stats") is PackedFloat64Array or checked.stats.size()!=8: return _joint_failure("native_joint_body_output")
-		var gap:float=checked.stats[4]
-		if is_nan(gap) or gap==-INF or gap< -1e-9: return _joint_failure("native_joint_body_residual")
-		if result.get("dual") is PackedFloat64Array:
-			for reaction in result.dual:
-				if reaction>0.: body_contact_count+=1
-		body_contact_residual=maxf(body_contact_residual,maxf(0.,-gap))
 	if tissue_boundary and geometry:
 		var proxy:=positions.duplicate()
 		_project_boundary(contact_previous)
@@ -517,6 +504,7 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 		if positions!=proxy: return _joint_failure("native_joint_boundary_correction")
 	_physical_xyz=result.xyz.duplicate(); _physical_previous=old
 	joint_stats=result.stats.duplicate()
+	joint_times=solved.times.duplicate()
 	for v in range(positions.size()):
 		if _pinned[v]!=0 or _removed[v]!=0:
 			for axis in range(3): _physical_previous[3*v+axis]=_physical_xyz[3*v+axis]
@@ -529,6 +517,56 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 	if _dirty: _rebuild_triangles()
 	if tissue_boundary and geometry: _retire_exterior_flaps()
 	return true
+
+func _joint_candidate_valid(result:Dictionary,predicted:PackedFloat64Array)->bool:
+	if result.get("status",-1)!=0: return _joint_failure("native_joint_solve",result.get("status",-1))
+	if not result.get("xyz") is PackedFloat64Array or result.xyz.size()!=predicted.size() or not result.get("stats") is PackedFloat64Array or result.stats.size()!=12: return _joint_failure("native_joint_output")
+	for i in range(predicted.size()):
+		if not is_finite(result.xyz[i]) or absf(result.xyz[i])>16. or (_inverse_mass[i/3]==0. and result.xyz[i]!=predicted[i]): return _joint_failure("native_joint_output")
+	for index in range(4):
+		if not is_finite(result.stats[index]) or result.stats[index]<0.: return _joint_failure("native_joint_output")
+	if result.stats[1]>1e-8 or result.stats[2]>1e-9 or result.stats[3]>1e-11: return _joint_failure("native_joint_residual")
+	return true
+
+func _joint_contact_candidate(request:Dictionary,body:Array,old:PackedFloat64Array)->Dictionary:
+	# Fix the predictor/history for every solve. A sampled collision adds a
+	# time-weighted physical constraint; only a complete guard may accept it.
+	var result:Dictionary=contact_backend.solve_contact(request)
+	var times:=PackedFloat64Array([1.])
+	for stage in range(NATIVE_TRAJECTORY_BUDGET):
+		if not _joint_candidate_valid(result,request.predicted): return {}
+		if body.is_empty(): return {"result":result,"times":times}
+		if not contact_backend.has_method("guard_motion"):
+			_joint_failure("native_joint_body_unavailable"); return {}
+		var motion:=ToolPath.motion_request(old,result.xyz,triangles,body)
+		var checked:Dictionary=contact_backend.guard_motion(motion)
+		var code:int=checked.get("status",-1)
+		if code==0:
+			if not checked.get("stats") is PackedFloat64Array or checked.stats.size()!=8:
+				_joint_failure("native_joint_body_output"); return {}
+			var gap:float=checked.stats[4]
+			if is_nan(gap) or gap==-INF or gap< -1e-9:
+				_joint_failure("native_joint_body_residual"); return {}
+			if result.get("dual") is PackedFloat64Array:
+				for reaction in result.dual:
+					if reaction>0.: body_contact_count+=1
+			body_contact_residual=maxf(body_contact_residual,maxf(0.,-gap))
+			return {"result":result,"times":times}
+		if code!=1:
+			_joint_failure("native_joint_body_unresolved",code); return {}
+		if stage+1>=NATIVE_TRAJECTORY_BUDGET or (triangles.size()/3)*body.size()*(times.size()+1)>65536:
+			_joint_failure("native_joint_body_budget",code); return {}
+		var witness=checked.get("witness_t",-1.)
+		if not (witness is float or witness is int) or not is_finite(witness) or witness<=0. or witness>=1.:
+			_joint_failure("native_joint_body_witness",code); return {}
+		if times.has(witness):
+			_joint_failure("native_joint_body_stalled",code); return {}
+		if not contact_backend.has_method("solve_trajectory"):
+			_joint_failure("native_joint_body_unavailable"); return {}
+		times.append(witness); times.sort()
+		var next:=request.merged({"initial":result.xyz,"previous":old,"packets":motion.packets,"kinds":motion.kinds,"times":times},true)
+		result=contact_backend.solve_trajectory(next)
+	_joint_failure("native_joint_body_budget"); return {}
 
 func _joint_failure(reason:String,status:int=-1)->bool:
 	native_failure={"reason":reason,"status":status}; _backend_failed=true; return false

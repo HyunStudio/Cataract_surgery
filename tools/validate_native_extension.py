@@ -42,6 +42,7 @@ if options.capsule:
     if adapter.exists(): intended["scripts/native_membrane_backend.gd"] = adapter
 if options.coupled_capsule:
     intended["joint_physical264_second.json"] = ROOT/"native/tests/fixtures/joint_physical264_second.json"
+    for fixture in ["joint_static262.json","joint_motion262.json"]: intended[fixture]=ROOT/"native/tests/fixtures"/fixture
 test_sources = source_hashes([*intended.values(),Path(__file__).resolve()])
 for name,path in intended.items():
     (probe/name).parent.mkdir(parents=True,exist_ok=True)

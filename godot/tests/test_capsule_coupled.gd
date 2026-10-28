@@ -8,6 +8,9 @@ class FailedKernel extends RefCounted:
 class RecordingKernel extends RefCounted:
 	var inner=ClassDB.instantiate("MembraneContactKernel")
 	var requests:Array[Dictionary]=[]
+	var trajectory_requests:Array[Dictionary]=[]
+	func solve_trajectory(request:Dictionary)->Dictionary:
+		trajectory_requests.append(request.duplicate(true)); return inner.solve_trajectory(request)
 	func guard_motion(request:Dictionary)->Dictionary: return inner.guard_motion(request)
 	func solve_contact(request:Dictionary)->Dictionary:
 		requests.append(request.duplicate(true)); return inner.solve_contact(request)
@@ -37,6 +40,25 @@ func _initialize()->void:
 	print("Physical second-substep static stats: ",static_result.status," ",static_result.stats)
 	var source=load("res://scripts/capsule_solver.gd")
 	if not source or not source.can_instantiate(): quit(1); return
+	var trajectory_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://joint_static262.json"))
+	for key in ["initial","predicted","inverse","rest","capsules"]: trajectory_request[key]=PackedFloat64Array(trajectory_request[key])
+	for key in ["a","b","triangles"]: trajectory_request[key]=PackedInt32Array(trajectory_request[key])
+	trajectory_request.budget=int(trajectory_request.budget)
+	var motion_data:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://joint_motion262.json"))
+	var recorded_body:Array=[]
+	for index in range(motion_data.kinds.size()):
+		var p:Array=motion_data.packets.slice(index*41,(index+1)*41)
+		var vectors:Array=[]
+		for off in [0,3,6,9,13,16,27,30,33,36]: vectors.append(Vector3(p[off],p[off+1],p[off+2]))
+		recorded_body.append({"previous_a":vectors[0],"previous_b":vectors[1],"a":vectors[2],"b":vectors[3],"radius":p[12],"physical_radius":p[12],"path_t0":p[39],"path_t1":p[40],"path":{"tip0":vectors[4],"tip1":vectors[5],"a0":vectors[6],"b0":vectors[7],"a1":vectors[8],"b1":vectors[9],"rotation0":Quaternion(p[19],p[20],p[21],p[22]),"rotation1":Quaternion(p[23],p[24],p[25],p[26])}})
+	var trajectory_model=source.new(); var trajectory_record:=RecordingKernel.new()
+	trajectory_model.contact_backend=trajectory_record; trajectory_model._inverse_mass=trajectory_request.inverse; trajectory_model.triangles=trajectory_request.triangles
+	var generated:Dictionary=trajectory_model._joint_contact_candidate(trajectory_request,recorded_body,PackedFloat64Array(motion_data.previous))
+	check(not generated.is_empty() and not trajectory_record.trajectory_requests.is_empty(),"actual262 adds intermediate physical constraints and clears the complete represented motion: "+str(trajectory_model.native_failure))
+	if not generated.is_empty():
+		check(generated.times.size()<=8 and generated.times.size()>1,"actual262 uses bounded time constraint generation")
+		for captured in trajectory_record.trajectory_requests: check(captured.predicted==trajectory_request.predicted and captured.previous==PackedFloat64Array(motion_data.previous),"actual refinement retains the original predictor and history")
+		print("Actual262 continuous times: ",generated.times," stats=",generated.result.stats)
 	var physical_check=source.new(); var physical_record:=RecordingKernel.new(); physical_check.set_contact_backend(physical_record)
 	var pose=load("res://scripts/instrument_path.gd")
 	var far_pose:=Vector3(3,3,3)

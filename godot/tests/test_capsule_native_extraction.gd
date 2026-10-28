@@ -9,12 +9,17 @@ class JointBackend extends RefCounted:
 	var kernel=ClassDB.instantiate("MembraneContactKernel")
 	func guard_motion(request:Dictionary)->Dictionary: return kernel.guard_motion(request)
 	var calls:=0
+	var trajectory_calls:=0
 	var last_stats:=PackedFloat64Array()
 	func solve_contact(request:Dictionary)->Dictionary:
 		calls+=1
 		var result:Dictionary=kernel.solve_contact(request); last_stats=result.stats.duplicate()
 		return result
-	func diagnostics()->Dictionary: return {"calls":calls,"last_stats":last_stats}
+	func solve_trajectory(request:Dictionary)->Dictionary:
+		trajectory_calls+=1
+		var result:Dictionary=kernel.solve_trajectory(request); last_stats=result.stats.duplicate()
+		return result
+	func diagnostics()->Dictionary: return {"calls":calls,"trajectory_calls":trajectory_calls,"last_stats":last_stats}
 func check(ok:bool,message:String)->void:
 	if not ok: failures+=1; push_error(message)
 func advance(model,old_tip:Vector3,tip:Vector3,grip:bool,old_grip:bool)->bool:
