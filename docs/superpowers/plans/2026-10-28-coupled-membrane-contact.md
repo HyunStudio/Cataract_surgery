@@ -43,10 +43,20 @@ Official references: [Toolkit scope/license](https://github.com/ipc-sim/ipc-tool
 
 Files: create `native/contact_distance.h`, `native/tests/test_contact_distance.py`; extend the existing native build only as needed. Inspect the minimal official IPC source/dependency graph before selecting a pinned native subset or independently verified implementation.
 
-- [ ] Write and observe RED analytical tests: sphere/face, finite endpoint/edge, axis/triangle intersection, crossing side, near-parallel and skinny/degenerate geometry.
-- [ ] Add derivative checks away from feature changes and explicit conservative behavior at degeneracy.
-- [ ] Implement the bounded native component with finite/index/shape validation and dependency/license provenance.
-- [ ] Compare actual local fixture features/derivatives against independent IPC diagnostics; verify, review and commit.
+- [x] Write and observe RED analytical tests: sphere/face, finite endpoint/edge, axis/triangle intersection, crossing side, near-parallel and skinny/degenerate geometry.
+- [x] Add derivative checks away from feature changes and explicit conservative behavior at degeneracy.
+- [x] Implement the bounded native component with finite/index/shape validation and dependency/license provenance.
+- [x] Compare actual local fixture features/derivatives against independent IPC diagnostics; verify, review and commit.
+
+### Task1 evidence
+
+Previous turn made authoritative progress4063280/d490dd4; this continuation began with a clean worktree. Ruling: use an independent standard-library distance/witness/envelope-gradient implementation rather than pulling the entire IPC native dependency graph into this first component. Official1.6.1point/triangle and edge/edge sources were inspected; IPC remains an isolated independent oracle. Cost: finite arithmetic and explicit inconclusive/ambiguous states rather than an exact geometry guarantee. Full solver/CCD integration remains pending.
+
+The test first failed because the new component did not exist. The completed C ABI has bounded coordinate/radius validation, at most12candidates, axis/face intersection including coplanarity, and gradient9with explicit invalid/intersecting/degenerate/ambiguous statuses. Read-only numerical review found two substantive holes: an absolute gradient threshold hid nonunique minimizers at tiny scales; plane cancellation could report definite intersection for a point with exact distance2^-134/3. Both were added as canonical tests, observed RED, then fixed. Internal candidate gradients now compare conservatively without an absolute floor; unreliable oriented-volume/witness calculations report status2. Status2values cannot certify geometry, and status3does not supply a unique derivative.
+
+Final warnings-as-errors build and28native tests pass (16contact+12existing kernel). Strengthened IPC comparison passes292cases:232regular gradient checks,30intersections,28ambiguous,2analytic inconclusive; maximum squared-distance discrepancy6.66134e-16and gradient1.90603e-15. Six analytic expected-status gates and minimum175gradient checks prevent universal uncertainty from falsely passing. Reports initialize unqualified before oracle import, bind parsed fixture bytes and actual artifact/oracle/source hashes, and verify inputs after execution.
+
+Separate contact DLL SHA256dbdd0a03e7044b0e534e10fb05add430631ba0026e6e01a38ec5491a999541e0. Existing membrane/Godot DLLs and application code were not changed. No new full extraction, GPU, performance or release qualification. All build/test/review/comparison jobs in this stage are terminal. Next: Task2joint constrained energy on the actual reduced fixture before complete-substep integration.
 
 ### Task2: Joint constrained energy
 

@@ -1,6 +1,6 @@
 # Experimental membrane numerical kernel
 
-Not connected to the product yet. Godot's current refined-traction test still fails.
+Optional actual-capsule integration exists, but is not the default backend. Full refined extraction still rejects the263rd requested tick for unresolved elastic/contact coupling. The new standalone contact geometry component below is not yet connected to Godot or the joint solver.
 
 The standalone kernel minimizes
 
@@ -27,6 +27,7 @@ Install/extract the official Zig0.17.0 Windows compiler into `.tools/zig-x86_64-
 ```
 python tools/setup_native_dependencies.py
 python tools/build_membrane_kernel.py
+python tools/build_contact_distance.py
 python -m unittest discover -s native/tests -v
 ```
 
@@ -45,3 +46,17 @@ Build manifests bind each DLL to source hashes, clean pinned dependency revision
 `tests/fixtures/refined_flap.json` is the first stretch solve in outer integration tick2 after a64segment circle(radius.4) is cut through the actual anterior capsule, yielding745points/1668edges. Grip acquisition is at interior positive-X flap vertex plus.025Y (radius.065, contact radius.018), then the forceps moves.005Y per outer tick. Substep attachment interpolation places the held point at.0025Y before this capture. Alpha=.072. The real flap boundary includes cornea, iris and the actual portal/wound. It is captured before any stretch projection or fracture in that substep, so it isolates the solver input rather than assuming the fractured result is correct. The capturing source is the substep pose implementation committed as ee05602; all1668lambda entries are zero. JSON float values preserve the actual Godot float-vector state.
 
 Independent diagnostic objective values: SciPy L-BFGS-B3.819356697e-8 (relative-energy stopping, gradient_inf1.343e-6), SciPy sparse trust-region3.819275721e-8 (optimality1.583e-8, work exhaustion). Neither is asserted to be an exact unique minimizer. Tests compare energy and strain with a stated allowance and independently recompute the output objective; solver status must additionally indicate convergence to its requested gradient tolerance.
+
+## Standalone contact geometry
+
+`python tools/build_contact_distance.py` builds a separate ignored `contact_distance.dll` with the same pinned compiler/provenance checks and warnings-as-errors. It has no Eigen/IPC dependency and does not modify the membrane or Godot DLL. The standard-library implementation is independent; IPC1.6.1 is only an optional reference oracle.
+
+`membrane_contact_distance(segment6, triangle9, radius, output22)` consumes two finite axis endpoints and three triangle vertices. Every coordinate must have absolute value at most16; radius must be finite and in `(0,.3]`. The caller allocates each array at its declared length. Invalid arguments return-1without writing output.
+
+Output layout: squared axis/triangle distance[0], distance-minus-radius[1], axis witness[2:5], triangle witness[5:8], triangle barycentric weights[8:11], squared-distance gradient with respect to the9triangle coordinates[11:20], axis parameter[20], internal feature tag[21]. Radius only affects the gap; the gradient is of squared axis distance, not the gap. Features may change; tags are diagnostic rather than persistent contact IDs.
+
+Statuses are0regular selected-feature derivative,1axis/face intersection,2degenerate or numerically inconclusive geometry,3numerically tied witnesses with distinct gradients. For2the numerical values are diagnostic and must not certify clearance or drive accepted mechanics. For3the selected gradient is not a unique ordinary derivative. For1zero squared-distance gradient is not a zero physical reaction or a resolved penetration. Exact predicates/CCD/side preservation, contact response and Hessians are outside this component's scope.
+
+The query enumerates at most12candidates without heap allocation. It includes finite axis/face intersection and coplanar clipping, rather than checking only endpoint/edge distances. Internal long-double arithmetic reduces cancellation; it is still finite arithmetic. A conservative oriented-volume cancellation screen returns2when plane/intersection witnesses are unreliable. Numerically indistinguishable candidate distances with different internal gradients return3without an absolute gradient-size floor.
+
+Optional independent comparison: `python tools/compare_contact_distance.py --ipctk-path .tools/ipc-probe-python`. Use the isolated pinned IPC1.6.1diagnostic installation described in the coupled-contact plan; the product does not depend on it. The comparison binds the actual DLL, compiled oracle, fixture and script hashes before/after, checks analytical status cases and minimum gradient coverage, and starts reports unqualified. The latest scoped run covers292cases,232regular gradients,30axis intersections,28ambiguous and2explicitly inconclusive cases. Native tests cover16contact queries/contracts plus12existing kernel tests. This is not a complete coupled solver, application performance or clinical qualification.
