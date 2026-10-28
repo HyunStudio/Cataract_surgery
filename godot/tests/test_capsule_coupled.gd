@@ -30,14 +30,19 @@ class UnsettledBoundary extends RefCounted:
 	func resolve(_before:Vector3,after:Vector3,outside:bool)->Dictionary:
 		return {"valid":true,"position":after+Vector3(.001,0,0),"outside":outside,"contact":true}
 func _initialize()->void:
-	var physical_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://joint_physical264_second.json"))
-	for key in ["initial","predicted","inverse","rest","capsules"]: physical_request[key]=PackedFloat64Array(physical_request[key])
-	for key in ["a","b","triangles"]: physical_request[key]=PackedInt32Array(physical_request[key])
-	physical_request.budget=int(physical_request.budget)
 	var static_kernel=ClassDB.instantiate("MembraneContactKernel")
-	var static_result:Dictionary=static_kernel.solve_contact(physical_request)
-	check(static_result.status==0,"physical second-substep reaches requested KKT gates before unnecessary inner oversolving: "+str(static_result.stats))
-	print("Physical second-substep static stats: ",static_result.status," ",static_result.stats)
+	for fixture in ["joint_physical264_second.json","joint_physical265.json"]:
+		var physical_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://"+fixture))
+		for key in ["initial","predicted","inverse","rest","capsules"]: physical_request[key]=PackedFloat64Array(physical_request[key])
+		for key in ["a","b","triangles"]: physical_request[key]=PackedInt32Array(physical_request[key])
+		physical_request.budget=int(physical_request.budget)
+		var original_request:Dictionary=physical_request.duplicate(true)
+		var static_result:Dictionary=static_kernel.solve_contact(physical_request)
+		check(static_result.status==0,fixture+" reaches original physical KKT gates: "+str(static_result.stats))
+		check(physical_request==original_request,fixture+" preserves predictor, material and physical dimensions")
+		if static_result.status==0:
+			check(static_result.stats[1]<=1e-8 and static_result.stats[2]<=1e-9 and static_result.stats[3]<=1e-11,fixture+" retains physical residual gates")
+		print(fixture," static stats: ",static_result.status," ",static_result.stats)
 	var stalled_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://joint_trajectory264_second.json"))
 	for key in ["initial","predicted","inverse","rest","previous","packets","times"]: stalled_request[key]=PackedFloat64Array(stalled_request[key])
 	for key in ["a","b","triangles","kinds"]: stalled_request[key]=PackedInt32Array(stalled_request[key])

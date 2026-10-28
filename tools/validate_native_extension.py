@@ -1,6 +1,7 @@
 """Fresh-import gate for the isolated experimental extension; preserves failed probes."""
 import argparse
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -41,7 +42,7 @@ if options.capsule:
     adapter = ROOT/"godot/scripts/native_membrane_backend.gd"
     if adapter.exists(): intended["scripts/native_membrane_backend.gd"] = adapter
 if options.coupled_capsule:
-    intended["joint_physical264_second.json"] = ROOT/"native/tests/fixtures/joint_physical264_second.json"
+    for fixture in ["joint_physical264_second.json","joint_physical265.json"]: intended[fixture]=ROOT/"native/tests/fixtures"/fixture
     for fixture in ["joint_static262.json","joint_motion262.json","joint_trajectory264_second.json"]: intended[fixture]=ROOT/"native/tests/fixtures"/fixture
 test_sources = source_hashes([*intended.values(),Path(__file__).resolve()])
 for name,path in intended.items():
@@ -61,10 +62,12 @@ scope = ("optional packed64 joint canonical extraction with actual bodies and an
 proof = {"scope":scope,
          "qualified":False,"probe":str(probe),"inputs":expected,"test_sources":test_sources,"build":manifest,
          "launcher_sha256":sha256(editor),"engine_sha256":sha256(engine),
-         "import_frame_delay_ms":0 if options.raw_import else 1000,"stages":[]}
+         "import_frame_delay_ms":0 if options.raw_import else 25,
+         "import_quit_after_frames":None if options.raw_import else 35,"stages":[]}
 # Godot upstream#111048/#123658: deferred editor documentation can outlive
-# fast headless import shutdown. Delay editor frames only; never change physics.
-import_args = ["--editor","--import"]+([] if options.raw_import else ["--frame-delay","1000"])
+# fast headless import shutdown. Explicit editor frames address the documented
+# lifecycle race; completed import stages are required too. Runtime is undelayed.
+import_args = ["--editor","--import"]+([] if options.raw_import else ["--quit-after","35","--frame-delay","25"])
 runtime_script = "res://test_capsule.gd" if options.capsule else "res://test_bridge.gd"
 runtime_marker = "Native coupled capsule: 0 failures" if options.coupled_capsule else "Native capsule extraction: 0 failures" if options.capsule_extraction else "Native capsule: 0 failures" if options.capsule else "Native Godot bridge: 0 failures"
 runtime_args = ["--script",runtime_script]+(["--","--joint-contact"] if options.coupled_extraction else [])
@@ -75,8 +78,12 @@ for name, args, marker in [("fresh_import",import_args,None),
     with log.open("wb") as output:
         process = subprocess.run([str(editor),"--headless","--path",str(probe),*args],stdout=output,stderr=subprocess.STDOUT)
     text = log.read_text(encoding="utf-8",errors="replace")
-    passed = process.returncode == 0 and "ERROR:" not in text and "SCRIPT ERROR" not in text and (marker is None or marker in text)
-    proof["stages"].append({"name":name,"arguments":args,"returncode":process.returncode,"passed":passed,"log":str(log),"log_sha256":sha256(log)})
+    plain_text = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]","",text)
+    passed = process.returncode == 0 and "ERROR:" not in plain_text and "SCRIPT ERROR" not in plain_text and (marker is None or marker in plain_text)
+    stages = set(re.findall(r"^\[[^\]]+\]\s+(\w+)\s+\|",plain_text,re.MULTILINE)) if name=="fresh_import" else set()
+    completed = set(re.findall(r"^\[ DONE \]\s+(\w+)",plain_text,re.MULTILINE)) if name=="fresh_import" else set()
+    if name=="fresh_import": passed = passed and {"first_scan_filesystem","loading_editor_layout"}<=completed and stages<=completed
+    proof["stages"].append({"name":name,"arguments":args,"returncode":process.returncode,"passed":passed,"log":str(log),"log_sha256":sha256(log),"completed_import_stages":sorted(completed)})
     if not passed: break
 verify_sources(manifest["sources"])
 verify_sources(test_sources)

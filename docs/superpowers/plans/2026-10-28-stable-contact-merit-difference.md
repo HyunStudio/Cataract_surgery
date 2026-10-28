@@ -1,0 +1,38 @@
+# Stable contact merit difference
+
+Execute inline. The full professional surgical simulator goal remains active; this task addresses its next blocked numerical step, not the whole completion definition.
+
+Previous continuation is progress:7a3f97b fixes active contact curvature and80c7b15 preserves exact265 failure. Current worktree starts clean.79 native tests pass, including an honest unresolved265 rejection; full replay t4us842l remains unqualified after264accepted outer ticks. No live prior job is required.
+
+## Evidence and hypothesis
+
+Frozen original trace curvature265-lines-trace records valid geometry for all late line trials: current inner force2.745573e-9, gap1.519083e-9, predicted full directional change-4.138085e-21, but measured late absolute merit differences~+3.23e-20 even for tiny represented steps. Previous auxiliary-stop, dual-retry and precision/recentering experiments did not fix both saved264/265 problems and are not adopted.
+
+Test a cancellation-resistant *change* in the unchanged objective. Inertia and spring changes have exact factorizations in the actual represented coordinate change. Contact distance is minimized over finite segment/barycentric parameters. Fixing the new closest witness yields a lower estimate of the squared-distance change; the unilateral AL term is nonincreasing in that distance, so it yields an upper estimate of contact merit change. Review numerical witness errors before calling this conservative. No tolerance allowance or failed-trial publication. If this estimate cannot support descent, retain the original rejection.
+
+## Files and sequence
+
+1. Preserve/freeze the exact failed iterate and search direction. Add independent diagnostic comparisons of direct merit subtraction and stable energy-change identities, including tiny steps, no-op steps, inactive/active transitions, finite edge/vertex/interior witnesses and selected-time geometry. Use high precision reference calculations where applicable. Do not implement production changes until a failing regression is observed and the hypothesis is supported.
+2. If supported, expose original high precision closest parameters inside the internal contact Result (C ABI unchanged), add a narrowly scoped stable difference helper in membrane_contact_solver.h, and use it only when direct Armijo subtraction fails on a valid trial. Keep original predictor, material, physical force/gap/complementarity gates, curvature screen, budgets and atomicity. Do not add an acceptance epsilon.
+3. Independently reassemble KKT and exact pins for accepted265 and264. Preserve all-invalid/no-outer-progress fail-fast regression. Run the complete native suite; request read-only numerical review. Reject the approach if witness bounds or regressions do not support it.
+4. Rebuild extension, freeze fresh bridge/actual capsule and exact265 engine regression. Only after those qualify replay full canonical extraction without restarting a live run on observation timeout. Record terminal results/hashes honestly. Default app promotion, input incision, whole operation, realtime performance, GPU and Windows remain separate unfinished gates.
+
+Future performance work: frozen local-row prototype preserves bit-identical outputs on three captures, but is not adopted; do not mix that optimization with the merit diagnosis.
+
+## New evidence: physical tool coordinates
+
+Independent Decimal80 on captured represented trials proves rejected fullstep descent-2.07209772e-21, with cancelling material/contact changes about±1.22677e-16. A binary128 outward interval helper now certifies it and passes independent active-set QP tests. The bounded solver proceeds through this false Armijo rejection but eventually exhausts100outer iterations on original265. Final gap stalls near2.23837e-10 while complementarity increases. Original capsules have jaw tips z=±.009999999776482582 but physical radii.01: the solid tips overlap by4.47034836e-10. This is float32 tool-profile/pose publication in the physical path, not a reason to change physical gates. The original fixture remains unchanged and its bounded atomic rejection stays covered.
+
+Continue with exact scalar tool-profile dimensions and packed64 physical endpoints while preserving Vector3 rendering proxies. Add Profile physical local endpoints, Path scalar-double quaternion/pose sampling and physical metadata for intervals. Joint static packing and native motion packets must consume the same physical endpoints/local dimensions. Anonymous legacy paths retain their represented geometry. Validate malformed metadata, nonoverlapping nominal closed jaws, transformed poses, interval continuity and actual joint request capture. Run legacy path/profile/body tests and frozen native integration. Capture the corrected actual265 request from the saved outer checkpoint and independently verify its physical gates; do not edit the old fixture in place. This corrects intended geometry, not radii, motion route or tolerances.
+
+## Verified implementation checkpoint
+
+Tasks1–3 implemented and reviewed. Binary128 outward intervals bound the complete represented objective change, including feasible closest witnesses with convex support-gap error bounds and sign-dependent old-gap endpoint selection. No tolerance allowance, predictor/material change, budget increase or unconverged publication. Original265 still rejects atomically at its100-outer bound; corrected physical265 passes original independent KKT/pin gates. Legacy unannotated paths preserve exactly their represented Vector3 sampling and do not gain incomplete physical metadata when sliced. Regression observed failing before this compatibility fix, then passing.
+
+Native90 tests passed in72.662s; the strengthened10-test independent Decimal reference suite passed again in.958s. Focused engine physical/path/profile, joint guards/grasp, membrane/body/pivot contact tests passed. Latest frozen bridge `ui3b183w` and actual capsule `ze5ru2ls` both completed import and runtime with exit0, completed import stages and unchanged input hashes. Actual265 engine force4.94419e-9, gap1.9915e-10, complementarity9.5327e-12. Read-only numerical and physical-path reviews clear after fixes.
+
+Coupled DLL SHAab78ae8dacdbdedf07205caffb0606430e162a360f8e40520496afddec36219d; extension SHA92cdae8755e3877a4f18d9129fa0f29c96858937ccb44b759b776715ef652fba; interval header SHAceb974107541547393c470d3cb0927288de0c4a52e2db7f2ab6af192b5a45b18. Corrected fixture SHA0d7a1a09257647e7155cc9e076b80d3741a60eaf48157a88e5e9c79026c91b62.
+
+Ruling: replace ineffective editor1000ms frame delay with explicit35 editor frames at25ms and require all observed import stages to complete. Two old workaround imports terminated with AV; independently frozen identical inputs with the explicit-frame workaround exit0, and latest bridge/capsule validators qualify. Runtime remains undelayed. This addresses upstream editor shutdown lifecycle only, not physics or runtime performance.
+
+Task4 remains: fresh canonical continuous extraction; preserve its live handle until terminal, then capture any next failed input. Whole app, default incision, old refined-traction regression, rendering, actual input, realtime, GPU and release remain unfinished. No complete-goal claim.

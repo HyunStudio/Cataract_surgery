@@ -1,6 +1,7 @@
 // Experimental bounded augmented-Lagrangian coupled substep. No engine dependency.
 #pragma once
 #include "contact_distance.h"
+#include "contact_merit_difference.h"
 #include <Eigen/SparseCholesky>
 #include <vector>
 
@@ -41,14 +42,18 @@ struct Problem {
     int capsule_of(int pair) const { return (pair/(faces*bodies))*bodies+pair%bodies; }
     double time_of(int pair) const { return times?times[pair/(faces*bodies)]:1.; }
 
-    int geometry(const Vector& x,int pair,double& g,Vector& row) const {
-        int face=face_of(pair),body=capsule_of(pair);
+    void triangle_coordinates(const Vector& x,int pair,double* xyz) const {
+        int face=face_of(pair);
         double t=time_of(pair);
-        double xyz[9];
         for (int j=0;j<3;++j) for (int k=0;k<3;++k) {
             int id=3*triangles[3*face+j]+k;
-            xyz[3*j+k]=t==1?x[id]:static_cast<double>((1-contact::Real(t))*previous[id]+contact::Real(t)*x[id]);
+            xyz[3*j+k]=t==1?x[id]:merit::represented_coordinate(previous[id],x[id],t);
         }
+    }
+
+    int geometry(const Vector& x,int pair,double& g,Vector& row) const {
+        int face=face_of(pair),body=capsule_of(pair);
+        double t=time_of(pair),xyz[9]; triangle_coordinates(x,pair,xyz);
         auto result=contact::distance(capsules+7*body,xyz,capsules[7*body+6]);
         if (result.status<0 || result.status==1 || result.status==2) return 4;
         double r=capsules[7*body+6]; g=result.values[0]/(r*r)-1;
@@ -58,6 +63,40 @@ struct Problem {
             if (id>=0) row[id]+=t*result.values[11+3*j+k]/(r*r);
         }
         return result.status==3?6:0; // caller may ignore an inactive ambiguous gradient
+    }
+
+    // Bound the change directly rather than subtracting two nearly equal
+    // absolute merits. Only a certified upper change below Armijo is usable.
+    bool stable_descent(const Vector& before,const Vector& after,const Vector& dual,double rho,double step,double slope) const {
+        using merit::Interval;
+        Interval change(0);
+        for (int i=0;i<n;++i) if (mass[i]>0) for (int k=0;k<3;++k) {
+            int id=3*i+k;
+            if (before[id]==after[id]) continue;
+            Interval moved=Interval(after[id])-Interval(before[id]);
+            Interval centered=(Interval(after[id])-Interval(predicted[id]))+(Interval(before[id])-Interval(predicted[id]));
+            change=change+Interval(mass[i])*moved*centered*Interval(merit::Quad(.5));
+        }
+        for (int e=0;e<edges;++e) {
+            double old[6],current[6];
+            for (int k=0;k<3;++k) {
+                old[k]=before[3*a[e]+k]; old[3+k]=before[3*b[e]+k];
+                current[k]=after[3*a[e]+k]; current[3+k]=after[3*b[e]+k];
+            }
+            Interval term;
+            if (!merit::edge_change(old,current,rest[e],stiffness,term)) return false;
+            change=change+term;
+        }
+        for (int pair=0;pair<faces*bodies*layers;++pair) {
+            double old[9],current[9]; triangle_coordinates(before,pair,old); triangle_coordinates(after,pair,current);
+            const double* body=capsules+7*capsule_of(pair);
+            if (merit::inactive_box(old,current,body,body[6],dual[pair],rho)) continue;
+            Interval term;
+            if (!merit::contact_change(old,current,body,body[6],dual[pair],rho,term)) return false;
+            change=change+term;
+        }
+        Interval target=Interval(1e-4)*Interval(step)*Interval(slope);
+        return merit::finite(change) && merit::finite(target) && change.hi<=target.lo;
     }
 
     int evaluate(const Vector& x,const Vector& dual,double rho,State& out) {
@@ -268,7 +307,7 @@ inline int solve(int n,const double* predicted,double* output,const double* inve
                 candidate=x;
                 for (int i=0;i<problem.size;++i) candidate[problem.coordinates[i]]+=step*direction[i];
                 int code=problem.evaluate(candidate,dual,rho,trial);
-                if (!code && trial.merit<=state.merit+1e-4*step*slope) { accepted=true; break; }
+                if (!code && (trial.merit<=state.merit+1e-4*step*slope || problem.stable_descent(x,candidate,dual,rho,step,slope))) { accepted=true; break; }
             }
             if (!accepted) { status=2; break; }
             x.swap(candidate); state=std::move(trial);

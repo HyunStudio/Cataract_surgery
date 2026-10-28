@@ -1,0 +1,7 @@
+# Captured false Armijo rejection
+
+`merit_stagnation265.json` SHA256 `4f4c6b31c77fd8e84f22585edfefe772ee98b5d6489b0c791dd7f3f466233323` contains the original failed inner iterate, its actual represented full trial, sparse outer reactions, penalty and directional slope. It binds `joint_static265.json` SHA8d41514eb46c52a464cb080700b799e1084f3dfe45bba6595c5f637f13ab3905. Data were captured in frozen `.tools/merit265-capture`, based on the original curvature-aware header SHA7a84f2e8d7459eaa9737ac6b0757d71c7c67d07537947719e80130232568389b. Full binary snapshot SHA256 is `c0b9282c4ee0306577d1f8bf4de8724a060d8b508ff7066debbc1fd60ea18879`.
+
+At outer8/inner27, the search slope is-4.1380853683061386e-21. All32 geometry evaluations were valid, yet ordinary merit subtraction rejected every trial. Independent Decimal80 geometry/material evaluation gives full-trial change-2.07209772162238202634e-21, below Armijo's-4.138085e-25 target. The final tiny represented trials can actually increase merit, so neither blindly accepting tiny steps nor allowing a merit epsilon is appropriate.
+
+The tracked test independently recomputes the complete high-precision objective using active-set quadratic geometry; it also sums the native change intervals and requires the upper bound to prove descent. No reference candidate is substituted for the physical state and no acceptance tolerances are changed. Fixing this comparison reveals a separate proxy-jaw overlap; it is not complete extraction qualification.

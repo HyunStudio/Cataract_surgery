@@ -1,6 +1,6 @@
 # Experimental membrane numerical kernel
 
-Optional actual-capsule integration exists, but is not the default backend. Full refined extraction still rejects the263rd requested tick for unresolved elastic/contact coupling. The new standalone contact geometry component below is not yet connected to Godot or the joint solver.
+Optional actual-capsule integration exists, but is not the default backend. The latest completed full refined extraction accepted264 ticks and rejected265 atomically. Subsequent stable merit comparison and scalar-double physical tool geometry pass the corrected saved265 request in standalone and Godot tests; a new full continuous extraction remains required. Contact geometry is connected to the optional joint solver and trajectory guard. See MERIT_DIFFERENCE.md and TRAJECTORY_CONTACT.md.
 
 The standalone kernel minimizes
 
@@ -28,6 +28,8 @@ Install/extract the official Zig0.17.0 Windows compiler into `.tools/zig-x86_64-
 python tools/setup_native_dependencies.py
 python tools/build_membrane_kernel.py
 python tools/build_contact_distance.py
+python tools/build_contact_guard.py
+python tools/build_contact_merit_probe.py
 python tools/build_coupled_contact.py
 python -m unittest discover -s native/tests -v
 ```
@@ -38,7 +40,7 @@ Eigen5.0.1 is pinned at `bc3b39870ecb690a623a3f49149a358b95c5781d`; see THIRD_PA
 
 `python tools/build_membrane_extension.py` builds `.tools/native-godot` with the pinned godot-cpp4.5bindings. It does not modify the product project's resources or install a native dependency into the released app. Its packed XYZ and inverse/rest arrays retain float64precision across the engine boundary; input arrays are not mutated, and mismatched dimensions reject before pointer access. Godot-facing tests are in `native/tests/test_godot_bridge.gd`. Dynamic tissue/contact/fracture integration remains separate.
 
-`python tools/validate_native_extension.py` freezes the built DLL and canonical tracked test/config/fixture inputs, verifies their identities, then checks first import and the headless contract. It applies an editor-only1000msframe delay to mitigate the upstream deferred documentation shutdown race ([Godot#111048](https://github.com/godotengine/godot/issues/111048), [#123658](https://github.com/godotengine/godot/pull/123658)). This qualifies only the recorded workaround path; it is not an engine fix. `--raw-import` reproduces the original failing path. No simulation step or product frame rate is changed.
+`python tools/validate_native_extension.py` freezes the built DLL and canonical tracked test/config/fixture inputs, verifies their identities, then checks first import and the headless contract. Editor import uses `--quit-after 35 --frame-delay 25` to mitigate the upstream deferred documentation shutdown race ([Godot#111048](https://github.com/godotengine/godot/issues/111048), [#123658](https://github.com/godotengine/godot/pull/123658)). Every observed import progress stage must complete. This qualifies only the recorded workaround path; it is not an engine fix. `--raw-import` reproduces the original failing path. Runtime tests are undelayed; no simulation step or product frame rate is changed.
 
 Build manifests bind each DLL to source hashes, clean pinned dependency revisions, compiler identity and flags. Cached extension objects include compiler identity. `python tools/benchmark_membrane_kernel.py` verifies its exact DLL/build manifest and parsed fixture identities before and after measurements. Reports are written under ignored `godot/reports/`.
 

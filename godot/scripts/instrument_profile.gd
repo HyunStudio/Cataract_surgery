@@ -15,23 +15,24 @@ static func segments(id:String,tip_radius:float,grip:bool=false)->Array[Dictiona
 		"knife":
 			# Prism size (.18,.015,.12), centered at (.09,0,0):
 			# radius includes its entire YZ cross section.
-			result.append(_segment(Vector3.ZERO,Vector3(.18,0,0),sqrt(.06*.06+.0075*.0075),"blade",true))
+			result.append(_segment([0.,0.,0.],[.18,0.,0.],sqrt(.06*.06+.0075*.0075),"blade",true))
 		"forceps":
 			# Opposing round jaw envelopes meet at their tips when closed.
 			# A smaller offset overlaps solid jaws and makes nearby tissue contact infeasible.
-			var closure:=.4 if grip else 1.
+			var tip_offset:=.010 if grip else .025
+			var base_offset:=.018 if grip else .045
 			for side in [-1.,1.]:
-				result.append(_segment(Vector3(0,0,side*.025*closure),Vector3(.22,0,side*.045*closure),.010,"jaw"))
+				result.append(_segment([0.,0.,side*tip_offset],[.22,0.,side*base_offset],.010,"jaw"))
 		"cannula":
-			result.append(_segment(Vector3.ZERO,Vector3(.18,.025,0),tip_radius,"bent_tip"))
+			result.append(_segment([0.,0.,0.],[.18,.025,0.],tip_radius,"bent_tip"))
 		"manipulator":
-			result.append(_segment(Vector3.ZERO,Vector3(.025,0,.06),.012,"hook"))
+			result.append(_segment([0.,0.,0.],[.025,0.,.06],.012,"hook"))
 		_:
-			result.append(_segment(Vector3.ZERO,Vector3(.22,0,0),tip_radius,"working_tip",false,id=="phaco"))
+			result.append(_segment([0.,0.,0.],[.22,0.,0.],tip_radius,"working_tip",false,id=="phaco"))
 	var shaft_radius:=tip_radius if id in ["phaco","ia","injector"] else .020
-	result.append(_segment(Vector3(.20,0,0),Vector3(3.05,0,0),shaft_radius,"shaft"))
+	result.append(_segment([.20,0.,0.],[3.05,0.,0.],shaft_radius,"shaft"))
 	if id in ["phaco","ia"]:
-		result.append(_segment(Vector3(.22,0,0),Vector3(.75,0,0),tip_radius*1.35,"sleeve"))
+		result.append(_segment([.22,0.,0.],[.75,0.,0.],tip_radius*1.35,"sleeve"))
 	return result
 
 ## Shared render/contact orientation: local +X is opposite the insertion axis.
@@ -51,5 +52,7 @@ static func rod_transform(a:Vector3,b:Vector3)->Transform3D:
 	if side.length_squared()<.01: side=Vector3.RIGHT
 	return Transform3D(Basis(side,axis,side.cross(axis).normalized()),(a+b)*.5)
 
-static func _segment(a:Vector3,b:Vector3,radius:float,part:String,cutting:bool=false,energy:bool=false)->Dictionary:
-	return {"a":a,"b":b,"radius":radius,"part":part,"cutting":cutting,"energy":energy}
+static func _segment(a:Array,b:Array,radius:float,part:String,cutting:bool=false,energy:bool=false)->Dictionary:
+	# Float32 vectors serve rendering/legacy contact; never recover precision
+	# from them for the packed64 physical path.
+	return {"a":Vector3(a[0],a[1],a[2]),"b":Vector3(b[0],b[1],b[2]),"physical_a":PackedFloat64Array(a),"physical_b":PackedFloat64Array(b),"radius":radius,"part":part,"cutting":cutting,"energy":energy}

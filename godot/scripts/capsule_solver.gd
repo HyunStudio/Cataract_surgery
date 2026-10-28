@@ -490,7 +490,7 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 		a.append(_edge_a[e]); b.append(_edge_b[e]); rest.append(_edge_rest[e])
 	var capsules:=PackedFloat64Array()
 	for part in body:
-		for point in [part.a,part.b]:
+		for point in [part.get("physical_a",part.a),part.get("physical_b",part.b)]:
 			for axis in range(3): capsules.append(point[axis])
 		capsules.append(part.get("physical_radius",part.radius))
 	var solved:=_joint_contact_candidate({"predicted":predicted,"initial":initial,"inverse":_inverse_mass,"a":a,"b":b,"rest":rest,"alpha":alpha,"triangles":triangles,"capsules":capsules,"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11},body,old)

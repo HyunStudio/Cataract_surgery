@@ -12,6 +12,8 @@ if (-not (Test-Path -LiteralPath $engineExe)) {
 }
 $projectDir = Join-Path $repoRoot 'godot'
 if ($Test) {
+	& $engineExe --headless --path $projectDir --script "res://tests/test_physical_instrument_path.gd"
+	if ($LASTEXITCODE -ne 0) { throw "Godot test failed: test_physical_instrument_path" }
 	& $engineExe --headless --path $projectDir --script "res://tests/test_joint_contact_guards.gd"
 	if ($LASTEXITCODE -ne 0) { throw "Godot test failed: test_joint_contact_guards" }
 	& $engineExe --headless --path $projectDir --script "res://tests/test_joint_grasp_precision.gd"
