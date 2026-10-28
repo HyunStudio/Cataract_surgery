@@ -150,6 +150,24 @@ class ContactGuardTests(unittest.TestCase):
         self.assertLess(stats[4],-8e-8)
         self.assertEqual(list(old),data['previous']); self.assertEqual(list(current),data['current'])
 
+    def test_actual263_search_reaches_late_penetration_without_left_branch_starvation(self):
+        data=json.loads((ROOT/'native/tests/fixtures/joint_motion263.json').read_text())
+        d=lambda values:(ct.c_double*len(values))(*values)
+        ints=lambda values:(ct.c_int*len(values))(*values)
+        stats=d([99.]*8)
+        code=self.guard(len(data['previous'])//3,d(data['previous']),d(data['current']),len(data['triangles'])//3,
+                        ints(data['triangles']),len(data['kinds']),ints(data['kinds']),d(data['packets']),128,1e-9,stats)
+        self.assertEqual(code,1,list(stats)); self.assertLess(stats[4],-1e-9)
+
+    def test_refined263_finite_edge_uncertainty_cannot_accept(self):
+        data=json.loads((ROOT/'native/tests/fixtures/joint_motion263_refined.json').read_text())
+        d=lambda values:(ct.c_double*len(values))(*values)
+        ints=lambda values:(ct.c_int*len(values))(*values)
+        stats=d([99.]*8)
+        code=self.guard(len(data['previous'])//3,d(data['previous']),d(data['current']),len(data['triangles'])//3,
+                        ints(data['triangles']),len(data['kinds']),ints(data['kinds']),d(data['packets']),128,1e-9,stats)
+        self.assertEqual(code,2,list(stats)); self.assertEqual(list(stats)[2:4],[40.,1.]); self.assertEqual(stats[7],1)
+
     def test_moving_plane_retains_time_correlation_at_contact(self):
         old=self.face(); current=self.face()
         slope=.01
@@ -159,9 +177,9 @@ class ContactGuardTests(unittest.TestCase):
         height=.1*math.sqrt(1+slope*slope)
         packet=linear([0.,height,0.],[0.,height,0.],.1)
         for order in itertools.permutations(range(3)):
-            code,stats=self.query(old,current,packet,indices=order,budget=3)
+            code,stats=self.query(old,current,packet,indices=order,budget=2)
             self.assertEqual(code,0,stats)
-            self.assertEqual(stats[0],3)
+            self.assertEqual(stats[0],2)
 
     def test_independent_interior_plane_witnesses_cannot_be_certified_clear(self):
         cases=json.loads((ROOT/'native/tests/fixtures/moving_plane_crossings.json').read_text())['cases']
@@ -215,5 +233,21 @@ class ContactGuardTests(unittest.TestCase):
         for off in [0,3]: packet[off:off+3]=[math.sqrt(.5),math.sqrt(.5),0.]
         face=[1.,-.01,-.01,1.,.01,-.01,1.,0.,.01]
         self.assertEqual(self.query(face,face,packet,kind=1)[0],0)
+
+    def test_witness_abi_reports_sample_time_without_changing_legacy_stats(self):
+        witness_guard=self.lib.membrane_guard_motion_witness
+        witness_guard.argtypes=self.guard.argtypes+[ct.POINTER(ct.c_double)]
+        witness_guard.restype=ct.c_int
+        face=(ct.c_double*9)(*self.face())
+        packet=(ct.c_double*41)(*linear([0.,1.,0.],[0.,-1.,0.],.1))
+        ids=(ct.c_int*3)(0,1,2); kinds=(ct.c_int*1)(0)
+        stats=(ct.c_double*8)(*([99.]*8)); time=ct.c_double(99.)
+        code=witness_guard(3,face,face,1,ids,1,kinds,packet,128,1e-9,stats,ct.byref(time))
+        self.assertEqual(code,1); self.assertEqual(time.value,.5)
+        code=witness_guard(3,face,face,1,ids,1,kinds,packet,0,1e-9,stats,ct.byref(time))
+        self.assertEqual(code,2); self.assertEqual(time.value,-1.)
+        time.value=99.; packet[12]=-1.
+        code=witness_guard(3,face,face,1,ids,1,kinds,packet,128,1e-9,stats,ct.byref(time))
+        self.assertEqual(code,-1); self.assertEqual(time.value,99.)
 
 if __name__=="__main__": unittest.main()

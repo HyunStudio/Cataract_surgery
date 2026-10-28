@@ -158,7 +158,7 @@ inline bool moving_plane_separates(const Motion& motion,const std::array<V,3>& o
 }
 
 inline bool separated(const Motion& motion,const std::array<V,3>& old,const std::array<V,3>& current,
-                      Real lo,Real hi,Real gap,V nearest) {
+                      Real lo,Real hi,Real gap,V nearest,bool try_plane=true) {
     V a0=motion.sample(0,lo),a1=motion.sample(0,hi);
     std::array<V,3> body{V{},contact::sub(motion.sample(1,lo),a0),contact::sub(motion.sample(1,hi),a1)};
     std::array<V,6> face{};
@@ -173,7 +173,7 @@ inline bool separated(const Motion& motion,const std::array<V,3>& old,const std:
     Real error=motion.numeric+512*std::numeric_limits<Real>::epsilon()*scale;
     auto test=[&](V n) { return axis_separates(body,face,n,radius,error); };
     if (test({1,0,0}) || test({0,1,0}) || test({0,0,1}) || test(nearest)) return true;
-    if (moving_plane_separates(motion,old,current,lo,hi,gap)) return true;
+    if (try_plane && moving_plane_separates(motion,old,current,lo,hi,gap)) return true;
     for (int i=0;i<4;++i) for (int j=i+1;j<5;++j) for (int k=j+1;k<6;++k)
         if (test(contact::cross(contact::sub(face[j],face[i]),contact::sub(face[k],face[i])))) return true;
     if (test(contact::cross(contact::sub(body[1],body[0]),contact::sub(body[2],body[0])))) return true;
@@ -184,7 +184,7 @@ inline bool separated(const Motion& motion,const std::array<V,3>& old,const std:
 }
 
 inline int check(int n,const double* previous,const double* current,int faces,const int* triangles,
-                 int bodies,const int* kinds,const double* packets,int budget,double gap,double* output) {
+                 int bodies,const int* kinds,const double* packets,int budget,double gap,double* output,double* witness=nullptr) {
     if (!previous || !current || !output || n<1 || n>4096 || faces<0 || faces>16384 ||
         bodies<0 || bodies>64 || faces*bodies>65536 || (faces && !triangles) ||
         (bodies && (!kinds || !packets)) || budget<0 || budget>128 || !(gap>0) || !std::isfinite(gap)) return -1;
@@ -212,8 +212,10 @@ inline int check(int n,const double* previous,const double* current,int faces,co
         motions[b].init(p,kinds[b]);
     }
     std::array<double,8> stats{0,0,-1,-1,std::numeric_limits<double>::infinity(),0,0,0};
+    Real sample_time=-1;
     auto finish=[&](int status,int f,int b,int reason) {
         if (status) { stats[2]=f; stats[3]=b; stats[7]=reason; }
+        if (witness) *witness=status==1?static_cast<double>(sample_time):-1.;
         std::copy(stats.begin(),stats.end(),output); return status;
     };
     struct Node { Real lo,hi; int depth; };
@@ -234,6 +236,7 @@ inline int check(int n,const double* previous,const double* current,int faces,co
             if (disjoint) continue;
             int queries=0;
             auto sample=[&](Real t,V& nearest) {
+                sample_time=t;
                 if (queries>=budget) return 2;
                 ++queries; ++stats[0];
                 V a=motion.sample(0,t),end=motion.sample(1,t);
@@ -256,15 +259,26 @@ inline int check(int n,const double* previous,const double* current,int faces,co
                 int status=sample(t,nearest);
                 if (status) return finish(status==1?1:2,f,b,status==1?4:(status==2?1:2));
             }
-            std::array<Node,65> pending{}; int count=1; pending[0]={0,1,0};
+            // Breadth-first subdivision prevents an almost touching early
+            // interval from consuming all queries before later penetration.
+            // Each split consumes a query; with two endpoint queries, at
+            // most127 nodes can be pending under the128-query contract.
+            std::array<Node,129> pending{}; int count=1,head=0,tail=1; pending[0]={0,1,0};
             while (count) {
-                Node node=pending[--count]; Real t=(node.lo+node.hi)/2;
+                Node node=pending[head]; head=(head+1)%int(pending.size()); --count;
+                Real t=(node.lo+node.hi)/2;
+                // A complete separation certificate needs no point query.
+                // Any prior witness direction is safe after full hull tests;
+                // preserve bounded point queries for unresolved intervals.
+                if (separated(motion,old,next,node.lo,node.hi,gap,nearest)) continue;
                 int status=sample(t,nearest);
                 if (status) return finish(status==1?1:2,f,b,status==1?4:(status==2?1:2));
                 stats[6]=std::max(stats[6],double(node.depth));
-                if (separated(motion,old,next,node.lo,node.hi,gap,nearest)) continue;
+                if (separated(motion,old,next,node.lo,node.hi,gap,nearest,false)) continue;
                 if (node.depth>=32 || t<=node.lo || t>=node.hi || count+2>int(pending.size())) return finish(2,f,b,3);
-                ++stats[5]; pending[count++]={t,node.hi,node.depth+1}; pending[count++]={node.lo,t,node.depth+1};
+                ++stats[5];
+                pending[tail]={node.lo,t,node.depth+1}; tail=(tail+1)%int(pending.size());
+                pending[tail]={t,node.hi,node.depth+1}; tail=(tail+1)%int(pending.size()); count+=2;
             }
         }
     }

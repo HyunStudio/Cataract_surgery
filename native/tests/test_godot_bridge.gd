@@ -11,6 +11,7 @@ func _initialize()->void:
 	if failures: quit(1); return
 	var coupled=ClassDB.instantiate("MembraneContactKernel")
 	check(coupled.has_method("guard_motion"),"coupled bridge exposes nonmutating whole-interval guard")
+	check(coupled.has_method("solve_trajectory"),"coupled bridge exposes time-weighted trajectory constraints")
 	if failures: quit(1); return
 	var guard_face:=PackedFloat64Array([-1,0,-1,1,0,-1,0,0,1])
 	var packet:=PackedFloat64Array([0,1,0,0,1,0,0,-1,0,0,-1,0,.1])
@@ -19,11 +20,20 @@ func _initialize()->void:
 	var saved_guard:=guard_request.duplicate(true)
 	var crossing:Dictionary=coupled.guard_motion(guard_request)
 	check(crossing.status==1 and crossing.stats.size()==8,"clear endpoints cannot hide intermediate penetration through bridge")
+	check(crossing.get("witness_t",-1.)==.5,"bridge reports actual sampled collision time without extending legacy stats")
 	check(guard_request==saved_guard,"guard does not mutate packed caller state")
 	var uncertain:Dictionary=coupled.guard_motion(guard_request.merged({"budget":0},true))
 	check(uncertain.status==2,"guard exhaustion remains uncertain through bridge")
 	for malformed in [{},guard_request.merged({"previous":PackedVector3Array()},true),guard_request.merged({"packets":PackedFloat64Array([0])},true),guard_request.merged({"kinds":PackedInt32Array()},true),guard_request.merged({"budget":1.5},true)]:
 		check(coupled.guard_motion(malformed).status==-1,"guard malformed types and shapes reject before pointer access")
+	var far_packet:=PackedFloat64Array([0,2,0,0,2,0,0,2,0,0,2,0,.1]); far_packet.resize(41)
+	var trajectory_request:Dictionary={"predicted":guard_face,"initial":guard_face.duplicate(),"previous":guard_face.duplicate(),"inverse":PackedFloat64Array([1,1,1]),"a":PackedInt32Array(),"b":PackedInt32Array(),"rest":PackedFloat64Array(),"alpha":.1,"triangles":PackedInt32Array([0,1,2]),"kinds":PackedInt32Array([0]),"packets":far_packet,"times":PackedFloat64Array([.5,1.]),"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11}
+	var saved_trajectory:=trajectory_request.duplicate(true)
+	var trajectory:Dictionary=coupled.solve_trajectory(trajectory_request)
+	check(trajectory.status==0 and trajectory.xyz==guard_face and trajectory.dual==PackedFloat64Array([0,0]),"trajectory bridge retains packed64 points and separate reaction layers")
+	check(trajectory_request==saved_trajectory,"trajectory native outputs do not mutate caller input")
+	for malformed in [{},trajectory_request.merged({"previous":PackedVector3Array()},true),trajectory_request.merged({"times":PackedFloat64Array()},true),trajectory_request.merged({"times":PackedFloat64Array([1.,.5])},true),trajectory_request.merged({"packets":PackedFloat64Array([0])},true),trajectory_request.merged({"budget":1.5},true)]:
+		check(coupled.solve_trajectory(malformed).status==-1,"trajectory malformed types shapes and times reject")
 	var local:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://local_jaw_contact.json"))
 	var face_ids:=PackedInt32Array(); var body_data:=PackedFloat64Array()
 	for face in local.triangles:

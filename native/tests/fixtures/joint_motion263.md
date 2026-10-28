@@ -1,0 +1,17 @@
+# Late penetration after selected-time contact solving
+
+Frozen full replay `.tools/membrane-validation-d5wn9rre` accepted262 complete outer ticks and rejected263's second substep. Endpoint solving first detected intermediate contact; trajectory generation added times.5,.75,.625. The resulting selected-time candidate met force5.64312e-9, penetration3.95e-12 and complementarity gates, but the old depth-first motion checker exhausted128 per-pair point queries on face40/body1 before visiting a later collision.
+
+`joint_motion263.json` SHA256 `ec970383b614fa5720f3dad7726064564e367e6293e532c9ed78e97091d0eaa5` is that exact final guard request. `joint_trajectory263.json` contains its corresponding selected-time solve request, including original predictor/history/material and the prior-stage initial guess. The ignored rejected outer-state binary SHA256 is `40c7371db967dda22afd7cfa2b1e4f1ddb25a656d25d9379d614697eb82fea1d`. Diagnostic `replay_trajectory263.gd` exports every solve and guard request directly.
+
+A10001-time SciPy spherical-path diagnostic finds actual nearest gap-1.1002508e-8near local.6637. The triangle-plane extension's minimum gap is much more negative because the finite nearest feature changes; a plane-only optimization is insufficient. All nearest queries in the diagnostic are regular. Sampling diagnoses a concrete penetration; it is not a continuous clearance proof.
+
+The guard now checks complete separation certificates before spending point queries, then subdivides breadth-first rather than allowing early near-contact intervals to starve later times. Query128/depth32 limits and numerical tolerances remain unchanged. Each query-funded split increases pending work by one; after the two endpoint queries, at most127 nodes can be pending. A129-slot ring bounds storage. The regression observes the original uncertainty as RED and requires status1 on this captured colliding candidate; it must never become accepted clearance.
+
+## Refined finite-edge candidate
+
+Latest-source diagnostic replay in qualified frozen project `.tools/membrane-validation-bcleqcf3` restores the same outer263 checkpoint, preserving original tools/anatomy. Breadth-first checking finds local times.6875and.65625 after the earlier selected times. Both additional physical solves pass. The resulting six-layer candidate uses `[.5,.625,.65625,.6875,.75,1]`, force3.52123e-9, selected-time penetration3.7507e-10 and complementarity2.6e-13.
+
+`joint_motion263_refined.json` SHA256 `55e8034a73fc0d862b30dd25c42acbaeb29e21c500ed53ff6ecf924ea594bca6` is the final guard request. Corresponding `joint_trajectory263_refined.json` SHA256 is `11f1e92c712c1dd3407463a4f4251b0110fdb4facb0f12d1f925472d28bff576`. The guard still returns uncertainty on face40/body1 (134total queries,116splits,max queried depth8, per-pair budget reason1); it does not accept the candidate.
+
+A10001-time SciPy diagnostic finds minimum actual gap-6.4370903e-10near.6623, inside the original1e-9 tolerance, while the infinite face-plane extension reaches-4.95347e-6. Around.5through1 the closest witness has zero barycentric weight on source222 and lies on moving edge[742,1], at body-axis endpoint0. Thus a moving face-plane certificate cannot by itself certify this finite-edge region, and independent-time hulls remain too loose. Samples are not full-interval proof. Preserve explicit uncertainty until a conservative moving finite-feature separation certificate resolves this captured case.
