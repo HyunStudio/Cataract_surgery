@@ -15,6 +15,12 @@ inline V mul(V a,Real s) { return {a[0]*s,a[1]*s,a[2]*s}; }
 inline Real dot(V a,V b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
 inline V cross(V a,V b) { return {a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]}; }
 inline Real clamp(Real t) { return std::max(Real(0),std::min(Real(1),t)); }
+inline V interpolate(V a,V b,Real t) {
+    // A clamped endpoint has one canonical value across adjacent features.
+    if (t==0) return a;
+    if (t==1) return b;
+    return add(a,mul(sub(b,a),t));
+}
 
 struct Candidate {
     V axis{}, surface{}, weights{};
@@ -85,7 +91,7 @@ inline Result distance(const double* segment,const double* triangle,double radiu
             V direction=sub(face[next],face[edge]); Real length2=dot(direction,direction);
             Real t=length2>0?clamp(dot(sub(p,face[edge]),direction)/length2):0;
             weights={0,0,0}; weights[edge]=1-t; weights[next]=t;
-            append(p,add(face[edge],mul(direction,t)),weights,end,2+edge);
+            append(p,interpolate(face[edge],face[next],t),weights,end,2+edge);
         }
     }
     // Axis interior against finite triangle boundary edges (including parallel).
@@ -104,7 +110,7 @@ inline Result distance(const double* segment,const double* triangle,double radiu
             else if (t>1) { t=1; s=clamp((bb-cc)/aa); }
         }
         V weights{}; weights[edge]=1-t; weights[next]=t;
-        append(add(a,mul(u,s)),add(face[edge],mul(v,t)),weights,s,2+edge);
+        append(interpolate(a,b,s),interpolate(face[edge],face[next],t),weights,s,2+edge);
     }
     // Edge/endpoint distances alone miss an axis crossing the face interior.
     if (!degenerate) {
@@ -125,7 +131,7 @@ inline Result distance(const double* segment,const double* triangle,double radiu
             if (lo<=hi) t=(lo+hi)/2;
         }
         if (t>=0 && t<=1) {
-            V p=add(a,mul(u,t));
+            V p=interpolate(a,b,t);
             if (barycentric(p,face,normal,weights)) append(p,p,weights,t,5);
         }
     }

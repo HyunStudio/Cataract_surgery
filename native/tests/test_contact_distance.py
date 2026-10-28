@@ -49,6 +49,15 @@ class ContactDistanceTests(unittest.TestCase):
         self.assertAlmostEqual(out[0], .17, places=14)
         self.assertEqual(out[8:11], [0., 1., 0.])
 
+    def test_shared_finite_endpoint_is_one_witness(self):
+        corner = .1*(1.-.2/math.sqrt(.02))
+        for dz in (-1e-6, 1e-6):
+            face = [[corner, 0., corner+dz], [-1., 0., 0.], [0., 0., -1.]]
+            status, out = self.query([.1, 0., .1], [.1, 0., .1], face, .2)
+            self.assertEqual(status, 0)
+            self.assertEqual(out[5:8], face[0])
+            self.assertEqual(out[8:11], [1., 0., 0.])
+
     def test_skew_edge_interior_feature(self):
         face = [[-1., 0., 0.], [1., 0., 0.], [0., 0., -1.]]
         status, out = self.query([0., -.2, .6], [0., .8, -.4], face)

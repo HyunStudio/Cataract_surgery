@@ -62,10 +62,28 @@ Separate contact DLL SHA256dbdd0a03e7044b0e534e10fb05add430631ba0026e6e01a38ec54
 
 Files: create `native/membrane_contact_solver.h`, `native/tests/test_coupled_contact.py`; expose a separate C ABI from `native/membrane_kernel.cpp`, retaining the existing unconstrained ABI.
 
-- [ ] Write RED tests for analytic contact reaction, separating inactive contact, duplicate/opposing constraints, prescribed-point infeasibility, exhaustion/numerical failure and the local fixture.
-- [ ] Use the original fixed predictor/masses/rest/alpha; expose primal, stationarity, complementarity, geometry residuals and duals/status.
-- [ ] Implement bounded joint solving with consistent derivatives and safeguarded steps. Initial penetration requires an explicit feasibility strategy, never silently successful barrier evaluation.
-- [ ] Verify final geometry/force balance and constrained tangent curvature as appropriate. Legitimate contact reactions do not require unconstrained zero force. Review/provenance/commit.
+- [x] Write RED tests for analytic contact reaction, separating inactive contact, duplicate/opposing constraints, prescribed-point infeasibility, exhaustion/numerical failure and the local fixture.
+- [x] Use the original fixed predictor/masses/rest/alpha; expose primal, stationarity, complementarity, geometry residuals and duals/status.
+- [x] Implement bounded joint solving with consistent derivatives and safeguarded steps. Initial penetration requires an explicit feasibility strategy, never silently successful barrier evaluation.
+- [x] Verify final geometry/force balance and constrained tangent curvature as appropriate. Legitimate contact reactions do not require unconstrained zero force. Review/provenance/commit.
+
+### Task2 evidence and rulings
+
+Previous turn was progressb23677f; this continuation began clean. Ruling: expose the new C ABI from separate `native/membrane_contact_solver.cpp` and build a separate DLL, rather than modifying the already qualified unconstrained/Godot DLL before coupled verification. The header/API is documented in native/README.md. Cost: an extra experimental build target until bridge integration. This preserves the old product path, not the final simulator scope.
+
+Ruling: use a bounded augmented-Lagrangian solve of the actual normalized capsule-distance inequalities, fixed inertial predictor and original material energy. Sparse safeguarded directions use the material Hessian plus active Jacobian terms. Acceptance separately checks physical force, contact penetration, complementarity and a sufficient numerical tangent curvature screen. Initial positive-distance penetration can recover; axis intersections/active ambiguous geometry remain explicit failures. The screen includes finite-difference contact Lagrangian Hessians, not an exact second-order proof. No tear/strength/budget relaxation or canonical route change.
+
+The new component was initially RED because it did not exist. First implementation passed the real local fixture but the analytic vertex reaction failed during curvature evaluation: two incident features reconstructed the same clamped endpoint with slightly different arithmetic. Added a geometry regression RED, then canonicalized exact endpoint interpolation; actual nonunique minimizers remain status3. All41native tests pass (17geometry+12coupled+12original). Updated independent geometry comparison292cases passes238regular gradient checks,30intersections,22ambiguous and2explicitly inconclusive cases.
+
+Read-only coupled review found no confirmed KKT sign, acceptance, atomicity or work-bound defect. It identified an overflowing linear RHS norm hardening opportunity; a regression was observed RED for reporting a misleading zero residual, then fixed with finite norm/numerator/slope checks and explicit unavailable residual. No second review substitutes for the observed RED-to-GREEN tests.
+
+Frozen-input local diagnostic matches the independent constrained reference: E1.2512188804e-8, reassembled force2.5416764e-9, penetration4.2532e-12, complementarity1.1203e-14,3successful calls, median1.9219ms. The actual full static export (raw SHA5bb5ae7e043a960e42776a451132a23fb10e66648cf0f9842ef4f6c9c50fe5ab) now also solves745vertices/708free points: E3.2986636693e-9, reassembled force1.05695855e-9, no penetration, complementarity2.337e-15,3successful calls, median432.6646ms. This is no anatomical/CCD/full-operation/realtime qualification; all reports explicitly retain that scope and artifact/input bindings.
+
+Coupled DLL SHA77f75c1961c4519ba1d7792fbddebacb7f1d8172d0fbb32ccd625f04a1e6adb3; revised geometry DLL SHA80e47164e35b5a7cfd66c9c1fcb3d95e0e2ee9b478800873e9e3a6f2eb72fa13. Existing membrane and Godot extension bytes were not changed. Current build/test/review/benchmark/diagnostic handles are terminal.
+
+### Task3 precision gate discovered before integration
+
+The actual full candidate, published as Godot float32vectors, incurs maximum coordinate rounding5.54756e-8and force residual4.61851e-6despite penetration only2.3173e-10. A frozen Godot check of actual cornea/iris and existing swept body projection yields boundary/body correction0, contacts0, uncertainty0. Thus geometric proxy compatibility alone is insufficient for the native force claim. Ruling: retain authoritative float64positions and velocity history for the new complete-substep path; rendering float32is publication, not the physical state. Extend rollback to these arrays and transfer them on incision/topology updates. Do not quietly count quantized force error as the native1e-8gate or remove gates to pass.
 
 ### Task3: Actual complete-substep integration
 
@@ -73,6 +91,7 @@ Files: confirm and extend the existing native bridge, `godot/scripts/native_memb
 
 - [ ] Write RED transactional, pinned, shape and uncertainty tests for the complete-substep interface; retain failure injection coverage.
 - [ ] Freeze the actual predictor once and include every original free point/current topology. Jointly generate/update body and anatomical constraints; do not freeze free neighbors as in the diagnostic.
+- [ ] Preserve authoritative float64positions/history across substeps, cuts and failures. Test float32publication separately, without using it to overwrite the physical state each frame.
 - [ ] Preserve actual grasp coordinates, history, boundary side, incision/material/extraction accounting and rollback. Check CCD from the physical previous state to the accepted candidate.
 - [ ] Replay actual263, then canonical full refined extraction and acceptance guards. A later honest failure is another unfinished gate, not a reason to weaken criteria.
 - [ ] Qualify default regressions, sustained performance, actual GPU and packaging before backend promotion. Keep the complete goal unproven until every user requirement is verified.
