@@ -108,6 +108,15 @@ class TrajectoryContactTests(unittest.TestCase):
         self.assertEqual(code,0,stats)
         self.assert_kkt(p,p['previous'],p['packets'],p['kinds'],p['times'],x,dual)
 
+    def test_actual265_tool_contact_pass_is_not_anatomical_clearance(self):
+        # This accepted tool/tissue candidate is subsequently rejected by the
+        # anatomical boundary. Preserve both facts rather than calling it a
+        # successful outer timestep or weakening the physical solver gates.
+        p=json.loads((ROOT/'native/tests/fixtures/joint_trajectory265_boundary.json').read_text())
+        code,x,dual,stats=self.run_problem(p,p['previous'],p['packets'],p['kinds'],p['times'])
+        self.assertEqual(code,0,stats)
+        self.assert_kkt(p,p['previous'],p['packets'],p['kinds'],p['times'],x,dual)
+
     def test_exhaustion_preserves_positions_and_all_layer_reactions(self):
         p,old,packet=self.arc_problem()
         code,x,dual,_=self.run_problem(p,old,packet,[1],[.5,1.],budget=0)

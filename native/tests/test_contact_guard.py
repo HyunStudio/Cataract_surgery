@@ -43,6 +43,25 @@ class ContactGuardTests(unittest.TestCase):
         face=self.face(); code,s=self.query(face,face,linear([0.,2.,0.],[0.,2.,0.],.1))
         self.assertEqual(code,0); self.assertEqual(s[0],0)
 
+    def test_actual265_iris_contact_cannot_be_accepted_as_clear_tissue_motion(self):
+        from decimal_distance_reference import squared_distance
+        p=json.loads((ROOT/'native/tests/fixtures/iris_boundary265.json').read_text())
+        xyz=p['anatomy_xyz']; ids=p['anatomy_triangles']
+        self.assertEqual([body['vertex'] for body in p['bodies']],[663,670])
+        for body in p['bodies']:
+            code,stats=self.query(xyz,xyz,linear(body['previous'],body['current'],body['radius']),indices=ids)
+            self.assertEqual(code,1,stats)
+            self.assertEqual(stats[2],252.)
+            self.assertLessEqual(stats[0],128.)
+            face=[xyz[3*v+k] for v in ids[3*252:3*253] for k in range(3)]
+            # Independent Decimal active-set geometry proves even the prior
+            # accepted point intersects the .004 surface margin. The old
+            # height-field guard had treated that prior state as clear.
+            for key in ['previous','current']:
+                point=body[key]
+                gap=math.sqrt(float(squared_distance(point+point,face)))-body['radius']
+                self.assertLess(gap,-5e-4)
+
     def test_translation_crossing_with_clear_endpoints_is_rejected(self):
         face=self.face(); code,s=self.query(face,face,linear([0.,1.,0.],[0.,-1.,0.],.1))
         self.assertEqual(code,1); self.assertLess(s[4],-.09)

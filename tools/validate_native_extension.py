@@ -42,6 +42,7 @@ if options.capsule:
     adapter = ROOT/"godot/scripts/native_membrane_backend.gd"
     if adapter.exists(): intended["scripts/native_membrane_backend.gd"] = adapter
 if options.coupled_capsule:
+    intended["iris_boundary265.json"]=ROOT/"native/tests/fixtures/iris_boundary265.json"
     for fixture in ["joint_physical264_second.json","joint_physical265.json"]: intended[fixture]=ROOT/"native/tests/fixtures"/fixture
     for fixture in ["joint_static262.json","joint_motion262.json","joint_trajectory264_second.json"]: intended[fixture]=ROOT/"native/tests/fixtures"/fixture
 test_sources = source_hashes([*intended.values(),Path(__file__).resolve()])

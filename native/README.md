@@ -1,6 +1,8 @@
 # Experimental membrane numerical kernel
 
-Optional actual-capsule integration exists, but is not the default backend. The latest completed full refined extraction accepted264 ticks and rejected265 atomically. Subsequent stable merit comparison and scalar-double physical tool geometry pass the corrected saved265 request in standalone and Godot tests; a new full continuous extraction remains required. Contact geometry is connected to the optional joint solver and trajectory guard. See MERIT_DIFFERENCE.md and TRAJECTORY_CONTACT.md.
+Optional actual-capsule integration exists, but is not the default backend. Latest full extraction `faad2gqn` with stable merit changes and scalar-double tool geometry accepts264 ticks and rejects265 atomically at anatomical boundary correction. Tool-contact equilibrium and continuous tool clearance pass at the failed candidate; iris contact is not yet coupled into that equilibrium. See tests/fixtures/joint_trajectory265_boundary.md. Contact geometry is connected to the optional joint solver and trajectory guard. See MERIT_DIFFERENCE.md and TRAJECTORY_CONTACT.md.
+
+The optional Godot `anatomical_contact.gd` adapter freezes finite anatomical triangles and queries the existing native guard against double-precision moving tissue points. It chunks every selected point/face pair within the existing limits, maps collision face/vertex/time, and never projects tissue. Supported margin is `(1e-9,.3]`, strictly above the fixed guard gap. This is a surface-distance query only: it does not classify closed-shell interiors, wounds or exterior state, and does not yet couple anatomy into the mechanical solve. Native92 regression tests include both accepted tool-only265 equilibrium and rejected actual iris contact.
 
 The standalone kernel minimizes
 

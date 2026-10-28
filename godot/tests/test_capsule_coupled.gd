@@ -31,6 +31,20 @@ class UnsettledBoundary extends RefCounted:
 		return {"valid":true,"position":after+Vector3(.001,0,0),"outside":outside,"contact":true}
 func _initialize()->void:
 	var static_kernel=ClassDB.instantiate("MembraneContactKernel")
+	var anatomy_fixture:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://iris_boundary265.json"))
+	var anatomical_points:=PackedVector3Array()
+	for i in range(0,anatomy_fixture.anatomy_xyz.size(),3): anatomical_points.append(Vector3(anatomy_fixture.anatomy_xyz[i],anatomy_fixture.anatomy_xyz[i+1],anatomy_fixture.anatomy_xyz[i+2]))
+	var anatomy=load("res://scripts/anatomical_contact.gd").new()
+	check(anatomy.configure({"positions":anatomical_points,"triangles":PackedInt32Array(anatomy_fixture.anatomy_triangles)},.004),"actual iris mesh freezes for nonmutating native queries")
+	var anatomy_old:=PackedFloat64Array(); anatomy_old.resize(745*3)
+	var anatomy_current:=anatomy_old.duplicate(); var anatomy_vertices:=PackedInt32Array()
+	for body in anatomy_fixture.bodies:
+		var v:=int(body.vertex); anatomy_vertices.append(v)
+		for axis in range(3): anatomy_old[3*v+axis]=body.previous[axis]; anatomy_current[3*v+axis]=body.current[axis]
+	var old_input:=anatomy_old.duplicate(); var current_input:=anatomy_current.duplicate()
+	var anatomical_hit:Dictionary=anatomy.inspect(static_kernel,anatomy_old,anatomy_current,anatomy_vertices)
+	check(anatomical_hit.status==1 and anatomical_hit.vertex==663 and anatomical_hit.face==252 and anatomical_hit.witness_t==0.,"actual265 iris penetration is rejected at the prior physical endpoint")
+	check(anatomy_old==old_input and anatomy_current==current_input,"actual anatomy queries cannot project accepted tissue")
 	for fixture in ["joint_physical264_second.json","joint_physical265.json"]:
 		var physical_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://"+fixture))
 		for key in ["initial","predicted","inverse","rest","capsules"]: physical_request[key]=PackedFloat64Array(physical_request[key])
