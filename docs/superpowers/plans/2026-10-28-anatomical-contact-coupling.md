@@ -89,3 +89,27 @@ budget exhaustion. The complete captured request must then pass independent KKT
 and unchanged engine replay/continuous guards. This is a proposed investigation,
 not an implemented or qualified solver. Full tissue-face anatomy, corneal wounds,
 actual pointer incision/tearing, optics/assets, realtime and delivery remain.
+
+Read-only model review adds mandatory implementation requirements:
+
+- `force` is the material/inertial gradient State.force, not State.gradient.
+  With working set A the RHS is `-force+J_A'*(dual_A-rho*g_A)`; changing A
+  changes this affine RHS as well as the matrix.
+- Keep all-regular inactive geometry rows in a separate matrix. Existing
+  State.jacobian and final curvature must retain only the current positive
+  updated_dual rows. Otherwise inactive normals could conceal an unstable
+  feasible tangent direction and falsely qualify a saddle.
+- Freeze H_L and the scaled damping matrix for one model. A damping change
+  reconstructs the model consistently. Working-set changes, damping retries and
+  any fallback share one aggregate12factorization-attempt counter.
+- Require finite linear/model residuals, active-set consistency and a model
+  decrease computed without cancellation. A single working-set SPD test does
+  not establish global convexity. Actual Armijo and final physical gates remain.
+- Add a stationary compressed saddle with strictly inactive contact normals
+  spanning its unstable mode; it must still fail the unchanged final screen.
+
+Guard-cache change is committed1ae4c31; failure provenance/gate is2afb082.
+Current canonical solver/Armijo remains unchanged. No live jobs or unresolved
+review messages remain. Next work is the bounded unilateral-model RED tests and
+isolated prototype, followed by the existing captured request; no full-prefix
+rerun or default/release promotion is justified yet.
