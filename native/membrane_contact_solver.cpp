@@ -18,11 +18,12 @@ extern "C" __declspec(dllexport) int membrane_solve_contact(
 
 // Collocation contact only. The caller must still certify the complete motion.
 // Layer-major dual layout: (layer*faces+face)*bodies+body.
-extern "C" __declspec(dllexport) int membrane_solve_trajectory(
+static int solve_trajectory_with_anatomy(
     int n,const double* predicted,double* output,const double* inverse,int edges,
     const int* a,const int* b,const double* rest,double alpha,int faces,const int* triangles,
     int bodies,const int* kinds,const double* packets,const double* previous,int layers,const double* times,
-    int budget,double force_tol,double gap_tol,double comp_tol,double* multipliers,double* stats) {
+    int budget,double force_tol,double gap_tol,double comp_tol,double* multipliers,double* stats,
+    int anatomy_count=0,const int* anatomy_vertices=nullptr,const double* anatomy=nullptr) {
     if (stats) {
         std::fill(stats,stats+12,0.);
         std::fill(stats,stats+4,std::numeric_limits<double>::infinity());
@@ -52,6 +53,27 @@ extern "C" __declspec(dllexport) int membrane_solve_trajectory(
             }
         }
         return membrane::coupled::solve(n,predicted,output,inverse,edges,a,b,rest,alpha,faces,triangles,
-            bodies,capsules.data(),budget,force_tol,gap_tol,comp_tol,multipliers,stats,layers,previous,times);
+            bodies,capsules.data(),budget,force_tol,gap_tol,comp_tol,multipliers,stats,layers,previous,times,anatomy_count,anatomy_vertices,anatomy);
     } catch (...) { return 2; }
+}
+
+extern "C" __declspec(dllexport) int membrane_solve_trajectory(
+    int n,const double* predicted,double* output,const double* inverse,int edges,
+    const int* a,const int* b,const double* rest,double alpha,int faces,const int* triangles,
+    int bodies,const int* kinds,const double* packets,const double* previous,int layers,const double* times,
+    int budget,double force_tol,double gap_tol,double comp_tol,double* multipliers,double* stats) {
+    return solve_trajectory_with_anatomy(n,predicted,output,inverse,edges,a,b,rest,alpha,faces,triangles,bodies,kinds,
+        packets,previous,layers,times,budget,force_tol,gap_tol,comp_tol,multipliers,stats);
+}
+
+// Old layer-major tool reactions followed by one reaction per rigid constraint.
+// Each anatomy record is triangle9, radius, physical sample time in (0,1].
+extern "C" __declspec(dllexport) int membrane_solve_trajectory_anatomy(
+    int n,const double* predicted,double* output,const double* inverse,int edges,
+    const int* a,const int* b,const double* rest,double alpha,int faces,const int* triangles,
+    int bodies,const int* kinds,const double* packets,const double* previous,int layers,const double* times,
+    int anatomy_count,const int* anatomy_vertices,const double* anatomy,
+    int budget,double force_tol,double gap_tol,double comp_tol,double* multipliers,double* stats) {
+    return solve_trajectory_with_anatomy(n,predicted,output,inverse,edges,a,b,rest,alpha,faces,triangles,bodies,kinds,
+        packets,previous,layers,times,budget,force_tol,gap_tol,comp_tol,multipliers,stats,anatomy_count,anatomy_vertices,anatomy);
 }

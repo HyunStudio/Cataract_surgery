@@ -1,0 +1,23 @@
+# Optional coupled rigid anatomy contacts
+
+The experimental numerical kernel can add rigid finite triangle / moving tissue point constraints to the existing inertia, springs and tool contacts. This is not yet wired into the actual capsule timestep or default app. Continuous surface clearance, consistent initial geometry, closed-shell interiors, wound clipping and outside state remain separate required checks. A successful endpoint or selected-time solve is not complete anatomical clearance or a completed extraction.
+
+## New ABI
+
+`membrane_solve_trajectory_anatomy` retains the trajectory ABI's first17 arguments through `times`, inserts `anatomy_count, anatomy_vertices, anatomy`, then retains `budget, force_tolerance, gap_tolerance, complementarity_tolerance, multipliers, stats`. There are26arguments. Old static19argument and trajectory23argument exports retain their contracts. The new Godot method is `MembraneContactKernel.solve_anatomy(request)`: ordinary packed trajectory fields plus `anatomy_vertices: PackedInt32Array` and `anatomy: PackedFloat64Array`. Array dimensions/types are checked before native pointer access.
+
+Each anatomy record has11doubles: the three rigid triangle vertices in XYZ order, radius, physical sample time. Its separate integer identifies one existing tissue vertex. Radius must be finite in `(gap_tolerance,.3]`; time finite in `(0,1]`; coordinates finite with absolute value at most16. At most4096rigid constraints are allowed and total tool layer pairs plus anatomy constraints must not exceed65536. Existing vertex/edge/face/body/layer limits remain. The C caller owns the declared buffers; it allocates12stats and enough reactions. Reactions are the existing layer-major tool reactions followed by one per anatomy record. Invalid/exhausted/inconclusive solves do not publish positions or reactions; stats remain diagnostic.
+
+For each record, the actual represented tissue point is `p(t)=(1-t)*previous+t*x` using the same long-double interpolation / double publication as existing selected-time tissue queries. The geometry is exact finite-feature distance to the recorded fixed triangle, with normalized constraint `g=d²/r²-1`. No unlimited supporting plane is substituted for an edge or vertex. Translation invariance gives the point gradient as the negative sum of the triangle-coordinate gradients; the endpoint Jacobian additionally scales by `t`. Prescribed tissue coordinates remain exactly fixed. Geometry ambiguity/degeneracy retains the existing rejection semantics.
+
+Anatomy reactions share the same PHR objective, force/primal/complementarity gates, direction damping, line/inner/outer work limits and atomic final publication as tool reactions. A three-coordinate numerical Hessian block differentiates the time-scaled point gradient. It enters both the inner Newton model and the existing strict final undamped curvature screen. This finite-difference screen is numerical evidence, not an exact-arithmetic, uniqueness or clinical stability proof.
+
+## Stable merit change
+
+The unchanged merit acceptance can bound tiny anatomy energy changes directly. For a feasible closest triangle witness, with relative normal `q-p`, moving point delta `dp` changes squared distance at fixed witness by `-2*(q-p)·dp+|dp|²`. Binary128 outward intervals enclose actual represented point subtraction. Convex support-gap bounds account for nonoptimal closest parameters at old/new states. Old distance/gap and sign-dependent PHR change bounds follow MERIT_DIFFERENCE.md. No change allowance is introduced. Invalid/inconclusive intervals retain ordinary rejected-line behavior.
+
+## Evidence and limits
+
+Analytical tests cover plane, finite edge and finite vertex reactions, rigid coordinate transforms, time weighting, named vertex selection, simultaneous active tool/anatomy contact, spring plus inertia force balance, exact pins, invalid records, work exhaustion and degenerate geometry. Zero anatomy matches the old trajectory export including positions and all stats. Separate tests compare change bounds with80-digit independent active-set geometry,100random finite-feature cases, tiny translated motion, transitions, no-op and invalid output atomicity.
+
+The actual265 iris fixture already has prior points inside the configured normal margin. It cannot establish a clear history by solving only a new endpoint. Integrate witness-driven constraints and initial-state checks before a fresh full replay. Cornea/iris remain rigid engineering meshes; tissue constitutive data, margin and contact response are not clinically calibrated. No realtime performance or product release claim follows from these tests.

@@ -16,10 +16,12 @@ struct State {
 };
 
 struct Problem {
-    int n,edges,faces,bodies,layers,size=0;
+    int n,edges,faces,bodies,layers,anatomy_count,size=0;
     const int *a,*b,*triangles;
     const double *rest,*capsules;
     const double *previous,*times;
+    const int *anatomy_vertices;
+    const double *anatomy;
     double stiffness;
     Vector predicted,mass;
     std::vector<int> mapping,coordinates;
@@ -27,8 +29,9 @@ struct Problem {
 
     Problem(int n_,const double* pred,const double* inverse,int e,const int* ea,const int* eb,
             const double* r,double alpha,int f,const int* tri,int nb,const double* body,
-            int nl=1,const double* old=nullptr,const double* sample_times=nullptr):
-        n(n_),edges(e),faces(f),bodies(nb),layers(nl),a(ea),b(eb),triangles(tri),rest(r),capsules(body),previous(old),times(sample_times),
+            int nl=1,const double* old=nullptr,const double* sample_times=nullptr,
+            int na=0,const int* av=nullptr,const double* rigid=nullptr):
+        n(n_),edges(e),faces(f),bodies(nb),layers(nl),anatomy_count(na),a(ea),b(eb),triangles(tri),rest(r),capsules(body),previous(old),times(sample_times),anatomy_vertices(av),anatomy(rigid),
         stiffness(1/alpha),predicted(Eigen::Map<const Vector>(pred,3*n)),mass(n),mapping(3*n,-1) {
         for (int i=0;i<n;++i) {
             mass[i]=inverse[i]>0?1/inverse[i]:0;
@@ -39,6 +42,13 @@ struct Problem {
     }
 
     int face_of(int pair) const { return (pair/bodies)%faces; }
+    int tool_pairs() const { return faces*bodies*layers; }
+    int pair_count() const { return tool_pairs()+anatomy_count; }
+    double radius_of(int pair) const { return pair<tool_pairs()?capsules[7*capsule_of(pair)+6]:anatomy[11*(pair-tool_pairs())+9]; }
+    void anatomy_point(const Vector& x,int constraint,double* point) const {
+        int vertex=anatomy_vertices[constraint]; double t=anatomy[11*constraint+10];
+        for (int k=0;k<3;++k) point[k]=t==1?x[3*vertex+k]:merit::represented_coordinate(previous[3*vertex+k],x[3*vertex+k],t);
+    }
     int capsule_of(int pair) const { return (pair/(faces*bodies))*bodies+pair%bodies; }
     double time_of(int pair) const { return times?times[pair/(faces*bodies)]:1.; }
 
@@ -52,6 +62,21 @@ struct Problem {
     }
 
     int geometry(const Vector& x,int pair,double& g,Vector& row) const {
+        if (pair>=tool_pairs()) {
+            int constraint=pair-tool_pairs(),vertex=anatomy_vertices[constraint];
+            const double* rigid=anatomy+11*constraint;
+            double point[6]; anatomy_point(x,constraint,point);
+            for (int k=0;k<3;++k) point[3+k]=point[k];
+            auto result=contact::distance(point,rigid,rigid[9]);
+            if (result.status<0 || result.status==1 || result.status==2) return 4;
+            g=result.values[0]/(rigid[9]*rigid[9])-1;
+            row.setZero(size);
+            for (int k=0;k<3;++k) {
+                int id=mapping[3*vertex+k];
+                if (id>=0) for (int j=0;j<3;++j) row[id]-=rigid[10]*result.values[11+3*j+k]/(rigid[9]*rigid[9]);
+            }
+            return result.status==3?6:0;
+        }
         int face=face_of(pair),body=capsule_of(pair);
         double t=time_of(pair),xyz[9]; triangle_coordinates(x,pair,xyz);
         auto result=contact::distance(capsules+7*body,xyz,capsules[7*body+6]);
@@ -95,6 +120,13 @@ struct Problem {
             if (!merit::contact_change(old,current,body,body[6],dual[pair],rho,term)) return false;
             change=change+term;
         }
+        for (int c=0;c<anatomy_count;++c) {
+            double old[3],current[3]; anatomy_point(before,c,old); anatomy_point(after,c,current);
+            const double* rigid=anatomy+11*c;
+            Interval term;
+            if (!merit::point_contact_change(old,current,rigid,rigid[9],dual[tool_pairs()+c],rho,term)) return false;
+            change=change+term;
+        }
         Interval target=Interval(1e-4)*Interval(step)*Interval(slope);
         return merit::finite(change) && merit::finite(target) && change.hi<=target.lo;
     }
@@ -102,7 +134,7 @@ struct Problem {
     int evaluate(const Vector& x,const Vector& dual,double rho,State& out) {
         ++evaluations;
         out=State{}; out.force=Vector::Zero(size); out.gradient=Vector::Zero(size);
-        int pairs=faces*bodies*layers;
+        int pairs=pair_count();
         out.constraints=Vector::Zero(pairs); out.updated_dual=Vector::Zero(pairs);
         std::vector<Triplet> h,j;
         h.reserve(size+36*edges);
@@ -139,7 +171,7 @@ struct Problem {
             double g=0; int status=geometry(x,pair,g,row);
             if (status!=0 && status!=6) return status;
             out.constraints[pair]=g;
-            double r=capsules[7*capsule_of(pair)+6];
+            double r=radius_of(pair);
             out.penetration=std::max(out.penetration,r*(1-std::sqrt(std::max(0.,g+1))));
             double multiplier=std::max(0.,dual[pair]-rho*g);
             out.updated_dual[pair]=multiplier;
@@ -165,6 +197,25 @@ struct Problem {
         for (int col=0;col<state.hessian.outerSize();++col)
             for (Matrix::InnerIterator it(state.hessian,col);it;++it) entries.emplace_back(it.row(),it.col(),it.value());
         for (int pair=0;pair<dual.size();++pair) if (dual[pair]>0) {
+            if (pair>=tool_pairs()) {
+                int vertex=anatomy_vertices[pair-tool_pairs()];
+                Eigen::Matrix3d local=Eigen::Matrix3d::Zero();
+                for (int axis=0;axis<3;++axis) {
+                    int coordinate=3*vertex+axis;
+                    if (mapping[coordinate]<0) continue;
+                    double step=1e-6*std::max(1.,std::abs(x[coordinate]));
+                    Vector plus=x,minus=x,gp(size),gm(size); plus[coordinate]+=step; minus[coordinate]-=step;
+                    double ignored=0;
+                    if (geometry(plus,pair,ignored,gp)!=0 || geometry(minus,pair,ignored,gm)!=0) return 4;
+                    for (int k=0;k<3;++k) if (mapping[3*vertex+k]>=0) local(k,axis)=(gp[mapping[3*vertex+k]]-gm[mapping[3*vertex+k]])/(2*step);
+                }
+                local=.5*(local+local.transpose()).eval();
+                for (int i=0;i<3;++i) for (int j=0;j<3;++j) {
+                    int row=mapping[3*vertex+i],col=mapping[3*vertex+j];
+                    if (row>=0 && col>=0) entries.emplace_back(row,col,-dual[pair]*local(i,j));
+                }
+                continue;
+            }
             int face=face_of(pair);
             Eigen::Matrix<double,9,9> local=Eigen::Matrix<double,9,9>::Zero();
             for (int j=0;j<3;++j) for (int axis=0;axis<3;++axis) {
@@ -209,11 +260,12 @@ struct Problem {
 inline int solve(int n,const double* predicted,double* output,const double* inverse,int edges,
                  const int* a,const int* b,const double* rest,double alpha,int faces,const int* triangles,
                  int bodies,const double* capsules,int budget,double force_tol,double gap_tol,double comp_tol,
-                 double* multipliers,double* stats,int layers=1,const double* previous=nullptr,const double* times=nullptr) {
+                 double* multipliers,double* stats,int layers=1,const double* previous=nullptr,const double* times=nullptr,
+                 int anatomy_count=0,const int* anatomy_vertices=nullptr,const double* anatomy=nullptr) {
     if (!predicted || !output || !inverse || !stats || n<1 || n>4096 || edges<0 || edges>16384 ||
-        faces<0 || faces>16384 || bodies<0 || bodies>64 || layers<1 || layers>16 || faces*bodies*layers>65536 ||
+        faces<0 || faces>16384 || bodies<0 || bodies>64 || layers<1 || layers>16 || anatomy_count<0 || anatomy_count>4096 || faces*bodies*layers+anatomy_count>65536 ||
         (edges && (!a || !b || !rest)) || (faces && !triangles) || (bodies && !capsules) ||
-        (faces*bodies && !multipliers) || budget<0 || budget>1000 || !(alpha>0) || !std::isfinite(1/alpha) ||
+        ((faces*bodies+anatomy_count) && !multipliers) || (anatomy_count && (!anatomy_vertices || !anatomy)) || budget<0 || budget>1000 || !(alpha>0) || !std::isfinite(1/alpha) ||
         !std::isfinite(alpha) || !(force_tol>0) || !std::isfinite(force_tol) ||
         !(gap_tol>0) || !std::isfinite(gap_tol) || !(comp_tol>0) || !std::isfinite(comp_tol)) return -1;
     if ((previous==nullptr)!=(times==nullptr) || (!times && layers!=1)) return -1;
@@ -240,13 +292,20 @@ inline int solve(int n,const double* predicted,double* output,const double* inve
         if (triangles[3*f]==triangles[3*f+1] || triangles[3*f]==triangles[3*f+2] || triangles[3*f+1]==triangles[3*f+2]) return -1;
     }
     double radius=.1;
+    for (int c=0;c<anatomy_count;++c) {
+        const double* rigid=anatomy+11*c;
+        if (anatomy_vertices[c]<0 || anatomy_vertices[c]>=n || !std::isfinite(rigid[9]) || !(rigid[9]>gap_tol) || rigid[9]>.3 ||
+            !std::isfinite(rigid[10]) || !(rigid[10]>0) || rigid[10]>1 || (rigid[10]<1 && !previous)) return -1;
+        for (int k=0;k<9;++k) if (!std::isfinite(rigid[k]) || std::abs(rigid[k])>16) return -1;
+        radius=std::min(radius,rigid[9]);
+    }
     for (int b=0;b<bodies*layers;++b) {
         for (int k=0;k<6;++k) if (!std::isfinite(capsules[7*b+k]) || std::abs(capsules[7*b+k])>16) return -1;
         double r=capsules[7*b+6]; if (!(r>0) || r>.3 || !std::isfinite(r)) return -1;
         radius=std::min(radius,r);
     }
-    Problem problem(n,predicted,inverse,edges,a,b,rest,alpha,faces,triangles,bodies,capsules,layers,previous,times);
-    Vector x=Eigen::Map<Vector>(output,3*n),dual=Vector::Zero(faces*bodies*layers);
+    Problem problem(n,predicted,inverse,edges,a,b,rest,alpha,faces,triangles,bodies,capsules,layers,previous,times,anatomy_count,anatomy_vertices,anatomy);
+    Vector x=Eigen::Map<Vector>(output,3*n),dual=Vector::Zero(problem.pair_count());
     double rho=std::clamp((1/alpha+problem.mass.maxCoeff())*radius*radius,1e-12,1e6);
     int status=1,outer=0,inner_total=0,factors=0;
     double last_violation=std::numeric_limits<double>::infinity();

@@ -18,6 +18,9 @@ extern "C" int membrane_guard_motion_witness(int,const double*,const double*,int
 extern "C" int membrane_solve_trajectory(int,const double*,double*,const double*,int,const int*,const int*,
     const double*,double,int,const int*,int,const int*,const double*,const double*,int,const double*,int,
     double,double,double,double*,double*);
+extern "C" int membrane_solve_trajectory_anatomy(int,const double*,double*,const double*,int,const int*,const int*,
+    const double*,double,int,const int*,int,const int*,const double*,const double*,int,const double*,int,const int*,
+    const double*,int,double,double,double,double*,double*);
 
 namespace godot {
 class MembraneKernel : public RefCounted {
@@ -55,6 +58,7 @@ protected:
         ClassDB::bind_method(D_METHOD("solve_contact","request"),&MembraneContactKernel::solve_contact);
         ClassDB::bind_method(D_METHOD("guard_motion","request"),&MembraneContactKernel::guard_motion);
         ClassDB::bind_method(D_METHOD("solve_trajectory","request"),&MembraneContactKernel::solve_trajectory);
+        ClassDB::bind_method(D_METHOD("solve_anatomy","request"),&MembraneContactKernel::solve_anatomy);
     }
 public:
     Dictionary guard_motion(const Dictionary& request) {
@@ -84,6 +88,12 @@ public:
         Dictionary answer; answer["status"]=status; answer["stats"]=stats; answer["witness_t"]=witness; return answer;
     }
     Dictionary solve_trajectory(const Dictionary& request) {
+        return trajectory_impl(request,false);
+    }
+    Dictionary solve_anatomy(const Dictionary& request) {
+        return trajectory_impl(request,true);
+    }
+    Dictionary trajectory_impl(const Dictionary& request,bool with_anatomy) {
         PackedFloat64Array result,dual,stats;
         stats.resize(12); stats.fill(0.);
         for (int i=0;i<4;++i) stats.set(i,std::numeric_limits<double>::infinity());
@@ -96,21 +106,34 @@ public:
         for (const char* key: {"alpha","force_tolerance","gap_tolerance","complementarity_tolerance"})
             if (!request.has(key) || (request[key].get_type()!=Variant::FLOAT && request[key].get_type()!=Variant::INT)) valid=false;
         if (!request.has("budget") || request["budget"].get_type()!=Variant::INT) valid=false;
+        if (with_anatomy && (!request.has("anatomy") || request["anatomy"].get_type()!=Variant::PACKED_FLOAT64_ARRAY ||
+            !request.has("anatomy_vertices") || request["anatomy_vertices"].get_type()!=Variant::PACKED_INT32_ARRAY)) valid=false;
         if (request.has("initial") && request["initial"].get_type()==Variant::PACKED_FLOAT64_ARRAY) result=request["initial"];
         int status=-1;
         if (valid) {
             PackedFloat64Array predicted=request["predicted"],inverse=request["inverse"],rest=request["rest"],
                 previous=request["previous"],packets=request["packets"],times=request["times"];
             PackedInt32Array a=request["a"],b=request["b"],triangles=request["triangles"],kinds=request["kinds"];
+            PackedFloat64Array anatomy;
+            PackedInt32Array anatomy_vertices;
+            if (with_anatomy) { anatomy=request["anatomy"]; anatomy_vertices=request["anatomy_vertices"]; }
             int64_t budget=request["budget"];
             valid=result.size()>0 && result.size()%3==0 && result.size()==predicted.size() && result.size()==previous.size() &&
                 inverse.size()==result.size()/3 && inverse.size()<=4096 && a.size()==b.size() && a.size()==rest.size() &&
                 a.size()<=16384 && triangles.size()%3==0 && triangles.size()/3<=16384 && kinds.size()<=64 &&
                 packets.size()==kinds.size()*41 && times.size()>0 && times.size()<=16 &&
                 (triangles.size()/3)*kinds.size()*times.size()<=65536 && budget>=0 && budget<=1000;
+            valid=valid && anatomy_vertices.size()<=4096 && anatomy.size()==11*anatomy_vertices.size() &&
+                (triangles.size()/3)*kinds.size()*times.size()+anatomy_vertices.size()<=65536;
             if (valid) {
-                dual.resize((triangles.size()/3)*kinds.size()*times.size()); dual.fill(0.);
-                status=membrane_solve_trajectory(static_cast<int>(inverse.size()),predicted.ptr(),result.ptrw(),inverse.ptr(),
+                dual.resize((triangles.size()/3)*kinds.size()*times.size()+anatomy_vertices.size()); dual.fill(0.);
+                if (with_anatomy) status=membrane_solve_trajectory_anatomy(static_cast<int>(inverse.size()),predicted.ptr(),result.ptrw(),inverse.ptr(),
+                    static_cast<int>(a.size()),a.ptr(),b.ptr(),rest.ptr(),static_cast<double>(request["alpha"]),
+                    static_cast<int>(triangles.size()/3),triangles.ptr(),static_cast<int>(kinds.size()),kinds.ptr(),packets.ptr(),
+                    previous.ptr(),static_cast<int>(times.size()),times.ptr(),static_cast<int>(anatomy_vertices.size()),anatomy_vertices.ptr(),anatomy.ptr(),
+                    static_cast<int>(budget),static_cast<double>(request["force_tolerance"]),static_cast<double>(request["gap_tolerance"]),
+                    static_cast<double>(request["complementarity_tolerance"]),dual.ptrw(),stats.ptrw());
+                else status=membrane_solve_trajectory(static_cast<int>(inverse.size()),predicted.ptr(),result.ptrw(),inverse.ptr(),
                     static_cast<int>(a.size()),a.ptr(),b.ptr(),rest.ptr(),static_cast<double>(request["alpha"]),
                     static_cast<int>(triangles.size()/3),triangles.ptr(),static_cast<int>(kinds.size()),kinds.ptr(),packets.ptr(),
                     previous.ptr(),static_cast<int>(times.size()),times.ptr(),static_cast<int>(budget),

@@ -25,6 +25,16 @@ extern "C" __declspec(dllexport) int merit_edge_change(
     return 0;
 }
 
+extern "C" __declspec(dllexport) int merit_point_contact_change(
+    const double* before,const double* after,const double* triangle,
+    double radius,double multiplier,double penalty,double* result) {
+    membrane::merit::Interval change;
+    if (!membrane::merit::point_contact_change(before,after,triangle,radius,multiplier,penalty,change)) return 1;
+    result[0]=membrane::merit::lower_double(change);
+    result[1]=membrane::merit::upper_double(change);
+    return 0;
+}
+
 extern "C" __declspec(dllexport) int merit_contact_witness_change(
     const double* before,const double* after,const double* axis,const double* old_parameters,const double* new_parameters,
     double radius,double multiplier,double penalty,double* result) {

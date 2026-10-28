@@ -12,8 +12,19 @@ func _initialize()->void:
 	var coupled=ClassDB.instantiate("MembraneContactKernel")
 	check(coupled.has_method("guard_motion"),"coupled bridge exposes nonmutating whole-interval guard")
 	check(coupled.has_method("solve_trajectory"),"coupled bridge exposes time-weighted trajectory constraints")
+	check(coupled.has_method("solve_anatomy"),"coupled bridge exposes rigid anatomical contact in the same solve")
 	if failures: quit(1); return
 	var guard_face:=PackedFloat64Array([-1,0,-1,1,0,-1,0,0,1])
+	var anatomical_request:Dictionary={"predicted":PackedFloat64Array([0,.05,0]),"initial":PackedFloat64Array([0,.05,0]),"previous":PackedFloat64Array([0,.05,0]),"inverse":PackedFloat64Array([1]),"a":PackedInt32Array(),"b":PackedInt32Array(),"rest":PackedFloat64Array(),"alpha":.1,"triangles":PackedInt32Array(),"kinds":PackedInt32Array(),"packets":PackedFloat64Array(),"times":PackedFloat64Array([1.]),"anatomy_vertices":PackedInt32Array([0]),"anatomy":PackedFloat64Array([-1,0,-1,1,0,-1,0,0,1,.1,1.]),"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11}
+	var saved_anatomy:=anatomical_request.duplicate(true)
+	var anatomy:Dictionary=coupled.solve_anatomy(anatomical_request)
+	check(anatomy.status==0 and absf(anatomy.xyz[1]-.1)<=1e-9 and absf(anatomy.dual[0]-.0025)<=1e-9,"anatomical reaction balances original inertia through the packed64 bridge")
+	check(anatomy.stats[1]<=1e-8 and anatomy.stats[2]<=1e-9 and anatomy.stats[3]<=1e-11,"anatomical bridge retains original physical gates")
+	check(anatomical_request==saved_anatomy,"anatomical solve cannot mutate caller geometry history or predictor")
+	for malformed in [{},anatomical_request.merged({"anatomy":PackedFloat64Array([0])},true),anatomical_request.merged({"anatomy_vertices":PackedInt32Array()},true),anatomical_request.merged({"anatomy_vertices":PackedFloat64Array([0])},true),anatomical_request.merged({"anatomy":[]},true)]:
+		check(coupled.solve_anatomy(malformed).status==-1,"anatomical types and dimensions reject before pointer access")
+	var anatomy_limit:Dictionary=coupled.solve_anatomy(anatomical_request.merged({"budget":0},true))
+	check(anatomy_limit.status==1 and anatomy_limit.xyz==anatomical_request.initial,"anatomical work exhaustion cannot publish partial positions")
 	var packet:=PackedFloat64Array([0,1,0,0,1,0,0,-1,0,0,-1,0,.1])
 	packet.resize(41)
 	var guard_request:Dictionary={"previous":guard_face,"current":guard_face.duplicate(),"triangles":PackedInt32Array([0,1,2]),"kinds":PackedInt32Array([0]),"packets":packet,"budget":128,"gap_tolerance":1e-9}

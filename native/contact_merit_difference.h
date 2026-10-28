@@ -219,6 +219,44 @@ inline bool contact_change(const double* before,const double* after,const double
     return bounded_contact_change(before,after,axis,radius,multiplier,penalty,q0,q1,result);
 }
 
+// Fixed rigid triangle, moving point capsule. The feasible closest set is the
+// same triangle simplex at both states. Witness support gaps bound parameter
+// error; the represented point displacement is enclosed before cancellation.
+inline bool point_contact_change(const double* before,const double* after,const double* face,
+                                 double radius,double multiplier,double penalty,Interval& result) {
+    if (!before || !after || !face || multiplier<0 || !std::isfinite(multiplier) || !(penalty>0) ||
+        !std::isfinite(penalty) || !(radius*radius>0) || !std::isfinite(radius*radius)) return false;
+    double old_axis[6],new_axis[6];
+    bool same=true;
+    for (int k=0;k<3;++k) {
+        if (!std::isfinite(before[k]) || !std::isfinite(after[k]) || std::abs(before[k])>16 || std::abs(after[k])>16) return false;
+        same=same && before[k]==after[k];
+        old_axis[k]=old_axis[3+k]=before[k]; new_axis[k]=new_axis[3+k]=after[k];
+    }
+    for (int k=0;k<9;++k) if (!std::isfinite(face[k]) || std::abs(face[k])>16) return false;
+    auto first=contact::distance(old_axis,face,radius),last=contact::distance(new_axis,face,radius);
+    auto usable=[](int status) { return status==0 || status==3; };
+    if (!usable(first.status) || !usable(last.status)) return false;
+    if (same) { result=Interval(0); return true; }
+    Parameters q0,q1;
+    if (!parameters(old_axis,face,first,q0) || !parameters(new_axis,face,last,q1)) return false;
+    Witness old0=witness(old_axis,face,q0),new1=witness(new_axis,face,q1),old1=witness(old_axis,face,q1);
+    Interval radius2(radius*radius),oldg=divide(squared_bounds(old0),radius2)-Interval(1);
+    Interval newg=divide(squared_bounds(new1),radius2)-Interval(1);
+    Interval threshold=divide(Interval(multiplier),Interval(penalty));
+    if (oldg.lo>=threshold.hi && newg.lo>=threshold.hi) { result=Interval(0); return true; }
+    IVec moved=sub(intervals(read(before,0)),intervals(read(after,0)));
+    auto fixed=[&](const Witness& old) { return Interval(2)*dot(old.normal,moved)+norm2(moved); };
+    Interval lower=divide(fixed(old1)-Interval(new1.error),radius2);
+    Interval upper=divide(fixed(old0)+Interval(old0.error),radius2);
+    if (!finite(oldg) || !finite(lower) || !finite(upper) || lower.lo>upper.hi) return false;
+    Interval high=phr_change(lower.lo<0?oldg.lo:oldg.hi,lower.lo,multiplier,penalty);
+    Interval low=phr_change(upper.hi>0?oldg.lo:oldg.hi,upper.hi,multiplier,penalty);
+    Interval answer(low.lo,high.hi);
+    if (!finite(answer)) return false;
+    result=answer; return true;
+}
+
 inline bool edge_change(const double* before,const double* after,double rest,double stiffness,Interval& result) {
     if (!before || !after || !(rest>0) || !(stiffness>=0) || !std::isfinite(rest) || !std::isfinite(stiffness)) return false;
     for (int k=0;k<6;++k) if (!std::isfinite(before[k]) || !std::isfinite(after[k]) || std::abs(before[k])>16 || std::abs(after[k])>16) return false;

@@ -63,12 +63,12 @@ scope = ("optional packed64 joint canonical extraction with actual bodies and an
 proof = {"scope":scope,
          "qualified":False,"probe":str(probe),"inputs":expected,"test_sources":test_sources,"build":manifest,
          "launcher_sha256":sha256(editor),"engine_sha256":sha256(engine),
-         "import_frame_delay_ms":0 if options.raw_import else 25,
+         "import_frame_delay_ms":0 if options.raw_import else 1000,
          "import_quit_after_frames":None if options.raw_import else 35,"stages":[]}
 # Godot upstream#111048/#123658: deferred editor documentation can outlive
 # fast headless import shutdown. Explicit editor frames address the documented
 # lifecycle race; completed import stages are required too. Runtime is undelayed.
-import_args = ["--editor","--import"]+([] if options.raw_import else ["--quit-after","35","--frame-delay","25"])
+import_args = ["--editor","--import"]+([] if options.raw_import else ["--quit-after","35","--frame-delay","1000"])
 runtime_script = "res://test_capsule.gd" if options.capsule else "res://test_bridge.gd"
 runtime_marker = "Native coupled capsule: 0 failures" if options.coupled_capsule else "Native capsule extraction: 0 failures" if options.capsule_extraction else "Native capsule: 0 failures" if options.capsule else "Native Godot bridge: 0 failures"
 runtime_args = ["--script",runtime_script]+(["--","--joint-contact"] if options.coupled_extraction else [])
