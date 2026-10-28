@@ -9,6 +9,8 @@
 
 extern "C" int membrane_solve(int,double*,const double*,int,const int*,const int*,
                                const double*,double,int,double,double*);
+extern "C" int membrane_solve_contact(int,const double*,double*,const double*,int,const int*,const int*,
+    const double*,double,int,const int*,int,const double*,int,double,double,double,double*,double*);
 
 namespace godot {
 class MembraneKernel : public RefCounted {
@@ -39,8 +41,57 @@ public:
     }
 };
 
+class MembraneContactKernel : public RefCounted {
+    GDCLASS(MembraneContactKernel,RefCounted)
+protected:
+    static void _bind_methods() {
+        ClassDB::bind_method(D_METHOD("solve_contact","request"),&MembraneContactKernel::solve_contact);
+    }
+public:
+    Dictionary solve_contact(const Dictionary& request) {
+        PackedFloat64Array result,dual,stats;
+        stats.resize(12); stats.fill(0.);
+        for (int i=0;i<4;++i) stats.set(i,std::numeric_limits<double>::infinity());
+        stats.set(9,std::numeric_limits<double>::infinity());
+        bool valid=true;
+        for (const char* key: {"predicted","initial","inverse","rest","capsules"})
+            if (!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+        for (const char* key: {"a","b","triangles"})
+            if (!request.has(key) || request[key].get_type()!=Variant::PACKED_INT32_ARRAY) valid=false;
+        for (const char* key: {"alpha","force_tolerance","gap_tolerance","complementarity_tolerance"})
+            if (!request.has(key) || (request[key].get_type()!=Variant::FLOAT && request[key].get_type()!=Variant::INT)) valid=false;
+        if (!request.has("budget") || request["budget"].get_type()!=Variant::INT) valid=false;
+        if (request.has("initial") && request["initial"].get_type()==Variant::PACKED_FLOAT64_ARRAY) result=request["initial"];
+        int status=-1;
+        if (valid) {
+            PackedFloat64Array predicted=request["predicted"],inverse=request["inverse"],rest=request["rest"],capsules=request["capsules"];
+            PackedInt32Array a=request["a"],b=request["b"],triangles=request["triangles"];
+            int64_t budget=request["budget"];
+            valid=result.size()>0 && result.size()%3==0 && result.size()==predicted.size() &&
+                inverse.size()==result.size()/3 && inverse.size()<=4096 && a.size()==b.size() &&
+                a.size()==rest.size() && a.size()<=16384 && triangles.size()%3==0 && triangles.size()/3<=16384 &&
+                capsules.size()%7==0 && capsules.size()/7<=64 && (triangles.size()/3)*(capsules.size()/7)<=65536 &&
+                budget>=0 && budget<=1000;
+            if (valid) {
+                dual.resize((triangles.size()/3)*(capsules.size()/7)); dual.fill(0.);
+                status=membrane_solve_contact(static_cast<int>(inverse.size()),predicted.ptr(),result.ptrw(),inverse.ptr(),
+                    static_cast<int>(a.size()),a.ptr(),b.ptr(),rest.ptr(),static_cast<double>(request["alpha"]),
+                    static_cast<int>(triangles.size()/3),triangles.ptr(),static_cast<int>(capsules.size()/7),capsules.ptr(),
+                    static_cast<int>(budget),static_cast<double>(request["force_tolerance"]),static_cast<double>(request["gap_tolerance"]),
+                    static_cast<double>(request["complementarity_tolerance"]),dual.ptrw(),stats.ptrw());
+            }
+        }
+        Dictionary answer;
+        answer["status"]=status; answer["xyz"]=result; answer["dual"]=dual; answer["stats"]=stats;
+        return answer;
+    }
+};
+
 void initialize_membrane(ModuleInitializationLevel level) {
-    if (level == MODULE_INITIALIZATION_LEVEL_SCENE) GDREGISTER_CLASS(MembraneKernel);
+    if (level == MODULE_INITIALIZATION_LEVEL_SCENE) {
+        GDREGISTER_CLASS(MembraneKernel);
+        GDREGISTER_CLASS(MembraneContactKernel);
+    }
 }
 void uninitialize_membrane(ModuleInitializationLevel) {}
 } // namespace godot

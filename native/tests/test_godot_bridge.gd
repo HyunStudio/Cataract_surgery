@@ -7,6 +7,31 @@ func _initialize()->void:
 		push_error("native MembraneKernel must register through GDExtension")
 		quit(1); return
 	var kernel=ClassDB.instantiate("MembraneKernel")
+	check(ClassDB.class_exists("MembraneContactKernel"),"native coupled contact kernel registers separately")
+	if failures: quit(1); return
+	var coupled=ClassDB.instantiate("MembraneContactKernel")
+	var local:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://local_jaw_contact.json"))
+	var face_ids:=PackedInt32Array(); var body_data:=PackedFloat64Array()
+	for face in local.triangles:
+		for index in face: face_ids.append(index)
+	for body in local.capsules:
+		for value in body.a: body_data.append(value)
+		for value in body.b: body_data.append(value)
+		body_data.append(body.radius)
+	var request:Dictionary={"predicted":PackedFloat64Array(local.predicted),"initial":PackedFloat64Array(local.initial),"inverse":PackedFloat64Array(local.inverse),"a":PackedInt32Array(local.a),"b":PackedInt32Array(local.b),"rest":PackedFloat64Array(local.rest),"alpha":local.alpha,"triangles":face_ids,"capsules":body_data,"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11}
+	var preserved:Dictionary=request.duplicate(true)
+	var contact:Dictionary=coupled.solve_contact(request)
+	check(contact.status==0 and contact.stats.size()==12 and contact.xyz is PackedFloat64Array,"joint energy/contact retains a float64engine boundary")
+	check(request==preserved,"joint result never mutates caller predictor positions topology or bodies")
+	check(contact.xyz.size()==request.initial.size() and contact.dual.size()==local.triangles.size()*local.capsules.size(),"joint bridge retains every material point and contact reaction")
+	check(contact.stats[1]<=1e-8 and contact.stats[2]<=1e-9 and contact.stats[3]<=1e-11,"joint bridge preserves force feasibility and complementarity diagnostics")
+	check(absf(contact.stats[0]-1.2512200570759009e-8)<2e-10,"joint bridge agrees with independent local constrained energy")
+	for malformed in [{}, {"initial":PackedVector3Array()}, request.merged({"initial":PackedFloat64Array([0,0])},true), request.merged({"triangles":PackedInt32Array([0,1])},true), request.merged({"capsules":PackedFloat64Array([0,0,0])},true), request.merged({"a":PackedInt32Array()},true), request.merged({"budget":1.5},true)]:
+		var invalid:Dictionary=coupled.solve_contact(malformed)
+		check(invalid.status==-1,"joint malformed types/shapes reject before native pointer access")
+	var limited:Dictionary=coupled.solve_contact(request.merged({"budget":0},true))
+	check(limited.status==1 and limited.xyz==request.initial,"joint exhaustion never publishes a partial physical state")
+	print("Native coupled bridge: ",contact.stats)
 	var xyz:=PackedFloat64Array([0,0,0,2,0,0])
 	var inverse:=PackedFloat64Array([1,2])
 	var a:=PackedInt32Array([0]); var b:=PackedInt32Array([1]); var rest:=PackedFloat64Array([1])

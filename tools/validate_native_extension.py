@@ -25,6 +25,7 @@ verify_sources(manifest["sources"])
 probe = Path(tempfile.mkdtemp(prefix="membrane-validation-",dir=ROOT/".tools"))
 (probe/"bin").mkdir()
 intended = {"project.godot":ROOT/"native/test_project.godot", "test_bridge.gd":ROOT/"native/tests/test_godot_bridge.gd",
+            "local_jaw_contact.json":ROOT/"native/tests/fixtures/local_jaw_contact.json",
             "refined_flap.json":ROOT/"native/tests/fixtures/refined_flap.json", "bin/membrane.gdextension":ROOT/"native/membrane.gdextension"}
 if options.capsule:
     # Freeze tracked project resources while retaining the isolated test project config.

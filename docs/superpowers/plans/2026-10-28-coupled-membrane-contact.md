@@ -87,6 +87,8 @@ The actual full candidate, published as Godot float32vectors, incurs maximum coo
 
 ### Task3: Actual complete-substep integration
 
+Bridge checkpoint: separate `MembraneContactKernel` accepts strictly typed packed64 inputs, preserves caller ownership, validates shape/budget before pointers, and publishes packed64 output atomically through the existing C ABI. Missing-class RED preceded implementation. The 64-TU build includes the coupled source and all local headers in cache identities. Frozen bridge `t2_k1hh_` and existing capsule `vxb6ds4o` validators pass, extension SHA256 `2d6689cb8e38d780463e0993226345ff5ca5c9755bc84db5714b4cdfe381492d`. Read-only review found no actionable ownership, argument-order, cache/provenance or guard defect. This completes only the bridge checkpoint; persistent float64 model state and actual complete-substep integration remain pending.
+
 Files: confirm and extend the existing native bridge, `godot/scripts/native_membrane_backend.gd`, `godot/scripts/capsule_solver.gd`, body/anatomical adapters, native tests and validator.
 
 - [ ] Write RED transactional, pinned, shape and uncertainty tests for the complete-substep interface; retain failure injection coverage.
