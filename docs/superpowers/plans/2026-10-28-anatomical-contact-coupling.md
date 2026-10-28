@@ -50,3 +50,42 @@ Read-only review found one material selection omission: an inherited area<=1e-12
 Task5 committed3a1c95b. Fresh canonical full replay ttc652cp/session90943 is terminal1/unqualified:263ticks accepted,264rejected with native_joint_solve/status2. Original area remains with0broken/lost/accepted uncertainty and whole-step rollback. Frozen checkpoint replay c77pa78w reproduces the failure without another prefix. Exact combined request38 is preserved as joint_anatomy264.json with provenance in its sibling Markdown file. Initial iris history clears; this is a new combined mechanical failure, not legacy265 prior penetration. Explicit heavy check tools/check_anatomy_capture.py is RED/status2 with atomic rejection. Frozen line trace3f__oy1q is terminal and retains the failing direction/all32represented candidates; geometry is valid but line search cannot establish descent. Investigate the actual directional model before any numerical change; original gates and budgets remain.
 
 Independent performance diagnosis while waiting: ignored frozen guard-bounds-cache-ld6q6z71 precomputes the unchanged per-body swept bounds/margins and per-face old/new bounds outside the pair loop. No pair is dropped beyond the same comparisons; order/counters/tolerances/work limits are retained. All28guard tests pass and88base/cached comparisons have identical statuses/eight stats. On301flap vertices against the actual1280face iris in6batches, contended isolated timings are baseline.057–.077s versus cached.00495–.00751s (5alternating runs); this is not app/realtime qualification. Proof binds original/cached source hashes, compiler, flags, baseline build manifest/DLL before/after and cached artifact. Cached header SHA3bd9f9eb7d73dfaf8b47a713672b49e08ebd326050ece920b2eb32f3021f826a. Prototype is not adopted while the full replay is live. Consider this mechanically identical culling-loop optimization after the next correctness gate; do not mix it with changing solver tolerances or accepting failed contacts.
+
+### New264 line-search cause and bounded experiments
+
+Trace3f__oy1q and canonical heavy gate both terminate status2; failed positions/reactions remain unpublished. At the final captured state, the iris constraint has normalized gap1.421218698e-11, dual5.257702861e-9 and rho2236.4580104, so its current PHR multiplier is zero. The Newton model therefore excludes its penalty curvature. The proposed direction immediately activates it: slope-6.395952122e-9 and model curvature6.395736858e-9, but full-step actual merit rises68.5467128, dominated by the new iris penalty. At the last original halving step4.6566e-10, actual change remains positive. Independent tool-pair comparison finds no per-pair discrepancy above1e-15 at step2^-20. Frozen model probe and root-cause.json retain direction/state provenance. The model diagnostic uses a host-target build and is causal evidence, not a production artifact qualification.
+
+First ignored experiment anatomy264-quadratic-ej__fuju uses standard safeguarded quadratic proposals after every failed Armijo trial. It keeps all gates and32trial evaluations, removes the line-search failure but exhausts100outer iterations: force5.8793e-9/gap1.1147e-10 pass, complementarity2.5423e-11 fails. It is unadopted and not qualified.
+
+Second ignored experiment anatomy264-final-probe-e5vtyv6k preserves the first31probes and replaces only the final blind halving with a quadratic estimate clamped to[.1step,.5step]. Existing direct/certified Armijo checks still decide acceptance; no tolerance, material, route, factor or evaluation bound changes. Read-only numerical review finds no actionable correctness issue; proposal cancellation can reduce effectiveness but cannot bypass acceptance. All110existing native regressions pass against this isolated DLL in125.163s. Its full captured solve is now terminal/status2: force.00933255, gap4.2259e-10, complementarity6.9902e-11,10outer/3083evaluations. Both experiments remain unadopted. A local final-probe heuristic does not resolve repeated activation stiffness. Next numerical design should model the unilateral PHR activation during step construction, with explicit factor/evaluation bounds, independent small active-set cases and this unchanged capture as RED. No third heuristic or tolerance/work-budget increase.
+
+After all source-bound probes reached terminal and their source audits passed, adopted only the independently reviewed guard bounds cache from ld6q6z71 into canonical contact_guard.h. This is a mechanically identical performance change, not a solver correction: same min/max arithmetic/order, margins, pair traversal, counters and work limits. Guard, coupled DLL and isolated Godot extension rebuilds are terminal0; canonical110suite passes145.607s (contended, not a benchmark). Fresh bridge cie4a592 and actual-capsule mm1db2up both qualify with completed imports/runtimes and unchanged source/artifact hashes. Focused guard28passes. Numerical Armijo code remains unchanged. All current build/test/probe jobs are terminal. Do not rerun the full prefix merely for this culling-cache change; saved264convergence gate remains RED.
+
+### Next numerical investigation: bounded unilateral step model
+
+Use the saved request, not another full prefix. The current Newton matrix is the
+local Hessian of the PHR merit only for the currently active contacts. Investigate
+the same local model with its activation retained explicitly:
+`m(d)=force·d+.5*d'*(H_L+D)*d+sum(phi(g+J*d)-phi(g))`, where
+`phi(s)=(max(0,dual-rho*s)^2-dual^2)/(2*rho)` and `D` is the existing
+scaled diagonal numerical damping. At zero this has exactly the current physical
+gradient and active Hessian; it predicts newly active constraints without applying
+any extra force to the accepted physical state.
+
+An isolated working-set prototype may retain regular inactive geometry rows,
+solve the sparse model, recompute the predicted active set, and use the same
+12factorization-attempt bound. Work-set convergence alone never qualifies a step:
+require a finite negative original gradient slope and the unchanged actual
+32probe Armijo/interval test. Final KKT, curvature and atomic publication gates
+stay unchanged. A model cycle, inconclusive gradient or exhausted work must
+reject/fall back explicitly; do not invent gradients for ambiguous geometry.
+The nonconvex elastic/contact Hessian and damping selection need particular
+review; SPD of one working-set matrix does not prove global model convexity.
+
+Before adoption, use independent small problems with a currently inactive plane
+that activates during the step, release of an active plane, simultaneous opposing
+contacts, shared/prescribed vertices, ambiguous geometry, working-set cycling and
+budget exhaustion. The complete captured request must then pass independent KKT
+and unchanged engine replay/continuous guards. This is a proposed investigation,
+not an implemented or qualified solver. Full tissue-face anatomy, corneal wounds,
+actual pointer incision/tearing, optics/assets, realtime and delivery remain.

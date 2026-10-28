@@ -328,19 +328,34 @@ inline int check(int n,const double* previous,const double* current,int faces,co
         std::copy(stats.begin(),stats.end(),output); return status;
     };
     struct Node { Real lo,hi; int depth; };
+    std::array<std::array<Real,3>,64> body_lo{},body_hi{};
+    std::array<Real,64> margins{};
+    for (int b=0;b<bodies;++b) {
+        const Motion& motion=motions[b];
+        margins[b]=motion.data[12]+motion.padding(0,1)+motion.numeric;
+        for (int axis=0;axis<3;++axis) {
+            body_lo[b][axis]=body_hi[b][axis]=motion.data[axis];
+            for (int off:{0,3,6,9}) {
+                body_lo[b][axis]=std::min(body_lo[b][axis],Real(motion.data[off+axis]));
+                body_hi[b][axis]=std::max(body_hi[b][axis],Real(motion.data[off+axis]));
+            }
+        }
+    }
     for (int f=0;f<faces;++f) {
         std::array<V,3> old{},next{};
         for (int j=0;j<3;++j) { old[j]=read(previous,3*triangles[3*f+j]); next[j]=read(current,3*triangles[3*f+j]); }
+        std::array<Real,3> face_lo{},face_hi{};
+        for (int axis=0;axis<3;++axis) {
+            face_lo[axis]=face_hi[axis]=old[0][axis];
+            for (V v:old) { face_lo[axis]=std::min(face_lo[axis],v[axis]); face_hi[axis]=std::max(face_hi[axis],v[axis]); }
+            for (V v:next) { face_lo[axis]=std::min(face_lo[axis],v[axis]); face_hi[axis]=std::max(face_hi[axis],v[axis]); }
+        }
         for (int b=0;b<bodies;++b) {
             ++stats[1]; const Motion& motion=motions[b];
-            Real margin=motion.data[12]+motion.padding(0,1)+motion.numeric;
+            Real margin=margins[b];
             bool disjoint=false;
             for (int axis=0;axis<3;++axis) {
-                Real tlo=old[0][axis],thi=tlo,blo=motion.data[axis],bhi=blo;
-                for (V v:old) { tlo=std::min(tlo,v[axis]); thi=std::max(thi,v[axis]); }
-                for (V v:next) { tlo=std::min(tlo,v[axis]); thi=std::max(thi,v[axis]); }
-                for (int off:{0,3,6,9}) { blo=std::min(blo,Real(motion.data[off+axis])); bhi=std::max(bhi,Real(motion.data[off+axis])); }
-                if (thi<blo-margin || tlo>bhi+margin) disjoint=true;
+                if (face_hi[axis]<body_lo[b][axis]-margin || face_lo[axis]>body_hi[b][axis]+margin) disjoint=true;
             }
             if (disjoint) continue;
             int queries=0;

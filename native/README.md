@@ -4,6 +4,15 @@ Optional actual-capsule integration exists, but is not the default backend. Late
 
 The optional Godot `anatomical_contact.gd` adapter freezes finite anatomical triangles and queries the existing native guard against double-precision moving tissue points. It chunks every selected point/face pair within the existing limits, maps collision face/vertex/time, and never projects tissue. Supported margin is `(1e-9,.3]`, strictly above the fixed guard gap. It does not classify closed-shell interiors, wounds or exterior state. The optional actual capsule path now generates iris constraints through `solve_anatomy`, rejects penetrating initial history and requires both tool/anatomical interval checks within one eight-solve loop. See ANATOMICAL_CONTACT.md. Native110 component regressions and focused/frozen actual integration checks pass; the separate new full extraction fails as described above. The captured legacy265 request with two added endpoint constraints also rejects atomically and is not anatomical extraction success.
 
+The continuous guard now computes each body's swept bounds/margin once and each
+face's old/new bounds once, reusing the same values in the original pair order.
+Arithmetic, comparisons, counters and work limits remain unchanged. An isolated
+baseline/cache comparison produced identical status/eight statistics for88calls;
+the adopted source passes110native regressions and fresh Godot bridge/actual
+capsule integration. Isolated iris-query timing improvements are not whole-app
+realtime qualification. No numerical step-search experiment was adopted; the
+combined264convergence failure above remains open.
+
 The standalone kernel minimizes
 
 `E(x) = sum_free |x_i - predicted_i|²/(2 inverse_mass_i) + sum_edges (|x_a-x_b|-rest)²/(2 alpha)`.
