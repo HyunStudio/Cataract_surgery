@@ -75,6 +75,8 @@ var _physical_previous:=PackedFloat64Array()
 var _physical_rest:=PackedFloat64Array()
 var joint_stats:=PackedFloat64Array()
 var joint_times:=PackedFloat64Array()
+var joint_anatomy_vertices:=PackedInt32Array()
+var joint_anatomy:=PackedFloat64Array()
 var _joint_tip_history:Dictionary={}
 var native_failure:Dictionary={}
 var _backend_failed:=false
@@ -154,6 +156,7 @@ func reset() -> void:
 	_physical_xyz=Precision.pack(positions); _physical_previous=Precision.pack(_previous); _physical_rest=Precision.pack(rest_positions)
 	joint_stats=PackedFloat64Array()
 	joint_times=PackedFloat64Array()
+	joint_anatomy_vertices=PackedInt32Array(); joint_anatomy=PackedFloat64Array()
 	_joint_tip_history={}
 
 func _vertex(ring: int, sector: int) -> int:
@@ -493,7 +496,13 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 		for point in [part.get("physical_a",part.a),part.get("physical_b",part.b)]:
 			for axis in range(3): capsules.append(point[axis])
 		capsules.append(part.get("physical_radius",part.radius))
-	var solved:=_joint_contact_candidate({"predicted":predicted,"initial":initial,"inverse":_inverse_mass,"a":a,"b":b,"rest":rest,"alpha":alpha,"triangles":triangles,"capsules":capsules,"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11},body,old)
+	var anatomy_query:RefCounted=null; var anatomical_vertices:=PackedInt32Array()
+	if tissue_boundary and geometry and tissue_boundary.has_method("anatomical_query"):
+		anatomical_vertices=_joint_anatomy_vertices()
+		if not anatomical_vertices.is_empty():
+			anatomy_query=tissue_boundary.anatomical_query()
+			if not anatomy_query: return _joint_failure("native_joint_anatomy_unavailable")
+	var solved:=_joint_contact_candidate({"predicted":predicted,"initial":initial,"inverse":_inverse_mass,"a":a,"b":b,"rest":rest,"alpha":alpha,"triangles":triangles,"capsules":capsules,"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11},body,old,anatomy_query,anatomical_vertices)
 	if solved.is_empty(): return false
 	var result:Dictionary=solved.result
 	positions=Precision.publish(result.xyz)
@@ -505,6 +514,7 @@ func _joint_substep(h:float,alpha:float,damping_factor:float,tools:Array[Diction
 	_physical_xyz=result.xyz.duplicate(); _physical_previous=old
 	joint_stats=result.stats.duplicate()
 	joint_times=solved.times.duplicate()
+	joint_anatomy_vertices=solved.anatomy_vertices.duplicate(); joint_anatomy=solved.anatomy.duplicate()
 	for v in range(positions.size()):
 		if _pinned[v]!=0 or _removed[v]!=0:
 			for axis in range(3): _physical_previous[3*v+axis]=_physical_xyz[3*v+axis]
@@ -528,44 +538,114 @@ func _joint_candidate_valid(result:Dictionary,predicted:PackedFloat64Array)->boo
 	if result.stats[1]>1e-8 or result.stats[2]>1e-9 or result.stats[3]>1e-11: return _joint_failure("native_joint_residual")
 	return true
 
-func _joint_contact_candidate(request:Dictionary,body:Array,old:PackedFloat64Array)->Dictionary:
-	# Fix the predictor/history for every solve. A sampled collision adds a
-	# time-weighted physical constraint; only a complete guard may accept it.
+func _joint_anatomy_vertices()->PackedInt32Array:
+	_refresh_components()
+	var selected:=PackedInt32Array()
+	for component in _components:
+		if component.anchored or component.area<=0.: continue
+		for vertex in component.vertices:
+			if _removed[vertex]==0: selected.append(vertex)
+	return selected
+
+func _inspect_joint_anatomy(query:RefCounted,old:PackedFloat64Array,current:PackedFloat64Array,vertices:PackedInt32Array)->Dictionary:
+	if not query.has_method("inspect"):
+		_joint_failure("native_joint_anatomy_unavailable"); return {}
+	var response:Variant=query.inspect(contact_backend,old,current,vertices)
+	if not response is Dictionary or not response.get("status") is int:
+		_joint_failure("native_joint_anatomy_output"); return {}
+	var checked:Dictionary=response
+	if checked.status==2: return checked
+	var gap:Variant=checked.get("gap",null)
+	if not (gap is float or gap is int) or is_nan(gap) or gap==-INF:
+		_joint_failure("native_joint_anatomy_output"); return {}
+	if checked.status==0:
+		if gap< -1e-9:
+			_joint_failure("native_joint_anatomy_residual"); return {}
+		return checked
+	if checked.status!=1:
+		_joint_failure("native_joint_anatomy_unresolved",checked.status); return {}
+	var time:Variant=checked.get("witness_t",null); var radius:Variant=checked.get("radius",null)
+	if not (time is float or time is int) or not is_finite(time) or time<0. or time>1. or not (radius is float or radius is int) or not is_finite(radius) or radius<=1e-9 or radius>.3 or not is_finite(gap) or gap>=-1e-9:
+		_joint_failure("native_joint_anatomy_witness"); return {}
+	if not checked.get("vertex") is int or not vertices.has(checked.vertex) or not checked.get("face") is int or checked.face<0 or checked.face>=16384 or not checked.get("triangle") is PackedFloat64Array or checked.triangle.size()!=9:
+		_joint_failure("native_joint_anatomy_witness"); return {}
+	for value in checked.triangle:
+		if not is_finite(value) or absf(value)>16.:
+			_joint_failure("native_joint_anatomy_witness"); return {}
+	return checked
+
+func _joint_contact_candidate(request:Dictionary,body:Array,old:PackedFloat64Array,anatomy_query:RefCounted=null,anatomical_vertices:PackedInt32Array=PackedInt32Array())->Dictionary:
+	# Predictor/history/material are fixed across one shared bounded loop.
+	# A newly found anatomical contact must not invalidate an accepted tool
+	# trajectory, and a new tool contact must retain all anatomical constraints.
+	var use_anatomy:=anatomy_query!=null and not anatomical_vertices.is_empty()
+	if use_anatomy:
+		if not contact_backend.has_method("solve_anatomy"):
+			_joint_failure("native_joint_anatomy_unavailable"); return {}
+		var initial_check:=_inspect_joint_anatomy(anatomy_query,old,old,anatomical_vertices)
+		if initial_check.is_empty(): return {}
+		if initial_check.status!=0:
+			_joint_failure("native_joint_anatomy_initial",initial_check.status); return {}
 	var result:Dictionary=contact_backend.solve_contact(request)
-	var times:=PackedFloat64Array([1.])
+	var times:=PackedFloat64Array([1.]); var anatomy_vertices:=PackedInt32Array(); var anatomy:=PackedFloat64Array(); var keys:Array=[]
 	for stage in range(NATIVE_TRAJECTORY_BUDGET):
 		if not _joint_candidate_valid(result,request.predicted): return {}
-		if body.is_empty(): return {"result":result,"times":times}
-		if not contact_backend.has_method("guard_motion"):
-			_joint_failure("native_joint_body_unavailable"); return {}
-		var motion:=ToolPath.motion_request(old,result.xyz,triangles,body)
-		var checked:Dictionary=contact_backend.guard_motion(motion)
-		var code:int=checked.get("status",-1)
-		if code==0:
-			if not checked.get("stats") is PackedFloat64Array or checked.stats.size()!=8:
-				_joint_failure("native_joint_body_output"); return {}
-			var gap:float=checked.stats[4]
-			if is_nan(gap) or gap==-INF or gap< -1e-9:
-				_joint_failure("native_joint_body_residual"); return {}
+		var motion:=ToolPath.motion_request(old,result.xyz,request.triangles,body)
+		var tool_hit:Dictionary={}; var anatomical_hit:Dictionary={}; var tool_gap:=INF
+		if not body.is_empty():
+			if not contact_backend.has_method("guard_motion"):
+				_joint_failure("native_joint_body_unavailable"); return {}
+			var checked:Dictionary=contact_backend.guard_motion(motion)
+			var code:int=checked.get("status",-1)
+			if code==0:
+				if not checked.get("stats") is PackedFloat64Array or checked.stats.size()!=8:
+					_joint_failure("native_joint_body_output"); return {}
+				tool_gap=checked.stats[4]
+				if is_nan(tool_gap) or tool_gap==-INF or tool_gap< -1e-9:
+					_joint_failure("native_joint_body_residual"); return {}
+			elif code==1: tool_hit=checked
+			else:
+				_joint_failure("native_joint_body_unresolved",code); return {}
+		if tool_hit.is_empty() and use_anatomy:
+			var checked:=_inspect_joint_anatomy(anatomy_query,old,result.xyz,anatomical_vertices)
+			if checked.is_empty(): return {}
+			if checked.status==1: anatomical_hit=checked
+			elif checked.status!=0:
+				_joint_failure("native_joint_anatomy_unresolved",checked.status); return {}
+		if tool_hit.is_empty() and anatomical_hit.is_empty():
 			if result.get("dual") is PackedFloat64Array:
-				for reaction in result.dual:
-					if reaction>0.: body_contact_count+=1
-			body_contact_residual=maxf(body_contact_residual,maxf(0.,-gap))
-			return {"result":result,"times":times}
-		if code!=1:
-			_joint_failure("native_joint_body_unresolved",code); return {}
-		if stage+1>=NATIVE_TRAJECTORY_BUDGET or (triangles.size()/3)*body.size()*(times.size()+1)>65536:
-			_joint_failure("native_joint_body_budget",code); return {}
-		var witness=checked.get("witness_t",-1.)
-		if not (witness is float or witness is int) or not is_finite(witness) or witness<=0. or witness>=1.:
-			_joint_failure("native_joint_body_witness",code); return {}
-		if times.has(witness):
-			_joint_failure("native_joint_body_stalled",code); return {}
-		if not contact_backend.has_method("solve_trajectory"):
-			_joint_failure("native_joint_body_unavailable"); return {}
-		times.append(witness); times.sort()
+				for pair in range(mini(result.dual.size(),request.triangles.size()/3*body.size()*times.size())):
+					if result.dual[pair]>0.: body_contact_count+=1
+			body_contact_residual=maxf(body_contact_residual,maxf(0.,-tool_gap))
+			return {"result":result,"times":times,"anatomy_vertices":anatomy_vertices,"anatomy":anatomy}
+		if stage+1>=NATIVE_TRAJECTORY_BUDGET:
+			_joint_failure("native_joint_anatomy_budget" if tool_hit.is_empty() else "native_joint_body_budget",1); return {}
+		if not tool_hit.is_empty():
+			var witness=tool_hit.get("witness_t",-1.)
+			if not (witness is float or witness is int) or not is_finite(witness) or witness<=0. or witness>=1.:
+				_joint_failure("native_joint_body_witness",1); return {}
+			if times.has(witness):
+				_joint_failure("native_joint_body_stalled",1); return {}
+			if request.triangles.size()/3*body.size()*(times.size()+1)+anatomy_vertices.size()>65536:
+				_joint_failure("native_joint_body_budget",1); return {}
+			times.append(witness); times.sort()
+		else:
+			if anatomical_hit.witness_t<=0.:
+				_joint_failure("native_joint_anatomy_initial",1); return {}
+			var key:Array=[anatomical_hit.vertex,anatomical_hit.face,anatomical_hit.witness_t]
+			if keys.has(key):
+				_joint_failure("native_joint_anatomy_stalled",1); return {}
+			if anatomy_vertices.size()>=4096 or request.triangles.size()/3*body.size()*times.size()+anatomy_vertices.size()+1>65536:
+				_joint_failure("native_joint_anatomy_budget",1); return {}
+			keys.append(key); anatomy_vertices.append(anatomical_hit.vertex); anatomy.append_array(anatomical_hit.triangle); anatomy.append(anatomical_hit.radius); anatomy.append(anatomical_hit.witness_t)
 		var next:=request.merged({"initial":result.xyz,"previous":old,"packets":motion.packets,"kinds":motion.kinds,"times":times},true)
-		result=contact_backend.solve_trajectory(next)
+		if not anatomy_vertices.is_empty():
+			next["anatomy_vertices"]=anatomy_vertices; next["anatomy"]=anatomy
+			result=contact_backend.solve_anatomy(next)
+		else:
+			if not contact_backend.has_method("solve_trajectory"):
+				_joint_failure("native_joint_body_unavailable"); return {}
+			result=contact_backend.solve_trajectory(next)
 	_joint_failure("native_joint_body_budget"); return {}
 
 func _joint_failure(reason:String,status:int=-1)->bool:

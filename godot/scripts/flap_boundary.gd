@@ -1,6 +1,7 @@
 extends RefCounted
 ## Cached actual triangle heights; bounded thin-membrane vertex contact, not face FEM.
 const EntryWindow=preload("res://scripts/incision_window.gd")
+const Anatomy=preload("res://scripts/anatomical_contact.gd")
 var portals:Array=[]
 const Kernel=preload("res://scripts/surface_contact.gd")
 const CELL:=.16
@@ -12,6 +13,13 @@ var _cornea:Dictionary={}
 var _iris:Dictionary={}
 var _rim_radius:=0.
 var _rim_inner:=0.
+func anatomical_query()->RefCounted:
+	# Iris has no surgical opening. Corneal wound clipping and shell state
+	# remain explicit in resolve; this query does not replace those rules.
+	if _iris.is_empty(): return null
+	var query=Anatomy.new()
+	if not query.configure(_iris,radius): return null
+	return query
 func configure(cornea:Dictionary,iris:Dictionary)->bool:
 	var first:=_make_field(cornea); var second:=_make_field(iris)
 	if first.is_empty() or second.is_empty(): return false

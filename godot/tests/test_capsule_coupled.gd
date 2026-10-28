@@ -9,6 +9,9 @@ class RecordingKernel extends RefCounted:
 	var inner=ClassDB.instantiate("MembraneContactKernel")
 	var requests:Array[Dictionary]=[]
 	var trajectory_requests:Array[Dictionary]=[]
+	var anatomy_requests:Array[Dictionary]=[]
+	func solve_anatomy(request:Dictionary)->Dictionary:
+		anatomy_requests.append(request.duplicate(true)); return inner.solve_anatomy(request)
 	func solve_trajectory(request:Dictionary)->Dictionary:
 		trajectory_requests.append(request.duplicate(true)); return inner.solve_trajectory(request)
 	func guard_motion(request:Dictionary)->Dictionary: return inner.guard_motion(request)
@@ -45,6 +48,20 @@ func _initialize()->void:
 	var anatomical_hit:Dictionary=anatomy.inspect(static_kernel,anatomy_old,anatomy_current,anatomy_vertices)
 	check(anatomical_hit.status==1 and anatomical_hit.vertex==663 and anatomical_hit.face==252 and anatomical_hit.witness_t==0.,"actual265 iris penetration is rejected at the prior physical endpoint")
 	check(anatomy_old==old_input and anatomy_current==current_input,"actual anatomy queries cannot project accepted tissue")
+	var initial_model=load("res://scripts/capsule_solver.gd").new()
+	var initial_backend:=RecordingKernel.new(); initial_model.contact_backend=initial_backend
+	var rejected_initial:Dictionary=initial_model._joint_contact_candidate({"predicted":anatomy_current},[],anatomy_old,anatomy,anatomy_vertices)
+	check(rejected_initial.is_empty() and initial_model.native_failure.get("reason","")=="native_joint_anatomy_initial" and initial_backend.requests.is_empty(),"legacy penetrating265 history cannot enter a new physical solve")
+	var plane_query=load("res://scripts/anatomical_contact.gd").new()
+	check(plane_query.configure({"positions":PackedVector3Array([Vector3(-1,0,-1),Vector3(1,0,-1),Vector3(0,0,1)]),"triangles":PackedInt32Array([0,1,2])},.1),"analytical finite anatomy query configures")
+	var plane_model=load("res://scripts/capsule_solver.gd").new(); var plane_backend:=RecordingKernel.new(); plane_model.contact_backend=plane_backend
+	plane_model._inverse_mass=PackedFloat64Array([1,0,0])
+	var plane_old:=PackedFloat64Array([0,.15,0,-1,.1,0,0,.1,-1]); var plane_predicted:=plane_old.duplicate(); plane_predicted[1]=.05
+	var plane_request:Dictionary={"initial":plane_old,"predicted":plane_predicted,"inverse":plane_model._inverse_mass,"a":PackedInt32Array(),"b":PackedInt32Array(),"rest":PackedFloat64Array(),"alpha":.1,"triangles":PackedInt32Array(),"capsules":PackedFloat64Array(),"budget":100,"force_tolerance":1e-8,"gap_tolerance":1e-9,"complementarity_tolerance":1e-11}
+	var solved_plane:Dictionary=plane_model._joint_contact_candidate(plane_request,[],plane_old,plane_query,PackedInt32Array([0]))
+	check(not solved_plane.is_empty() and plane_model.native_failure.is_empty() and plane_backend.anatomy_requests.size()==1,"actual native witness generation resolves anatomy without any tool body")
+	if not solved_plane.is_empty():
+		check(absf(solved_plane.result.xyz[1]-.1)<=1e-9 and absf(solved_plane.result.dual[0]-.0025)<=1e-9 and solved_plane.anatomy_vertices==PackedInt32Array([0]),"generated finite contact balances force and receives a fresh continuous check")
 	for fixture in ["joint_physical264_second.json","joint_physical265.json"]:
 		var physical_request:Dictionary=JSON.parse_string(FileAccess.get_file_as_string("res://"+fixture))
 		for key in ["initial","predicted","inverse","rest","capsules"]: physical_request[key]=PackedFloat64Array(physical_request[key])
@@ -189,7 +206,7 @@ func _initialize()->void:
 		specimen.step_tools(1./60.,traction)
 		check(specimen.native_failure.is_empty(),"actual joint forceps traction accepts tick "+str(tick)+": "+str(specimen.native_failure))
 		if not specimen.native_failure.is_empty():
-			var capture:Dictionary=coupled_capture.requests[-1].duplicate(true)
+			var capture:Dictionary=coupled_capture.anatomy_requests[-1].duplicate(true) if not coupled_capture.anatomy_requests.is_empty() else (coupled_capture.requests[-1].duplicate(true) if not coupled_capture.requests.is_empty() else {})
 			for key in capture:
 				if typeof(capture[key]) in [TYPE_PACKED_FLOAT64_ARRAY,TYPE_PACKED_INT32_ARRAY]: capture[key]=Array(capture[key])
 			var file:=FileAccess.open("res://joint-capsule-failure.json",FileAccess.WRITE)
