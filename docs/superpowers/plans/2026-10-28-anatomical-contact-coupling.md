@@ -113,3 +113,176 @@ Current canonical solver/Armijo remains unchanged. No live jobs or unresolved
 review messages remain. Next work is the bounded unilateral-model RED tests and
 isolated prototype, followed by the existing captured request; no full-prefix
 rerun or default/release promotion is justified yet.
+
+## 2026-10-29 — unilateral model implementation and isolated qualification
+
+Previous goal turn made authoritative progress: failure capture/convergence gate
+2afb082 and reviewed guard-cache optimization1ae4c31, with canonical110native and
+fresh engine checks. Current work adds a test-only bounded local PHR helper in
+native/contact_step_model.h, test probe/build tool and independent model tests.
+The product membrane_contact_solver.h is still unchanged. Initial RED was the
+missing helper; analytical activation/release/coupled-coordinate/ambiguity/budget
+tests then passed. Forty small convex problems also match an independent
+exhaustive active-set oracle. An actual stationary compressed saddle surrounded
+by strictly inactive anatomical normals still rejects5 in the existing DLL.
+
+First frozen integrated prototype r9agif66 passes the unchanged joint_anatomy264
+request: force6.511627379e-9, gap8.674844176e-12, complementarity2.966849672e-12,
+31outer/654evaluations/468inner/610factors. Separate KKT/energy recomputation
+qualifies the result (force6.511627379e-9, gap8.674843829e-12); this is one
+selected-time solve, not continuous acceptance. All-regular rows are stored
+separately; final curvature still uses only the original active Jacobian.
+
+Review found two reporting/hardening issues: nearest conversion did not preserve
+the reported interval upper bound, and residual norms lacked finite checks.
+Observed independent80digit reported-bound test RED, then changed to
+merit::upper_double and explicit finite numerator/denominator guards. Added force
+norm overflow coverage. These changes do not loosen physical acceptance.
+
+First integrated122suite had6failures on deep planes/arc and saved265, so no
+adoption. A scalar released working set exposed negative H_L and repeated resets
+spent two factors per damping level. A RED local case reproduced12attempt
+exhaustion; retaining the working set on a failed SPD factorization fixed simple
+planes/arc, but exposed deep simultaneous contact failure. That local case was
+also RED. Coercive damping now selects an existing power10 coefficient only
+after an SPD failure, with outward interval proof of strict positive diagonal
+dominance of frozen H_L+D. This model property does not replace the physical
+final screen. Matrix reconstruction retains the working set and clears cycle
+history; scalar coefficient growth is bounded320 and all factorizations still
+share12attempts. Read-only review found no defect in the proof or retry logic.
+
+All15local model tests pass, including the exhaustive oracle and independent
+reported interval bound. Second frozen prototype gz_ql0sq retained the264pass,
+but focused regression still rejected the deep simultaneous case and saved265.
+Third frozen18gxy2es includes certified model convexification; focused tests now
+pass all small anatomical/arc cases. Saved265 and the264capture are still live
+in sessions1956 and9857 respectively. Preserve these handles and hash-bound
+canonical native/helper sources until terminal. Do not adopt from one capture
+alone; require all regressions, independent KKT, fresh engine checks, then saved
+failed-step replay and actual complete extraction. Full objective remains active.
+
+### Updated isolated results and current state
+
+The third18gxy2es experiment is terminal and unadopted: exact264exhausts100outer
+(force.33968), and saved265exhausts100outer/rho1e12. Global model convexification
+is too conservative in these large cases despite the small tests passing.
+After explicit architecture review, separated a direction proposal from an exact
+auxiliary-model solution. A released contact's hinge penalty is no larger than
+its old active quadratic extension, so a certified full-model descent direction
+can be useful without working-set convergence. New activation still requires the
+complete modeled change to decrease. Actual Armijo, physical KKT and curvature
+are always authoritative; internal6means descent proposal, not model convergence.
+
+Unavailable inactive gradients must not be invented or treated as actual future
+collision evidence. The proposal helper now filters those auxiliary rows only,
+requires their current multiplier to be zero, and reports internal7for a
+supported-part proposal. It does not claim complete-model descent. The full
+nonlinear evaluator still inspects every actual trial contact and rejects active
+ambiguity/nonfinite gradients; continuous guards and final active Jacobian stay
+unchanged. Exact-mode model tests reject unavailable rows. Read-only review
+confirmed these distinctions preserve the prior inactive semantics.
+
+Frozen proposal veriwyi9 passes264force8.812482522e-9/gap8.674960750e-12/
+complementarity2.966889666e-12; saved265rejected a forecast ambiguous gradient.
+Supported-part prototype qgpfd9m0 retains the264pass, independently verified
+force8.812482522e-9, gap8.674960056e-12 and energy2.477775732e-7. Its full135suite
+passes134; saved265alone rejects2at outer11with local-model work exhaustion.
+Do not adopt this integrated prototype or erase that failure.
+
+Review exposed three real static-domain regressions in the optional model:
+overflow from averaging finite equal H_L entries, an unusable inactive normalized
+Jacobian, and a negative overflowing dual-rho*g that the physical evaluator
+correctly clips to zero reaction. Old canonical static solver passes the added
+reproducers; early frozen model versions fail them. Safe half-scaled averaging
+preserves equal coefficients exactly, unavailable inactive gradients are filtered,
+and provably negative overflow is marked unmodelled/inactive (positive overflow
+still rejects). Independent reported interval-bound and norm hardening remain.
+All24local model tests pass, including40exhaustive convex oracle cases. The
+canonical full suite in session82773is live; it uses the OLD product core plus
+the NEW separate test component, so passing it will not qualify integration.
+
+Instrumented exact legacy265request replay8427nk1k captures the failing local
+input as failed_model.bin:2124free coordinates,5544constraints,34398H_L entries,
+18207model-J entries,3active constraints and43unavailable inactive rows.
+At outer11inner1 helper uses12factors/7restarts and fails; actual gradient norm
+9.4219465635. Independent SciPy reconstruction equals the captured actual
+gradient exactly at this state, so gradient anchoring is not an established cause.
+No full extraction prefix rerun. Local pure-model replay7swtviri/session89882
+is running after a diagnostic-only namespace compile fix; it prints factor/set
+progress and modeled change along the original Newton ray. Inspect that evidence
+before changing the algorithm. A bounded, interval-certified ray scaling fallback
+is under read-only review, not implemented. Preserve the live session.
+
+Canonical membrane_contact_solver.h remains unchanged (SHA3358b1a2…); neither new
+model nor any trial integration is installed in the product/default backend.
+Before eventual adoption register contact_step_model.h in BOTH coupled build
+source provenance and extension provenance/cache keys, rerun all integrated
+regressions and independent capture, rebuild/fresh-import engine checks, and
+replay the saved failed outer timestep with the NEW extension before a new full
+prefix. Corneal shell/wounds, whole tissue-face anatomy, actual pointer incision/
+tearing, appearance, realtime, GPU and Windows delivery remain in the full goal.
+
+### 2026-10-29 continuation: preserve a checked Newton seed
+
+Canonical old-core plus separate model suite82773 terminated0:138tests pass
+in172.418s. This did not qualify experimental integration. Local replay89882
+also terminated0. It locates the first valid initial-set damped Newton seed at
+damping.001, slope-9.233100394e-5, norm.101257131. Its full modeled change is
+positive514970.24; the represented1/256ray already has negative supported-model
+change-3.1181565e-7. Subsequent working sets expand3to611to669and exhaust the
+aggregate12factors. There is no evidence that a second nonlinear search or a
+looser physical gate is needed.
+
+Read-only architecture review approves retaining the first finite residual-checked
+negative-slope initial-set seed, proposal mode only, only on budget exhaustion.
+Internal8means raw seed, change_upper=+infinity, with that seed's linear residual.
+It makes no model-decrease or convergence claim. Fatal input/current-active
+geometry returns cannot reach it. Caller must recheck the actual physical slope
+and run exactly one original32trial nonlinear search, retaining final KKT,
+curvature, continuous guards and atomic publication. No added factor budget.
+
+Observed RED: the new exhausted-budget proposal test returned1instead of8.
+After implementation,26local tests pass, including the zero-budget/no-seed case
+and the existing independent40convex cases/outward Decimal bound. Frozen
+integration experiment j3lig_49/session14837 is live. It adds internal8to accepted
+direction statuses, with every physical acceptance gate unchanged. Do not adopt
+until exact264, saved265, all regressions and independent KKT have been checked.
+
+Frozen j3lig_49 now terminal0. Exact264retains independent force8.81248252169605e-9,
+gap8.674960055854442e-12, complementarity2.966889666422271e-12 and
+energy2.477775732351442e-7. Full140regressions pass in336.902s, including legacy265.
+DLL SHAefb07eea88271b8403855752bdc6059387a4f898ce555449626cb560d6e0b469.
+Read-only final source review finds no actionable defect and confirms the raw
+seed contract, single line search, unchanged active final curvature/publication.
+
+Adopted the exact frozen membrane header SHA d355bd9a9f99d6cdb1c3e18c8dbc34e09a432f31ad1a78efd360cd416d8e1c70
+into canonical optional core; registered contact_step_model.h in coupled/extension
+provenance and extension native-object cache keys. Both builds terminate0;
+extension compiles/caches65TUs. Canonical full native16429, heavy capture77630,
+fresh bridge3758and actual coupled capsule37704are live; preserve their handles
+and all bound sources until terminal. Default application backend/release is
+unchanged. No new complete extraction prefix yet.
+
+Fresh canonical artifacts bind the new model header: coupled DLL
+ead69a737d55070554ca78a56b35fd7d2aa0a65ed2a3355921399732bd1e3402;
+extension7ae81204f42cc04fedcd194302b2b2c40f821e05e37d5a66e24febe1c1e2bd01.
+Source/manifest identities verified after builds. Fresh minimal bridge vu4akqs9
+terminates0/qualified, both import and runtime stages pass with unchanged hashes.
+Actual capsule dtepwcp6/37704, full native16429and heavy capture77630remain live.
+
+Canonical full native16429terminates0:140tests pass in285.473s. Explicit heavy
+capture77630also terminates0/qualified with the same independent264values above.
+The new source-bound extension is being used by saved outer-step replay
+km0ox2ou/session19386, copied from historical ttc652cp. All copied canonical
+scripts must match the historical checkpoint; the script verifies current build
+sources, original checkpoint inputs and frozen replay inputs before/after. It
+replaces only the old DLL and returns nonzero on nonempty native_failure. Actual
+capsule37704and saved outer-step19386remain live. No fresh full prefix yet.
+
+Actual coupled capsule dtepwcp6/37704terminates0/qualified: fresh import and
+runtime pass,0failures, all bound inputs unchanged. Its real incision, packed64
+traction/history, physical saved requests, anatomical rejection and rollback
+checks pass with the rebuilt extension. Only saved whole outer-step19386remains
+live; it has reached call29and continues the original tool-time refinements.
+This is scoped numerical/integration progress, not complete extraction or app
+qualification. Preserve this live replay and its exact DLL/scripts.

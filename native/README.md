@@ -1,6 +1,6 @@
 # Experimental membrane numerical kernel
 
-Optional actual-capsule integration exists, but is not the default backend. Latest full extraction `ttc652cp` on3a1c95b accepts263ticks and rejects264 atomically when the first combined iris/tool solve returns2. Initial iris checks clear; all retained area remains with zero broken edges or accepted uncertainty. The exact failed request is preserved in tests/fixtures/joint_anatomy264.json with sibling provenance. `python tools/check_anatomy_capture.py` is an explicit heavy convergence gate, currently RED; atomic rejection is not qualification. Earlier `faad2gqn`/265 boundary evidence remains historical. See MERIT_DIFFERENCE.md and TRAJECTORY_CONTACT.md.
+Optional actual-capsule integration exists, but is not the default backend. Latest full extraction `ttc652cp` on3a1c95b accepts263ticks and rejects264 atomically when the first combined iris/tool solve returns2. Initial iris checks clear; all retained area remains with zero broken edges or accepted uncertainty. The exact failed request is preserved in tests/fixtures/joint_anatomy264.json with sibling provenance. `python tools/check_anatomy_capture.py` is an explicit heavy convergence gate; atomic rejection is not qualification. Earlier `faad2gqn`/265 boundary evidence remains historical. See MERIT_DIFFERENCE.md and TRAJECTORY_CONTACT.md.
 
 The optional Godot `anatomical_contact.gd` adapter freezes finite anatomical triangles and queries the existing native guard against double-precision moving tissue points. It chunks every selected point/face pair within the existing limits, maps collision face/vertex/time, and never projects tissue. Supported margin is `(1e-9,.3]`, strictly above the fixed guard gap. It does not classify closed-shell interiors, wounds or exterior state. The optional actual capsule path now generates iris constraints through `solve_anatomy`, rejects penetrating initial history and requires both tool/anatomical interval checks within one eight-solve loop. See ANATOMICAL_CONTACT.md. Native110 component regressions and focused/frozen actual integration checks pass; the separate new full extraction fails as described above. The captured legacy265 request with two added endpoint constraints also rejects atomically and is not anatomical extraction success.
 
@@ -10,8 +10,9 @@ Arithmetic, comparisons, counters and work limits remain unchanged. An isolated
 baseline/cache comparison produced identical status/eight statistics for88calls;
 the adopted source passes110native regressions and fresh Godot bridge/actual
 capsule integration. Isolated iris-query timing improvements are not whole-app
-realtime qualification. No numerical step-search experiment was adopted; the
-combined264convergence failure above remains open.
+realtime qualification. The bounded local step model is now installed in the optional coupled core
+after140frozen regressions and independent264KKT verification. Whole outer
+timestep and extraction qualification remain separate, pending engine replay.
 
 The standalone kernel minimizes
 
@@ -41,11 +42,29 @@ python tools/build_membrane_kernel.py
 python tools/build_contact_distance.py
 python tools/build_contact_guard.py
 python tools/build_contact_merit_probe.py
+python tools/build_contact_step_probe.py
 python tools/build_coupled_contact.py
 python -m unittest discover -s native/tests -v
 ```
 
 Eigen5.0.1 is pinned at `bc3b39870ecb690a623a3f49149a358b95c5781d`; see THIRD_PARTY.md and licenses/. The previous matrix-free implementation is preserved in commit739fa46. Its captured scene cost was about.21s. Current sparse solve measured.046–.053s across6standalone calls, with E3.819273056e-8, gradient_inf2.697e-9,24outer iterations and30factorization attempts. This is still slower than a60Hz substep budget and is not an app performance result.
+
+`contact_step_model.h` is the bounded local PHR direction model used by the
+optional coupled core, with a separate test-only probe. It
+shares12factor attempts across working-set changes and damping retries. Internal
+0indicates a checked stationary model;6is a complete-modeled descent direction;
+7is a supported-part direction with unavailable inactive rows omitted;8retains
+the first checked initial-set negative-slope Newton seed on proposal-budget
+exhaustion, with change_upper=+infinity and no model-decrease certificate. None
+of these proposal statuses means physical acceptance. Callers must recheck the actual
+gradient slope, full nonlinear merit, physical KKT, final curvature and continuous
+guards using one original nonlinear line search. Unavailable active gradients
+reject and cannot be rescued by a saved seed. Frozen264passes independent KKT,
+and the raw-seed integration passes all140frozen native regressions including
+saved265. Fresh canonical builds pass140native tests, the independent264gate,
+and fresh Godot bridge/actual capsule checks. Saved whole-timestep replay is
+still running. The default application backend remains unchanged. Local tests are independent
+small analytical/oracle/bounds/domain checks, not full-operation qualification.
 
 ## Isolated Godot bridge
 

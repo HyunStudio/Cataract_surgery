@@ -35,7 +35,7 @@ zig = str(ROOT / ".tools/zig-x86_64-windows-0.17.0/zig.exe")
 compiler = compiler_identity(Path(zig))
 tracked_inputs = [ROOT/"native/membrane_kernel.cpp",ROOT/"native/membrane_sparse.h",ROOT/"native/godot_membrane.cpp",
                   ROOT/"native/membrane_contact_solver.cpp",ROOT/"native/membrane_contact_solver.h",ROOT/"native/contact_distance.h",
-                  ROOT/"native/contact_guard.cpp",ROOT/"native/contact_guard.h",ROOT/"native/contact_merit_difference.h",
+                  ROOT/"native/contact_guard.cpp",ROOT/"native/contact_guard.h",ROOT/"native/contact_merit_difference.h",ROOT/"native/contact_step_model.h",
                   ROOT/"native/godot_build_profile.json",ROOT/"native/test_project.godot",ROOT/"native/membrane.gdextension",
                   ROOT/"tools/native_build_provenance.py",Path(__file__).resolve()]
 input_hashes = source_hashes(tracked_inputs)
@@ -55,6 +55,7 @@ def compile_one(source):
         key += (ROOT / "native/contact_distance.h").read_bytes()
         key += (ROOT / "native/contact_guard.h").read_bytes()
         key += (ROOT / "native/contact_merit_difference.h").read_bytes()
+        key += (ROOT / "native/contact_step_model.h").read_bytes()
     digest = hashlib.sha256(key).hexdigest()
     obj = WORK / "obj" / f"{source.stem}-{digest[:20]}.o"
     if not obj.exists():

@@ -146,6 +146,31 @@ class CoupledContactTests(unittest.TestCase):
         self.assertEqual(status, 5)
         self.assertEqual(x, p["initial"])
 
+    def test_finite_large_inertia_keeps_the_existing_static_domain(self):
+        p={"initial":[1.,0.,0.],"predicted":[0.,0.,0.],"inverse":[1e-308],
+           "a":[],"b":[],"rest":[],"alpha":.1,"triangles":[],"capsules":[]}
+        code,x,_,stats=self.run_problem(p)
+        self.assertEqual(code,0,stats); self.assertLessEqual(stats[1],1e-8)
+        self.assertTrue(all(math.isfinite(value) for value in x))
+
+    def test_unusable_inactive_normal_does_not_invalidate_a_clear_step(self):
+        initial=[0.,0.,0.,1.,0.,0.,0.,0.,1.]
+        p={"initial":initial,"predicted":[.01]+initial[1:],"inverse":[1.,0.,0.],
+           "a":[],"b":[],"rest":[],"alpha":.1,"triangles":[[0,1,2]],
+           "capsules":[{"a":[.2,1e-8,.2],"b":[.2,1e-8,.2],"radius":2e-162}]}
+        code,x,dual,stats=self.run_problem(p)
+        self.assertEqual(code,0,stats); self.assertEqual(dual,[0.])
+        self.assertAlmostEqual(x[0],.01,delta=1e-8); self.assertEqual(x[3:],initial[3:])
+
+    def test_overflowing_negative_inactive_intercept_keeps_zero_reaction(self):
+        initial=[0.,0.,0.,1.,0.,0.,0.,0.,1.]
+        p={"initial":initial,"predicted":[.01]+initial[1:],"inverse":[1e-308,0.,0.],
+           "a":[],"b":[],"rest":[],"alpha":.1,"triangles":[[0,1,2]],
+           "capsules":[{"a":[.2,4.,.2],"b":[.2,4.,.2],"radius":4e-154}]}
+        code,x,dual,stats=self.run_problem(p)
+        self.assertEqual(code,0,stats); self.assertEqual(dual,[0.])
+        self.assertEqual(x,p['predicted'])
+
     def test_local_jaw_fixture_matches_independent_constrained_reference(self):
         p = json.loads((ROOT/"native/tests/fixtures/local_jaw_contact.json").read_text())
         status, x, dual, stats = self.run_problem(p)

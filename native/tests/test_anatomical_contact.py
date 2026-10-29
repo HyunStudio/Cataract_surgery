@@ -64,6 +64,18 @@ class AnatomicalContactTests(unittest.TestCase):
         point=[0.,.2,0.]; code,x,dual,stats=self.query(point)
         self.assertEqual(code,0,stats); self.assertEqual(x,point); self.assertEqual(dual,[0.])
 
+    def test_inactive_anatomy_normals_cannot_hide_a_compressed_saddle(self):
+        initial=[-.25,0.,0.,.25,0.,0.]; predicted=[4.75,0.,0.,-4.75,0.,0.]
+        yplane=[-1.,-.2,-1.,1.,-.2,-1.,0.,-.2,1.]
+        zplane=[-1.,-1.,-.2,1.,-1.,-.2,0.,1.,-.2]
+        records=(yplane+[.1,1.])*2+(zplane+[.1,1.])*2
+        x=D(initial); dual=D([99.]*4); stats=D([99.]*12)
+        code=self.solve(2,D(predicted),x,D([1.,1.]),1,I([0]),I([1]),D([1.]),.1,
+            0,I([]),0,I([]),D([]),D(initial),1,D([1.]),4,I([0,1,0,1]),D(records),
+            100,1e-8,1e-9,1e-11,dual,stats)
+        self.assertEqual(code,5,list(stats))
+        self.assertEqual(list(x),initial); self.assertEqual(list(dual),[99.]*4)
+
     def test_prescribed_penetration_rejects_without_publication(self):
         point=[0.,.05,0.]; code,x,dual,_=self.query(point,inverse=[0.])
         self.assertEqual(code,3); self.assertEqual(x,point); self.assertEqual(dual,[99.])

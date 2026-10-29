@@ -2,6 +2,7 @@
 #pragma once
 #include "contact_distance.h"
 #include "contact_merit_difference.h"
+#include "contact_step_model.h"
 #include <Eigen/SparseCholesky>
 #include <vector>
 
@@ -12,7 +13,8 @@ using Triplet=Eigen::Triplet<double>;
 struct State {
     double energy=0,merit=0,penetration=0;
     Vector gradient,force,constraints,updated_dual;
-    Matrix hessian,jacobian;
+    Matrix hessian,jacobian,model_rows;
+    std::vector<int> model_regular;
 };
 
 struct Problem {
@@ -136,7 +138,8 @@ struct Problem {
         out=State{}; out.force=Vector::Zero(size); out.gradient=Vector::Zero(size);
         int pairs=pair_count();
         out.constraints=Vector::Zero(pairs); out.updated_dual=Vector::Zero(pairs);
-        std::vector<Triplet> h,j;
+        std::vector<Triplet> h,j,all;
+        out.model_regular.resize(pairs);
         h.reserve(size+36*edges);
         for (int i=0;i<n;++i) for (int axis=0;axis<3;++axis) {
             int k=3*i+axis;
@@ -171,6 +174,8 @@ struct Problem {
             double g=0; int status=geometry(x,pair,g,row);
             if (status!=0 && status!=6) return status;
             out.constraints[pair]=g;
+            out.model_regular[pair]=status==0 && row.allFinite();
+            if (out.model_regular[pair]) for (int k=0;k<size;++k) if (row[k]!=0) all.emplace_back(pair,k,row[k]);
             double r=radius_of(pair);
             out.penetration=std::max(out.penetration,r*(1-std::sqrt(std::max(0.,g+1))));
             double multiplier=std::max(0.,dual[pair]-rho*g);
@@ -185,6 +190,7 @@ struct Problem {
         }
         out.hessian.resize(size,size); out.hessian.setFromTriplets(h.begin(),h.end());
         out.jacobian.resize(pairs,size); out.jacobian.setFromTriplets(j.begin(),j.end());
+        out.model_rows.resize(pairs,size); out.model_rows.setFromTriplets(all.begin(),all.end());
         if (!std::isfinite(out.energy) || !std::isfinite(out.merit) || !out.gradient.allFinite() ||
             !out.constraints.allFinite() || !out.updated_dual.allFinite()) return 2;
         return 0;
@@ -343,25 +349,13 @@ inline int solve(int n,const double* predicted,double* output,const double* inve
             // and the original strict final curvature screen still decide.
             if (model_status) { lagrangian=state.hessian; ++stats[11]; }
             else ++stats[10];
-            Matrix base=lagrangian+rho*(state.jacobian.transpose()*state.jacobian);
-            Vector direction(problem.size); bool solved=false; double damping=1e-8;
-            double norm=state.gradient.stableNorm();
-            if (!std::isfinite(norm) || !(norm>0)) { status=2; break; }
-            for (int attempt=0;attempt<12;++attempt,damping*=10) {
-                Matrix matrix=base;
-                for (int i=0;i<problem.size;++i) matrix.coeffRef(i,i)+=damping*std::max(1.,std::abs(base.coeff(i,i)));
-                Eigen::SimplicialLDLT<Matrix> factor; factor.compute(matrix); ++factors;
-                if (factor.info()!=Eigen::Success || !factor.vectorD().allFinite() || !(factor.vectorD().array()>0).all()) continue;
-                direction=factor.solve(-state.gradient);
-                double numerator=(matrix*direction+state.gradient).stableNorm();
-                double residual=std::isfinite(numerator)?numerator/norm:std::numeric_limits<double>::infinity();
-                stats[9]=residual;
-                double slope=state.gradient.dot(direction);
-                if (direction.allFinite() && std::isfinite(residual) && residual<=1e-5 && std::isfinite(slope) && slope<0) { solved=true; break; }
-            }
-            if (!solved) { status=2; break; }
+            auto proposal=step_model::propose(lagrangian,state.model_rows,state.force,state.constraints,dual,rho,state.model_regular);
+            factors+=proposal.factors; stats[9]=proposal.residual;
+            if (proposal.status && proposal.status!=step_model::descent_proposal && proposal.status!=step_model::unmodelled_proposal && proposal.status!=step_model::raw_seed_proposal) { status=proposal.status==4?4:2; break; }
+            Vector direction=std::move(proposal.direction);
             bool accepted=false; State trial; Vector candidate;
             double slope=state.gradient.dot(direction),step=1;
+            if (!std::isfinite(slope) || !(slope<0)) { status=2; break; }
             for (int line=0;line<32;++line,step*=.5) {
                 candidate=x;
                 for (int i=0;i<problem.size;++i) candidate[problem.coordinates[i]]+=step*direction[i];
