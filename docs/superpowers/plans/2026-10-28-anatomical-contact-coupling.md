@@ -286,3 +286,27 @@ checks pass with the rebuilt extension. Only saved whole outer-step19386remains
 live; it has reached call29and continues the original tool-time refinements.
 This is scoped numerical/integration progress, not complete extraction or app
 qualification. Preserve this live replay and its exact DLL/scripts.
+
+Saved outer-step km0ox2ou/19386terminates0:52calls, native_failure empty,
+integration_steps264, initial/retained rest area5.31932634674013, zero cut loss,
+broken edges and accepted body uncertainty. First anatomy request38passes,
+continuous scan identifies second tissue vertex670; combined constraints663/670
+pass at call45and all final tool/anatomy guards46–52return0. The replayed request
+differs from old capture only in initial/previous/predicted coordinates (maximum
+4.216e-10), due to the newly solved preceding substep; no tolerance/material/
+history replacement. Source/checkpoint/probe hash audits all pass.
+
+Exported saved call45's packed64result with Godot, without rerunning mechanics.
+Independent KKT recomputation qualifies force4.776136828607631e-9,
+gap1.1201699290364076e-12, complementarity3.8342466431432986e-13,
+energy2.4849586556424434e-7. qualified_step.json binds summary/log/replay proof/
+independent result and checks material conservation, finite state, advancement,
+zero uncertainty/fracture and final guards. replay_proof.json SHA
+f51e32f70905842583caefe5c85be6f4c1b6e39d431e3d5951558bd22f5ee887.
+
+This repairs the saved whole timestep, not the whole surgery. One justified new
+complete extraction prefix is now live: uvp7et92/session76433on c70f532 sources
+and extension7ae81204… . Import has completed and actual extraction runtime has
+started. Preserve that handle and ALL bound native/Godot sources until terminal;
+do not restart on observation timeout or launch another prefix. Default backend,
+real-time behavior, appearance and Windows release remain unqualified.

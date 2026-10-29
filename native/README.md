@@ -1,5 +1,15 @@
 # Experimental membrane numerical kernel
 
+Update on c70f532: the saved failed264outer timestep now passes with the new
+optional coupled core. Replay km0ox2ou completes52calls, adds two actual iris
+constraints, passes final tool/anatomy continuous guards and preserves all rest
+material with0broken edges/accepted uncertainty. Independently recomputed final
+force4.77614e-9, gap1.12017e-12 and complementarity3.83425e-13meet the original
+gates. Canonical140tests, explicit264capture, fresh bridge and actual capsule
+checks pass. A new full extraction uvp7et92 is running; neither it nor the full
+application is qualified by the saved timestep. The older full-prefix failure
+below remains historical evidence.
+
 Optional actual-capsule integration exists, but is not the default backend. Latest full extraction `ttc652cp` on3a1c95b accepts263ticks and rejects264 atomically when the first combined iris/tool solve returns2. Initial iris checks clear; all retained area remains with zero broken edges or accepted uncertainty. The exact failed request is preserved in tests/fixtures/joint_anatomy264.json with sibling provenance. `python tools/check_anatomy_capture.py` is an explicit heavy convergence gate; atomic rejection is not qualification. Earlier `faad2gqn`/265 boundary evidence remains historical. See MERIT_DIFFERENCE.md and TRAJECTORY_CONTACT.md.
 
 The optional Godot `anatomical_contact.gd` adapter freezes finite anatomical triangles and queries the existing native guard against double-precision moving tissue points. It chunks every selected point/face pair within the existing limits, maps collision face/vertex/time, and never projects tissue. Supported margin is `(1e-9,.3]`, strictly above the fixed guard gap. It does not classify closed-shell interiors, wounds or exterior state. The optional actual capsule path now generates iris constraints through `solve_anatomy`, rejects penetrating initial history and requires both tool/anatomical interval checks within one eight-solve loop. See ANATOMICAL_CONTACT.md. Native110 component regressions and focused/frozen actual integration checks pass; the separate new full extraction fails as described above. The captured legacy265 request with two added endpoint constraints also rejects atomically and is not anatomical extraction success.
@@ -62,8 +72,8 @@ guards using one original nonlinear line search. Unavailable active gradients
 reject and cannot be rescued by a saved seed. Frozen264passes independent KKT,
 and the raw-seed integration passes all140frozen native regressions including
 saved265. Fresh canonical builds pass140native tests, the independent264gate,
-and fresh Godot bridge/actual capsule checks. Saved whole-timestep replay is
-still running. The default application backend remains unchanged. Local tests are independent
+and fresh Godot bridge/actual capsule checks. Saved whole-timestep replay passes;
+the new full extraction is running. The default application backend remains unchanged. Local tests are independent
 small analytical/oracle/bounds/domain checks, not full-operation qualification.
 
 ## Isolated Godot bridge
