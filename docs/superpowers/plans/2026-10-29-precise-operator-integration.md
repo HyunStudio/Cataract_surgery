@@ -123,3 +123,14 @@ Corneal wound/closed-shell geometry, tissue-face anatomical contact, calibrated
 constitutive/fracture/fluid models and clinically reviewed behavior remain
 explicit larger requirements. The current vertex/iris contact improvement does
 not establish them.
+
+
+Transaction integration423ffad restores explicit authoritative model/rig state
+before rejected precise ticks, including nested lens material and injury/anatomy
+aliases. Derived caches are invalidated. Failure disarms input without releasing
+physical attachments, pauses and exposes the reason. Deferred clock, IOL,
+recording, observations and audio commit only after accepted physics. Explicit
+resume does not release attachments or repeat stale actions. Scoped13suite proof
+.tools/transaction-validation-mkcan93_/proof.json qualifies; all input hashes
+still match at integration. Read-only review found no actionable defect. This
+is not the full Godot suite, default-backend promotion or clinical qualification.

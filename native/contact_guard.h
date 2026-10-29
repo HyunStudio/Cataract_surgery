@@ -378,10 +378,37 @@ inline int check(int n,const double* previous,const double* current,int faces,co
                 if (Real(distance_gap)<-Real(gap)-motion.numeric) return 1;
                 return 0;
             };
+            // Refine only an already proven collision. For a linear point
+            // against a static triangle, the swept segment suggests the exact
+            // closest time. It is only a proposal: verify the returned double
+            // time with the original point oracle. Never change classification.
+            auto refine_witness=[&]() {
+                if (motion.pose || queries+2>budget) return;
+                for (int k=0;k<3;++k) {
+                    if (motion.data[k]!=motion.data[3+k] || motion.data[6+k]!=motion.data[9+k]) return;
+                    for (int j=0;j<3;++j) if (old[j][k]!=next[j][k]) return;
+                }
+                const Real proven_time=sample_time;
+                const double proven_gap=stats[4];
+                double segment[6],triangle[9];
+                for (int k=0;k<3;++k) {
+                    segment[k]=motion.data[k]; segment[3+k]=motion.data[6+k];
+                    for (int j=0;j<3;++j) triangle[3*j+k]=static_cast<double>(old[j][k]);
+                }
+                ++queries; ++stats[0];
+                const auto candidate=contact::distance(segment,triangle,motion.data[12]);
+                const double t=candidate.values[20];
+                if (candidate.status!=0 || !std::isfinite(t) || !(t>0 && t<=1) || Real(t)==proven_time) return;
+                V ignored{};
+                const int verified=sample(Real(t),ignored);
+                if (verified!=1 || stats[4]>=proven_gap) {
+                    sample_time=proven_time; stats[4]=proven_gap;
+                }
+            };
             V nearest{};
             for (Real t:{Real(0),Real(1)}) {
                 int status=sample(t,nearest);
-                if (status) return finish(status==1?1:2,f,b,status==1?4:(status==2?1:2));
+                if (status) { if (status==1) refine_witness(); return finish(status==1?1:2,f,b,status==1?4:(status==2?1:2)); }
             }
             // Breadth-first subdivision prevents an almost touching early
             // interval from consuming all queries before later penetration.
@@ -396,7 +423,7 @@ inline int check(int n,const double* previous,const double* current,int faces,co
                 // preserve bounded point queries for unresolved intervals.
                 if (separated(motion,old,next,node.lo,node.hi,gap,nearest)) continue;
                 int status=sample(t,nearest);
-                if (status) return finish(status==1?1:2,f,b,status==1?4:(status==2?1:2));
+                if (status) { if (status==1) refine_witness(); return finish(status==1?1:2,f,b,status==1?4:(status==2?1:2)); }
                 stats[6]=std::max(stats[6],double(node.depth));
                 if (separated(motion,old,next,node.lo,node.hi,gap,nearest,false)) continue;
                 if (node.depth>=32 || t<=node.lo || t>=node.hi || count+2>int(pending.size())) return finish(2,f,b,3);

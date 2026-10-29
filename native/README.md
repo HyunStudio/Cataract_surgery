@@ -129,3 +129,31 @@ Joint endpoint force constraints use `Path.interval.physical_radius`, the origin
 Tick264's exact packed request is a canonical regression. Numerical penalty escalation now requires penetration to exceed the requested gap tolerance as well as insufficient relative reduction, preventing already feasible contact roundoff from driving unnecessary penalty growth. All original physical acceptance gates and100outer/32inner work bounds remain. The captured standalone regression changes from status2toaccepted with independently checked KKT/pins, and all42native tests pass. Rebuilt bridge and actual small-traction validators also pass; this fixes the isolated numerical failure, not yet the complete operation.
 
 The physical-radius second-substep request is also canonical. Inner accepted iterates that already meet the original caller's three physical gates now return to the unchanged outer reevaluation/curvature screen before additional auxiliary oversolving or a dual update. Both native and Godot regressions were observed failing, then pass without changing predictor/material/tolerances/budgets. All43native tests pass; the engine static request reports force1.33494e-9, penetration8.5258e-10and complementarity8.9e-13. Actual small traction and rollback also pass; a complete extraction remains a separate gate.
+
+
+Current integration checkpoint (2026-10-29): the proposal-only H_L damping metric
+preserves tangent response without changing the physical normal penalty, exact
+mode, or final acceptance gates. Both canonical saved264/265 anatomy requests
+now pass independent residual checks. Whole265step replay n0jyyrrz still rejects
+after the original8shared solves because a continuous anatomical interval remains
+penetrating. This supersedes the earlier isolated263/264 progress above; neither
+result qualifies an entire extraction or default application.
+
+The guard now optionally improves an already proven collision witness for linear
+point motion against a static triangle. A regular swept segment distance suggests
+the closest time; the original point oracle verifies the returned double time.
+At most two additional distance queries fit within the existing128query budget.
+Failed, ambiguous, unsupported or nonimproving proposals keep the proven witness,
+while attempted work stays counted. Clearance/uncertainty classifications, ABI,
+physical tolerances and the8shared-solve budget remain unchanged. All143native
+regressions and fresh actual capsule engine validation x9mgqmje pass; the saved
+whole265step8y23t5vb passes its first substep but fails the second substep
+trajectory solve at100outer iterations. This witness selection improvement
+alone does not guarantee full-step convergence.
+
+The main application's precise path now restores all explicit physical prefix
+state on rejected ticks and pauses without releasing restored tissue attachments.
+Scoped13application suites and the integrated transaction test pass. Default
+legacy incision regression still fails small-traction material preservation;
+moving its fracture test after the elastic solve does not resolve it. No default
+backend switch or updated Windows release has been qualified.

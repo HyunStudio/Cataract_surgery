@@ -39,6 +39,42 @@ class ContactGuardTests(unittest.TestCase):
     def face(self,y=0.):
         return [-1.,y,-1.,1.,y,-1.,0.,y,1.]
 
+    def test_static_triangle_linear_point_prefers_verified_closest_time(self):
+        guard=self.lib.membrane_guard_motion_witness
+        guard.argtypes=self.guard.argtypes+[ct.POINTER(ct.c_double)]
+        guard.restype=ct.c_int
+        d=lambda v:(ct.c_double*len(v))(*v)
+        face=d([-1.,0.,0.,1.,0.,0.,0.,0.,-1.]); ids=(ct.c_int*3)(0,1,2); kinds=(ct.c_int*1)(0)
+        packet=d(linear([0.,-.02,.06],[0.,.08,-.04],.035))
+        for budget,expected in [(3,.5),(4,.5),(5,.4),(128,.4)]:
+            stats=d([99.]*8); time=ct.c_double(-99.)
+            code=guard(3,face,face,1,ids,1,kinds,packet,budget,1e-9,stats,ct.byref(time))
+            self.assertEqual(code,1)
+            self.assertAlmostEqual(time.value,expected,places=12)
+            self.assertLessEqual(stats[0],budget)
+            if budget==128:
+                self.assertAlmostEqual(stats[4],math.sqrt(.0008)-.035,places=12)
+
+    def test_closest_time_proposal_keeps_unsupported_and_ambiguous_witnesses(self):
+        guard=self.lib.membrane_guard_motion_witness
+        guard.argtypes=self.guard.argtypes+[ct.POINTER(ct.c_double)]
+        guard.restype=ct.c_int
+        d=lambda v:(ct.c_double*len(v))(*v)
+        face=[-1.,0.,0.,1.,0.,0.,0.,0.,-1.]
+        packet=linear([0.,-.02,.06],[0.,.08,-.04],.035)
+        moving=[v+(1e-8 if i%3==1 else 0.) for i,v in enumerate(face)]
+        nonpoint=packet.copy(); nonpoint[3]+=.001; nonpoint[9]+=.001
+        cases=[(face,moving,packet,.5,3),(face,face,nonpoint,.5,3),
+               (self.face(),self.face(),linear([-.3,.05,1.05],[.7,.05,1.05],.1),.25,5)]
+        for old,current,body,expected,count in cases:
+            stats=d([99.]*8); time=ct.c_double(-99.)
+            code=guard(3,d(old),d(current),1,(ct.c_int*3)(0,1,2),1,
+                       (ct.c_int*1)(0),d(body),128,1e-9,stats,ct.byref(time))
+            self.assertEqual(code,1)
+            self.assertAlmostEqual(time.value,expected,places=12)
+            self.assertEqual(stats[0],count)
+            self.assertLess(stats[4],-1e-9)
+
     def test_static_clear_is_certified_without_queries(self):
         face=self.face(); code,s=self.query(face,face,linear([0.,2.,0.],[0.,2.,0.],.1))
         self.assertEqual(code,0); self.assertEqual(s[0],0)

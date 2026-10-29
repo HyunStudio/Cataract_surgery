@@ -1,5 +1,13 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
+**Development checkpoint (2026-10-29):** The professional surgical simulator is
+still in development. The optional precise tissue path now restores a rejected
+application tick atomically and pauses safely;143native regressions and scoped
+application/engine checks pass. Continuous extraction, actual precise knife input,
+interactive performance and a new validated Windows build remain unfinished.
+See [current realism completion criteria](docs/REALISM_COMPLETION_KO.md) for the
+latest evidence. Earlier release results below qualify their own implementations.
+
 **Current version (2026-10-27):** The default Godot application is an integrated specialist simulation game: preparation, microscope/theatre, two persistent instruments, continuous incision, numerical capsule interaction, nuclear/cortical material, local hydraulic adhesion release and cortical aspiration, equipment pedals, continuous tip contact on shared anatomical surfaces, elastic IOL delivery, final inspections, debrief and recorded visual review. The intended feel is a detailed vehicle/flight simulator. Tissue models remain uncalibrated approximations; this is not a clinically validated surgical trainer.
 
 Run `tools/run-godot.ps1` or the new Windows release `godot/build/OphthoSim-Surgical.exe` beside its `.pck`. [Current Korean guide](docs/SPECIALIST_SIMULATOR_KO.md) · [Current validation](docs/SPECIALIST_VALIDATION.md). `-Game` opens the earlier procedural edition. Historical Python and Godot notes below describe their own versions, not the default mode.

@@ -403,3 +403,51 @@ C:/Users/hyung/Documents/Hyun_Studio/Cataract_surgery/.tools/worktrees/surgery-s
 The known whole-application rollback baseline actually reproduces6failures there.
 Work on that path can proceed while canonical numerical/replay checks remain
 source-bound; merge only after scoped review/testing and terminal validations.
+
+
+Latest terminal evidence: canonical both-capture gate3ym25dsx qualifies264/265.
+Native141, fresh bridge yoskwvkf and actual capsule rouyes0i pass. Canonical
+helper/coupled/extension manifests match all current listed source hashes before
+witness refinement. Saved whole265step n0jyyrrz terminates1 after57calls: every
+selected-time solve converges, but final continuous anatomical contact still
+violates gap tolerance and the original8shared-solve budget rejects atomically.
+No new full prefix. Independent regular segment/triangle queries and separate
+point rechecks identify deeper minimum times than the dyadic guard witnesses.
+A witness-only bounded refinement is under investigation; clearance gates,
+tolerances,8solve budget and final acceptance remain unchanged.
+
+
+Witness refinement final read-only review finds no actionable defect. Observed
+analytic RED against isolated oldHEAD guard DLL2cpud_14 (.5 instead of .4), then
+30guard tests pass, including zero/one/two remaining query budgets, ambiguous
+proposal work accounting, moving-triangle and nonpoint bypass. Rebuilt helper,
+coupled and65-TU engine extension terminate0; all143native tests46499terminate0
+in146.319s. Fresh actual capsule x9mgqmje/80660qualifies, and integrated main
+transaction test reports0failures without leaks. Source manifests all match.
+Saved whole265step8y23t5vb/90246 is live: first substep final anatomy solve44
+converges and guards45-51clear. The next substep adds a true tool contact at
+witness.03125; solve60 is still live. Do not kill/restart or mutate bound native/
+Godot sources until terminal. No whole-step or full-extraction success claim.
+Read-only bounded work diagnostic77163terminates0: same request60 budget0 costs
+.084882s, budget1costs6.733436s (53evaluations/32models), both status1atomic
+rejections. Diagnostic JSON is in the replay folder; this is neither converged
+mechanics nor real-time throughput. Current high-cost precise path cannot be
+promoted as interactive performance.
+Legacy small-traction test is still RED. Isolated post-elastic fracture timing
+experiment also fails, then is reverted. Baseline diagnostic: before/acquired
+zero broken edges and no area loss; after .005motion,3edges break and rest-area
+loss1.299440745e-5. Do not claim full Godot suite passes.
+
+
+90246terminates1. First-substep solve44 independently qualifies (27080terminal0):
+force7.133043331463486e-9,gap6.071532165918825e-17,comp4.487838881788353e-13.
+Second-substep solve60 exhausts100outer/8581evaluations/2978models/16908factors,
+force.0021222492831460375. Position publication unchanged; entire265tick restored.
+Exact request and preceding endpoint reaction/rho context are now canonical
+joint_trajectory265_post_anatomy.json and companion context/provenance files.
+No bound jobs remain live. No new full prefix until saved whole-step passes.
+Next experiment: generic optional within-substep warm starts, preserving reaction
+layer mapping and rho when adding contact constraints. Current core resets both
+at each refinement; investigate without changing old ABI, work limits or gates.
+A design review is requested before any adoption. No warm-start change is yet
+implemented or qualified.
