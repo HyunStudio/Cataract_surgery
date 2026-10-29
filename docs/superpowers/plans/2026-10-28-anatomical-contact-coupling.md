@@ -451,3 +451,34 @@ layer mapping and rho when adding contact constraints. Current core resets both
 at each refinement; investigate without changing old ABI, work limits or gates.
 A design review is requested before any adoption. No warm-start change is yet
 implemented or qualified.
+
+
+Frozen warm-start investigation (not adopted): generic ABI prototype in
+.tools/trajectory265-warm-probe-n5rhoppy, build3154terminal0, preserves all
+canonical sources and old ABI. Invalid rho/count/negative dual rejection is
+atomic, input seed immutable, zero seed/baseline-rho equals old budget0 result.
+Physical reaction seed/inheritedrho139.78 fails at10outer (14892terminal1,
+40.12s,force.002123); recovered ALbase on4prior active rows also fails at10outer
+(30777terminal1,42.86s,force.002118). Baseline-rho physical reaction seed starts
+with force3.54e-9 but penetration9.8556e-9;10outer also fails (86613terminal1,
+7.93s). Original100budget trial12076terminates1in640.372724s, force30.88426,
+penetration6.17565e-10,complementarity5.00695e-7. No warm-start code is copied to
+canonical sources, no default switch, no more full-budget tuning repeats.
+
+Hash-bound local geometry diagnostic in that probe identifies7violated/positive
+reaction rows, all at opposing jaw tip endpoints (axis_t=0), on faces40/627,
+both incident on held742. Mass-scaled normalized singular values include
+3.161e-8 and8.145e-16. Exact smallest left singular mode mainly redistributes
+reaction between the adjacent faces; it is not a positive all-jaw common mode.
+Row-force norms sum.1337323, combined norm.000173141. Equality correction is
+large; an inequality-only minimum-Linf linear program remains feasible with
+max coordinate correction.00165248. The separate L1 program's correction also
+has nonnegative actual gaps for these7rows. None of this proves global nonlinear
+feasibility, mechanical acceptance, or a necessary nonlinear displacement bound.
+The zero-thickness membrane may fit between tangent closed jaws; finite-thickness
+infeasibility must not be inferred. Read-only review requires tracing first loss
+of balance, comparing the SAME model's normal vs primal-dual linear solves and
+actual activation response before adopting SQP/contact-model changes.
+All jobs started in this session are now terminal. Goal API still reports blocked;
+create_goal rejects the unfinished existing goal, and no resume operation is
+available. Do not claim an active automatic goal or mark the full objective done.
