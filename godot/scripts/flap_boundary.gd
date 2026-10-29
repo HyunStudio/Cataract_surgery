@@ -1,4 +1,7 @@
 extends RefCounted
+const StateCheckpoint=preload("res://scripts/model_checkpoint.gd")
+func capture_state()->Dictionary: return StateCheckpoint.capture_model(self)
+func restore_state(state:Dictionary)->void: StateCheckpoint.restore_model(self,state)
 ## Cached actual triangle heights; bounded thin-membrane vertex contact, not face FEM.
 const EntryWindow=preload("res://scripts/incision_window.gd")
 const Anatomy=preload("res://scripts/anatomical_contact.gd")

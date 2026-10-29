@@ -1,4 +1,10 @@
 extends RefCounted
+const StateCheckpoint=preload("res://scripts/model_checkpoint.gd")
+func capture_state()->Dictionary:
+	return {"state":StateCheckpoint.capture_model(self),"material":StateCheckpoint.capture_model(material)}
+func restore_state(saved:Dictionary)->void:
+	StateCheckpoint.restore_model(self,saved.state)
+	StateCheckpoint.restore_model(material,saved.material)
 ## Bounded research model: equal-mass spring particles + one fluid compartment.
 ## Parameters and pressure are dimensionless, uncalibrated and NOT device settings.
 ## This is neither CFD nor a validated model of human lens material.

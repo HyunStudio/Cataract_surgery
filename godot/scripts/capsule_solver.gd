@@ -1,4 +1,11 @@
 extends RefCounted
+const StateCheckpoint=preload("res://scripts/model_checkpoint.gd")
+func requires_physics_transaction()->bool: return stretch_backend!=null or contact_backend!=null
+func capture_state()->Dictionary: return StateCheckpoint.capture_model(self)
+func restore_state(state:Dictionary)->void: StateCheckpoint.restore_model(self,state)
+func invalidate_solver_cache()->void:
+	for backend in [stretch_backend,contact_backend]:
+		if backend and backend.has_method("invalidate_cache"): backend.invalidate_cache()
 ## Uncalibrated dimensionless membrane experiment; numerical behavior is not clinical validation.
 ## Edge-length XPBD constraints transmit local tool traction to an anchored circular rim.
 const RINGS := 6

@@ -1,4 +1,5 @@
 extends RefCounted
+func invalidate_cache()->void: _cache.clear()
 ## Optional global XPBD proximal update. This is not calibrated capsule mechanics.
 const FORCE_TOLERANCE:=1e-8
 const CURVATURE_REFINEMENT_TOLERANCE:=1e-12

@@ -1,4 +1,5 @@
 extends RefCounted
+func invalidate_cache()->void: _cache.clear()
 ## Rigid generic envelopes following a signed portal and linear tip path.
 ## Never repairs overlap by translating a tool off its incision pivot.
 const Profile=preload("res://scripts/instrument_profile.gd")

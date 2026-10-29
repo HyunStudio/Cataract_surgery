@@ -1,4 +1,7 @@
 extends RefCounted
+const StateCheckpoint=preload("res://scripts/model_checkpoint.gd")
+func capture_state()->Dictionary: return StateCheckpoint.capture_model(self)
+func restore_state(state:Dictionary)->void: StateCheckpoint.restore_model(self,state)
 ## Uncalibrated local exposure and bounded mesh damage, not tissue failure calibration.
 const Shapes=preload("res://scripts/anatomy_surfaces.gd")
 const LIMIT:=8192

@@ -24,6 +24,7 @@ const Recording = preload("res://scripts/case_recording.gd")
 const Display = preload("res://scripts/surgical_display.gd")
 const Interface = preload("res://scripts/simulation_ui.gd")
 const InputGate = preload("res://scripts/operative_input.gd")
+const PhysicsTransaction=preload("res://scripts/surgical_transaction.gd")
 const IDS := ["knife","forceps","cannula","phaco","ia","injector","manipulator"]
 const PLANES := {"knife":.84,"forceps":.82,"cannula":.76,"phaco":.68,"ia":.68,"injector":.72,"manipulator":.72}
 var capsule = Capsule.new()
@@ -231,7 +232,11 @@ func set_room_view(value: bool) -> void:
 func toggle_help() -> void:
 	release_controls(); ui._help.visible=not ui._help.visible
 func toggle_pause() -> void:
-	release_controls(); paused=not paused; refresh_ui()
+	if not paused: release_controls()
+	else:
+		# A failed physical tick may pause while preserving a held attachment.
+		_disarm_actions(); target_valid=[false,false]; _command_axes=[Vector3.ZERO,Vector3.ZERO]
+	paused=not paused; refresh_ui()
 func set_assisted(value: bool) -> void:
 	release_controls(); assisted=value; target_valid=[false,false]; refresh_ui()
 func set_high_contrast(value: bool) -> void:
@@ -430,6 +435,7 @@ func _advance_motion(dt: float) -> float:
 func _physics_process(dt: float) -> void:
 	if not display or not _can_operate(): return
 	if not is_finite(dt) or dt<=0 or dt>.05: return
+	var saved:Dictionary=PhysicsTransaction.capture(self) if capsule.requires_physics_transaction() else {}
 	var movement:=_advance_motion(dt)
 	metrics.path_length+=movement
 	_update_injury(dt)
@@ -461,6 +467,16 @@ func _physics_process(dt: float) -> void:
 		if anatomy.cornea.revision!=_flap_revision:
 			_flap_boundary.configure(anatomy.cornea,anatomy.iris); _flap_revision=anatomy.cornea.revision
 	capsule.step_tools(dt,tools)
+	if not capsule.native_failure.is_empty():
+		var failure:Dictionary=capsule.native_failure.duplicate(true)
+		if not saved.is_empty(): PhysicsTransaction.restore(self,saved)
+		capsule.native_failure=failure
+		# Disarm input without releasing restored physical grasps or cut history.
+		_disarm_actions(); target_valid=[false,false]; _command_axes=[Vector3.ZERO,Vector3.ZERO]
+		paused=true
+		status="조직 계산을 완료하지 못했습니다. 조작을 멈추고 상태를 확인하세요: "+str(failure.get("reason","native_failure"))
+		refresh_ui()
+		return
 	for hand in range(2): _body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"grip":hand_tools[hand]=="forceps" and _actual_grip(hand)}
 	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
 	if injecting and implant_hand==-1: implant_hand=selected

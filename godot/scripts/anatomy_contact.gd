@@ -1,4 +1,7 @@
 extends RefCounted
+const StateCheckpoint=preload("res://scripts/model_checkpoint.gd")
+func capture_state()->Dictionary: return StateCheckpoint.capture_model(self,["cornea","posterior"])
+func restore_state(state:Dictionary)->void: StateCheckpoint.restore_model(self,state)
 ## Stateful geometry selection, with no tissue or instrument mutation.
 const EntryWindow=preload("res://scripts/incision_window.gd")
 const Shapes=preload("res://scripts/anatomy_surfaces.gd")

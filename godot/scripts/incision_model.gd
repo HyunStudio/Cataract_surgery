@@ -1,4 +1,7 @@
 extends RefCounted
+const StateCheckpoint=preload("res://scripts/model_checkpoint.gd")
+func capture_state()->Dictionary: return StateCheckpoint.capture_model(self)
+func restore_state(state:Dictionary)->void: StateCheckpoint.restore_model(self,state)
 ## Reduced elastic entry-gap model in simulator coordinates; not corneal FEM.
 var geometry:RefCounted
 var portals := [Vector3(1.44,.86,0),Vector3(-1.44,.86,.25)]
