@@ -46,6 +46,21 @@ reason outside rollback and explicitly disarm stale cut/pedal commands. Extend
 tests beyond metrics to nested material state, surface sharing, cache consistency,
 incision rollback and a later-substep failure.
 
+Concrete control caveat: release_controls() calls capsule.release() and
+incision.cut(...,false). Calling it blindly after restoration would itself
+change accepted grasp and incision history. Separate input disarming from
+physical release; commit a release through the next accepted physical tick or
+an explicitly tested safe-abort policy. Do not erase a held tissue attachment
+merely to clear a failed command.
+
+Extended the RED test with deterministic pre-rejection changes to nested
+material adhesion, wound state and injury surface revision. All3new restoration
+assertions fail too (6failures total, exit1). The behavioral surface-sharing
+oracle passes now and will catch an alias-breaking fix. Its invocation trace is
+kept outside the model snapshot so a correct rollback cannot erase the test's
+evidence that failure ran. These extra state changes are injected test scenarios,
+not a claim that every ordinary failed step changes those exact fields.
+
 ## Sequence and checks
 
 1. Finish uvp7et92 with the same process handle. On failure, preserve its exact

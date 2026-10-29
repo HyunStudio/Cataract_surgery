@@ -6,8 +6,10 @@ constraints, passes final tool/anatomy continuous guards and preserves all rest
 material with0broken edges/accepted uncertainty. Independently recomputed final
 force4.77614e-9, gap1.12017e-12 and complementarity3.83425e-13meet the original
 gates. Canonical140tests, explicit264capture, fresh bridge and actual capsule
-checks pass. A new full extraction uvp7et92 is running; neither it nor the full
-application is qualified by the saved timestep. The older full-prefix failure
+checks pass. New full extraction uvp7et92 accepts264then rejects265at100outer
+iterations with force stagnation; the exact consistent-history request and
+provenance are in tests/fixtures/joint_anatomy265.json and its sibling Markdown.
+Neither the full extraction nor application is qualified. The older failure
 below remains historical evidence.
 
 Optional actual-capsule integration exists, but is not the default backend. Latest full extraction `ttc652cp` on3a1c95b accepts263ticks and rejects264 atomically when the first combined iris/tool solve returns2. Initial iris checks clear; all retained area remains with zero broken edges or accepted uncertainty. The exact failed request is preserved in tests/fixtures/joint_anatomy264.json with sibling provenance. `python tools/check_anatomy_capture.py` is an explicit heavy convergence gate; atomic rejection is not qualification. Earlier `faad2gqn`/265 boundary evidence remains historical. See MERIT_DIFFERENCE.md and TRAJECTORY_CONTACT.md.
@@ -73,7 +75,7 @@ reject and cannot be rescued by a saved seed. Frozen264passes independent KKT,
 and the raw-seed integration passes all140frozen native regressions including
 saved265. Fresh canonical builds pass140native tests, the independent264gate,
 and fresh Godot bridge/actual capsule checks. Saved whole-timestep replay passes;
-the new full extraction is running. The default application backend remains unchanged. Local tests are independent
+the new full extraction fails at265as described above. The default application backend remains unchanged. Local tests are independent
 small analytical/oracle/bounds/domain checks, not full-operation qualification.
 
 ## Isolated Godot bridge

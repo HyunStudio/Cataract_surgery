@@ -310,3 +310,37 @@ and extension7ae81204… . Import has completed and actual extraction runtime ha
 started. Preserve that handle and ALL bound native/Godot sources until terminal;
 do not restart on observation timeout or launch another prefix. Default backend,
 real-time behavior, appearance and Windows release remain unqualified.
+
+Full uvp7et92/76433is now terminal1/unqualified. Fresh import passes; runtime
+accepts264ticks, then265rejects native_joint_solve status1at100outer iterations.
+Stats: energy1.04255175e-6, force3.29753427e-6, gap~1e-14,
+complementarity~4e-14, evaluations3205, penalty223645.801040861,
+inner3029/factors3193. All physical acceptance gates and work limits remain.
+Outer rollback retains area5.31932634674013, zero cut loss/broken edges/accepted
+uncertainty, integration_steps264. This is a new consistent-history failure,
+not the historical penetrating265state. Exact checkpoint is preserved under
+uvp7et92/rejected-extraction-step.bin; log SHA
+66d705a743e989d6bd483728c024a7b183c63591dd9f95302e216aee05d42b1e.
+All bound source/checkpoint audits passed. No process from that prefix remains
+live; do not rerun it until a saved-state repair is verified. Extract the failing
+anatomy request from its checkpoint with a capture-only stop before the expensive
+anatomy solve, explicitly distinguished from numerical reproduction.
+
+Capture-only bwkezn0x/39003terminates1with deliberate sentinel-98at request16;
+its prior real solves/guards pass. Preserved request as joint_anatomy265.json,
+SHAf3667fb46cebc4e8e084503056c58d2a86dc262f642e7a342173843067baf881,
+with sibling provenance Markdown. Actual standalone instrumented h8bdirmj/1770
+terminates0diagnostic, reproducing solve1/outer100force5.439475852737881e-6.
+Different compile/arithmetic trajectories produce different final statistics,
+so this is not a bitwise extension reproduction. Actual outputs remain atomic.
+It captures the terminal local model without changing accepted mechanics.
+
+Pure linear analysis finds active-penalty diagonal scale2.794826e10versus
+H_L diagonal225.57. At initial1e-8damping, the former leaves linearized-gradient
+norm2.012e-6and direction norm5.09e-8; H_L-only diagnostic scale gives direction
+.00040646and linearized-gradient1.97e-10. Gradient reconstruction difference
+5.26e-18rules out a large anchoring error at this terminal state. These are LU
+diagnostics without SPD/nonlinear certification. No metric change is adopted.
+Read-only review is considering a proposal-only physical/Lagrangian metric as
+an isolated next experiment versus a structured solve for normal-equation
+conditioning. All numerical/build/replay jobs are terminal; review remains.
