@@ -344,3 +344,62 @@ diagnostics without SPD/nonlinear certification. No metric change is adopted.
 Read-only review is considering a proposal-only physical/Lagrangian metric as
 an isolated next experiment versus a structured solve for normal-equation
 conditioning. All numerical/build/replay jobs are terminal; review remains.
+
+Read-only review approves the smallest isolated metric experiment: proposal
+mode uses max(1,abs(diag(H_L))) rather than the active normal-penalty diagonal;
+freeze it per model, retain the full normal matrix, same damping sequence and
+aggregate12factors, all unchanged physical gates. The supplied LU direction
+does NOT already pass the strict residual: its lower residual bound1.4145e-10
+exceeds6.03e-11. Do not weaken that gate. If large damping remains necessary,
+investigate a structured primal/dual or tangent-space solve instead.
+
+Analytical diagnostic H=I2,J=[1,1],force=[2,1],gap=-.01,rho1e12:
+current proposal freezes tangent difference at-9.999e-5versus physical optimum-1.
+Observed RED in ignored test_tangent_damping.py (delta1e-3). Frozen rc53gd9e
+experiment/session79731is live: changes ONLY proposal-mode scale, records SPD
+pivots/damping, proposal kind/linear residual/actual slope and accepted line step.
+It builds a shared probe with the test-only shim, runs that quality test first,
+then actual265if quality passes. Exact model mode remains unchanged. Canonical
+native/helper sources are bound and must stay unchanged until terminal. No new
+full extraction prefix is justified yet; no experimental metric is adopted.
+
+Frozen rc53gd9e/79731terminates0. Tangent quality passes, with positive finite
+production pivots and unchanged residual gate. Actual265solve0at20outer:
+energy1.042390055200983e-6, independent force8.435466013501181e-9,
+gap1.5265566588595902e-16, comp1.2635608114896873e-15. Trace records proposal
+kind/slope/linear residual, SPD damping/pivots and the single accepted line step.
+Same DLL c2647e1587d3c6c700a1df2ed0400773b54dd758db6c025e35349c6426f10de6
+in child6vtqr5xk/82406also passes264at31outer, independent force8.683879216341623e-9,
+gap8.674430965194269e-12, comp2.966707517395224e-12. Both independent proofs bind
+actual requests, results, verifier and DLL hashes. These are selected-time solves.
+
+Full140against BOTH frozen core and helper/46556terminates1:138pass, exactly2
+failures hardcode the superseded proposal damping diagonal (release and deep
+contact direction expectations). All physical, saddle/curvature, atomicity and
+saved trajectory regressions pass, including legacy265. Updated those two
+analytical expectations to H_L proposal damping; exact-mode oracle unchanged.
+Added the independent tangent-quality case. Observed RED3/27against old canonical
+helper before changing its header. Canonical proposal scale is now changed,
+with its full normal matrix and all work/acceptance gates retained. Source-bound
+helper61513, coupled12645and65-TU extension7067builds are live. Do not mutate
+their native/build inputs. Fresh141suite,264/265and engine/saved-step checks are
+still required; no new full prefix yet. Final read-only source review is pending.
+
+All3canonical builds terminate0. Final read-only source review finds no actionable
+defect, confirms proposal-only frozen metric/exact-mode preservation and the
+new analytical expectations. Canonical141suite72221terminates0in134.848s,
+including27helper tests. Fresh minimal bridge yoskwvkf/17181and actual capsule
+rouyes0i/39333both terminate0/qualified with input hashes unchanged. Source-bound
+both-capture gate3ym25dsx/15039is still live (264already qualified,265running).
+Saved failed265outer timestep replay has now been launched with the new extension;
+preserve its handle/sources. No new full prefix yet.
+
+For independent application rollback work, the app-native worktree tool fails
+because this chat's parent workspace is not the subrepository. After verifying
+Git state and the ignored .tools/worktrees path, created a regular Git worktree
+on feat/simulator-step-transaction from8b5383b. No canonical bound source is copied
+or reset. Its absolute path is
+C:/Users/hyung/Documents/Hyun_Studio/Cataract_surgery/.tools/worktrees/surgery-step-transaction.
+The known whole-application rollback baseline actually reproduces6failures there.
+Work on that path can proceed while canonical numerical/replay checks remain
+source-bound; merge only after scoped review/testing and terminal validations.

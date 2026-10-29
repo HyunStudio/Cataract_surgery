@@ -136,7 +136,11 @@ inline Result solve(const Matrix& input_hl,const Matrix& rows,const Vector& forc
     Matrix current_rows=selected(usable,initial);
     Matrix initial_base=hl+rho*(current_rows.transpose()*current_rows);
     Vector scale(n);
-    for (int k=0;k<n;++k) scale[k]=std::max(1.,std::abs(initial_base.coeff(k,k)));
+    // A diagonalized normal penalty also damps unconstrained tangent modes.
+    // Proposal damping follows H_L; retain the full rho*J'J in every solve.
+    // Exact auxiliary-model mode keeps its original frozen metric.
+    for (int k=0;k<n;++k)
+        scale[k]=std::max(1.,std::abs(proposal?hl.coeff(k,k):initial_base.coeff(k,k)));
     if (!scale.allFinite()) { out.status=2; return out; }
     double damping=1e-8;
     std::vector<unsigned char> active=initial;

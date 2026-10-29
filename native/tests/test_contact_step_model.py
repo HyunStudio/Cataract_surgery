@@ -149,7 +149,7 @@ class ContactStepModelTests(unittest.TestCase):
         code,d,stats=self.run_model([[1.]],[[1.]],[-3.],[-.1],rho=10.,proposal=True)
         self.assertEqual(code,6,stats)
         # Initial active RHS is -force + J*(dual-rho*g) = 3+1.
-        self.assertAlmostEqual(d[0],4/(11+11e-8),delta=1e-12)
+        self.assertAlmostEqual(d[0],4/(11+1e-8),delta=1e-12)
         self.assertGreater(abs(d[0]-3.),1.)
 
     def test_proposal_still_models_a_new_activation(self):
@@ -161,9 +161,16 @@ class ContactStepModelTests(unittest.TestCase):
         h=np.diag([-4.5,-21.,-4.5]); rows=np.array([[-10.,-10.,-10.],[0.,10.,0.]])
         code,d,stats=self.run_model(h,rows,[0.,0.,0.],[-.25,-.75],rho=.11,proposal=True)
         self.assertIn(code,(0,6),stats)
-        base=h+.11*rows.T@rows; scale=np.maximum(1.,np.abs(np.diag(base)))
+        base=h+.11*rows.T@rows; scale=np.maximum(1.,np.abs(np.diag(h)))
         expected=np.linalg.solve(base+np.diag(10*scale),rows.T@np.array([.0275,.0825]))
         np.testing.assert_allclose(d,expected,atol=1e-12,rtol=0)
+
+    def test_normal_penalty_does_not_freeze_physical_tangent_proposal(self):
+        code,d,stats=self.run_model([[1.,0.],[0.,1.]],[[1.,1.]],[2.,1.],[-.01],rho=1e12,proposal=True)
+        self.assertIn(code,(0,6,7,8),stats)
+        # Normal penalty fixes only the sum; physical tangent equilibrium fixes
+        # the independent difference at -1. Allow finite conditioning error.
+        self.assertAlmostEqual(d[0]-d[1],-1.,delta=1e-3)
 
     def test_small_convex_models_match_exhaustive_active_set_oracle(self):
         # Enumerate every set independently rather than reproducing the
