@@ -1,0 +1,68 @@
+{
+  "cases": [
+    {
+      "accepted_steps": 144,
+      "elapsed_ms": 17067,
+      "force_inf": 1.3162693157653393e-11,
+      "iterations": 47,
+      "retired_layers": 0,
+      "times": [
+        0.25,
+        0.375,
+        0.5,
+        1.0
+      ]
+    },
+    {
+      "accepted_steps": 146,
+      "elapsed_ms": 2907,
+      "force_inf": 9.697675995568034e-11,
+      "iterations": 17,
+      "retired_layers": 0,
+      "times": [
+        1.0
+      ]
+    },
+    {
+      "accepted_steps": 150,
+      "elapsed_ms": 57060,
+      "force_inf": 1.7403911645175185e-10,
+      "iterations": 91,
+      "retired_layers": 4,
+      "times": [
+        0.001953125,
+        0.00390625,
+        0.0078125,
+        1.0
+      ]
+    },
+    {
+      "accepted_steps": 156,
+      "elapsed_ms": 30544,
+      "force_inf": 1.6770251853870377e-11,
+      "iterations": 51,
+      "retired_layers": 0,
+      "times": [
+        0.46875,
+        0.4697265625,
+        0.5,
+        1.0
+      ]
+    },
+    {
+      "accepted_steps": 167,
+      "elapsed_ms": 32096,
+      "force_inf": 3.842178131208129e-09,
+      "iterations": 69,
+      "retired_layers": 0,
+      "times": [
+        0.49609375,
+        0.5,
+        0.875,
+        1.0
+      ]
+    }
+  ],
+  "qualified": true,
+  "scope": "Exact captured144/146/150/156/167 core states only; not outer operative anatomy, full route, real-time or release qualification."
+}

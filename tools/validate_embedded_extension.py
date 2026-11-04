@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from native_build_provenance import sha256, source_hashes, verify_sources
 
@@ -63,7 +64,7 @@ if not options.bridge_only:
     if options.trajectory:
         for name in ['scripts/cut_geometry.gd','tests/test_binary64_incision.gd','scripts/recorded_body_pose.gd','scripts/trajectory_seed.gd','tests/test_trajectory_seed.gd','tests/test_trajectory_pose.gd','tests/test_trajectory_transaction.gd','tests/fixtures/recorded-poses.json','tests/fixtures/operative-motion146-state.bin']:
             intended[name]=ROOT/'godot'/name
-inputs = source_hashes([*intended.values(), Path(__file__).resolve()])
+inputs = source_hashes([*intended.values(), Path(__file__).resolve(), ROOT/'tools/audit_material_reduction.py'])
 for name, source in intended.items():
     destination = probe/name
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -105,6 +106,8 @@ if options.trajectory:
     stages.append(('trajectory_seed',['--script','res://tests/test_trajectory_seed.gd'],'Trajectory numerical seed: 0 failures'))
     stages.append(('trajectory_advance',['--script','res://trajectory_advance.gd'],'Embedded trajectory advance: 0 failures'))
 if options.operative_components:
+    stages.append(('exact_material',['--script','res://tests/test_exact_material.gd'],'Exact material predicates: 0 failures'))
+    stages.append(('material_reduce',['--script','res://tests/test_material_reduce.gd'],'Conservative material reduction: 0 failures'))
     stages.append(('binary64_incision',['--script','res://tests/test_binary64_incision.gd'],'Binary64 incision geometry: 0 failures'))
     stages.append(('operative_contract',['--script','res://tests/test_operative_embedded.gd'],'Operative embedded contract: 0 failures'))
     stages.append(('operative_cut_geometry',['--script','res://tests/test_operative_cut_geometry.gd'],'Operative cut geometry: 0 failures'))
@@ -121,6 +124,11 @@ for name, arguments, marker in stages:
     passed = process.returncode == 0 and not re.search(r'ERROR:|SCRIPT ERROR|leaked at exit|resources still in use', text)
     completed = set(re.findall(r'^\[ DONE \]\s+(\w+)', text, re.MULTILINE))
     if marker is not None:passed = passed and marker in text
+    if name == 'material_reduce' and passed:
+        audited = subprocess.run([sys.executable,str(ROOT/'tools/audit_material_reduction.py'),str(probe/'reports/material-reduction.json')],cwd=ROOT,capture_output=True,text=True)
+        text += audited.stdout+audited.stderr
+        with log.open('a',encoding='utf-8') as sink:sink.write(audited.stdout+audited.stderr)
+        passed = passed and audited.returncode == 0
     if name == 'fresh_import':
         started = set(re.findall(r'^\[[^\]]+\]\s+(\w+)\s+\|', text, re.MULTILINE))
         passed = passed and {'first_scan_filesystem','loading_editor_layout'} <= completed and started <= completed

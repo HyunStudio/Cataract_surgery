@@ -10,6 +10,7 @@ const Energy=preload("res://scripts/membrane_energy.gd")
 const ContactQuery=preload("res://scripts/membrane_contact_query.gd")
 const ContactStep=preload("res://scripts/embedded_contact_step.gd")
 const NumericalSeed=preload("res://scripts/trajectory_seed.gd")
+const MaterialReduce=preload("res://scripts/embedded_material_reduce.gd")
 const FORCE_TOLERANCE:=1e-8
 const GAP_TOLERANCE:=1e-9
 var _cutter=Cutter.new()
@@ -288,6 +289,18 @@ func incise_patches(patches:Array)->Dictionary:
 	if changed:_state=staged._state;_energy=null;_native_geometry={}
 	return {"valid":true,"changed":changed,"reason":"","work":work}
 func _incise_one(patch:PackedVector3Array)->Dictionary:
+	if _state.rest.size()<=4096-128:return _incise_prepared(patch)
+	var reduced:=MaterialReduce.simplify(_state,128)
+	if not reduced.valid:return reduced
+	if not reduced.changed:return _incise_prepared(patch)
+	# Retessellation and the requested incision are a single transaction.
+	# No-op/failed blade motion cannot publish preparatory geometry changes.
+	var staged=get_script().new();staged._state=reduced.state;staged._cutter=_cutter
+	var result:Dictionary=staged._incise_prepared(patch)
+	if not result.valid or not result.changed:return result
+	_state=staged._state;_energy=null;_native_geometry={}
+	return result.merged({"reduced_vertices":reduced.removed_vertices},true)
+func _incise_prepared(patch:PackedVector3Array)->Dictionary:
 	var fine:=physical_positions()
 	var cut:Dictionary=_cutter.slice_triangle64(fine,_state.indices,patch[0],patch[1],patch[2],4096,8192)
 	if not cut.valid or not cut.changed:return cut
