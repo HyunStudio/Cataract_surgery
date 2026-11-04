@@ -1,0 +1,104 @@
+{
+  "scope": "Standalone retained curved material energy/implicit candidates only; no contact, CCD, operator case, active FPS or clinical calibration.",
+  "qualified": true,
+  "controls": 217,
+  "cells": 396,
+  "tests": 8,
+  "test_output": "test_curved_godot_reference_and_implicit_step (test_membrane_fem.MembraneFEMTests.test_curved_godot_reference_and_implicit_step) ... ok\ntest_failures_do_not_publish_unaccepted_iterates (test_membrane_fem.MembraneFEMTests.test_failures_do_not_publish_unaccepted_iterates) ... ok\ntest_implicit_equilibrium_and_exact_pin (test_membrane_fem.MembraneFEMTests.test_implicit_equilibrium_and_exact_pin) ... ok\ntest_rest_objectivity_and_exact_hessian (test_membrane_fem.MembraneFEMTests.test_rest_objectivity_and_exact_hessian) ... ok\ntest_rigid_prediction_has_no_internal_impulse (test_membrane_fem.MembraneFEMTests.test_rigid_prediction_has_no_internal_impulse) ... ok\ntest_shared_nodes_and_permuted_cells (test_membrane_fem.MembraneFEMTests.test_shared_nodes_and_permuted_cells) ... ok\ntest_small_energy_change_matches_high_precision_subtraction (test_membrane_fem.MembraneFEMTests.test_small_energy_change_matches_high_precision_subtraction) ... ok\ntest_stationary_compressed_saddle_is_not_convergence (test_membrane_fem.MembraneFEMTests.test_stationary_compressed_saddle_is_not_convergence) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.467s\n\nOK\n",
+  "build": {
+    "artifact_sha256": "c1ad2e76a0cf4be08dfbfb846fe12a0e549e1b57726b0bbcf50ae64608338bee",
+    "sources": {
+      "native\\membrane_fem.cpp": "a50aea4bc1ee08f9dc9ce4d15d9dac88f3b2370d1b22daad3b26d799be5cddcf",
+      "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+      "tools\\build_membrane_fem.py": "fea0f26e142047d28ca8ca78bc294141443a95916b707de68289ddfc280a11dc",
+      "tools\\native_build_provenance.py": "b7d98ea1bad45dba682726b2b96cb669244b8738f76ea79ddfe4b170b2cf1d98"
+    },
+    "compiler": {
+      "version": "0.17.0",
+      "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+      "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+    },
+    "dependencies": {
+      ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+    },
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Werror",
+      "-DEIGEN_MPL2_ONLY",
+      "-isystem",
+      "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+      "-shared",
+      "-target",
+      "x86_64-windows-gnu"
+    ],
+    "source_revision": "d9da311a2d92450ad88e5694af90ccbc1492bd9a",
+    "source_dirty": true
+  },
+  "test_inputs": {
+    "native\\tests\\fixtures\\embedded_membrane_reference.json": "0ed197048584f23d9b473744be69c1579e9c1e042c28613e783edd510f0178de",
+    "native\\tests\\test_membrane_fem.py": "f6409026eacbb1a372ecf8317f31231a7421cc390239d01705349a5e013c4a9a",
+    "tools\\validate_membrane_fem.py": "8c51361b43c81049822132d189a03d7e47ba1611c764c47361c21d4e9db4fb42"
+  },
+  "godot_reference_sources": {
+    "res://scripts/anterior_segment.gd": "a0d691d5edca728236356db9b609275f3b0f90da927f29bb41dc135962de46a7",
+    "res://scripts/capsule_solver.gd": "13ee61a4cc1c038306b81492402e012580db39680db7cc3269332e6428fcff66",
+    "res://scripts/membrane_cut.gd": "6cf152a8974d534aa99407a37681ddcf37309b8ace2377e32bdc71aedc050871",
+    "res://scripts/membrane_energy.gd": "df8519edeae45c5ca926667fe3138092211078e869c115d58d2e627a5708bea3",
+    "res://scripts/membrane_precision.gd": "477ed6eb2b625e3336a9a52394d176ee22bc33fbcf0e5dd0ce709ac5c6533310",
+    "res://scripts/membrane_refinement.gd": "bb3797132d5eed590a941f4dac4124447867f430635dfc4c8bb7390c9cd17db2",
+    "res://scripts/membrane_support.gd": "a04bd2c7f20ce49f8e5f08669a53c01b251fa5b423ebb0b824b6b9a82d58c538",
+    "res://tests/test_fem_reference.gd": "6e697dab3701eb80ad4a87f1f0e7c8afa9aa62b865c3e8be677246585bb321d8"
+  },
+  "measurements": [
+    {
+      "mu": 2.0,
+      "lambda": 3.0,
+      "samples_ms": [
+        4.028900060802698,
+        4.41339984536171,
+        4.232999868690968,
+        3.9054001681506634,
+        4.5634000562131405,
+        4.524300107732415
+      ],
+      "median_ms": 4.323199857026339,
+      "max_ms": 4.5634000562131405,
+      "independent_force_inf": 1.8550623703979512e-11,
+      "iterations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "mu": 10000.0,
+      "lambda": 15000.0,
+      "samples_ms": [
+        5.898100091144443,
+        8.059700019657612,
+        7.307700114324689,
+        9.170399978756905,
+        5.874000024050474,
+        5.996200023218989
+      ],
+      "median_ms": 6.651950068771839,
+      "max_ms": 9.170399978756905,
+      "independent_force_inf": 6.582387163545783e-11,
+      "iterations": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    }
+  ]
+}

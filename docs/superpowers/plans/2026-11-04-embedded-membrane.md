@@ -156,3 +156,72 @@ saved local fixture. Continue full original goal, not support-only completion.
   Worktree .tools has no compiler/Eigen deps; main .tools contains the verified
   pinned tools. Use explicit read-only dependency junctions or validated build
   dependency configuration, with a separate worktree native output directory.
+
+### Next numerical implementation contract
+
+New standalone membrane_fem.cpp/.h + build_membrane_fem.py and native unit tests.
+Keep native/contact sources/default backend unchanged. Export bounded C ABI
+evaluation of retained cells (three node IDs, two reference gradients, real area)
+with energy, gradient and optional exact9x9 cell Hessians. Use the independent
+GDScript Neo-Hookean evaluator and finite differences as reference. Full3D force
+objectivity and Hessian symmetry are required.
+
+Add implicit position solve: mass/(2*dt^2)*|x-predicted|^2 + elastic energy, fixed
+coordinates eliminated. Preserve inverse mass<=1e12, force tolerance1e-8 by
+default, strict finite positive final curvature. Exact sparse LDLT, bounded
+direction-only Levenberg damping and Armijo steps; no objective/acceptance
+relaxation. Publish output only on actual convergence. Invalid, numeric failure
+and budget exhaustion leave input positions unchanged. Bound n4096/cells8192,
+outer1000, damping attempts12, line attempts32. This is a standalone mechanics
+core, not yet contact/CCD, tool input, partial-tip enrichment or a full operation.
+
+### Topology and standalone native implicit core milestone
+
+- Previous turn is progress: committedd9da311, retained state/affine fixes and
+ 26-suite evidence. Main remains2c9b990. Same full goal, no genuine blocker.
+- Frozen actual blade nonmanifold input replays locally. Edge(283,285) acquires
+ 3incident faces because each local triangle independently selects a nearby
+ different edge for midpoint285. _insert now chooses one topological edge
+ globally and splits its incident faces, or chooses one containing face. Saved
+ fixture2RED->0 with all orientation/area/provenance assertions. Direct curved
+ embedded128patch route still passes. Actual GS blade job2f653f progresses to
+ mass_resolution (RED2); no geometric/numerical guard weakened. Review no finding.
+- Added native/membrane_fem.cpp/.h, pinned build tool and qualification tool.
+ Exact analytic cell9x9Hessians and sparse lower-triangle assembly; implicit
+ inertia plus Neo-Hookean energy, fixed DOFs eliminated. Non-success is atomic.
+ Standalone build62694 terminates0. Initial6tests:5pass, pinned-triangle candidate
+ stagnates atforce4.326e-8 after100iterations due absolute-energy subtraction.
+- Added incremental Gram/determinant/log1p energy difference plus stable quadratic
+ inertia difference; same Armijo objective and unchanged force/curvature gates.
+ Missing difference API was RED, then second build47362 terminates0. Eight tests
+ now pass, including80digitDecimal difference, shared/permuted cells and a
+ zero-force compressed saddle rejected for negative final curvature. Reviewer
+ independently reran8tests and confirmed formulas, no actionable finding.
+- Fresh Godot217control/396cell reference generated and source-hashed. Tests
+ initially caught PackedByteArray JSON string export and a NumPy oracle missing
+ the nodal-force transpose; fixed tests/export, not physical core, to correct
+ those errors. Frozen JSON and provenance are in native/tests/fixtures.
+- Native qualificationbef4e9 terminates0:8tests plus12repeated implicit candidates
+ with independent force/pin checks. μ2/λ3 median4.323ms/max4.563ms,2iterations,
+ force1.8551e-11. μ10000/λ15000 median6.652ms/max9.170ms,4iterations,
+ force6.5824e-11. Isolated candidate timings only; different new material law,
+ no apples-to-apples old solver speedup or interactive/clinical qualification.
+-27source-frozen Godot suites87806 terminate0 with no source changes/errors/leaks.
+ Reports preserved as fem-core-validation-2026-11-04.json and
+ fem-godot-validation-2026-11-04.json in docs/assets. Existing full -Test remains
+ RED because actual GS closed blade and small-traction defects are unresolved.
+- Main unchanged; no native contact core modifications, product backend switch,
+ GPU full case, Windows release, push or PR. All started jobs are terminal.
+
+Next: connect the new native core via an isolated Godot bridge and actual
+embedded histories/forces. Existing build_membrane_extension.py generates into
+its WORK directory, so a read-only godot-cpp dependency junction is suitable;
+keep worktree output separate. Add FEM sources/header to tracked inputs and
+object-cache keys; preserve old bridge methods/tests. Then implement fine-contact
+Jacobian and CCD mapping, required partial interior-crack enrichment/refinement,
+and complete real operator trajectory. Do not publish a contact step using
+float-proxy remapping tolerance as if it satisfied gap1e-9: preserve transferred
+material coordinates/bindings in double or certify remap motion explicitly.
+No repeat of the old expensive265whole-prefix contact replay without a causal
+local fix; the new continuum core is a distinct planned path, not evidence that
+the old solver or whole application is fixed.

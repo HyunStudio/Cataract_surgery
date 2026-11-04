@@ -16,3 +16,10 @@ operator failure or claim the simulator complete.
 Next: replay this local geometric input and inspect the resulting edge incidence
 and insertion/source bindings before another whole encounter. Keep invalid
 subdivisions atomic; do not skip or delete tissue to force the encounter through.
+
+Resolution afterd9da311: the isolated fixture now passes, checked for oriented
+area/provenance in test_membrane_cut_patch.gd (2RED->0). The old insertion logic
+selected distinct nearly coincident edges independently per local triangle,
+creating3incident faces on edge(283,285). The cutter now selects one topological
+edge globally for that insertion, or one containing triangle. Actual full route
+now progresses to the separate mass_resolution rejection; still not qualified.

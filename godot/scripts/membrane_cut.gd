@@ -302,29 +302,47 @@ static func _affine(a:Vector3,b:Vector3,c:Vector3,weights:Vector3)->Vector3:
 	return result
 
 func _insert(triangles:Array[PackedInt32Array],v:int)->Array[PackedInt32Array]:
-	var output:Array[PackedInt32Array]=[]; var found:=false
+	# Pick one topological insertion for the whole local mesh. Independent
+	# proximity tests per triangle can select different almost coincident edges
+	# and create three incident faces along a single new edge in a thin wedge.
+	for triangle in triangles:
+		if triangle.has(v):return triangles
+	var chosen:=Vector2i(-1,-1);var nearest:=EPS*2.;var visited:Dictionary={}
 	for triangle in triangles:
 		if not _tick(): return []
-		if triangle.has(v): output.append(triangle); found=true; continue
-		var on_edge:=-1; var nearest:=EPS*2.
 		for j in range(3):
-			var a:Vector3=_points[triangle[j]]; var b:Vector3=_points[triangle[(j+1)%3]]
+			var key:=_key(triangle[j],triangle[(j+1)%3])
+			if visited.has(key):continue
+			visited[key]=true
+			var a:Vector3=_points[key.x];var b:Vector3=_points[key.y]
 			var distance:=_points[v].distance_to(Geometry3D.get_closest_point_to_segment(_points[v],a,b))
-			if distance<nearest: nearest=distance; on_edge=j
+			if distance<nearest:nearest=distance;chosen=key
+	var container:=-1;var best:=-INF
+	if chosen.x<0:
+		for i in range(triangles.size()):
+			if not _tick():return []
+			var triangle:PackedInt32Array=triangles[i]
+			var weights:=_bary(_points[v],_points[triangle[0]],_points[triangle[1]],_points[triangle[2]])
+			if not weights.is_finite():continue
+			var inside:=minf(weights.x,minf(weights.y,weights.z))
+			if inside>=-.0000002 and inside>best:best=inside;container=i
+		if container<0:_failure="point_insertion";return []
+	var output:Array[PackedInt32Array]=[]
+	for i in range(triangles.size()):
+		if not _tick():return []
+		var triangle:PackedInt32Array=triangles[i];var on_edge:=-1
+		if chosen.x>=0:
+			for j in range(3):
+				if _key(triangle[j],triangle[(j+1)%3])==chosen:on_edge=j;break
 		if on_edge>=0:
-			# A rounded edge point is one topological edge insertion, not a
-			# three-face fan with a microscopic overlapping third triangle.
-			var a:int=triangle[on_edge]; var b:int=triangle[(on_edge+1)%3]; var c:int=triangle[(on_edge+2)%3]
-			output.append(PackedInt32Array([a,v,c])); output.append(PackedInt32Array([v,b,c])); found=true
-			continue
-		var weights:=_bary(_points[v],_points[triangle[0]],_points[triangle[1]],_points[triangle[2]])
-		if not weights.is_finite() or minf(weights.x,minf(weights.y,weights.z))<-.0000002: output.append(triangle); continue
-		found=true
-		for j in range(3):
-			var a:int=triangle[j]; var b:int=triangle[(j+1)%3]
-			if _area(_points[a],_points[b],_points[v])>1e-14: output.append(PackedInt32Array([a,b,v]))
-		if output.size()>_triangle_limit: _failure="triangle_budget"; return []
-	if not found: _failure="point_insertion"
+			var a:int=triangle[on_edge];var b:int=triangle[(on_edge+1)%3];var c:int=triangle[(on_edge+2)%3]
+			output.append(PackedInt32Array([a,v,c]));output.append(PackedInt32Array([v,b,c]))
+		elif i==container:
+			for j in range(3):
+				var a:int=triangle[j];var b:int=triangle[(j+1)%3]
+				if _area(_points[a],_points[b],_points[v])>1e-14:output.append(PackedInt32Array([a,b,v]))
+		else:output.append(triangle)
+		if output.size()>_triangle_limit:_failure="triangle_budget";return []
 	return output
 func _on_segment(p:Vector3,a:Vector3,b:Vector3)->bool:
 	var delta:=b-a; var length_sq:=_dot(delta,delta)

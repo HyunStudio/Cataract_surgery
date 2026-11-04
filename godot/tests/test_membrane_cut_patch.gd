@@ -25,6 +25,11 @@ func _initialize()->void:
 	var replay:Dictionary=cutter.slice_triangle(regression.points,regression.indices,regression_patch[0],regression_patch[1],regression_patch[2])
 	verify(replay,regression.points,regression.indices)
 	check(replay.valid and replay.changed,"a thin transverse stroke keeps its interior midpoint inside the material face")
+	var continuous:Dictionary=FileAccess.open("res://tests/fixtures/blade-continuous-nonmanifold.bin",FileAccess.READ).get_var()
+	var continuous_patch:PackedVector3Array=continuous.patch
+	var continuous_result:Dictionary=cutter.slice_triangle(continuous.points,continuous.indices,continuous_patch[0],continuous_patch[1],continuous_patch[2])
+	verify(continuous_result,continuous.points,continuous.indices)
+	check(continuous_result.valid and continuous_result.changed,"one point insertion cannot independently split three nearly coincident local edges")
 	var scaled:=PackedVector3Array([Vector3(-1.03,0,-.98),Vector3(1.03,0,-.98),Vector3(1.03,0,.98),Vector3(-1.03,0,.98)])
 	var scaled_ids:=PackedInt32Array([0,2,1,0,3,2])
 	var shared:Dictionary=cutter.slice_triangle(scaled,scaled_ids,Vector3(.25,-.2,-1.2),Vector3(.25,-.2,1.2),Vector3(.25,.4,0))

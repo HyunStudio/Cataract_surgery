@@ -1,5 +1,10 @@
 # Experimental membrane numerical kernel
 
+An additional, unpromoted original-material membrane energy/implicit core is
+documented in [EMBEDDED_MEMBRANE.md](EMBEDDED_MEMBRANE.md). It has its own build,
+artifact and tests. Its standalone success does not resolve the older contact
+trajectory failures below or qualify the full surgical application.
+
 Update on c70f532: the saved failed264outer timestep now passes with the new
 optional coupled core. Replay km0ox2ou completes52calls, adds two actual iris
 constraints, passes final tool/anatomy continuous guards and preserves all rest
