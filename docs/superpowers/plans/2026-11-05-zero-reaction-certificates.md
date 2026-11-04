@@ -109,3 +109,17 @@ These do NOT establish that a fresh complete route passes. Commit this tested
 source, then run the same frozen route with capture_frozen_operative.py. Both
 incision and contact failures now retain the next exact owned inputs immediately.
 No default-backend promotion, main merge, clinical or delivery completion claim.
+
+
+## New full route in flight
+
+Tested source is committed/pushed asfd3ecb5. The fresh full route is live in
+exec78911, probe`.tools/fem-extension-7c7jb8ao`, log
+`certified-zero-full-route.log`, status`godot/reports/certified-zero-full-route.json`.
+It uses the21-stage source-bound component report as its immutable package and
+verifies every frozen source/DLL hash at completion. Root edits cannot affect
+its package. Do not restart on observation timeout; poll that same handle.
+No terminal full-route result is inferred yet. Main/release/default backend
+remain unchanged. Next planned work is the separately accurate endpoint API,
+avoiding the demonstrated22/24 wasted failed legacy steps while preserving
+original physics and every final gate.
