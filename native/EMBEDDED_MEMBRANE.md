@@ -240,3 +240,44 @@ engine checks also pass with the new linked core (separate build regression
 report). A coupled Godot method/time step, whole-interval/anatomy guards and
 actual instrument/controller behavior are still missing; none is implied by
 these static synthetic candidate tests.
+
+## Guarded optional engine step
+
+`MembraneFEMKernel.solve_contact_fem` now exposes the typed coupled request. In
+addition to old material/grasp data it requires packed `face_nodes`,
+`face_weights`, `capsules` and scalar `complementarity_tolerance`. Counts/types
+are checked before native pointers; non-success preserves request xyz and
+publishes empty `reaction`/`dual` arrays, not uninitialized candidates.
+
+`embedded_membrane.advance_contact(...,motion,...)` takes `kinds`,41value body
+`packets` and the real `MembraneContactKernel` guard object. Static current axes
+and radius derive from those SAME physical packets. The optional old `advance`
+path remains available with no contact and the default app is unchanged.
+`embedded_contact_step.gd` reconstructs each positive contact's original B^T
+force and multiplier-gap product using independently checked fine witnesses.
+The original GDScript elasticity+inertia+grasp+contact force gate remains1e-8.
+Zero duals require no undefined ordinary derivative; complete-interval guard
+checks every retained face, including inactive ones. Its original gap1e-9 and
+budget128 remain. Guard status0 is mandatory before ANY position/history/time,
+held target/reaction or contact diagnostic commits. Guarded failure rolls back
+the whole candidate. The guard's nearest sampled gap may be +INF when a complete
+separation certificate requires no samples; NaN, negative INF and nonfinite
+other statistic slots reject.
+
+Run `python tools/validate_embedded_extension.py --grasp --contact --coupled`.
+The actual10stage probe adds a typed coupled candidate and six guarded1/2hand
+ticks on a synthetic single triangle. Initial body pressure has positive duals
+3.3785/6.8503; subsequent inertial separation has zero contact force and positive
+clearance.01756..03524, rather than invented adhesion. Maximum independent
+original force5.786e-9 and complementarity1.674e-14 pass. A linear full crossing
+and quaternion arc have safe static endpoints but real interior collision;
+both are rejected with unchanged accepted state/time. See
+`docs/assets/fem-guarded-step-engine-validation-2026-11-04.json` and separate
+26test core report. Reported sub-millisecond/few-millisecond synthetic step times
+are not application throughput evidence.
+
+Real nonidentity refined B, multiple faces/bodies, actual instrument/controller
+pose authority, surrounding anatomy and cut-remap motion still need combined
+qualification. Jaw acquisition, roll and partial-tip mechanics remain open.
+This optional component has not been promoted to the default surgical app;
+the old default continuous-blade/fine-traction failures remain visible.

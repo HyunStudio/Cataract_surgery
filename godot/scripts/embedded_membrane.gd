@@ -8,6 +8,7 @@ const Precision=preload("res://scripts/membrane_precision.gd")
 const Cutter=preload("res://scripts/membrane_cut.gd")
 const Energy=preload("res://scripts/membrane_energy.gd")
 const ContactQuery=preload("res://scripts/membrane_contact_query.gd")
+const ContactStep=preload("res://scripts/embedded_contact_step.gd")
 const FORCE_TOLERANCE:=1e-8
 const GAP_TOLERANCE:=1e-9
 var _cutter=Cutter.new()
@@ -106,7 +107,10 @@ func _attachments(targets:Dictionary)->Dictionary:
 			nodes.append(local_nodes[j] if j<local_nodes.size() else local_nodes[0]);weights.append(local_weights[j] if j<local_weights.size() else 0.)
 		positions.append_array(target);next[hand].target=target.duplicate()
 	return {"valid":true,"reason":"","hands":hands,"nodes":nodes,"weights":weights,"targets":positions,"next":next}
-func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,damping:float=1.,budget:int=100,targets:Dictionary={})->Dictionary:
+func advance_contact(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,motion:Dictionary,damping:float=1.,budget:int=100,targets:Dictionary={})->Dictionary:
+	if motion.is_empty():return invalid("contact_motion_missing")
+	return advance(dt,force,backend,mu,lambda,damping,budget,targets,motion)
+func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,damping:float=1.,budget:int=100,targets:Dictionary={},motion:Dictionary={})->Dictionary:
 	if _state.is_empty():return invalid("uninitialized")
 	if not is_finite(dt) or dt<1e-6 or dt>.1 or not is_finite(damping) or damping<0. or damping>1. or budget<0 or budget>1000:return invalid("step_input")
 	if not is_finite(mu) or mu<=0. or not is_finite(lambda) or lambda<0.:return invalid("step_material")
@@ -116,7 +120,11 @@ func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,dam
 	var attachments:=_attachments(targets)
 	if not attachments.valid:return attachments
 	var gripping:bool=not attachments.hands.is_empty()
-	if backend==null or not backend.has_method("solve_grasp_fem" if gripping else "solve_fem"):return invalid("native_fem_unavailable")
+	var coupled:=not motion.is_empty();var context:Dictionary={}
+	if coupled:
+		context=ContactStep.prepare(_state,motion)
+		if not context.valid:return context
+	if backend==null or not backend.has_method("solve_contact_fem" if coupled else ("solve_grasp_fem" if gripping else "solve_fem")):return invalid("native_fem_unavailable")
 	if not _prepare_energy():return invalid("step_geometry")
 	var current:PackedFloat64Array=_state.xyz
 	var predicted:=current.duplicate();var inverse:=PackedFloat64Array();inverse.resize(_state.support.mass.size())
@@ -130,15 +138,18 @@ func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,dam
 			predicted[k]+=(current[k]-_state.previous[k])*damping+dt*dt*force[k]/mass
 			if not is_finite(predicted[k]) or absf(predicted[k])>16.:return invalid("prediction_coordinate")
 	var request:=_native_geometry.merged({"xyz":predicted,"inverse":inverse,"mu":mu,"lambda":lambda,"dt":dt,"budget":budget,"force_tolerance":FORCE_TOLERANCE},true)
-	if gripping:request.merge({"grip_nodes":attachments.nodes,"grip_weights":attachments.weights,"targets":attachments.targets,"gap_tolerance":GAP_TOLERANCE},true)
-	var result=backend.solve_grasp_fem(request) if gripping else backend.solve_fem(request)
+	if gripping or coupled:request.merge({"grip_nodes":attachments.nodes,"grip_weights":attachments.weights,"targets":attachments.targets,"gap_tolerance":GAP_TOLERANCE},true)
+	if coupled:request.merge({"face_nodes":_state.support.elements,"face_weights":_state.support.weights,"capsules":context.capsules,"complementarity_tolerance":ContactStep.COMP},true)
+	var result=backend.solve_contact_fem(request) if coupled else (backend.solve_grasp_fem(request) if gripping else backend.solve_fem(request))
 	if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array:return invalid("native_fem_shape")
 	if result.status!=0:return {"valid":false,"changed":false,"reason":"native_fem_solve","status":result.status,"stats":result.stats}
-	if result.xyz.size()!=current.size() or result.stats.size()!=(12 if gripping else 8):return invalid("native_fem_shape")
-	if gripping and (not result.get("reaction") is PackedFloat64Array or result.reaction.size()!=attachments.targets.size()):return invalid("native_grasp_shape")
+	if result.xyz.size()!=current.size() or result.stats.size()!=(16 if coupled else (12 if gripping else 8)):return invalid("native_fem_shape")
+	if (gripping or coupled) and (not result.get("reaction") is PackedFloat64Array or result.reaction.size()!=attachments.targets.size()):return invalid("native_grasp_shape")
+	if coupled and not result.get("dual") is PackedFloat64Array:return invalid("native_contact_dual_shape")
 	for value in result.stats:
 		if not is_finite(value):return invalid("native_fem_stats")
 	if result.stats[1]<0. or result.stats[1]>FORCE_TOLERANCE:return invalid("native_fem_force")
+	if coupled and (result.stats[12]<0. or result.stats[12]>GAP_TOLERANCE or result.stats[13]<0. or result.stats[13]>ContactStep.COMP):return invalid("native_contact_stats")
 	if gripping:
 		if result.stats[8]<0. or result.stats[8]>GAP_TOLERANCE:return invalid("native_grasp_gap")
 		for value in result.reaction:
@@ -162,20 +173,30 @@ func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,dam
 					point+=weight*result.xyz[node*3+axis];grip_force[node*3+axis]+=weight*result.reaction[grip*3+axis]
 				gap=maxf(gap,absf(point-attachments.targets[grip*3+axis]))
 		if gap>GAP_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_grasp_gap","gap":gap}
+	var contact_force:=PackedFloat64Array();contact_force.resize(current.size())
+	if coupled:
+		var contact:=ContactStep.force(_state,result.xyz,result.dual,context,backend)
+		if not contact.valid:return contact
+		contact_force=contact.force
 	var residual:=0.
 	for node in range(inverse.size()):
 		if inverse[node]==0.:continue
 		for axis in range(3):
 			var k:=node*3+axis
-			var value:float=evaluated.gradient[k]+(result.xyz[k]-predicted[k])/(inverse[node]*dt*dt)+grip_force[k]
+			var value:float=evaluated.gradient[k]+(result.xyz[k]-predicted[k])/(inverse[node]*dt*dt)+grip_force[k]+contact_force[k]
 			if not is_finite(value):return invalid("independent_fem_force")
 			residual=maxf(residual,absf(value))
 	if residual>FORCE_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_fem_force","force_inf":residual}
+	if coupled:
+		var guarded:=ContactStep.guard(_publish(_state,current),_publish(_state,result.xyz),_state.indices,context)
+		if not guarded.valid:return guarded
 	var accepted:=set_motion(result.xyz,current)
 	if not accepted.valid:return accepted
 	if gripping:
 		for grip in range(attachments.hands.size()):attachments.next[attachments.hands[grip]].reaction=result.reaction.slice(grip*3,grip*3+3)
 	_state.grasps=attachments.next
+	if coupled:_state.contacts={"dual":result.dual.duplicate(),"kinds":context.kinds.duplicate(),"packets":context.packets.duplicate()}
+	else:_state.erase("contacts")
 	_state.steps+=1;_state.time+=dt
 	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"gap":gap,"stats":result.stats}
 static func _publish(state:Dictionary,xyz:PackedFloat64Array)->PackedFloat64Array:

@@ -8,7 +8,7 @@ import tempfile
 from native_build_provenance import sha256, source_hashes, verify_sources
 
 ROOT = Path(__file__).resolve().parents[1]
-SUITES = ['test_embedded_contact_state','test_embedded_weights','test_embedded_grasp','test_embedded_dynamics',
+SUITES = ['test_embedded_coupled_state','test_embedded_contact_state','test_embedded_weights','test_embedded_grasp','test_embedded_dynamics',
           'test_fem_reference','test_material_affine','test_embedded_state',
           'test_embedded_cut_route','test_membrane_support','test_embedded_failure',
           'test_membrane_energy','test_membrane_cut_patch','test_blade_sweep',
@@ -26,7 +26,7 @@ for source in sources:
     shutil.copyfile(source, target)
 frozen = {str(p.relative_to(ROOT/'godot')):sha256(p) for p in sources}
 engine = ROOT/'.tools/godot/Godot_v4.7.2-stable_win64_console.exe'
-report = {'qualified':False,'scope':'31 focused frozen engine regressions only. Default closed-blade/mass-resolution and fine-traction failures are not covered or waived; no whole-case/contact/GPU/release claim.',
+report = {'qualified':False,'scope':'32 focused frozen engine regressions only. Default closed-blade/mass-resolution and fine-traction failures are not covered or waived; no whole-case/contact/GPU/release claim.',
           'probe':str(probe),'engine_sha256':sha256(engine),'inputs':inputs,'frozen_inputs':frozen,'results':[]}
 destination = ROOT/'godot/reports/embedded-precision-regression.json'
 destination.parent.mkdir(parents=True, exist_ok=True)

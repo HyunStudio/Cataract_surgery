@@ -1,5 +1,5 @@
 // Standalone embedded membrane energy and implicit Euler candidate solve.
-// No contact/CCD, bending, fracture propagation or clinical material calibration.
+// Static contact candidates; no CCD, bending, fracture or clinical calibration.
 #include "membrane_fem.h"
 #include <Eigen/SparseCholesky>
 #include <Eigen/Cholesky>

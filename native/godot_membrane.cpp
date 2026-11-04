@@ -14,6 +14,8 @@ extern "C" int membrane_fem_solve(int,double*,const double*,int,const int*,const
 extern "C" int membrane_fem_evaluate(int,const double*,int,const int*,const double*,const double*,double,double,double*,double*,double*);
 extern "C" int membrane_fem_solve_grasp(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,
                                       int,const int*,const double*,const double*,double*,double*);
+extern "C" int membrane_fem_solve_contact(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,double,
+                                        int,const int*,const double*,const double*,double*,int,const int*,const double*,int,const double*,double*,double*);
 extern "C" int membrane_solve_contact(int,const double*,double*,const double*,int,const int*,const int*,
     const double*,double,int,const int*,int,const double*,int,double,double,double,double*,double*);
 extern "C" int membrane_guard_motion(int,const double*,const double*,int,const int*,int,const int*,
@@ -48,8 +50,38 @@ protected:
         ClassDB::bind_method(D_METHOD("evaluate_fem","request"),&MembraneFEMKernel::evaluate_fem);
         ClassDB::bind_method(D_METHOD("solve_grasp_fem","request"),&MembraneFEMKernel::solve_grasp_fem);
         ClassDB::bind_method(D_METHOD("contact_fem","request"),&MembraneFEMKernel::contact_fem);
+        ClassDB::bind_method(D_METHOD("solve_contact_fem","request"),&MembraneFEMKernel::solve_contact_fem);
     }
 public:
+    Dictionary solve_contact_fem(const Dictionary& request) {
+        PackedFloat64Array result,reaction,dual,stats;stats.resize(16);stats.fill(0.);
+        for(int k:{0,1,8,12,13}) stats.set(k,std::numeric_limits<double>::infinity());
+        if(request.has("xyz") && request["xyz"].get_type()==Variant::PACKED_FLOAT64_ARRAY) result=request["xyz"];
+        bool valid=geometry(request) && real(request,"dt") && real(request,"force_tolerance") && real(request,"gap_tolerance") && real(request,"complementarity_tolerance") &&
+            request.has("budget") && request["budget"].get_type()==Variant::INT;
+        for(const char* key:{"inverse","grip_weights","targets","face_weights","capsules"})
+            if(!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+        for(const char* key:{"grip_nodes","face_nodes"})
+            if(!request.has(key) || request[key].get_type()!=Variant::PACKED_INT32_ARRAY) valid=false;
+        int status=-1;
+        if(valid) {
+            PackedFloat64Array inverse=request["inverse"],gradients=request["gradients"],areas=request["areas"],weights=request["grip_weights"],targets=request["targets"],face_weights=request["face_weights"],capsules=request["capsules"];
+            PackedInt32Array nodes=request["nodes"],grip_nodes=request["grip_nodes"],face_nodes=request["face_nodes"];int64_t budget=request["budget"];
+            valid=inverse.size()==result.size()/3 && targets.size()%3==0 && targets.size()<=6 && grip_nodes.size()==targets.size() && weights.size()==targets.size() &&
+                face_nodes.size()%3==0 && face_nodes.size()/3<=8192 && face_weights.size()==face_nodes.size()*3 && capsules.size()%7==0 && capsules.size()/7<=64 &&
+                (face_nodes.size()/3)*(capsules.size()/7)<=65536 && budget>=0 && budget<=1000;
+            if(valid) {
+                PackedFloat64Array next_reaction,next_dual;next_reaction.resize(targets.size());next_dual.resize((face_nodes.size()/3)*(capsules.size()/7));
+                status=membrane_fem_solve_contact(static_cast<int>(inverse.size()),result.ptrw(),inverse.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
+                    static_cast<double>(request["mu"]),static_cast<double>(request["lambda"]),static_cast<double>(request["dt"]),static_cast<int>(budget),
+                    static_cast<double>(request["force_tolerance"]),static_cast<double>(request["gap_tolerance"]),static_cast<double>(request["complementarity_tolerance"]),
+                    static_cast<int>(targets.size()/3),grip_nodes.ptr(),weights.ptr(),targets.ptr(),next_reaction.ptrw(),static_cast<int>(face_nodes.size()/3),face_nodes.ptr(),face_weights.ptr(),
+                    static_cast<int>(capsules.size()/7),capsules.ptr(),next_dual.ptrw(),stats.ptrw());
+                if(status==0) {reaction=next_reaction;dual=next_dual;}
+            }
+        }
+        Dictionary answer;answer["status"]=status;answer["xyz"]=result;answer["reaction"]=reaction;answer["dual"]=dual;answer["stats"]=stats;return answer;
+    }
     Dictionary contact_fem(const Dictionary& request) {
         PackedFloat64Array values,gradient,hessian;
         int status=-1;bool valid=real(request,"radius");
