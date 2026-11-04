@@ -69,8 +69,38 @@ two parameter choices on this shared host. These exclude tool/anatomy contact,
 actual time histories, cutting, GPU presentation and full operation. They do
 not establish application FPS or compare equivalent laws with the old solver.
 
-Next: isolated Godot bridge and actual embedded history/force integration, then
-fine-contact Jacobian/continuous-motion guards, partial interior-crack support
-and complete real operator qualification. Retain original strict acceptance
-gates. Float32 cut proxies are not proof of a precise remap: preserve transferred
-material bindings in double precision, or certify remap motion before contact.
+## Optional real Godot dynamics
+
+`MembraneFEMKernel` exposes typed/dimension-checked `solve_fem(request)` and
+`evaluate_fem(request)` beside the unchanged older bridge classes. Build with
+`python tools/build_membrane_extension.py`, then run
+`python tools/validate_embedded_extension.py`. The validator freezes product
+resources and the source-bound extension into a separate probe, imports it and
+runs both bridge contracts plus the actual embedded model. Product configuration
+does not automatically load or switch to this experimental backend.
+
+`embedded_membrane.advance` uses actual support mass and accepted motion history
+to predict a bounded step, then independently evaluates the original force
+equation in GDScript. Only a successful, finite, fixed-rim-preserving candidate
+with residual<=1e-8 advances position/history/time. Failure is atomic. Geometry
+caches are invalidated on initialization and accepted cuts.
+
+The real-engine test makes a retained curved flap with explicit geometric
+curtains, applies a material point force for30steps, recuts moving material and
+continues5steps. It preserves mass5.319326346740127 and history, accepts35steps,
+129incisions,1008fine points/1188faces/289controls, and verifies real budget
+exhaustion cannot publish a partial step. Maximum independent force9.1272e-9.
+The center rises.0012946scene units. This is point-force model qualification,
+not actual forceps/body/anatomical contact or a surgical input trajectory.
+
+Latest30traction-step timings include native solve and independent GDScript
+checking: median18.061ms/max24.655ms on this shared host, excluding rendering,
+other device/fluid models and body contact. This is not60Hz application proof.
+Reports: docs/assets/embedded-native-validation-2026-11-04.json and
+embedded-dynamics-validation-2026-11-04.json (28focused engine suites).
+
+Next: exact embedded grasp/reaction constraints, fine-contact Jacobian and
+continuous-motion guards, partial interior-crack support and complete real
+operator qualification. Retain original strict acceptance gates. Float32 cut
+proxies are not proof of a precise remap: preserve transferred material bindings
+in double precision, or certify remap motion before contact.

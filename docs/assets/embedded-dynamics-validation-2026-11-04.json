@@ -1,0 +1,462 @@
+{
+  "date": "2026-11-04",
+  "base": "19f6cb6",
+  "scope": "Development support/energy and regression checks; no embedded integration/contact or full-case qualification.",
+  "results": [
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Embedded dynamics contract: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_embedded_dynamics",
+      "elapsed_ms": 828
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "FEM Godot reference: 0 failures; controls=217 cells=396"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_fem_reference",
+      "elapsed_ms": 1271
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Material affine transfer: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_material_affine",
+      "elapsed_ms": 503
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Embedded mechanical state: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_embedded_state",
+      "elapsed_ms": 648
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Curved embedded state: {\"components\":2,\"controls\":289,\"events\":128,\"fine_triangles\":1180,\"fine_vertices\":1001,\"initial_controls\":217,\"mass\":5.319326346740127,\"minimum_mass\":0.0014013379085461685}",
+        "Embedded cut route: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_embedded_cut_route",
+      "elapsed_ms": 13717
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Embedded membrane support: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_membrane_support",
+      "elapsed_ms": 1050
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Frozen blade support: {\"fine_minimum_mass\":1.0614949215861843e-13,\"fine_triangles\":482,\"fine_vertices\":301,\"mass\":5.319326346740126,\"support_minimum_mass\":3.632163119339842e-08,\"virtual_controls\":221}",
+        "Embedded failure fixture: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_embedded_failure",
+      "elapsed_ms": 594
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Embedded membrane energy: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_membrane_energy",
+      "elapsed_ms": 596
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Membrane finite patch: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_membrane_cut_patch",
+      "elapsed_ms": 709
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Blade sweep: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_blade_sweep",
+      "elapsed_ms": 605
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Blade material incision: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_blade_incisions",
+      "elapsed_ms": 960
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Blade operator transaction: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_blade_operator",
+      "elapsed_ms": 2561
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Actual geometric blade: {\"clock\":1.6666666666666656,\"metrics\":{\"body_contacts\":0,\"body_projection_peak_residual\":0.0,\"body_uncertain\":0,\"broken_edges\":0,\"cut_loss_area\":8.881784197001252e-16,\"detached_flaps\":0,\"extracted_area\":0.0,\"extracted_flaps\":0,\"finite\":true,\"grasped\":-1,\"grasps\":{},\"incision_events\":2,\"initial_area\":5.319326346740127,\"integration_steps\":100,\"max_strain\":0.41989720101757766,\"retained_area\":5.319326346740126,\"retained_detached_area\":0.0,\"strain_energy\":1.1869112846341523e-09,\"triangles\":426,\"vertices\":245},\"reason\":{},\"status\":\"왼손 기구: knife\",\"tip\":\"(0.57, 0.450628, 0.0)\"}",
+        "Actual blade operation: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_blade_actual",
+      "elapsed_ms": 7088
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Curved cut vertices/triangles/components/ms: 745/924/2/2246",
+        "Membrane cut: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_membrane_cut",
+      "elapsed_ms": 3324
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Instrument profile tests: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_instrument_profile",
+      "elapsed_ms": 1167
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Instrument path: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_instrument_path",
+      "elapsed_ms": 918
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "SURGICAL DISPLAY: PASS"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_surgical_display",
+      "elapsed_ms": 2105
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Precise whole-step transaction: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_precise_step_transaction",
+      "elapsed_ms": 3144
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Control context: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_control_context",
+      "elapsed_ms": 3396
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Physical instrument path: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_physical_instrument_path",
+      "elapsed_ms": 1108
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Body press contacts=45 uncertain=24 elapsed_ms=2955",
+        "Body application: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_body_app",
+      "elapsed_ms": 8927
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Rigid body application: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_rigid_body_app",
+      "elapsed_ms": 4491
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Presentation clock: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_presentation_clock",
+      "elapsed_ms": 2245
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Capsule benchmark: 5.1367 ms per 60Hz step;217 vertices,6 iterations,pressure .15",
+        "Capsule solver tests: PASS"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_capsule_solver",
+      "elapsed_ms": 4637
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Capsule surface: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_capsule_surface",
+      "elapsed_ms": 788
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Membrane normal: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_membrane_normal",
+      "elapsed_ms": 552
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Flap boundary: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_flap_boundary",
+      "elapsed_ms": 646
+    },
+    {
+      "output": [
+        "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org",
+        "",
+        "Flap at (0.291948, 0.9, 0.0) area=0.26692102849483 extracted=0.0 strain=0.03232137102835",
+        "Flap at (0.9, 0.7, 0.0) area=0.26692102849483 extracted=0.0 strain=0.03232137102835",
+        "Flap at (1.32, 0.5, 0.0) area=0.26692102849483 extracted=0.0 strain=0.03232137102835",
+        "Flap at (1.32, 1.05, 0.0) area=0.26692102849483 extracted=0.0 strain=0.03232137102835",
+        "Flap at (2.1, 0.98, 0.0) area=0.0 extracted=0.26692102849483 strain=0.60875009928155",
+        "Extraction metrics { \"body_contacts\": 0, \"body_projection_peak_residual\": 0.0, \"body_uncertain\": 0, \"incision_events\": 0, \"initial_area\": 5.31932634674013, \"retained_area\": 3.25398528017104, \"cut_loss_area\": 1.79842003807426, \"retained_detached_area\": 0.0, \"detached_flaps\": 0, \"extracted_flaps\": 1, \"extracted_area\": 0.26692102849483, \"max_strain\": 0.60875009928155, \"broken_edges\": 252, \"grasped\": -1, \"grasps\": {  }, \"integration_steps\": 900, \"finite\": true, \"strain_energy\": 0.0, \"vertices\": 217, \"triangles\": 216 } retained=0",
+        "Capsule extraction: 0 failures"
+      ],
+      "clean": true,
+      "exit_code": 0,
+      "test": "test_capsule_extraction",
+      "elapsed_ms": 6035
+    }
+  ],
+  "source_hashes": {
+    "godot/tests\\benchmark_active.gd": "9BAE0E2157305597F95D862E5F400D60B4DD553D59EE3E6E00B72920F2C86546",
+    "godot/tests\\benchmark.gd": "5DA16C970BF426B9B50F783D40BF74B4B25724E2FC25255F34B66DB4F91D1CF9",
+    "godot/tests\\test_capsule_native.gd": "A714B977E3686911352245634B868639CD447F3659E6D9EE3B09197086528100",
+    "godot/tests\\test_bilateral_entry.gd": "02AD9B9074693A33F55B58AFA2851FD5B88431C7A1BE46245D5CF78684B2A8C8",
+    "godot/tests\\test_blade_sweep.gd": "446E582FE589F9E58595D4A664735CD4AC707AC9BD2B2A6DFE2495CBA3524F9D",
+    "godot/tests\\test_capsule_incision.gd": "DAF4E32BEBF9AE305916D14F3FE4A702BB16BE8DDBE783ADC847AA102A189CDA",
+    "godot/tests\\test_capsule_extraction.gd": "E8F2DE5A11A874FA73121D35E44FCAB726B851996E1F4F115715683C8509F46D",
+    "godot/tests\\test_capsule_coupled.gd": "76F57D3A2EA2969D92976E0D8CF074628E2900F573C88716F280BF5071DAF098",
+    "godot/tests\\test_boundary_cache.gd": "D542304FF8FBD9F87F83EE598E8638FA757AA457FD5087210DD6ACE70A888D39",
+    "godot/tests\\test_body_app.gd": "8B51F3808D5653FD7B5D4B7456F9F567C9E1617EDAFDD0F0A9C214EC8C3881FF",
+    "godot/tests\\test_anterior_segment.gd": "5CA87E0A88B96D25DAE0E1DE6EFAC327B02A057399DBB49F11C6ACCACCB91F74",
+    "godot/tests\\test_blade_operator.gd": "16A417C96CD4B48CF7DD9031898C679D605F1249E0285B7017835699BA485B13",
+    "godot/tests\\test_blade_incisions.gd": "578BC23EEBFE793BFE366093D89A25E855F2AD05828159821231F9122750A3FC",
+    "godot/tests\\test_anatomical_contact.gd": "B66E9DDE2862CAA21088E5C1066B689EE6DDD9F3435BB32AAD92DAEFCCAD77AE",
+    "godot/tests\\test_anatomy_contact.gd": "80A79819E511FD201B64A684468C2851DA9681C5745BDB151F776BEF96C58D38",
+    "godot/tests\\test_blade_closed.gd": "DD77488D1700D1BA9998E115E62FD8FD5C4104BE824E74231BCAC28F4AF853E1",
+    "godot/tests\\benchmark_simulator.gd": "2DBF044813F340017953D5D47ABD328FC94BFFB30DC044954E6C2965E139787C",
+    "godot/tests\\test_blade_actual.gd": "67DAF6B716ED1E1E46CABA9201B0360B240DF55D4932C3B456AD75B416549F59",
+    "godot/tests\\test_anatomical_app.gd": "D1D5B6F6EE009A97B8C11EFCF35DA14E2FCAD197738D175C51DEB929D65E2D30",
+    "godot/tests\\test_case_director.gd": "9D7CB09DD5A7089C7F182330E7985CEF3C2A385EC6910BAE3522509ED0C72B05",
+    "godot/tests\\test_case_recording.gd": "878B527DF58BFE17AE534D822C6CCB5008A9B6426E9EC113F7EA07AF257E8A43",
+    "godot/tests\\test_control_context.gd": "00F4C97DA6BB645226A4CEB283E90A7F031E059970834480D1B6A8F2B916499C",
+    "godot/tests\\test_capsule_surface.gd": "2EE7155DAEFF3ABE2113B94B6C069F78F3B8A0AAD32A46285F162474DACB3FDF",
+    "godot/tests\\benchmark_contact.gd": "2EE1B06530579C61BED9953D12B863698E3D9C7EA76F3F093EDF6FE61E77C494",
+    "godot/tests\\test_capsule_solver.gd": "330C22C864E3502976DEF4C92618C08D803D1EF1B78772726BC6B65156ADF743",
+    "godot/tests\\test_capsule_native_extraction.gd": "45CECB99F13E4528C35C4032BA9B602DEBA73E470C8DCFA73B658A5482BC9E41",
+    "godot/tests\\benchmark_visual_snapshot.gd": "E26AA9D43B5725D73D7D3D3111D0C8776D1DD01918D108505EDBCB7BC6C6D0BA",
+    "godot/scripts\\iol_dynamics.gd": "C8D1C68A9650C81C036B0ADD281207BF7ECA763A0782B89F2114932A8D529A6B",
+    "godot/scripts\\instrument_rig.gd": "81856114A4B54FC805807448112214E91AE51476E6E988A480FDB4DF9498D2B9",
+    "godot/scripts\\instrument_path.gd": "76DB7E032A1E0B9B0B18F09AC43C19C406A977DB9DAF09995529414A6B0C91CC",
+    "godot/scripts\\instrument_profile.gd": "82C7B886BE23D613CC2DFD44DC2B35B98721C197813CDC501990A4C6AC1E728F",
+    "godot/scripts\\instrument_body_contact.gd": "D92FC5A5BFB5D870C9DE033411D4FBCADAD990BDCFE411351D473C3C4AD31E51",
+    "godot/scripts\\membrane_contact.gd": "3F46C63B130D51D61C648CE5A6D0F9156C79919B153B2ED76D38701F9EE4A4FB",
+    "godot/scripts\\incision_window.gd": "590ABFD1054BA5869E69F2048A93F0C3965AAA988C8C7C74D4F008DAA49BB196",
+    "godot/scripts\\main.gd": "A63855FA9A629838270EE82EBFB8647CFBC637DA5178939FCF5B0539176FA104",
+    "godot/scripts\\membrane_cut.gd": "6CF152A8974D534AA99407A37681DDCF37309B8ACE2377E32BDC71AEDC050871",
+    "godot/scripts\\membrane_energy.gd": "DF8519EDEAE45C5CA926667FE3138092211078E869C115D58D2E627A5708BEA3",
+    "godot/scripts\\lens_surface.gd": "06E7F8FC7E4FA5B7AFCA0DC9AFE133E0DC6D7C14EAFE398AD2720AEBA6D9CE60",
+    "godot/scripts\\lens_material.gd": "E29762284007CF1253FD8B924BA618B9FEF371E7C3EBBAA95538DE962CD7BAED",
+    "godot/scripts\\capsule_solver.gd": "13EE61A4CC1C038306B81492402E012580DB39680DB7CC3269332E6428FCFF66",
+    "godot/scripts\\lens_fluid_solver.gd": "D20FEFEA84DC3C64B10E125A1969622CF4445A83E813A340DF771B7EB583466F",
+    "godot/scripts\\blade_sweep.gd": "6A55A5913DAFBBA08CD7D4DCC7715AF918F1855F383C7E22F1DC9547CA13CFF0",
+    "godot/scripts\\anatomy_surfaces.gd": "732E5214231C33EB10DD31D31A67C5FF858972F8E52906D41A97061EEDC83AF5",
+    "godot/scripts\\anterior_segment.gd": "A0D691D5EDCA728236356DB9B609275F3B0F90DA927F29BB41DC135962DE46A7",
+    "godot/scripts\\anatomy_contact.gd": "81526E74E1F0393FD43A6A9B1A85ED61BCEB7CA060A50EF7D395C5C03C45D83D",
+    "godot/scripts\\membrane_precision.gd": "477ED6EB2B625E3336A9A52394D176EE22BC33FBCF0E5DD0CE709AC5C6533310",
+    "godot/scripts\\anatomical_contact.gd": "902FBBFE511B66F6CA73942FDA12C8E8737E0835105BD9A251519D5DDF8DFABF",
+    "godot/scripts\\case_recording.gd": "DF19E60AE0727A00308CDD02EF491B56DB323117711F4E7915BAA5465BA3E1D3",
+    "godot/scripts\\flap_boundary.gd": "0D5799FED6954AACA0C34D35A5FEF2F0EFC17ED4979E5F0F8FCF31A526CD90AF",
+    "godot/scripts\\embedded_membrane.gd": "C70AC255E283749CF3FB0713C2FA4D431C797E458144B696D8165B51052543DC",
+    "godot/scripts\\case_director.gd": "AB76D81FCDB988FAEF82DF4C73E2C26C073B34CEBA0FD6C9A1D2C55EE026A92D",
+    "godot/scripts\\capsule_surface.gd": "61E048B5877A79F64C7DCE620A88FE32018B88AE7D43D3B43E0657509BB854B8",
+    "godot/scripts\\incision_model.gd": "FB6ACC8FCC3712B033476F0F967BC6603311FCCA4A69B761C2D7210FB52D20CB",
+    "godot/tests\\test_corneal_shell_injury.gd": "AA7BBA483605EEC5D166625BB69072C7897A2C8B9F75504C8DBC181E02FDA890",
+    "godot/tests\\test_embedded_dynamics.gd": "FDB1947997B566B469857D934F37EF5FA2325A9FA4409EF522A525017BE9A765",
+    "godot/tests\\test_embedded_cut_route.gd": "66E6EA6754D2C55CD83B112EBAC187499F66020937E65FF892562A508A50EF3A",
+    "godot/tests\\test_embedded_failure.gd": "9A76075C31EA60FD400CA491145ADE3D093867A537A9CFEC9BDB8D7C9103F0E1",
+    "godot/tests\\test_embedded_native.gd": "B26A203B2DB99C7C259A34EA5D3DBBDA977411E08409768788AC6971A90BCA80",
+    "godot/tests\\test_embedded_state.gd": "33B53F09B913F1C97CE039D33816D5296A78533D9B6B75BA8CFB6F7B895263EC",
+    "godot/scripts\\membrane_refinement.gd": "BB3797132D5EED590A941F4DAC4124447867F430635DFC4C8BB7390C9CD17DB2",
+    "godot/tests\\test_extraction_case.gd": "C71A7787473F3F1AB31BC111E40A6E93B1677F6D4B51C7B24AF19C3037B9AF2C",
+    "godot/tests\\test_hydro_surface.gd": "D1971813E55A85061510B384B4342A9BB0F8BD3656FD50C7D57FF107370FA09B",
+    "godot/tests\\test_full_encounter.gd": "50357A1103A999130625EBC70CAD3FA6D94E9017D5C6936CD6BC771730C9FC18",
+    "godot/tests\\test_flap_boundary.gd": "978B949FC553FB68EB604EF15E49F0DE4D5FC56508E91234A677801523F0453C",
+    "godot/tests\\test_fem_reference.gd": "6E697DAB3701EB80AD4A87F1F0E7C8AFA9AA62B865C3E8BE677246585BB321D8",
+    "godot/tests\\test_injury_app.gd": "DDD64BF1C9BFF4CD191EA545C21691BF7AE7D65A84B06BDCD1C7E6B99CAFA843",
+    "godot/tests\\test_incision_model.gd": "98817F9ACA8A105D27DE3B7ECC2DAEB7BB8FC8E67D07C55C8784CDB01D7DF10A",
+    "godot/tests\\test_injury_case.gd": "F1FFB530BC8F1D3DBD808B531588411D8DEEAD34891C56625F915F687DC81909",
+    "godot/tests\\test_injury_flow.gd": "0FE0E86378BE086B598D31BF208A671569DF8AC366F482736021668D96A439E3",
+    "godot/scripts\\membrane_support.gd": "A04BD2C7F20CE49F8E5F08669A53C01B251FA5B423EBB0B824B6B9A82D58C538",
+    "godot/tests\\test_injury_parts.gd": "BF1B33E83E61F884146F0075B488443A482F8A67128F9AAD9CB512285E1ADABE",
+    "godot/tests\\test_lens_surface.gd": "53C1A8D47CAF513AC6BC039FBC28B52680E85154BF22F8D7E915FDF321393CC3",
+    "godot/tests\\test_instrument_profile.gd": "39AEE4DD138897873075428759F76B512A59BCEAAA832FB7BA02439B73398D1D",
+    "godot/tests\\test_lens_material.gd": "4B1629C89DF21313467E8522B9970FCECDFDCB820239471F2EC874E2DA203A26",
+    "godot/tests\\test_instrument_path.gd": "B06BD5F6D447CDFD89A62C4C993F54C0AC4F1A27902B616F5987925C5BEA76CF",
+    "godot/tests\\test_instrument_body_contact.gd": "6E25B1049A11259CE782B10192C6511DE1DC2C8EFF3632231A93590B0B25453B",
+    "godot/tests\\test_input.gd": "5C9E7AE3B5B23FEC6688B1861F6F9EBB93C8B7432CB5DF6BADC3B81F27165E8E",
+    "godot/tests\\test_iol_dynamics.gd": "96897F8DDD7C6AD22EA6569F0D8D2815EA9A992605C4454EC5CB39E0F20914D6",
+    "godot/tests\\test_integration.gd": "FC18846394C122275E98CEB819248AFE041CB791986ACF4B6B67337F20CFF949",
+    "godot/tests\\test_instrument_rig.gd": "872511931FE3A2913EF46D6A541E3B2DEE60401BCB8278F05F86F9D802108B03",
+    "godot/tests\\test_joint_grasp_precision.gd": "BF1AC56E4D6B31441FC4D80C808B4C8945ECE2A3CEC02F7850B9A57889DC39F6",
+    "godot/tests\\test_joint_contact_guards.gd": "DAECE30E74E5707D409B6221450E18ECF4EFAEB6B197E8D06DD500DAF824D53D",
+    "godot/tests\\test_joint_anatomy.gd": "CDF7DD92DA2A9074E774576C35DF942DDDB18C685D6E1C538464B7D57870DDDC",
+    "godot/tests\\test_layered_lens.gd": "1E1FD53F3B50E425BD0176EEB6B3A540ED5B9C8F316B0EC3115A9A0A604B7D67",
+    "godot/tests\\test_lens_fluid_solver.gd": "692DE6341335724FCEF010737034556EB9382BC797A9323192164E351BFD7BB1",
+    "godot/tests\\test_moving_membrane.gd": "48171965D9AF469A9FD181E9CF9C23D7A4E44EFDB470BDE12E631542DC1FAA7B",
+    "godot/tests\\test_membrane_support.gd": "77D2F222D6275AA146F46A64F20A72EE9746D26E1D8837F250D8F8C0961C7E4B",
+    "godot/tests\\test_membrane_normal.gd": "073FFCA0890722003DDB3A52881B570FECDDE4C8101202084F7C7175A065999C",
+    "godot/tests\\test_membrane_energy.gd": "A81BF09D6D9426A3F8BF8EFF4797AA4DE3104C74A0A4D4372DD7702EB65DC1DD",
+    "godot/tests\\test_membrane_cut_patch.gd": "702DC76B306EEA519EA8ADDA7BF5298362CD215B1686319E93456F3F8C8BF97F",
+    "godot/tests\\test_membrane_cut.gd": "C0E19B601A6B4351B3872BFE7200E41E8CC7213E511F050371D155CDEEFC9AC8",
+    "godot/tests\\test_membrane_contact.gd": "CDD3284F28F3C48D798C631ED2CFAE180616596415A6113A30324887608C69DE",
+    "godot/tests\\test_material_affine.gd": "2ED8026743E1F5B20D3A9C24EDC2DC0F6576E6741B80CC56530B7BBE71924A02",
+    "godot/tests\\test_pivot_body_contact.gd": "C22E2D8A979D40E0181AA0417FE727DB27617E1D90C641373752EF90C81762E9",
+    "godot/tests\\test_physical_instrument_path.gd": "CF32BCDDE756356C7DF14E9F06AF40612F08E18EA06557BCA19BB5253469697C",
+    "godot/tests\\test_operating_app.gd": "4EBAC9A3E0B5B0615AED5F6905C495E405C7F5429A19B3024835F04FE534EE78",
+    "godot/tests\\test_ocular_appearance.gd": "E65B6B71025D75711AB4F0309FBAF42A5DC25406FA585FDFE3FCD7C34A58E5CC",
+    "godot/tests\\test_playthrough.gd": "BADF7D76B6959EEFC77CE00C35F762A44376A77B62B5315A48D114A4D24AF3A6",
+    "godot/tests\\test_precise_step_transaction.gd": "AC16FB13DA00D304F860658A1647D8B0AD752DD841259D399C2766B97154D61A",
+    "godot/scripts\\simulation_ui.gd": "0A51E6307146D9BCCEE8D8A5BDB3D3A6C65518D50E5010D93CC837E6E2094E2B",
+    "godot/scripts\\procedure_session.gd": "88F0D0022E6462B2CE63C5ACBCA7016A5B79FF4E003DB6CE39E36AE10C602BFA",
+    "godot/scripts\\pivot_body_contact.gd": "70C6675086C132281E6C7A1A9FA4C1102345968120F3B80DB24D5682B7A38397",
+    "godot/scripts\\operative_input.gd": "743BA75BC35577E8D64381F100F047BFC3AA5FD043CA5B26CEAA52396C747632",
+    "godot/scripts\\ocular_appearance.gd": "AF7491DC120E0EE0D53999DA8974DD76BB8CD5B139FD1ED7616BE2E67AC15F8B",
+    "godot/scripts\\native_membrane_backend.gd": "ABB931AFC6C323F22230F46B7F47E98521F79614D8100CC2089EFCE498216548",
+    "godot/scripts\\monitor.gd": "4DCCF8BDEA532ADD571520D0C1B0B6C0D0193354A0B38BF1DA310DB234D4DD4E",
+    "godot/scripts\\model_checkpoint.gd": "7E4D14EB8AE81CEC76BF297CAE0755DB7E92514CC7741970B4ACBD3269E586D1",
+    "godot/scripts\\surgical_display.gd": "CD38DD4408703273DA74F7C47138111BAE80B2639E0ECADAC2315A86D13298A3",
+    "godot/scripts\\surface_contact.gd": "5410E79165DB6062726F2312A5A0FE7AD2B942780B8E713CE0B5C382855F2221",
+    "godot/scripts\\simulator.gd": "4AC2033F746B8356A0C90C9A7412E57402A0C93CA6277ECC107946F8BB20DB1A",
+    "godot/scripts\\surgical_instrument.gd": "6F8C98FB93C60C823C1FCF710BC2CF06C7EA5D12E664771B2E20D365A62DE77B",
+    "godot/scripts\\surgical_world.gd": "E73C2018084E6E8F8669A2CE9797FB6826D63123FE50031F3D69F6653E62B410",
+    "godot/scripts\\surgical_transaction.gd": "1461CD4C9E973BF96D3BCF7851A65B136F359781BD2A156B0D53CB04A832C607",
+    "godot/scripts\\tissue_injury.gd": "CB1D32CFFE4DAF18D1A00A5E01250CF230F34CECEDDBE32669CF79F25C254EEB",
+    "godot/tests\\test_presentation_clock.gd": "5BE3D963632AA47BFC9DE483AD378EB03AE6CDB0BAA5D129B5DD52880A934BD3",
+    "godot/scripts\\tunnel_surface.gd": "210889873DA01A0359071BD496405CBCB8266ECF082E37BE2335B2F36AE0ECA7",
+    "godot/scripts\\visual_snapshot.gd": "61A7FEEA935A103200F3F4A3D5BE3106A884E5CEB79AC8E165B925B923B73F6A",
+    "godot/tests\\test_realtime_clock.gd": "5885BD6B84F34AD93EBBE456CF0A3C7263A94FFF91AAA200D2FAF9BF345AABFD",
+    "godot/tests\\test_rigid_body_app.gd": "6EBE3B40FF20C636CC0C9BE2848690571ED6F7878D1E1DB8D6175227735D7A1A",
+    "godot/tests\\test_tissue_injury.gd": "0B2A6D5886AD20FD14509A033C9CC2E736D5773E81BC3058CC020E7BFA2E91EF",
+    "godot/tests\\test_surgical_display.gd": "B1ACC17232D5BB7425BF2475FC143A131F771C528127BA9340C97BF1F6C0CDEB",
+    "godot/tests\\test_surface_contact.gd": "D66413ECF8AAFD1B2F3BE313B84063529B18BC91EA9091472451FEBFFC1B11E2",
+    "godot/tests\\test_simulator_render.gd": "1C524EF6358EB29E566461BEAA162C30304C4EA6CDF2BD2DC19C75B49C118B82",
+    "godot/tests\\test_simulator.gd": "CE0F8E594D11EF4F4BFA52E93D38539B454C2DD1E9E2DDC40FDD69B9FBAFE9C3",
+    "godot/tests\\test_simulation_ui.gd": "6B200B7BF658137E7874B635030887DB4E1915BD2C0FA1AB7E2138FADD9DBA33",
+    "godot/tests\\test_session.gd": "A15B55BDD4CD497E1C843D4DA709069008299D1AC61D315876F4DF8C773E67B1",
+    "godot/tests\\test_visual_snapshot.gd": "5B6EE64E8104A986076503B91362BFD0A8B0422E9A4497FEC8010449A86D55C8",
+    "godot/tests\\test_tunnel_surface.gd": "5E87C03FE51C3629C9181935B4C0AF6AF872AEFA006B75AF955977FA12399E5C",
+    "godot/tests\\test_tool_exchange.gd": "EBD8AD116084F9D52EDEE11C58F38856A457DFFAEA80076A0C1A31716CB2AA08",
+    "godot/tests\\test_volumetric_injury.gd": "5CD78C05A1051FC85294CE84B03BE1CE354DF36EFC0C087F82D5927166196C02",
+    "godot/tests\\test_volumetric_encounter.gd": "CFD60FD9AB2F7D82AFB846491722ACA2C98897EC56EC8687E15340096E2DFA04",
+    "godot/tests\\test_world.gd": "EC66BCE2413A49806BC56F775C1A0A84497609773E724F134662CF12F0182896"
+  },
+  "changed_during_run": []
+}

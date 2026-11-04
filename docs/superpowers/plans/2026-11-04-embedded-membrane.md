@@ -225,3 +225,41 @@ material coordinates/bindings in double or certify remap motion explicitly.
 No repeat of the old expensive265whole-prefix contact replay without a causal
 local fix; the new continuum core is a distinct planned path, not evidence that
 the old solver or whole application is fixed.
+
+### Actual engine history/force integration milestone
+
+- Previous turn progress:19f6cb6 native core/geometry fix and27engine/8native tests.
+  No live process at continuation start. Main and full original goal unchanged.
+- New bridge class MembraneFEMKernel uses strict packed-array/type/length checks
+  before native pointers. Old bridge classes/methods unchanged. FEM sources and
+  header included in extension manifest and object-cache keys. Fresh class
+  registration test RED before implementation. Isolated66unit build4783 ends0.
+- advance() now combines accepted q/history, dt, damping and actual-mass forces,
+  preserves fixed controls, validates native candidate and independently checks
+  the original GDScript force residual before publishing q/previous/steps/time.
+  Bad/nonconverged/fabricated outputs leave accepted state unchanged. Geometry
+  caches reset on initialization/accepted cut. Missing advance API1RED->0 on
+  contract tests. This is an optional state, not a default simulator switch.
+- Initial real bridge probe74311 passes fresh import, old bridge and FEM bridge.
+  Validator syntax typo was corrected before the first actual probe started.
+  State probe95587 then passes all4stages. Latest source-frozen probe59441,
+  fem-extension-tit7sauu, repeats all4stages successfully and records metrics.
+  No source changes/errors/leaks; no restarted live jobs. All jobs now terminal.
+- Actual engine curved flap has128direct-curtain incision events, then30real
+  fine-point-force dynamics ticks, recut while moving and5more ticks. Native and
+  independent GDScript force gates remain1e-8; max9.1271995545e-9. Retained mass
+  5.319326346740127,35steps/clock.5833333333/events129,1008fine vertices,
+  1188faces/289controls. Center lift.0012946132600067. Actual budget0 failure
+  leaves full state unchanged. This is no actual forceps/body/contact input case.
+- Median18.061ms/max24.655ms over30component steps include native+GDScript
+  checking, exclude other models, contact and GPU. Not full-app60Hz qualification.
+- Source-hashed28focused engine suites56295 end0. Real extension/state report
+  embedded-native-validation-2026-11-04.json and28suite report
+  embedded-dynamics-validation-2026-11-04.json preserved under docs/assets.
+  Read-only review confirms bridge bounds, atomic history and cache behavior;
+  no actionable finding. No default promotion, main integration, release or push.
+
+Next execution plan:2026-11-04-embedded-grasp.md. Add actual material attachment
+constraints/reactions (not a stiff explicit spring), then fine tool/anatomy
+contact/CCD, precise cut-remap handling and required partial-tip mechanics.
+Preserve complete operator, fluid/IOL/wound, GPU and Windows completion scope.

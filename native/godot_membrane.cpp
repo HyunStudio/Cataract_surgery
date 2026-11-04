@@ -9,6 +9,8 @@
 
 extern "C" int membrane_solve(int,double*,const double*,int,const int*,const int*,
                                const double*,double,int,double,double*);
+extern "C" int membrane_fem_solve(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double*);
+extern "C" int membrane_fem_evaluate(int,const double*,int,const int*,const double*,const double*,double,double,double*,double*,double*);
 extern "C" int membrane_solve_contact(int,const double*,double*,const double*,int,const int*,const int*,
     const double*,double,int,const int*,int,const double*,int,double,double,double,double*,double*);
 extern "C" int membrane_guard_motion(int,const double*,const double*,int,const int*,int,const int*,
@@ -23,6 +25,53 @@ extern "C" int membrane_solve_trajectory_anatomy(int,const double*,double*,const
     const double*,int,double,double,double,double*,double*);
 
 namespace godot {
+class MembraneFEMKernel : public RefCounted {
+    GDCLASS(MembraneFEMKernel,RefCounted)
+    static bool real(const Dictionary& request,const char* key) {
+        return request.has(key) && (request[key].get_type()==Variant::FLOAT || request[key].get_type()==Variant::INT);
+    }
+    static bool geometry(const Dictionary& request) {
+        for(const char* key:{"xyz","gradients","areas"})
+            if(!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) return false;
+        if(!request.has("nodes") || request["nodes"].get_type()!=Variant::PACKED_INT32_ARRAY || !real(request,"mu") || !real(request,"lambda")) return false;
+        PackedFloat64Array xyz=request["xyz"],gradients=request["gradients"],areas=request["areas"];
+        PackedInt32Array nodes=request["nodes"];
+        return xyz.size()>0 && xyz.size()%3==0 && xyz.size()/3<=4096 && areas.size()<=8192 &&
+            nodes.size()==areas.size()*3 && gradients.size()==areas.size()*6;
+    }
+protected:
+    static void _bind_methods() {
+        ClassDB::bind_method(D_METHOD("solve_fem","request"),&MembraneFEMKernel::solve_fem);
+        ClassDB::bind_method(D_METHOD("evaluate_fem","request"),&MembraneFEMKernel::evaluate_fem);
+    }
+public:
+    Dictionary solve_fem(const Dictionary& request) {
+        PackedFloat64Array result,stats;stats.resize(8);stats.fill(0.);
+        stats.set(0,std::numeric_limits<double>::infinity());stats.set(1,std::numeric_limits<double>::infinity());
+        if(request.has("xyz") && request["xyz"].get_type()==Variant::PACKED_FLOAT64_ARRAY) result=request["xyz"];
+        int status=-1;
+        bool valid=geometry(request) && request.has("inverse") && request["inverse"].get_type()==Variant::PACKED_FLOAT64_ARRAY &&
+            request.has("budget") && request["budget"].get_type()==Variant::INT && real(request,"dt") && real(request,"force_tolerance");
+        if(valid) {
+            PackedFloat64Array inverse=request["inverse"],gradients=request["gradients"],areas=request["areas"];
+            PackedInt32Array nodes=request["nodes"];int64_t budget=request["budget"];
+            valid=inverse.size()==result.size()/3 && budget>=0 && budget<=1000;
+            if(valid) status=membrane_fem_solve(static_cast<int>(inverse.size()),result.ptrw(),inverse.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
+                static_cast<double>(request["mu"]),static_cast<double>(request["lambda"]),static_cast<double>(request["dt"]),static_cast<int>(budget),static_cast<double>(request["force_tolerance"]),stats.ptrw());
+        }
+        Dictionary answer;answer["status"]=status;answer["xyz"]=result;answer["stats"]=stats;return answer;
+    }
+    Dictionary evaluate_fem(const Dictionary& request) {
+        PackedFloat64Array gradient;double energy=std::numeric_limits<double>::infinity();int status=-1;
+        if(geometry(request)) {
+            PackedFloat64Array xyz=request["xyz"],gradients=request["gradients"],areas=request["areas"];
+            PackedInt32Array nodes=request["nodes"];gradient.resize(xyz.size());gradient.fill(0.);
+            status=membrane_fem_evaluate(static_cast<int>(xyz.size()/3),xyz.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
+                static_cast<double>(request["mu"]),static_cast<double>(request["lambda"]),&energy,gradient.ptrw(),nullptr);
+        }
+        Dictionary answer;answer["status"]=status;answer["energy"]=energy;answer["gradient"]=gradient;return answer;
+    }
+};
 class MembraneKernel : public RefCounted {
     GDCLASS(MembraneKernel,RefCounted)
 protected:
@@ -186,6 +235,7 @@ void initialize_membrane(ModuleInitializationLevel level) {
     if (level == MODULE_INITIALIZATION_LEVEL_SCENE) {
         GDREGISTER_CLASS(MembraneKernel);
         GDREGISTER_CLASS(MembraneContactKernel);
+        GDREGISTER_CLASS(MembraneFEMKernel);
     }
 }
 void uninitialize_membrane(ModuleInitializationLevel) {}

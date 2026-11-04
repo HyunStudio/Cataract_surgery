@@ -1,13 +1,17 @@
 extends RefCounted
 ## Experimental retained-cut state in an original-material mechanical basis.
 ## Starts from its own rest state; never projects an accepted legacy simulation.
-## Time integration/contact and partial-crack enrichment are separate work.
+## Optional implicit dynamics; contact and partial-crack enrichment remain separate.
 const Support=preload("res://scripts/membrane_support.gd")
 const Refinement=preload("res://scripts/membrane_refinement.gd")
 const Precision=preload("res://scripts/membrane_precision.gd")
 const Cutter=preload("res://scripts/membrane_cut.gd")
+const Energy=preload("res://scripts/membrane_energy.gd")
+const FORCE_TOLERANCE:=1e-8
 var _cutter=Cutter.new()
 var _state:Dictionary={}
+var _energy:RefCounted
+var _native_geometry:Dictionary={}
 static func invalid(reason:String)->Dictionary:
 	return {"valid":false,"changed":false,"reason":reason}
 func snapshot()->Dictionary:
@@ -38,7 +42,8 @@ func initialize(original:PackedVector3Array,indices:PackedInt32Array,anchors:Pac
 	for index in support.controls:
 		for j in range(3):xyz.append(original[index][j])
 	var flags:=PackedByteArray();flags.resize(original.size())
-	_state={"original":original.duplicate(),"original_indices":indices.duplicate(),"original_anchors":anchors.duplicate(),"rest":original.duplicate(),"indices":indices.duplicate(),"ancestors":ancestors,"areas":areas,"anchored":anchors.duplicate(),"fixed":_fixed_controls(support,anchors),"removed":flags,"outside":flags.duplicate(),"fallback":original.duplicate(),"support":support,"density":density,"xyz":xyz,"previous":xyz.duplicate(),"events":0}
+	_state={"original":original.duplicate(),"original_indices":indices.duplicate(),"original_anchors":anchors.duplicate(),"rest":original.duplicate(),"indices":indices.duplicate(),"ancestors":ancestors,"areas":areas,"anchored":anchors.duplicate(),"fixed":_fixed_controls(support,anchors),"removed":flags,"outside":flags.duplicate(),"fallback":original.duplicate(),"support":support,"density":density,"xyz":xyz,"previous":xyz.duplicate(),"events":0,"steps":0,"time":0.}
+	_energy=null;_native_geometry={}
 	return {"valid":true,"changed":true,"reason":""}
 func set_motion(xyz:PackedFloat64Array,previous:PackedFloat64Array)->Dictionary:
 	if _state.is_empty() or xyz.size()!=_state.xyz.size() or previous.size()!=xyz.size():return invalid("motion_size")
@@ -52,6 +57,66 @@ func set_motion(xyz:PackedFloat64Array,previous:PackedFloat64Array)->Dictionary:
 			if xyz[node*3+j]!=_state.original[original][j] or previous[node*3+j]!=_state.original[original][j]:return invalid("fixed_control")
 	_state.xyz=xyz.duplicate();_state.previous=previous.duplicate()
 	return {"valid":true,"changed":true,"reason":""}
+func _prepare_energy()->bool:
+	if _energy!=null:return true
+	var prepared=Energy.new()
+	if not prepared.configure(_state.original,_state.original_indices,_state.support):return false
+	var nodes:=PackedInt32Array();var gradients:=PackedFloat64Array();var areas:=PackedFloat64Array()
+	for cell in prepared._cells:
+		for j in range(3):nodes.append(cell.nodes[j])
+		gradients.append_array(cell.gx);gradients.append_array(cell.gy);areas.append(cell.area)
+	_native_geometry={"nodes":nodes,"gradients":gradients,"areas":areas};_energy=prepared
+	return true
+func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,damping:float=1.,budget:int=100)->Dictionary:
+	if _state.is_empty():return invalid("uninitialized")
+	if not is_finite(dt) or dt<1e-6 or dt>.1 or not is_finite(damping) or damping<0. or damping>1. or budget<0 or budget>1000:return invalid("step_input")
+	if not is_finite(mu) or mu<=0. or not is_finite(lambda) or lambda<0.:return invalid("step_material")
+	if force.size()!=_state.xyz.size() or _state.support.controls.size()>4096:return invalid("step_shape")
+	for value in force:
+		if not is_finite(value):return invalid("step_force")
+	if backend==null or not backend.has_method("solve_fem"):return invalid("native_fem_unavailable")
+	if not _prepare_energy():return invalid("step_geometry")
+	var current:PackedFloat64Array=_state.xyz
+	var predicted:=current.duplicate();var inverse:=PackedFloat64Array();inverse.resize(_state.support.mass.size())
+	for node in range(inverse.size()):
+		var mass:float=_state.support.mass[node]
+		if not is_finite(mass) or mass<=0. or 1./mass>1e12:return invalid("embedded_mass_resolution")
+		if _state.fixed[node]!=0:continue
+		inverse[node]=1./mass
+		for axis in range(3):
+			var k:=node*3+axis
+			predicted[k]+=(current[k]-_state.previous[k])*damping+dt*dt*force[k]/mass
+			if not is_finite(predicted[k]) or absf(predicted[k])>16.:return invalid("prediction_coordinate")
+	var request:=_native_geometry.merged({"xyz":predicted,"inverse":inverse,"mu":mu,"lambda":lambda,"dt":dt,"budget":budget,"force_tolerance":FORCE_TOLERANCE},true)
+	var result=backend.solve_fem(request)
+	if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array:return invalid("native_fem_shape")
+	if result.status!=0:return {"valid":false,"changed":false,"reason":"native_fem_solve","status":result.status,"stats":result.stats}
+	if result.xyz.size()!=current.size() or result.stats.size()!=8:return invalid("native_fem_shape")
+	for value in result.stats:
+		if not is_finite(value):return invalid("native_fem_stats")
+	if result.stats[1]<0. or result.stats[1]>FORCE_TOLERANCE:return invalid("native_fem_force")
+	for node in range(inverse.size()):
+		for axis in range(3):
+			var k:=node*3+axis
+			if not is_finite(result.xyz[k]) or absf(result.xyz[k])>16.:return invalid("native_fem_coordinate")
+			if _state.fixed[node]!=0 and result.xyz[k]!=current[k]:return invalid("native_fem_fixed")
+	# Check the original equation independently in GDScript before publication;
+	# a success flag and a fabricated residual cannot advance accepted histories.
+	var evaluated:Dictionary=_energy.evaluate(result.xyz,mu,lambda)
+	if not evaluated.valid:return invalid("independent_fem_energy")
+	var residual:=0.
+	for node in range(inverse.size()):
+		if inverse[node]==0.:continue
+		for axis in range(3):
+			var k:=node*3+axis
+			var value:float=evaluated.gradient[k]+(result.xyz[k]-predicted[k])/(inverse[node]*dt*dt)
+			if not is_finite(value):return invalid("independent_fem_force")
+			residual=maxf(residual,absf(value))
+	if residual>FORCE_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_fem_force","force_inf":residual}
+	var accepted:=set_motion(result.xyz,current)
+	if not accepted.valid:return accepted
+	_state.steps+=1;_state.time+=dt
+	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"stats":result.stats}
 static func _publish(state:Dictionary,xyz:PackedFloat64Array)->PackedFloat64Array:
 	var result:=PackedFloat64Array();result.resize(state.rest.size()*3)
 	for point in range(state.rest.size()):
@@ -90,7 +155,7 @@ func incise_patches(patches:Array)->Dictionary:
 		if work>Cutter.MAX_WORK:return invalid("patch_work_budget")
 		if not result.valid:return invalid(result.reason)
 		changed=changed or result.changed
-	if changed:_state=staged._state
+	if changed:_state=staged._state;_energy=null;_native_geometry={}
 	return {"valid":true,"changed":changed,"reason":"","work":work}
 func _incise_one(patch:PackedVector3Array)->Dictionary:
 	var fine:=positions()
