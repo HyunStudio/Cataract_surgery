@@ -415,7 +415,7 @@ def test_autosave_on_phase_change_and_quit_then_resume(app):
     app.new_game(case='motion')
     start(app)
     app.draw()                                              # phase changed -> saved
-    assert app.autosave_path.is_file()
+    assert app.autosaver.flush() and app.autosave_path.is_file()
     for p in app.game._entry_target:
         app.game.action('touch', *p)
     for _ in range(40):
@@ -437,7 +437,7 @@ def test_autosave_on_phase_change_and_quit_then_resume(app):
 def test_finished_case_clears_its_autosave(app):
     start(app)
     app.draw()
-    assert app.autosave_path.is_file()
+    assert app.autosaver.flush() and app.autosave_path.is_file()
     key(app, pygame.K_x)
     app.draw()
-    assert not app.autosave_path.exists()
+    assert app.autosaver.flush() and not app.autosave_path.exists()

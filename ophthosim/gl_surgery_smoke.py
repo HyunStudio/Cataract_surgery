@@ -232,7 +232,6 @@ def main() -> int:
                     "3D contact ring did not change center-eye pixels")
                 # Actual closest-triangle marker must modify the eye crop
                 # without creating an extra game/replay event.
-                from .surface_probe3d import probe_surface
                 before=ctrl.game.snapshot()
                 nearest=probe_surface(ctrl)
                 assert nearest is not None and nearest.face_index>=0

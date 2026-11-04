@@ -118,12 +118,15 @@ class Surgery3DController:
         return STAGE_DEPTH.get(g.phase)
 
     def _sync(self, old_phase: Phase) -> None:
-        if old_phase != self.game.phase:
-            target = self.target_depth
+        target = self.target_depth
+        # A new step, or a complication managed at another depth (e.g. the
+        # incision during CLOSE), starts the instrument at its working depth.
+        if old_phase != self.game.phase or target != getattr(self, "_synced_target", target):
             if target is not None:
                 self.tool_depth = target
             self.last_pose = None
             self.last_contact = None
+        self._synced_target = target
         if self.game.paused or self.game.patient.alert or self.game.ending:
             self.last_pose = None
             self.last_contact = ContactGuide("HOLD")

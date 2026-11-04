@@ -142,7 +142,7 @@ _CANVAS: dict[int, tuple] = {}     # per pygame module: (canvas, cached drape ba
 
 def field_surfaces(pg, game, lang: str = "en", animate: bool = True):
     """(video feed, eye texture) painted by the 2D procedural eye renderer."""
-    from .app import EYE_CX, EYE_CY, EYE_R, PALETTES, draw_drape, draw_tool, render_eye
+    from .app import EYE_CX, EYE_CY, PALETTES, draw_drape, draw_tool, render_eye
     cached = _CANVAS.get(id(pg))
     if cached is None:
         background = pg.Surface((1280, 720))

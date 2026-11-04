@@ -30,6 +30,7 @@ python -m ophthosim.gl_surgery --case decenter   # experimental 3D game (OpenGL 
 ```
 
 Korean step-by-step guide: [사용자 가이드](docs/USER_GUIDE_KO.md).
+Submission-readiness review: [출품 준비 검수](docs/SUBMISSION_REVIEW_KO.md).
 
 ## The encounter
 
@@ -205,7 +206,7 @@ evidence. The HUD texture is uploaded zero-copy. See the
 
 | Area | State |
 |---|---|
-| Full 2.5D game: 13 scenarios, 15 instruments, bleeding, patient profiles, 3 difficulties, 5 endings, explained score, KO/EN, accessibility, autosave | **Implemented and tested** (865 automated tests on Windows) |
+| Full 2.5D game: 13 scenarios, 15 instruments, bleeding, patient profiles, 3 difficulties, 5 endings, explained score, KO/EN, accessibility, autosave | **Implemented and tested** (876 automated tests on Windows) |
 | 3D game with the same engine, complication/bleeding signs, 3D operating room (5 views, gallery) | Implemented; GPU smoke and gallery passed on Windows 11 / RTX 3070 |
 | Windows GPU (GL01–GL10) | NVIDIA RTX 3070: automated checks pass; AMD Radeon target and human sign-off **open** ([checklist](docs/GPU_VALIDATION_CHECKLIST.md)) |
 | Clinical plausibility and educational value | **Open** — needs subject-matter-expert review |
@@ -233,7 +234,7 @@ ophthosim/
   gl_room.py          room renderer (lit shader, MSAA); or_gallery.py panel renders
   gl_preview.py       3D anatomy atlas and renderer
   gl_benchmark.py     frame-time / memory benchmark; frametime.py statistics
-tests/                865 headless, SDL-dummy and GUI tests
+tests/                876 headless, SDL-dummy and GUI tests
 docs/                 specs (KO), architecture, roadmap, safety, research, GPU checklist
 ```
 

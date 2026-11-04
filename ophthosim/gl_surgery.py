@@ -13,10 +13,9 @@ from __future__ import annotations
 import argparse
 import math
 from pathlib import Path
-import sys
 import textwrap
 
-from .autosave import AUTOSAVE, load_autosave, write_autosave
+from .autosave import AUTOSAVE, BackgroundAutosave, load_autosave
 from .engine import (CASES, COMPLICATIONS, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
                      ENDING_MANAGED, ENDING_UNRESOLVED, PREOP_CHECKS, PROFILES, TOOL_NAMES,
                      Phase)
@@ -81,6 +80,49 @@ class SurgeryHUD:
         self._probe_pose: tuple[float,float,float] | None = None
         self._probe_camera: tuple[float,float] | None = None
 
+    # --- cached text: the HUD repaints every frame, and rendering ~40
+    # Hangul-capable labels per frame alone held the 3D view near 30 fps.
+    TEXT_CACHE_LIMIT = 2048
+
+    def _cache(self, name: str) -> dict:
+        cache = self.__dict__.setdefault(name, {})
+        if len(cache) >= self.TEXT_CACHE_LIMIT:
+            cache.clear()
+        return cache
+
+    def _text(self, font, text: str, color):
+        cache = self._cache("_rendered")
+        key = (font, text, tuple(color))     # holds the font: no id reuse
+        if key not in cache:
+            cache[key] = font.render(text, True, color)
+        return cache[key]
+
+    def _fit(self, font, text: str, max_px: int) -> str:
+        cache = self._cache("_fitted")
+        key = (font, text, max_px)
+        if key not in cache:
+            fitted = text
+            while font.size(fitted)[0] > max_px and len(fitted) > 2:
+                fitted = fitted[:-1]
+            cache[key] = fitted
+        return cache[key]
+
+    def _wrap(self, font, text: str, max_px: int) -> tuple[str, ...]:
+        """Wrap by rendered width (Hangul is wider than Latin text)."""
+        cache = self._cache("_wrapped")
+        key = (font, text, max_px)
+        if key not in cache:
+            rows, line = [], ""
+            for word in text.split(" "):
+                trial = f"{line} {word}".strip()
+                if font is not None and font.size(trial)[0] > max_px and line:
+                    rows.append(line)
+                    line = word
+                else:
+                    line = trial
+            cache[key] = (*rows, line)
+        return cache[key]
+
     @staticmethod
     def card_rect(width: int, height: int) -> tuple[int, int, int, int]:
         """Hold / management / chart card: low in the field so the eye and
@@ -127,8 +169,7 @@ class SurgeryHUD:
         pg.draw.rect(surf, (12, 29, 42, 224), (width-267, 176, 255, 270),
                      border_radius=10)
         def label(text, x, y, *, color=(232, 240, 247), large=False):
-            image = (title if large else font).render(str(text), True, color)
-            surf.blit(image, (x, y))
+            surf.blit(self._text(title if large else font, str(text), color), (x, y))
         light=(142,211,233)
         green=(126,224,176)
         amber=(247,195,109)
@@ -172,7 +213,7 @@ class SurgeryHUD:
             self._probe_pose is not None and
             visible_stylus(c) == self._probe_pose and
             self._probe_camera == (c.view.yaw,c.view.pitch)) else None)
-        if proximity is not None:
+        if proximity is not None and self.show_perf:    # diagnostic (F3)
             label(t(lang, "hud.gap", s=proximity.status, gap=f"{proximity.gap:.3f}"),
                   width//2-155, 128, color=amber)
         capsule_on, damage = capsule_display_state(g)
@@ -208,7 +249,8 @@ class SurgeryHUD:
             view_lines.append((t(lang, "view.room_input"), amber))
         if room:
             # Room scenes are bright: give the view caption its own plate.
-            plate_w = max(font.size(text)[0] for text, _ in view_lines) + 20
+            plate_w = max(self._text(font, text, colour).get_width()
+                          for text, colour in view_lines) + 20
             pg.draw.rect(surf, (10,27,39,215), (width//2-160, 88, plate_w, 8+24*len(view_lines)),
                          border_radius=8)
         for i, (text, colour) in enumerate(view_lines):
@@ -248,7 +290,8 @@ class SurgeryHUD:
             label(msg[:110],24,bottom+6+i*25,color=green if i==0 else amber)
         if not g.ending and g.phase not in (Phase.PREOP, Phase.ANESTHESIA):
             self._draw_tray(pg, surf, width, height, font, light, green, amber)
-        label((self.status or t(lang, "ui.disclaimer"))[:72], 24, height-100, color=light)
+        if self.status:          # the disclaimer itself is in the header
+            label(self.status[:72], 24, height-100, color=light)
         if self.show_perf:
             perf = self.perf
             label((f"FRAME {perf.mean_ms:.1f} ms  P95 {perf.p95_ms:.1f} ms (CPU)"
@@ -273,10 +316,8 @@ class SurgeryHUD:
                          border_radius=6)
             if name == required:
                 pg.draw.rect(surf, green if selected else amber, rect, 2, border_radius=6)
-            text = t(self.lang, "short."+name)
-            while font.size(text)[0] > rect[2]-6 and len(text) > 2:
-                text = text[:-1]
-            image = font.render(text, True, (232,240,247) if selected else light)
+            text = self._fit(font, t(self.lang, "short."+name), rect[2]-6)
+            image = self._text(font, text, (232,240,247) if selected else light)
             surf.blit(image, (rect[0]+3, rect[1]+(rect[3]-image.get_height())//2))
 
     def _draw_card(self, pg, surf, width, height, label, lines, fill, edge):
@@ -284,18 +325,8 @@ class SurgeryHUD:
         pg.draw.rect(surf, fill, box, border_radius=10)
         pg.draw.rect(surf, edge, box, 2, border_radius=10)
         font = getattr(self, "_font", None)
-        rows = []
-        for text, color in lines:
-            # Wrap by rendered width (Hangul is wider than Latin text).
-            words, line = text.split(" "), ""
-            for word in words:
-                trial = f"{line} {word}".strip()
-                if font is not None and font.size(trial)[0] > box[2]-28 and line:
-                    rows.append((line, color))
-                    line = word
-                else:
-                    line = trial
-            rows.append((line, color))
+        rows = [(line, color) for text, color in lines
+                for line in self._wrap(font, text, box[2]-28)]
         for i, (text, color) in enumerate(rows[:4]):
             label(text, box[0]+14, box[1]+6+i*26, color=color)
 
@@ -485,6 +516,7 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
         hud=SurgeryHUD(controller)
         hud.lang=lang if lang in LANGUAGES else "en"
         sounds=Sounds(pygame)
+        autosaver=BackgroundAutosave()
         if resume:
             try:
                 resume_controller(controller,resume)
@@ -515,7 +547,8 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
             for event in pygame.event.get():
                 g=controller.game
                 if event.type==pygame.QUIT:
-                    write_autosave(controller.game)
+                    autosaver.submit(controller.game)
+                    autosaver.flush()
                     running=False
                 elif event.type==pygame.MOUSEBUTTONUP and event.button==1:
                     dragging=False
@@ -620,10 +653,7 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                 sounds.play("end")
             if g.phase != saved_phase:
                 saved_phase=g.phase
-                try:
-                    write_autosave(g)
-                except OSError:
-                    pass
+                autosaver.submit(g)          # written off the frame loop
             if g.patient.alert or g.ending or g.paused or g.phase != drag_phase:
                 dragging=False    # a held gesture never carries into a new step
             if dragging and g.phase in (Phase.PHACO,Phase.CORTEX):

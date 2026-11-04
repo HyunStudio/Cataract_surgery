@@ -6,7 +6,10 @@ patient state that drives displayed vital numbers.
 """
 from __future__ import annotations
 
+from functools import lru_cache
 import math
+
+TABLE_SIZE = 2048
 
 
 def _number(value: object, minimum: float, maximum: float) -> float:
@@ -63,8 +66,22 @@ def sample_trace(kind: str, heart_rate: object, elapsed: object,
         raise ValueError("Unknown waveform")
     if hr == 0:
         return (0.0,) * count
-    signal = ecg_shape if kind == "ecg" else pleth_shape
+    table = _table(kind)
     frequency = hr / 60.
+    size = len(table) - 1
+    out = []
     # A fixed time window gives visibly different beats at different HR.
-    return tuple(signal(((t - duration + duration * i / (count - 1))
-                         * frequency) % 1.) for i in range(count))
+    for i in range(count):
+        position = (((t - duration + duration * i / (count - 1)) * frequency) % 1.) * size
+        k = int(position)
+        frac = position - k
+        out.append(table[k] + (table[min(k + 1, size)] - table[k]) * frac)
+    return tuple(out)
+
+
+@lru_cache(maxsize=2)
+def _table(kind: str) -> tuple[float, ...]:
+    """One beat sampled finely; traces interpolate it (monitors redraw every
+    frame, and evaluating the shape per sample cost ~7 ms per 2D frame)."""
+    signal = ecg_shape if kind == "ecg" else pleth_shape
+    return tuple(signal(i / TABLE_SIZE) for i in range(TABLE_SIZE)) + (signal(0.),)

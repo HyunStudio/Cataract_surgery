@@ -7,6 +7,7 @@ and local; a tampered or truncated autosave is rejected, not repaired.
 from __future__ import annotations
 
 from pathlib import Path
+import threading
 
 from .replay import ReplayGame
 
@@ -23,11 +24,76 @@ def write_autosave(game: ReplayGame, path: str | Path = AUTOSAVE) -> Path | None
         text = game.export_replay_jsonl()
     except RuntimeError:          # capture over its safety limits: skip
         return None
+    _write(target, text)
+    return target
+
+
+def _write(target: Path, text: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_suffix(target.suffix + ".tmp")
     temporary.write_text(text, encoding="utf-8")
     temporary.replace(target)     # never leave a half-written autosave
-    return target
+
+
+class BackgroundAutosave:
+    """Writes recovery points off the game loop.
+
+    The journal text is captured on the caller's thread (the game keeps
+    changing); only the file I/O runs on a worker. A newer request replaces
+    an unwritten older one. Disk stalls (slow drives, antivirus scans) held
+    the 3D loop for up to ~0.3 s per phase change when this was synchronous.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._job: tuple[str, Path, str | None] | None = None
+        self._wake = threading.Event()
+        self._idle = threading.Event()
+        self._idle.set()
+        self._thread: threading.Thread | None = None
+
+    def submit(self, game: ReplayGame, path: str | Path = AUTOSAVE) -> None:
+        if game.ending:
+            job = ("clear", Path(path), None)
+        else:
+            try:
+                job = ("write", Path(path), game.export_replay_jsonl())
+            except RuntimeError:      # capture over its safety limits: skip
+                return
+        with self._lock:
+            self._job = job
+            self._idle.clear()
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(target=self._run, name="autosave", daemon=True)
+                self._thread.start()
+        self._wake.set()
+
+    def flush(self, timeout: float = 5.0) -> bool:
+        """Wait until every submitted save is on disk (call before exit)."""
+        return self._idle.wait(timeout)
+
+    def _run(self) -> None:
+        while True:
+            self._wake.wait()
+            with self._lock:
+                job, self._job = self._job, None
+                self._wake.clear()
+                if job is None:
+                    self._idle.set()
+                    continue
+            kind, target, text = job
+            try:
+                if kind == "clear":
+                    clear_autosave(target)
+                else:
+                    _write(target, text)
+            except OSError:
+                pass              # a missed recovery point never stops the game
+            with self._lock:
+                if self._job is None:
+                    self._idle.set()
+                else:
+                    self._wake.set()
 
 
 def load_autosave(path: str | Path = AUTOSAVE) -> ReplayGame:

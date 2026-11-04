@@ -13,7 +13,7 @@ import math
 import random
 import sys
 
-from .autosave import AUTOSAVE, load_autosave, write_autosave
+from .autosave import AUTOSAVE, BackgroundAutosave, load_autosave
 from .engine import (CASES, COMPLICATIONS, DIFFICULTIES, ENDING_COMPLETE, ENDING_FAILED,
                      ENDING_MANAGED, ENDING_UNRESOLVED, FINAL_CHECKS, MAIN_INCISION,
                      PREOP_CHECKS, PROFILES, SITUATION_TOOLS, STEP_TOOLS, TOOL_NAMES,
@@ -148,18 +148,27 @@ def eye_texture(pg):
     return tex
 
 
+def _drape_layer(pg):
+    """Static drape sheet with the eye opening (built once per session)."""
+    key = (id(pg), 'drape')
+    if key not in _TEXTURES:
+        fx, fy, fw, fh = FIELD
+        drape = pg.Surface((fw, fh), pg.SRCALPHA)
+        drape.fill((36, 92, 104, 255))
+        for k in range(0, fw + 60, 22):
+            pg.draw.line(drape, (44, 104, 116, 255), (k, 0), (k - 60, fh), 1)
+        mask = pg.Surface((fw, fh), pg.SRCALPHA)
+        pg.draw.rect(mask, (255, 255, 255, 255), (0, 0, fw, fh), border_radius=16)
+        pg.draw.circle(mask, (0, 0, 0, 0), (EYE_CX - fx, EYE_CY - fy), EYE_R + 34)
+        drape.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MIN)
+        _TEXTURES[key] = drape
+    return _TEXTURES[key]
+
+
 def draw_drape(pg, surf, palette=None):
     """Sterile drape and lid speculum around the operative eye (synthetic)."""
     fx, fy, fw, fh = FIELD
-    drape = pg.Surface((fw, fh), pg.SRCALPHA)
-    drape.fill((36, 92, 104, 255))
-    for k in range(0, fw + 60, 22):
-        pg.draw.line(drape, (44, 104, 116, 255), (k, 0), (k - 60, fh), 1)
-    mask = pg.Surface((fw, fh), pg.SRCALPHA)
-    pg.draw.rect(mask, (255, 255, 255, 255), (0, 0, fw, fh), border_radius=16)
-    pg.draw.circle(mask, (0, 0, 0, 0), (EYE_CX - fx, EYE_CY - fy), EYE_R + 34)
-    drape.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MIN)
-    surf.blit(drape, (fx, fy))
+    surf.blit(_drape_layer(pg), (fx, fy))
     # Lid margins retracted by the speculum (pink skin edge).
     pg.draw.circle(surf, (186, 128, 124), (EYE_CX, EYE_CY), EYE_R + 30, 10)
     # Wire lid speculum: blades hooked over the upper and lower lid margins,
@@ -370,10 +379,40 @@ def draw_tool(pg, surf, tool, point):
         pg.draw.circle(surf, colour, (x, y), tip, 0 if tool in ('phaco', 'ia') else 1)
 
 
+class FontSet(dict):
+    """The app's fonts plus a bounded cache of rendered labels: most HUD
+    text is identical from frame to frame, and re-rendering ~45 labels per
+    frame cost about a quarter of the 60 fps budget."""
+    LIMIT = 2048
+
+    def __init__(self, fonts):
+        super().__init__(fonts)
+        self._rendered = {}
+        self._wrapped = {}
+
+    def render(self, size, text, color):
+        key = (size, text, tuple(color))
+        image = self._rendered.get(key)
+        if image is None:
+            if len(self._rendered) >= self.LIMIT:
+                self._rendered.clear()
+            image = self._rendered[key] = self[size].render(text, True, color)
+        return image
+
+    def wrapped(self, text, size, max_px):
+        key = (text, size, max_px)
+        lines = self._wrapped.get(key)
+        if lines is None:
+            if len(self._wrapped) >= self.LIMIT:
+                self._wrapped.clear()
+            lines = self._wrapped[key] = wrapped(text, font=self[size], max_px=max_px)
+        return lines
+
+
 def draw_text(pg, surf, fonts, text, xy, *, color=TEXT, size='base', max_chars=None):
-    if max_chars is not None:
-        text = str(text)[:max_chars]
-    out=fonts[size].render(str(text), True, color)
+    text = str(text) if max_chars is None else str(text)[:max_chars]
+    out = (fonts.render(size, text, color) if isinstance(fonts, FontSet)
+           else fonts[size].render(text, True, color))
     surf.blit(out, xy)
 
 
@@ -460,14 +499,14 @@ class App:
         pg.display.set_caption('OphthoSim-AI | Cataract Microsurgery (Educational Prototype)')
         self.canvas=pg.Surface((WIDTH,HEIGHT))
         self.clock=pg.time.Clock()
-        self.fonts={
+        self.fonts=FontSet({
             'tiny': pg.font.SysFont(FONT_NAMES,14),
             'micro': pg.font.SysFont(FONT_NAMES,13),
             'base': pg.font.SysFont(FONT_NAMES,17),
             'medium': pg.font.SysFont(FONT_NAMES,22,bold=True),
             'title': pg.font.SysFont(FONT_NAMES,30,bold=True),
             'big': pg.font.SysFont('consolas',35,bold=True),
-        }
+        })
         self.running=True
         self.cursor=(0,0)
         self._acc=0.0
@@ -489,6 +528,7 @@ class App:
         self._ending_heard=False
         self.light=1.0
         self.autosave_path=AUTOSAVE
+        self.autosaver=BackgroundAutosave()
         self._saved_phase=self.game.phase
         self._wrong_seen=0
         self._drag_phase=None
@@ -507,11 +547,11 @@ class App:
         self.message=t(self.lang,'ui.resumed')
         return True
 
-    def autosave(self):
-        try:
-            write_autosave(self.game,self.autosave_path)
-        except OSError:
-            pass
+    def autosave(self, wait=False):
+        """Queue a recovery point (written off the frame loop)."""
+        self.autosaver.submit(self.game,self.autosave_path)
+        if wait:
+            self.autosaver.flush()
         self._saved_phase=self.game.phase
 
     # --- state helpers -------------------------------------------------
@@ -562,7 +602,7 @@ class App:
         pg=self.pg
         g=self.game
         if event.type==pg.QUIT:
-            self.autosave()
+            self.autosave(wait=True)
             self.running=False
         elif event.type==pg.VIDEORESIZE:
             self.screen=pg.display.set_mode((max(640,event.w),max(360,event.h)),pg.RESIZABLE)
@@ -764,7 +804,7 @@ class App:
         pg=self.pg;surf=self.canvas;c=self.palette;g=self.game
         rounded(pg,surf,c['panel'],(15,75,250,620),14)
         draw_text(pg,surf,self.fonts,self.text('phase.'+g.phase.value).upper(),(29,96),color=c['accent'],size='base',max_chars=26)
-        for i,line in enumerate(wrapped(self.text('goal.'+g.phase.value),font=self.fonts['base'],max_px=215)[:4]):
+        for i,line in enumerate(self.fonts.wrapped(self.text('goal.'+g.phase.value),'base',215)[:4]):
             draw_text(pg,surf,self.fonts,line,(29,126+i*23),color=c['muted'])
         pg.draw.line(surf,(48,76,91),(29,224),(248,224),1)
         draw_text(pg,surf,self.fonts,f"{self.text('ui.difficulty')}: {self.text('difficulty.'+g.difficulty)}",
@@ -775,7 +815,7 @@ class App:
             self.checklist(PREOP_CHECKS,g.eye.preop_checks)
         elif g.phase==Phase.CLOSE:
             if g._decentered:
-                for i,line in enumerate(wrapped(self.text('hint.IOL DECENTRATION'),font=self.fonts['base'],max_px=215)):
+                for i,line in enumerate(self.fonts.wrapped(self.text('hint.IOL DECENTRATION'),'base',215)):
                     draw_text(pg,surf,self.fonts,line,(29,282+i*22),color=c['warn'])
             self.checklist(FINAL_CHECKS,g.eye.final_checks,numbered=True)
         else:
@@ -903,12 +943,21 @@ class App:
             rounded(pg,s,(30,74,84) if selected else c['panel2'],rect,6)
             if name==required:
                 pg.draw.rect(s,c['ok'] if selected else c['warn'],rect,2,border_radius=6)
-            label=('>' if selected else '')+self.text('short.'+name)
-            font=self.fonts['micro']
-            while font.size(label)[0] > rect[2]-6 and len(label) > 2:
-                label=label[:-1]
+            label=self._tray_label(('>' if selected else '')+self.text('short.'+name),rect[2]-6)
             draw_text(pg,s,self.fonts,label,(rect[0]+3,rect[1]+4),size='micro',
                       color=c['text'] if selected else c['muted'])
+
+    def _tray_label(self, label, max_px):
+        """Instrument name cut to its slot width (cached per language)."""
+        key = (label, max_px)
+        cache = self.__dict__.setdefault('_tray_cache', {})
+        if key not in cache:
+            font = self.fonts['micro']
+            text = label
+            while font.size(text)[0] > max_px and len(text) > 2:
+                text = text[:-1]
+            cache[key] = text
+        return cache[key]
 
     def draw_pending(self):
         """Assessed complication still awaiting management (no timer)."""
@@ -950,7 +999,7 @@ class App:
         yy=162
         for label,value in rows:
             draw_text(pg,s,self.fonts,label,(304,yy),size='tiny',color=c['muted'])
-            for line in wrapped(value,font=self.fonts['tiny'],max_px=276)[:2]:
+            for line in self.fonts.wrapped(value,'tiny',276)[:2]:
                 yy+=17
                 draw_text(pg,s,self.fonts,line,(312,yy),size='tiny')
             yy+=21
@@ -1068,8 +1117,9 @@ class App:
             self.draw_help()
         # y=699 keeps the descenders inside the 720 px canvas (704 clipped them).
         draw_text(pg,s,self.fonts,self.message+'   ·   F1',(24,699),size='tiny',color=c['muted'],max_chars=120)
-        out=pg.transform.smoothscale(s,self.screen.get_size())
-        self.screen.blit(out,(0,0))
+        size=self.screen.get_size()
+        # Scale only when the window differs from the 1280x720 canvas.
+        self.screen.blit(s if size==s.get_size() else pg.transform.smoothscale(s,size),(0,0))
         pg.display.flip()
 
     def run(self):

@@ -318,3 +318,20 @@ def test_room_frame_feeds_people_and_displays():
         assert set(room.screens) == {"vitals", "phaco"}
     finally:
         pygame.quit()
+
+
+@pytest.mark.parametrize("case", [c for c in HAZARDS
+                                  if COMPLICATIONS[HAZARDS[c][1]].remedy not in (None, "escalate")])
+def test_every_complication_is_managed_with_one_3d_click_at_its_site(case):
+    """Regression: the leak is sutured at the incision during CLOSE, where the
+    working depth differs from the IOL depth; the tool must start there."""
+    c = Surgery3DController(case, seed=7)
+    to_close(c, stop_on_alert=True)
+    if not c.game.patient.alert:
+        for item in FINAL_CHECKS:
+            c.command("verify", item)
+    assert c.command("assess") and c.game.pending
+    comp = COMPLICATIONS[c.game.pending[0]]
+    assert c.game.tool == comp.remedy or c.command("tool", comp.remedy)
+    assert c.tool_depth == c.target_depth
+    assert use3d(c, comp.remedy, *SITES[comp.site]) and not c.game.pending

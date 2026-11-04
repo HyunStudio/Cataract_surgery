@@ -722,14 +722,15 @@ class GPUEyePreview:
                  self.font, (128, 221, 174)),
             )
         else:
+            # Game header: title and the disclaimer in the player's language;
+            # the frame rate only with the F3 performance overlay.
+            from .i18n import t
+            lang = getattr(overlay, "lang", "en")
             lines = (
-                ("OPHTHOSIM-AI  /  INTERACTIVE 3D PROTOTYPE", self.font_big, (230, 241, 250)),
-                ("SYNTHETIC EDUCATIONAL SURGERY - NOT CLINICAL TRAINING", self.font,
-                 (245, 202, 136)),
-                (f"ANATOMY: {view.phase}    {fps_label(fps)}" if view is not None
-                 else f"OPERATING ROOM    {fps_label(fps)}", self.font,
-                 (125, 211, 231)),
-            )
+                ("OPHTHOSIM-AI  ·  3D", self.font_big, (230, 241, 250)),
+                (t(lang, "ui.disclaimer"), self.font, (245, 202, 136)),
+            ) + (((fps_label(fps), self.font, (125, 211, 231)),)
+                 if getattr(overlay, "show_perf", False) else ())
         y = 24
         for text, font, color in lines:
             glyph = font.render(text, True, color)
