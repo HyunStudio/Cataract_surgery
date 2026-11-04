@@ -47,7 +47,7 @@ func evaluate(xyz:PackedFloat64Array,mu:float,lambda:float)->Dictionary:
 	for value in xyz:
 		if not is_finite(value) or absf(value)>16.:return invalid("coordinate")
 	var gradient:=PackedFloat64Array();gradient.resize(xyz.size())
-	var energy:=0.;var minimum_area_ratio:=INF
+	var energy:=0.;var minimum_area_ratio:=INF;var maximum_strain:=0.
 	for cell in _cells:
 		var fx:=PackedFloat64Array([0.,0.,0.]);var fy:=fx.duplicate()
 		for j in range(3):
@@ -61,6 +61,8 @@ func evaluate(xyz:PackedFloat64Array,mu:float,lambda:float)->Dictionary:
 		var logarithm:float=.5*log(determinant);var coefficient:float=lambda*logarithm-mu
 		energy+=cell.area*(.5*mu*(c00+c11-2.-2.*logarithm)+.5*lambda*logarithm*logarithm)
 		minimum_area_ratio=minf(minimum_area_ratio,sqrt(determinant))
+		var largest:float=.5*(c00+c11+sqrt((c00-c11)*(c00-c11)+4.*c01*c01))
+		maximum_strain=maxf(maximum_strain,sqrt(largest)-1.)
 		for axis in range(3):
 			var px:float=mu*fx[axis]+coefficient*(fx[axis]*c11-fy[axis]*c01)/determinant
 			var py:float=mu*fy[axis]+coefficient*(fy[axis]*c00-fx[axis]*c01)/determinant
@@ -68,4 +70,4 @@ func evaluate(xyz:PackedFloat64Array,mu:float,lambda:float)->Dictionary:
 	if not is_finite(energy):return invalid("energy_overflow")
 	for value in gradient:
 		if not is_finite(value):return invalid("gradient_overflow")
-	return {"valid":true,"reason":"","energy":energy,"gradient":gradient,"minimum_area_ratio":minimum_area_ratio}
+	return {"valid":true,"reason":"","energy":energy,"gradient":gradient,"minimum_area_ratio":minimum_area_ratio,"maximum_strain":maximum_strain}

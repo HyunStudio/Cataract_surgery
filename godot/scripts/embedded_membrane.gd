@@ -198,7 +198,7 @@ func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,dam
 	if coupled:_state.contacts={"dual":result.dual.duplicate(),"kinds":context.kinds.duplicate(),"packets":context.packets.duplicate()}
 	else:_state.erase("contacts")
 	_state.steps+=1;_state.time+=dt
-	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"gap":gap,"stats":result.stats}
+	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"gap":gap,"stats":result.stats,"elastic_energy":evaluated.energy,"maximum_strain":evaluated.maximum_strain}
 static func _publish(state:Dictionary,xyz:PackedFloat64Array)->PackedFloat64Array:
 	var result:=PackedFloat64Array();result.resize(state.rest.size()*3)
 	for point in range(state.rest.size()):
@@ -235,13 +235,13 @@ func incise_patches(patches:Array)->Dictionary:
 		var result:Dictionary=staged._incise_one(patch)
 		work+=int(result.get("work",0))
 		if work>Cutter.MAX_WORK:return invalid("patch_work_budget")
-		if not result.valid:return invalid(result.reason)
+		if not result.valid:return result.merged({"valid":false,"changed":false},true)
 		changed=changed or result.changed
 	if changed:_state=staged._state;_energy=null;_native_geometry={}
 	return {"valid":true,"changed":changed,"reason":"","work":work}
 func _incise_one(patch:PackedVector3Array)->Dictionary:
 	var fine:=positions()
-	var cut:Dictionary=_cutter.slice_triangle(fine,_state.indices,patch[0],patch[1],patch[2])
+	var cut:Dictionary=_cutter.slice_triangle(fine,_state.indices,patch[0],patch[1],patch[2],4096,8192,true)
 	if not cut.valid or not cut.changed:return cut
 	var prepared:=Refinement.prepare({"rest":_state.rest,"previous":Precision.publish(_publish(_state,_state.previous)),"anchored":_state.anchored,"removed":_state.removed,"outside":_state.outside,"indices":_state.indices,"face_areas":_state.areas},cut)
 	if not prepared.valid:return invalid(prepared.reason)
@@ -252,7 +252,7 @@ func _incise_one(patch:PackedVector3Array)->Dictionary:
 	var support:=Support.build(_state.original,_state.original_indices,prepared.rest,cut.indices,ancestors,prepared.face_areas,_state.density,transferred.weights)
 	if not support.valid:return invalid(support.reason)
 	for mass in support.mass:
-		if 1./mass>1e12:return invalid("embedded_mass_resolution")
+		if 1./mass>1e12:return invalid("embedded_mass_resolution").merged({"minimum_mass":support.minimum_mass,"inverse_mass":1./support.minimum_mass,"controls":support.controls.size()})
 	var sources:=PackedInt32Array();sources.resize(support.controls.size());sources.fill(-1)
 	for face in range(cut.sources.size()):
 		for j in range(3):

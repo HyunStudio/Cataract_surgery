@@ -31,6 +31,8 @@ static func prepare(state:Dictionary,cut:Dictionary)->Dictionary:
 		anchored.append(flag(state.anchored,binding)); removed.append(flag(state.removed,binding)); outside.append(flag(state.outside,binding))
 	if rest.size()!=size: return invalid("binding_count")
 	var raw:=PackedFloat64Array(); var totals:=PackedFloat64Array(); totals.resize(state.face_areas.size())
+	var material:PackedFloat64Array=cut.get("fractions",PackedFloat64Array())
+	if not material.is_empty() and material.size()!=faces:return invalid("material_fraction_count")
 	for i in range(faces):
 		var a:int=cut.indices[i*3]; var b:int=cut.indices[i*3+1]; var c:int=cut.indices[i*3+2]; var parent:int=cut.sources[i]
 		var normal:=(rest[b]-rest[a]).cross(rest[c]-rest[a]); var area:=normal.length()*.5
@@ -39,7 +41,12 @@ static func prepare(state:Dictionary,cut:Dictionary)->Dictionary:
 		if not is_finite(area) or area<=1e-16 or normal.dot(original)<=0.: return invalid("rest_subdivision")
 		for edge in [[a,b],[b,c],[c,a]]:
 			if rest[edge[0]].distance_to(rest[edge[1]])<=1e-8: return invalid("rest_edge_resolution")
-		raw.append(area); totals[parent]+=area
+		var portion:float=area if material.is_empty() else material[i]
+		if not is_finite(portion) or portion<=0.:return invalid("material_fraction")
+		raw.append(portion); totals[parent]+=portion
+	if not material.is_empty():
+		for portion in totals:
+			if absf(portion-1.)>1e-10:return invalid("material_partition")
 	var areas:=PackedFloat64Array(); var lumped:=PackedFloat64Array(); lumped.resize(size)
 	for i in range(faces):
 		var parent:int=cut.sources[i]

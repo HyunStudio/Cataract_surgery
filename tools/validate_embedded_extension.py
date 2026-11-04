@@ -15,7 +15,9 @@ parser.add_argument('--grasp', action='store_true', help='Include exact material
 parser.add_argument('--contact', action='store_true', help='Include retained fine-face static contact contracts')
 parser.add_argument('--coupled', action='store_true', help='Include simultaneous FEM/grasp/contact candidate bridge')
 parser.add_argument('--curved', action='store_true', help='Include retained curved coupled dynamics and multi-body maps')
+parser.add_argument('--operative-blade', action='store_true', help='Run the same application closed-blade route with original-material dynamics')
 options = parser.parse_args()
+if options.operative_blade and options.bridge_only:parser.error('--operative-blade requires the application probe')
 if options.curved:
     if options.bridge_only:parser.error('--curved requires the full state probe')
     options.coupled=True
@@ -43,6 +45,9 @@ if not options.bridge_only:
         if source.is_file() and name != 'godot/project.godot':
             intended[str(source.relative_to(ROOT/'godot'))] = source
     intended['embedded_native.gd'] = ROOT/'godot/tests/test_embedded_native.gd'
+    if options.operative_blade:
+        for name in ['scripts/operative_membrane.gd','tests/test_operative_embedded.gd','tests/test_operative_blade.gd','tests/test_operative_cut_geometry.gd','tests/fixtures/operative-blade-area.bin']:
+            intended[name]=ROOT/'godot'/name
     if options.grasp:intended['embedded_grasp.gd'] = ROOT/'godot/tests/test_embedded_grasp_native.gd'
     if options.contact:intended['embedded_contact.gd'] = ROOT/'godot/tests/test_embedded_contact_native.gd'
     if options.coupled:intended['embedded_coupled.gd'] = ROOT/'godot/tests/test_embedded_coupled_native.gd'
@@ -63,6 +68,7 @@ destination = ROOT/'godot/reports'/('grasp-bridge-validation.json' if options.br
 if options.contact:destination = destination.with_name('contact-'+destination.name)
 if options.coupled:destination = destination.with_name('coupled-'+destination.name)
 if options.curved:destination = destination.with_name('curved-'+destination.name)
+if options.operative_blade:destination = destination.with_name('operative-blade-'+destination.name)
 destination.parent.mkdir(parents=True, exist_ok=True)
 stages = [('fresh_import', ['--editor','--import','--quit-after','35','--frame-delay','1000'], None),
           ('legacy_bridge', ['--script','res://legacy_bridge.gd'], 'Native Godot bridge: 0 failures'),
@@ -79,6 +85,10 @@ if options.coupled:
     stages.append(('coupled_bridge', ['--script','res://coupled_bridge.gd'], 'Native coupled FEM Godot bridge: 0 failures'))
     if not options.bridge_only:stages.append(('embedded_coupled', ['--script','res://embedded_coupled.gd'], 'Embedded native coupled step: 0 failures'))
 if options.curved:stages.append(('embedded_curved', ['--script','res://embedded_curved.gd'], 'Embedded native curved coupled step: 0 failures'))
+if options.operative_blade:
+    stages.append(('operative_contract',['--script','res://tests/test_operative_embedded.gd'],'Operative embedded contract: 0 failures'))
+    stages.append(('operative_cut_geometry',['--script','res://tests/test_operative_cut_geometry.gd'],'Operative cut geometry: 0 failures'))
+    stages.append(('operative_blade',['--script','res://tests/test_operative_blade.gd'],'Closed blade result: 0 failures'))
 for name, arguments, marker in stages:
     log = probe/f'{name}.log'
     print(f'FEM extension {name}: {probe}', flush=True)

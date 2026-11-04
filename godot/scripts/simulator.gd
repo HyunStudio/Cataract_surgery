@@ -493,6 +493,7 @@ func _physics_process(dt: float) -> void:
 		_flap_boundary.wounds=_open_wounds()
 		if anatomy.cornea.revision!=_flap_revision:
 			_flap_boundary.configure(anatomy.cornea,anatomy.iris); _flap_revision=anatomy.cornea.revision
+	if capsule.embedded_backend:capsule.embedded_surfaces={"iris":anatomy.iris,"posterior":anatomy.posterior}
 	capsule.step_tools(dt,tools)
 	if not capsule.native_failure.is_empty():
 		var failure:Dictionary=capsule.native_failure.duplicate(true)

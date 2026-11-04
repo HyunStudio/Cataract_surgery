@@ -33,7 +33,10 @@ static func _dot(a:Vector3,b:Vector3)->float:
 static func _key(a:int,b:int)->Vector2i:
 	return Vector2i(mini(a,b),maxi(a,b))
 static func _area(a:Vector3,b:Vector3,c:Vector3)->float:
-	return (b-a).cross(c-a).length()*.5
+	var ux:float=float(b.x)-a.x;var uy:float=float(b.y)-a.y;var uz:float=float(b.z)-a.z
+	var vx:float=float(c.x)-a.x;var vy:float=float(c.y)-a.y;var vz:float=float(c.z)-a.z
+	var nx:=uy*vz-uz*vy;var ny:=uz*vx-ux*vz;var nz:=ux*vy-uy*vx
+	return sqrt(nx*nx+ny*ny+nz*nz)*.5
 static func _project(p:Vector3,axis:int)->Vector2:
 	return Vector2(p.y,p.z) if axis==0 else (Vector2(p.x,p.z) if axis==1 else Vector2(p.x,p.y))
 static func _cross(a:Vector2,b:Vector2)->float:
@@ -54,7 +57,10 @@ func slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fini
 
 ## A finite, planar sharp-edge sweep patch. Coplanar sliding has no unique
 ## transverse incision, so it leaves those faces intact rather than guessing.
-func slice_triangle(points:PackedVector3Array,indices:PackedInt32Array,a:Vector3,b:Vector3,c:Vector3,max_vertices:int=4096,max_triangles:int=8192)->Dictionary:
+## material_partition additionally verifies positive affine material triangles
+## and returns their source fractions. Legacy display geometry is a separate
+## contract: rounded orientation alone does not qualify original-material FEM.
+func slice_triangle(points:PackedVector3Array,indices:PackedInt32Array,a:Vector3,b:Vector3,c:Vector3,max_vertices:int=4096,max_triangles:int=8192,material_partition:bool=false)->Dictionary:
 	_work=0
 	for point in [a,b,c]:
 		if not point.is_finite() or point.length_squared()>256.:return _invalid("patch")
@@ -65,9 +71,9 @@ func slice_triangle(points:PackedVector3Array,indices:PackedInt32Array,a:Vector3
 	if height<=EPS:return _invalid("patch_resolution")
 	depth/=height
 	var polygon:=PackedVector2Array([Vector2.ZERO,Vector2(length,0.),Vector2(_dot(c-a,tangent),height)])
-	return _slice(points,indices,a,b,depth,height,max_vertices,max_triangles,polygon)
+	return _slice(points,indices,a,b,depth,height,max_vertices,max_triangles,polygon,material_partition)
 
-func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float,max_vertices:int,max_triangles:int,polygon:PackedVector2Array)->Dictionary:
+func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float,max_vertices:int,max_triangles:int,polygon:PackedVector2Array,material_partition:bool=false)->Dictionary:
 	_failure=""; _work=0; _edge_nodes={}; _input_edges={}; _cut_faces={}; _bindings=[]
 	_clip_polygon=polygon.duplicate()
 	_vertex_limit=max_vertices; _triangle_limit=max_triangles
@@ -102,7 +108,7 @@ func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fin
 		var face:=Vector3i(indices[off],indices[off+1],indices[off+2])
 		_plan(face,int(off/3))
 		if _failure!="": return _invalid(_failure)
-	var output:Array[PackedInt32Array]=[]; var sources:=PackedInt32Array(); var seams:={}
+	var output:Array[PackedInt32Array]=[]; var sources:=PackedInt32Array();var fractions:=PackedFloat64Array(); var seams:={}
 	for off in range(0,indices.size(),3):
 		var face:=Vector3i(indices[off],indices[off+1],indices[off+2]); var id:int=off/3
 		var local:Array[PackedInt32Array]=[PackedInt32Array([face.x,face.y,face.z])]
@@ -119,7 +125,12 @@ func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fin
 			if not _tick(): return _invalid(_failure)
 			var normal:=(_points[triangle[1]]-_points[triangle[0]]).cross(_points[triangle[2]]-_points[triangle[0]])
 			if _dot(normal,original_normal)<=0.: return _invalid("subdivision_winding")
-			retained+=_area(_points[triangle[0]],_points[triangle[1]],_points[triangle[2]])
+			if material_partition:
+				var fraction:=_material_fraction(triangle,face)
+				if _failure!="":return _invalid(_failure)
+				if fraction<=0.:return _invalid("material_subdivision_winding")
+				retained+=fraction;fractions.append(fraction)
+			else:retained+=_area(_points[triangle[0]],_points[triangle[1]],_points[triangle[2]])
 			output.append(triangle); sources.append(id)
 			if output.size()>_triangle_limit: return _invalid("triangle_budget")
 			if _cut_faces.has(id):
@@ -130,13 +141,34 @@ func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fin
 						seams[_key(a,b)]=true; local_seams[_key(a,b)]=true
 		if _cut_faces.has(id) and not _complete_seam(_cut_faces[id].nodes,local_seams): return _invalid("incomplete_face_seam")
 		var original_area:=_area(points[face.x],points[face.y],points[face.z])
-		if absf(retained-original_area)>maxf(1e-9,original_area*.00001): return _invalid("area_not_preserved")
+		# Material mode verifies the affine source domain. Display mode retains
+		# its prior rounded geometric-area contract and emits no material fractions.
+		var retained_area:float=retained*original_area if material_partition else retained
+		if absf(retained_area-original_area)>maxf(1e-9,original_area*.00001): return _invalid("area_not_preserved")
 	if not _cut_faces.is_empty() and seams.is_empty(): return _invalid("missing_seam")
 	_split_fans(output,seams)
 	if _failure!="": return _invalid(_failure)
 	var packed:=PackedInt32Array()
 	for triangle in output: packed.append_array(triangle)
-	return {"valid":true,"changed":not _cut_faces.is_empty(),"reason":"","points":_points,"indices":packed,"sources":sources,"bindings":_bindings,"work":_work}
+	return {"valid":true,"changed":not _cut_faces.is_empty(),"reason":"","points":_points,"indices":packed,"sources":sources,"bindings":_bindings,"fractions":fractions,"work":_work}
+
+func _source_weights(index:int,face:Vector3i)->PackedFloat64Array:
+	var binding:Dictionary=_bindings[index];var result:=PackedFloat64Array([0.,0.,0.])
+	var total:float=float(binding.weights.x)+binding.weights.y+binding.weights.z
+	if not is_finite(total) or total<=0.:_failure="subdivision_binding";return result
+	for j in range(3):
+		var weight:float=binding.weights[j]/total
+		if not is_finite(weight) or weight<0.:_failure="subdivision_binding";return result
+		if weight==0.:continue
+		var corner:=-1
+		for k in range(3):
+			if face[k]==binding.ids[j]:corner=k;break
+		if corner<0:_failure="subdivision_binding_source";return result
+		result[corner]+=weight
+	return result
+func _material_fraction(triangle:PackedInt32Array,face:Vector3i)->float:
+	var a:=_source_weights(triangle[0],face);var b:=_source_weights(triangle[1],face);var c:=_source_weights(triangle[2],face)
+	return (b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1])
 
 func _valid_vertex_links(indices:PackedInt32Array)->bool:
 	var incident:={}; var boundary:={}

@@ -8,7 +8,7 @@ import tempfile
 from native_build_provenance import sha256, source_hashes, verify_sources
 
 ROOT = Path(__file__).resolve().parents[1]
-SUITES = ['test_instrument_roll','test_roll_operator','test_roll_recording','test_embedded_coupled_state','test_embedded_contact_state','test_embedded_weights','test_embedded_grasp','test_embedded_dynamics',
+SUITES = ['test_operative_embedded','test_operative_cut_geometry','test_operative_resolution','test_roll_transaction','test_instrument_roll','test_roll_operator','test_roll_recording','test_embedded_coupled_state','test_embedded_contact_state','test_embedded_weights','test_embedded_grasp','test_embedded_dynamics',
           'test_fem_reference','test_material_affine','test_embedded_state',
           'test_embedded_cut_route','test_membrane_support','test_embedded_failure',
           'test_membrane_energy','test_membrane_cut_patch','test_blade_sweep',

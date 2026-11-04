@@ -1,9 +1,12 @@
 extends RefCounted
 const StateCheckpoint=preload("res://scripts/model_checkpoint.gd")
-func requires_physics_transaction()->bool: return stretch_backend!=null or contact_backend!=null
+func requires_physics_transaction()->bool: return stretch_backend!=null or contact_backend!=null or embedded_backend!=null
 func capture_state()->Dictionary: return StateCheckpoint.capture_model(self)
-func restore_state(state:Dictionary)->void: StateCheckpoint.restore_model(self,state)
+func restore_state(state:Dictionary)->void:
+	StateCheckpoint.restore_model(self,state)
+	if embedded_backend:_embedded_solver=null
 func invalidate_solver_cache()->void:
+	_embedded_solver=null
 	for backend in [stretch_backend,contact_backend]:
 		if backend and backend.has_method("invalidate_cache"): backend.invalidate_cache()
 ## Uncalibrated dimensionless membrane experiment; numerical behavior is not clinical validation.
@@ -22,6 +25,20 @@ const Cutter=preload("res://scripts/membrane_cut.gd")
 const Refinement=preload("res://scripts/membrane_refinement.gd")
 const Precision=preload("res://scripts/membrane_precision.gd")
 const MaterialSupport=preload("res://scripts/membrane_support.gd")
+const EmbeddedOperator=preload("res://scripts/operative_membrane.gd")
+var embedded_backend:RefCounted
+var embedded_guard:RefCounted
+var embedded_surfaces:Dictionary={}
+var embedded_mu:=10000.
+var embedded_lambda:=15000.
+var embedded_budget:=250
+var _embedded_state:Dictionary={}
+var _embedded_solver:RefCounted
+var _embedded_energy:=0.
+var _embedded_force:=0.
+
+func set_embedded_backend(backend:RefCounted,guard:RefCounted)->bool:
+	return EmbeddedOperator.configure(self,backend,guard)
 ## Immutable original basis and live-face ancestry for embedded cut mechanics.
 ## The existing physical backend remains authoritative until qualified otherwise.
 var _material_rest:=PackedVector3Array()
@@ -96,11 +113,13 @@ var native_failure:Dictionary={}
 var _backend_failed:=false
 
 func set_stretch_backend(backend:RefCounted)->bool:
+	if embedded_backend:return false
 	if backend and contact_backend: return false
 	if backend and (not backend.has_method("project") or (backend.has_method("ready") and not backend.ready())): return false
 	stretch_backend=backend; native_failure={}; return true
 
 func set_contact_backend(backend:RefCounted)->bool:
+	if embedded_backend:return false
 	if backend and (stretch_backend or not backend.has_method("solve_contact")): return false
 	if backend and not contact_backend:
 		_physical_xyz=Precision.pack(positions); _physical_previous=Precision.pack(_previous); _physical_rest=Precision.pack(rest_positions)
@@ -174,6 +193,11 @@ func reset() -> void:
 	joint_times=PackedFloat64Array()
 	joint_anatomy_vertices=PackedInt32Array(); joint_anatomy=PackedFloat64Array()
 	_joint_tip_history={}
+	_embedded_state={};_embedded_solver=null;_embedded_energy=0.;_embedded_force=0.
+	if embedded_backend:
+		var initialized:Dictionary=EmbeddedOperator.initialize(self)
+		if initialized.valid:_embedded_state=initialized.state
+		else:native_failure={"reason":"embedded_reset_"+initialized.reason}
 
 func _vertex(ring: int, sector: int) -> int:
 	return 1 + (ring - 1) * SECTORS + posmod(sector, SECTORS)
@@ -231,6 +255,7 @@ func release_hand(hand: int) -> void:
 	for vertex in _grasps.values(): _pinned[vertex] = 1
 
 func incise(start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float)->Dictionary:
+	if embedded_backend:return {"valid":false,"changed":false,"reason":"embedded_requires_finite_blade"}
 	# Prepare geometry, material state and attachment identities before any
 	# mutation. Failure keeps the accepted specimen and numerical history.
 	return _apply_incised_surface(_cutter.slice(positions,triangles,start,finish,depth_axis,half_depth))
@@ -238,6 +263,7 @@ func incise(start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float)->D
 ## Geometric cutting is one transaction even when a swept edge requires several
 ## finite patches. Failure never publishes an earlier partial blade incision.
 func incise_patches(patches:Array)->Dictionary:
+	if embedded_backend:return EmbeddedOperator.incise(self,patches)
 	if patches.size()>256:return {"valid":false,"changed":false,"reason":"patch_budget"}
 	for patch in patches:
 		if not patch is PackedVector3Array or patch.size()!=3:return {"valid":false,"changed":false,"reason":"patch_shape"}
@@ -348,6 +374,10 @@ func step(dt: float, tool_tip: Vector3, tool_radius: float, grip: bool, cut: boo
 	step_tools(dt, tools)
 
 func step_tools(dt: float, tools: Array[Dictionary]) -> void:
+	if embedded_backend:
+		var result:Dictionary=EmbeddedOperator.step(self,dt,tools)
+		native_failure={} if result.valid else result.merged({"reason":"embedded_"+result.reason},true)
+		return
 	if not stretch_backend and not contact_backend:
 		_step_tools(dt,tools); return
 	var saved:=_checkpoint()
@@ -812,7 +842,14 @@ func metrics() -> Dictionary:
 		else:
 			var extension := positions[_edge_a[edge_id]].distance_to(positions[_edge_b[edge_id]]) - _edge_rest[edge_id]
 			energy += .5 * extension * extension
-	return {"body_contacts":body_contact_count,"body_projection_peak_residual":body_contact_residual,"body_uncertain":body_contact_uncertain,"incision_events":_incision_events,"initial_area":_initial_area,"retained_area":_retained_area,"cut_loss_area":maxf(0.,_initial_area-_retained_area-_extracted_area),"retained_detached_area":detached_area,"detached_flaps":detached_count,"extracted_flaps":_extracted_flaps,"extracted_area":_extracted_area,"max_strain": _peak_strain, "broken_edges": broken, "grasped": _grasps.get(0, -1), "grasps": _grasps.duplicate(), "integration_steps": _integration_steps, "finite": finite and is_finite(energy), "strain_energy": energy, "vertices": positions.size(), "triangles": triangles.size() / 3}
+	var answer:Dictionary={"body_contacts":body_contact_count,"body_projection_peak_residual":body_contact_residual,"body_uncertain":body_contact_uncertain,"incision_events":_incision_events,"initial_area":_initial_area,"retained_area":_retained_area,"cut_loss_area":maxf(0.,_initial_area-_retained_area-_extracted_area),"retained_detached_area":detached_area,"detached_flaps":detached_count,"extracted_flaps":_extracted_flaps,"extracted_area":_extracted_area,"max_strain": _peak_strain, "broken_edges": broken, "grasped": _grasps.get(0, -1), "grasps": _grasps.duplicate(), "integration_steps": _integration_steps, "finite": finite and is_finite(energy), "strain_energy": energy, "vertices": positions.size(), "triangles": triangles.size() / 3}
+
+	if embedded_backend:
+		answer.strain_energy=_embedded_energy
+		answer["mechanics"]="original_material_fem"
+		answer["force_inf"]=_embedded_force
+		answer["mechanical_controls"]=_embedded_state.get("xyz",PackedFloat64Array()).size()/3
+	return answer
 
 func visual_state()->Dictionary:
 	var mirror_lambda:=PackedFloat64Array(); mirror_lambda.resize(edges.size())

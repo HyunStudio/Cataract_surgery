@@ -4,20 +4,22 @@ class RecordingCutter extends RefCounted:
 	var model
 	var last_state:Dictionary
 	var last_cut:Dictionary
-	func slice_triangle(points,indices,a,b,c)->Dictionary:
+	func slice_triangle(points,indices,a,b,c,max_vertices=4096,max_triangles=8192,material_partition=false)->Dictionary:
 		last_state={}
 		for key in ["positions","rest_positions","_previous","anchored","_removed","_outside","triangles","_triangle_area","surface_density","_material_rest","_material_indices","_material_ids"]:
 			last_state[key]=model.get(key)
-		var result:Dictionary=inner.slice_triangle(points,indices,a,b,c)
+		var result:Dictionary=inner.slice_triangle(points,indices,a,b,c,max_vertices,max_triangles,material_partition)
 		last_cut=result
 		if not result.valid:
 			DirAccess.make_dir_recursive_absolute("res://reports")
 			var file:=FileAccess.open("res://reports/blade-cut-failure.bin",FileAccess.WRITE)
 			if file:file.store_var({"points":points,"indices":indices,"patch":PackedVector3Array([a,b,c]),"reason":result.reason})
 		return result
+func configure_capsule(_app)->bool:return true
 func run()->void:
 	var app=load("res://scripts/simulator.gd").new();root.add_child(app);app.set_physics_process(false);app.set_process(false);await process_frame
 	app.start_practice();app.choose_tool("knife")
+	if not configure_capsule(app):app.free();await process_frame;quit(1);return
 	app.capsule._cutter=RecordingCutter.new()
 	app.capsule._cutter.model=app.capsule
 	for target in [Vector3(1.32,.80,0),Vector3(1.32,.65,0),Vector3(1.20,.65,0),Vector3(.90,.68,0),Vector3(0,.75,0)]:
