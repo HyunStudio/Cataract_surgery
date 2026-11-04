@@ -118,3 +118,31 @@ and [frozen source/build/stage checkpoint](../../assets/fresh-physical-reactions
 retain provenance. The latter is deliberately qualified:false because only21
 stages have completed and the22nd full operative route is live. It must not be
 presented as a full-route success. Fresh route/anatomy qualification is pending.
+
+
+## Live full-route progress (not terminal)
+
+The fresh operative route has now accepted160 physical ticks,226 staged incision
+events,2811 fine faces and346 controls. Retained material area remains
+5.3193263467401275 and independent force1.1967024593495523e-11. Thus it passes
+the former155/156 barrier in the actual application path, not just saved cores.
+The route is STILL RUNNING; do not call it a completed case or end it on an
+observation timeout. Resume exact exec session87686, probe
+`.tools/fem-extension-3yegdgdp`, final stageoperative_blade. Last confirmed actual
+Godot child PID140144 was consuming CPU; console parent48088 is only the launcher.
+[Live progress evidence](../../assets/fresh-physical-reactions-route-progress-2026-11-05.json)
+and [log snapshot](../../assets/fresh-physical-reactions-route-progress-2026-11-05.txt).
+Product changes are committed/pushed as2888ccb(cache) and8406250(fresh reactions
+and bounded accurate retry selection). Main/release/default backend unchanged.
+
+Further throughput inspection finds461 exact ordered control triples shared by
+2665 fine faces in the156 fixture. A next optimization can share hulls and zero-
+dual certificates across those identical triples while keeping all per-pair
+geometry checks. Physical-dual evaluation currently also refines far zero-
+reaction gaps; any future certificate reuse there must test physical dual==0,
+not its unrelated PHR update, and preserve all geometry/penetration/COMP checks.
+These are next candidates, not implemented or qualified changes.
+Do not edit validator/build source inputs while the current full run is live:
+its terminal source-hash verification must remain valid. Future full runs should
+use the transparent capture subclass from the outset to avoid repeating long
+prefixes solely to obtain exact failure inputs.
