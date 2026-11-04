@@ -1,20 +1,22 @@
 extends RefCounted
+const Precision=preload("res://scripts/membrane_precision.gd")
 ## Transactional material-state transfer for a verified geometric incision.
 ## Lumped areal mass and rest/history bindings are engineering approximations.
 static func invalid(reason:String)->Dictionary:
 	return {"valid":false,"reason":reason}
 static func blend(values:PackedVector3Array,binding:Dictionary)->Vector3:
-	var ids:Vector3i=binding.ids; var w:Vector3=binding.weights
-	var total:float=float(w.x)+w.y+w.z
+	var ids:Vector3i=binding.ids;var w:=Precision.binding_weights(binding)
+	var total:float=w[0]+w[1]+w[2]
 	if not is_finite(total) or total<=0.:return Vector3(INF,INF,INF)
 	var result:=Vector3.ZERO
 	for axis in range(3):
 		var base:float=values[ids.x][axis]
-		result[axis]=base+((float(values[ids.y][axis])-base)*w.y+(float(values[ids.z][axis])-base)*w.z)/total
+		result[axis]=base+((float(values[ids.y][axis])-base)*w[1]+(float(values[ids.z][axis])-base)*w[2])/total
 	return result
 static func flag(values:PackedByteArray,binding:Dictionary)->int:
+	var weights:=Precision.binding_weights(binding)
 	for j in range(3):
-		if binding.weights[j]>0. and values[binding.ids[j]]==0: return 0
+		if weights[j]>0. and values[binding.ids[j]]==0: return 0
 	return 1
 ## Geometry/material preparation has no mechanical support policy. Both the
 ## existing fine-node backend and an embedded backend can consume identical

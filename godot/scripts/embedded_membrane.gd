@@ -302,8 +302,8 @@ func _cut_material_weights(cut:Dictionary)->Dictionary:
 		var source:int=cut.sources[face]
 		for corner in range(3):
 			var binding:Dictionary=cut.bindings[cut.indices[face*3+corner]]
-			var weights:Vector3=binding.weights;var ids:Vector3i=binding.ids
-			var sum:=float(weights.x)+weights.y+weights.z
+			var weights:=Precision.binding_weights(binding);var ids:Vector3i=binding.ids
+			var sum:=weights[0]+weights[1]+weights[2]
 			if not is_finite(sum) or sum<=0.:return invalid("material_binding")
 			for k in range(3):
 				if weights[k]==0.:continue

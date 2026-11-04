@@ -1,0 +1,26 @@
+{
+  "choices": [
+    {
+      "chosen": "(1482, 1485)",
+      "first_weights": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "inserted": 1501,
+      "last_weights": [
+        0.0,
+        1.0,
+        0.0
+      ],
+      "material_determinant": 2.238424149614622e-05,
+      "point_weights": [
+        0.9997095386029685,
+        0.0002680771555353024,
+        2.238424149614622e-05
+      ]
+    }
+  ],
+  "parent": "(1482, 1485, 46)",
+  "result": "material_partition"
+}

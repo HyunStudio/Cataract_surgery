@@ -11,6 +11,13 @@
 [유한 관성 개선 기록](superpowers/plans/2026-11-05-finite-inertia.md), 이전 연결
 작업은 [수술 동작 연결 계획](superpowers/plans/2026-11-05-operative-embedded.md)에 기록합니다.
 
+추가 절개 개선에서는 점·변의 재료상 출처와 배정밀도 중점 보간을 연결해
+얇은 면의 뒤집힘과 면적 누락 재현 사례를 수정했습니다. 회귀 검사40개 묶음이
+통과했고, 실제 경로는143 물리 단계까지 진행한 뒤 이동 중간의 기구·조직
+충돌에서 중단됩니다. 시작·끝 접촉 계산만으로는 이 충돌을 해결하지 못하며,
+전체 수술이 완성됐다는 뜻은 아닙니다. [절개 개선 증거](superpowers/plans/2026-11-05-material-edge-insertion.md)와
+[다음 경로 접촉 설계](superpowers/plans/2026-11-05-fem-trajectory-contact.md)를 확인하세요.
+
 후속 개선: `feat/submission-improvements`에서 자동 저장 종료 처리를 보강하고
 공통 실행 진입점과 Windows 폴더 빌드를 추가했습니다. 실행본의 한국어 화면,
 렌더링, 마우스 반응과 종료를 확인했습니다. 키보드 자동화와 전체 실행본 증례,

@@ -180,6 +180,13 @@ class FEMContactTests(unittest.TestCase):
         self.assertEqual(probe.fem_probe_x87(),saved)
         self.verify_curved_request(request,result)
 
+    def test_actual_operative144_endpoint_is_equilibrium_not_motion_clearance(self):
+        saved=json.loads((fem.ROOT/'native/tests/fixtures/operative_motion144.json').read_text())
+        request=saved['fem_request'];result=replay(request,fem.ROOT/'.tools/native/membrane_fem.dll')
+        self.verify_curved_request(request,result)
+        np.testing.assert_allclose(result[1],saved['fem_response']['xyz'],atol=1e-12,rtol=0.)
+        self.assertEqual(saved['guard_response']['status'],1)
+
     def test_redundant_contact_rows_remain_nonnegative_and_balanced(self):
         body = [.3,.05,.3,.3,.05,.3,.1]
         answer = self.run_case((0,),bodies=[body,body]);self.verify(answer)

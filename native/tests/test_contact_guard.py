@@ -79,6 +79,30 @@ class ContactGuardTests(unittest.TestCase):
         face=self.face(); code,s=self.query(face,face,linear([0.,2.,0.],[0.,2.,0.],.1))
         self.assertEqual(code,0); self.assertEqual(s[0],0)
 
+    def test_actual_operative144_clear_endpoints_do_not_clear_the_path(self):
+        import numpy as np
+        from test_trajectory_contact import sample
+        from decimal_distance_reference import squared_distance
+        saved=json.loads((ROOT/'native/tests/fixtures/operative_motion144.json').read_text())
+        request=saved['guard_request'];recorded=saved['guard_response']
+        guard=self.lib.membrane_guard_motion_witness
+        guard.argtypes=self.guard.argtypes+[ct.POINTER(ct.c_double)];guard.restype=ct.c_int
+        doubles=lambda values:(ct.c_double*len(values))(*values)
+        ints=lambda values:(ct.c_int*len(values))(*values)
+        stats=(ct.c_double*8)();time=ct.c_double(-1.)
+        code=guard(len(request['previous'])//3,doubles(request['previous']),doubles(request['current']),len(request['triangles'])//3,ints(request['triangles']),
+                   len(request['kinds']),ints(request['kinds']),doubles(request['packets']),request['budget'],request['gap_tolerance'],stats,ct.byref(time))
+        self.assertEqual(code,1);self.assertEqual(list(stats),recorded['stats']);self.assertEqual(time.value,.5)
+        face=int(stats[2]);body=int(stats[3]);ids=np.array(request['triangles']).reshape(-1,3)[face]
+        old=np.array(request['previous']).reshape(-1,3);current=np.array(request['current']).reshape(-1,3)
+        packet=np.array(request['packets']).reshape(-1,41)[body];self.assertEqual(request['kinds'][body],1)
+        gaps=[]
+        for t in [0.,time.value,1.]:
+            segment=sample(packet,t);triangle=(1-t)*old[ids]+t*current[ids]
+            gaps.append(math.sqrt(float(squared_distance(segment.ravel().tolist(),triangle.ravel().tolist())))-packet[12])
+        self.assertGreater(gaps[0],1e-3);self.assertGreater(gaps[2],1e-3)
+        self.assertLess(gaps[1],-1e-4);self.assertAlmostEqual(gaps[1],stats[4],places=14)
+
     def test_actual265_iris_contact_cannot_be_accepted_as_clear_tissue_motion(self):
         from decimal_distance_reference import squared_distance
         p=json.loads((ROOT/'native/tests/fixtures/iris_boundary265.json').read_text())

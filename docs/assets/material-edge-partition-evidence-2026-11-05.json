@@ -1,0 +1,41 @@
+{
+  "children": [
+    {
+      "display_area": 6.3761672609932476e-09,
+      "fraction": 0.00013403477656760633
+    },
+    {
+      "display_area": 5.210518544182684e-09,
+      "fraction": 0.0001340347765676063
+    },
+    {
+      "display_area": 1.8566837083233106e-13,
+      "fraction": 3.801200044877737e-09
+    },
+    {
+      "display_area": 1.7335400186345793e-13,
+      "fraction": 3.801200044877737e-09
+    },
+    {
+      "display_area": 4.279824507617148e-05,
+      "fraction": 0.9997095386029685
+    }
+  ],
+  "cut_reason": "",
+  "cut_valid": true,
+  "events": 144,
+  "maximum_fraction_error": 2.238424149614282e-05,
+  "parent": 1355,
+  "parent_material_area": 4.281025576474473e-05,
+  "result": {
+    "changed": false,
+    "reason": "material_partition",
+    "valid": false
+  },
+  "source_display_area": 4.281056329174306e-05,
+  "source_rest_area": 4.281119192102979e-05,
+  "steps": 135,
+  "sum": 0.9999776157585039,
+  "triangles": 1665,
+  "vertices": 1498
+}

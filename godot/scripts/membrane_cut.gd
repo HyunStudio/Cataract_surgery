@@ -1,4 +1,5 @@
 extends RefCounted
+const Precision=preload("res://scripts/membrane_precision.gd")
 ## Finite curtain incision of an oriented triangle membrane. No material is removed.
 ## Source-edge identity preserves shared nodes without welding coincident old seams.
 ## This geometric engineering model is not calibrated tissue fracture mechanics.
@@ -122,7 +123,9 @@ func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fin
 			for v in _edge_nodes.get(_key(face[j],face[(j+1)%3]),PackedInt32Array()):
 				if not nodes.has(v): nodes.append(v)
 		for v in nodes:
-			local=_insert(local,v)
+			var required:=Vector2i(-1,-1)
+			if _cut_faces.has(id) and v==_cut_faces[id].nodes[2]:required=_key(_cut_faces[id].nodes[0],_cut_faces[id].nodes[1])
+			local=_insert(local,v,required)
 			if _failure!="": return _invalid(_failure)
 		var retained:=0.; var local_seams:={}
 		var original_normal:=(points[face.y]-points[face.x]).cross(points[face.z]-points[face.x])
@@ -159,10 +162,10 @@ func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fin
 
 func _source_weights(index:int,face:Vector3i)->PackedFloat64Array:
 	var binding:Dictionary=_bindings[index];var result:=PackedFloat64Array([0.,0.,0.])
-	var total:float=float(binding.weights.x)+binding.weights.y+binding.weights.z
+	var weights:=Precision.binding_weights(binding);var total:float=weights[0]+weights[1]+weights[2]
 	if not is_finite(total) or total<=0.:_failure="subdivision_binding";return result
 	for j in range(3):
-		var weight:float=binding.weights[j]/total
+		var weight:float=weights[j]/total
 		if not is_finite(weight) or weight<0.:_failure="subdivision_binding";return result
 		if weight==0.:continue
 		var corner:=-1
@@ -173,6 +176,8 @@ func _source_weights(index:int,face:Vector3i)->PackedFloat64Array:
 	return result
 func _material_fraction(triangle:PackedInt32Array,face:Vector3i)->float:
 	var a:=_source_weights(triangle[0],face);var b:=_source_weights(triangle[1],face);var c:=_source_weights(triangle[2],face)
+	return _material_orientation(a,b,c)
+static func _material_orientation(a:PackedFloat64Array,b:PackedFloat64Array,c:PackedFloat64Array)->float:
 	return (b[1]-a[1])*(c[2]-a[2])-(b[2]-a[2])*(c[1]-a[1])
 
 func _valid_vertex_links(indices:PackedInt32Array)->bool:
@@ -210,7 +215,9 @@ func _complete_seam(nodes:PackedInt32Array,seams:Dictionary)->bool:
 		var v:=stack[stack.size()-1]; stack.resize(stack.size()-1)
 		for next in neighbors.get(v,PackedInt32Array()):
 			if not visited.has(next): visited[next]=true; stack.append(next)
-	return visited.has(nodes[1]) and visited.has(nodes[2])
+	for node in nodes:
+		if not visited.has(node):return false
+	return true
 
 func _plan(face:Vector3i,id:int)->void:
 	var distance:=PackedFloat64Array(); var hit:=PackedVector3Array()
@@ -243,16 +250,9 @@ func _plan(face:Vector3i,id:int)->void:
 		if a.distance_to(Geometry3D.get_closest_point_to_segment(a,u,v))<=EPS*2. and b.distance_to(Geometry3D.get_closest_point_to_segment(b,u,v))<=EPS*2. and _input_edges[_key(face[j],face[(j+1)%3])].size()==1: return
 	var first:=_node(a,face); var last:=_node(b,face)
 	if _failure!="": return
-	# A transverse segment's interior midpoint must not snap onto a nearby
-	# source edge in a thin wedge. Only a material segment actually lying on
-	# that edge shares its midpoint with the adjacent source face.
-	var edge_midpoint:=false
-	for j in range(3):
-		var edge:=_key(face[j],face[(j+1)%3])
-		if _material_on_edge(first,edge) and _material_on_edge(last,edge):edge_midpoint=true
-	var middle:=_node((a+b)*.5,face,edge_midpoint)
-	if _failure!="": return
 	if first==last: _failure="collapsed_cut"; return
+	var middle:=_midpoint(first,last,face)
+	if _failure!="":return
 	_cut_faces[id]={"a":a,"b":b,"nodes":PackedInt32Array([first,last,middle])}
 
 func _unique(points:PackedVector3Array,p:Vector3)->void:
@@ -288,9 +288,37 @@ func _clip(a:Vector3,b:Vector3)->PackedVector3Array:
 	return PackedVector3Array([a.lerp(b,lo),a.lerp(b,hi)])
 func _material_on_edge(index:int,edge:Vector2i)->bool:
 	var binding:Dictionary=_bindings[index]
+	var weights:=Precision.binding_weights(binding)
 	for j in range(3):
-		if binding.weights[j]>0. and binding.ids[j]!=edge.x and binding.ids[j]!=edge.y:return false
+		if weights[j]>0. and binding.ids[j]!=edge.x and binding.ids[j]!=edge.y:return false
 	return true
+
+func _midpoint(first:int,last:int,face:Vector3i)->int:
+	# This interior node opens both banks even when both segment tips lie
+	# inside one face. Compose the accepted material bindings, never refit
+	# a rounded display midpoint in an ill-conditioned source triangle.
+	var a:=_source_weights(first,face);var b:=_source_weights(last,face);var weights:=PackedFloat64Array()
+	for j in range(3):weights.append(.5*(a[j]+b[j]))
+	if _failure!="":return -1
+	var point:=Vector3.ZERO;var total:float=weights[0]+weights[1]+weights[2]
+	for axis in range(3):
+		var base:float=_original[face[0]][axis]
+		point[axis]=base+((float(_original[face[1]][axis])-base)*weights[1]+(float(_original[face[2]][axis])-base)*weights[2])/total
+	var edge:=Vector2i(-1,-1)
+	for j in range(3):
+		if weights[j]==0.:edge=_key(face[(j+1)%3],face[(j+2)%3]);break
+	if edge.x>=0:
+		for old in _edge_nodes.get(edge,PackedInt32Array()):
+			if old==first or old==last:continue
+			var t:=_edge_fraction(old,edge);var lo:=_edge_fraction(first,edge);var hi:=_edge_fraction(last,edge)
+			if t>minf(lo,hi) and t<maxf(lo,hi) and _points[old].distance_to(point)<=EPS*2.:return old
+	if _points.size()>=_vertex_limit:_failure="vertex_budget";return -1
+	var index:=_points.size();_points.append(point)
+	_bindings.append({"ids":face,"weights":Vector3(weights[0],weights[1],weights[2]),"weights64":weights})
+	if edge.x>=0:
+		if not _edge_nodes.has(edge):_edge_nodes[edge]=PackedInt32Array()
+		_edge_nodes[edge].append(index)
+	return index
 
 func _node(p:Vector3,face:Vector3i,snap_edges:=true)->int:
 	for v in [face.x,face.y,face.z]:
@@ -338,22 +366,66 @@ static func _affine(a:Vector3,b:Vector3,c:Vector3,weights:Vector3)->Vector3:
 		result[axis]=base+((float(b[axis])-base)*weights.y+(float(c[axis])-base)*weights.z)/total
 	return result
 
-func _insert(triangles:Array[PackedInt32Array],v:int)->Array[PackedInt32Array]:
+func _edge_fraction(index:int,edge:Vector2i)->float:
+	var binding:Dictionary=_bindings[index];var total:=0.;var last:=0.
+	var weights:=Precision.binding_weights(binding)
+	for j in range(3):
+		total+=weights[j]
+		if binding.ids[j]==edge.y:last+=weights[j]
+	return last/total
+
+func _source_edge(index:int)->Vector2i:
+	var binding:Dictionary=_bindings[index];var ids:=PackedInt32Array()
+	var weights:=Precision.binding_weights(binding)
+	for j in range(3):
+		if weights[j]>0. and not ids.has(binding.ids[j]):ids.append(binding.ids[j])
+	return _key(ids[0],ids[1]) if ids.size()==2 else Vector2i(-1,-1)
+
+func _insert(triangles:Array[PackedInt32Array],v:int,required:Vector2i=Vector2i(-1,-1))->Array[PackedInt32Array]:
 	# Pick one topological insertion for the whole local mesh. Independent
 	# proximity tests per triangle can select different almost coincident edges
 	# and create three incident faces along a single new edge in a thin wedge.
 	for triangle in triangles:
 		if triangle.has(v):return triangles
 	var chosen:=Vector2i(-1,-1);var nearest:=EPS*2.;var visited:Dictionary={}
+	var source:=_source_edge(v)
+	var fraction:=_edge_fraction(v,source) if source.x>=0 else 0.
+	var face:Vector3i=_bindings[v].ids
+	if required.x>=0:
+		for triangle in triangles:
+			for j in range(3):
+				if _key(triangle[j],triangle[(j+1)%3])==required:chosen=required
+		if chosen.x<0:_failure="midpoint_edge_insertion";return []
 	for triangle in triangles:
+		if required.x>=0:break
 		if not _tick(): return []
 		for j in range(3):
 			var key:=_key(triangle[j],triangle[(j+1)%3])
 			if visited.has(key):continue
 			visited[key]=true
+			if source.x>=0:
+				# Rounded display proximity can prefer an unrelated almost
+				# coincident edge. Source identity and affine order determine
+				# the unique boundary subedge that actually contains this point.
+				if not _material_on_edge(key.x,source) or not _material_on_edge(key.y,source):continue
+				var first:=_edge_fraction(key.x,source);var last:=_edge_fraction(key.y,source)
+				if fraction>minf(first,last) and fraction<maxf(first,last):
+					if chosen.x>=0 and chosen!=key:_failure="material_edge_ambiguous";return []
+					chosen=key
+				continue
+			var first:=_source_weights(key.x,face);var last:=_source_weights(key.y,face)
+			# An interior material point cannot split a source boundary edge:
+			# that drops its nonzero third-coordinate material region. Internal
+			# fan edges retain the existing local display insertion rule, with
+			# both incident triangles and all final partition/winding checks.
+			var boundary:=false
+			for component in range(3):
+				if first[component]==0. and last[component]==0.:boundary=true;break
+			if boundary:continue
 			var a:Vector3=_points[key.x];var b:Vector3=_points[key.y]
 			var distance:=_points[v].distance_to(Geometry3D.get_closest_point_to_segment(_points[v],a,b))
 			if distance<nearest:nearest=distance;chosen=key
+	if source.x>=0 and chosen.x<0:_failure="material_edge_insertion";return []
 	var container:=-1;var best:=-INF
 	if chosen.x<0:
 		for i in range(triangles.size()):

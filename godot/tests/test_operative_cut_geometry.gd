@@ -10,12 +10,18 @@ func _initialize()->void:
 		for i in range(result.sources.size()):sums[result.sources[i]]+=result.fractions[i]
 		for value in sums:
 			if absf(value-1.)>1e-10:failures+=1;push_error("each source material triangle is partitioned without missing or duplicate area")
-	# Historical display topology may be oriented after rounding while its
-	# affine material triangle is inverted. Preserve the geometric API, but
-	# never admit that topology into the original-material mechanical state.
+	# This historical thin case used to invert its affine midpoint triangle.
+	# Canonical midpoint bindings must now preserve its strict partition too.
 	var thin:Dictionary=FileAccess.open("res://tests/fixtures/blade-continuous-nonmanifold.bin",FileAccess.READ).get_var()
 	var strict:Dictionary=cutter.slice_triangle(thin.points,thin.indices,thin.patch[0],thin.patch[1],thin.patch[2],4096,8192,true)
-	if strict.valid or strict.reason!="material_subdivision_winding":failures+=1;push_error("material mode rejects inverted affine support even when display geometry is oriented")
+	if not strict.valid:failures+=1;push_error("thin historical geometry retains positive affine support: "+strict.reason)
+	else:
+		var partition:=PackedFloat64Array();partition.resize(thin.indices.size()/3)
+		for i in range(strict.sources.size()):
+			if strict.fractions[i]<=0.:failures+=1;push_error("thin material triangles retain positive orientation")
+			partition[strict.sources[i]]+=strict.fractions[i]
+		for portion in partition:
+			if absf(portion-1.)>1e-10:failures+=1;push_error("thin material partition remains complete")
 	var geometric:Dictionary=cutter.slice_triangle(thin.points,thin.indices,thin.patch[0],thin.patch[1],thin.patch[2])
 	if not geometric.valid or not geometric.fractions.is_empty():failures+=1;push_error("explicit material mode cannot leak into the legacy geometry contract")
 	var tiny:Dictionary=FileAccess.open("res://tests/fixtures/operative-blade-degenerate.bin",FileAccess.READ).get_var()

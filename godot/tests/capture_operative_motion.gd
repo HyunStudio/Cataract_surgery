@@ -1,0 +1,40 @@
+extends "res://tests/test_operative_blade.gd"
+## Diagnostic transparent wrappers; expected to retain the real route failure.
+class TraceBackend extends RefCounted:
+	var inner:RefCounted
+	var request:Dictionary={}
+	var response:Dictionary={}
+	func solve_fem(value:Dictionary)->Dictionary:return inner.solve_fem(value)
+	func contact_fem(value:Dictionary)->Dictionary:return inner.contact_fem(value)
+	func solve_contact_fem(value:Dictionary)->Dictionary:
+		request=value.duplicate(true);response=inner.solve_contact_fem(value);return response
+class TraceGuard extends RefCounted:
+	var inner:RefCounted
+	var backend:TraceBackend
+	var captured:=false
+	func guard_motion(value:Dictionary)->Dictionary:
+		var result:Dictionary=inner.guard_motion(value)
+		if result.get("status",-1)!=0 and not captured:
+			captured=true;DirAccess.make_dir_recursive_absolute("res://reports")
+			var data:={"guard_request":value,"guard_response":result,"fem_request":backend.request,"fem_response":backend.response}
+			var file:=FileAccess.open("res://reports/operative-motion-request.bin",FileAccess.WRITE)
+			if file:file.store_var(data)
+			file=FileAccess.open("res://reports/operative-motion-request.json",FileAccess.WRITE)
+			if file:file.store_string(JSON.stringify(data,"  ",true,true))
+		return result
+class TraceState:
+	extends "res://scripts/embedded_membrane.gd"
+	func advance_contact(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,motion:Dictionary,damping:float=1.,budget:int=100,targets:Dictionary={})->Dictionary:
+		var before:=snapshot();var result:=super.advance_contact(dt,force,backend,mu,lambda,motion,damping,budget,targets)
+		if not result.valid:
+			var path:=motion.duplicate(true);path.erase("guard")
+			DirAccess.make_dir_recursive_absolute("res://reports")
+			var file:=FileAccess.open("res://reports/operative-motion-state.bin",FileAccess.WRITE)
+			if file:file.store_var({"state":before,"dt":dt,"force":force,"mu":mu,"lambda":lambda,"motion":path,"damping":damping,"budget":budget,"targets":targets,"result":result})
+		return result
+func configure_capsule(app)->bool:
+	if not super.configure_capsule(app):return false
+	var backend:=TraceBackend.new();backend.inner=app.capsule.embedded_backend
+	var guard:=TraceGuard.new();guard.inner=app.capsule.embedded_guard;guard.backend=backend
+	app.capsule.embedded_backend=backend;app.capsule.embedded_guard=guard;app.capsule._embedded_solver=TraceState.new()
+	return true

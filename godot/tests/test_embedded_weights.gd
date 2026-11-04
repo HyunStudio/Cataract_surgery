@@ -9,10 +9,11 @@ class Capture extends RefCounted:
 		last=inner.slice_triangle(points,indices,a,b,c,max_vertices,max_triangles,material_partition)
 		return last
 func transferred(values:PackedFloat64Array,binding:Dictionary,axis:int)->float:
-	var ids:Vector3i=binding.ids;var w:Vector3=binding.weights
-	var sum:=float(w.x)+w.y+w.z
+	var ids:Vector3i=binding.ids
+	var w:PackedFloat64Array=binding.get("weights64",PackedFloat64Array([binding.weights.x,binding.weights.y,binding.weights.z]))
+	var sum:=w[0]+w[1]+w[2]
 	var base:float=values[ids.x*3+axis]
-	return base+((values[ids.y*3+axis]-base)*w.y+(values[ids.z*3+axis]-base)*w.z)/sum
+	return base+((values[ids.y*3+axis]-base)*w[1]+(values[ids.z*3+axis]-base)*w[2])/sum
 func _initialize()->void:
 	var support=load("res://scripts/membrane_support.gd")
 	var triangle:=PackedVector3Array([Vector3.ZERO,Vector3.RIGHT,Vector3.BACK])

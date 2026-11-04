@@ -1,0 +1,26 @@
+{
+  "scope": "Transparent diagnostic replay of the same guarded operative path; expected contact-motion rejection, not a cleared tick. Added diagnostic script leaves every original frozen input unchanged.",
+  "qualified": false,
+  "baseline_report": "docs\\assets\\material-edge-engine-validation-2026-11-05.json",
+  "baseline_report_sha256": "70e1a1adf21d3cd322340253acdda5e43b08273c36c8e7897dacd90a707b577a",
+  "original_frozen_inputs_unchanged": true,
+  "probe": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-baxiyzao",
+  "added_inputs": {
+    "godot/tests/capture_operative_motion.gd": "169e0be1999478aedc1ef9327862842abf98c8ca755b65300d9ed2fa9620b7c7",
+    "native/tests/fixtures/operative_motion144.json": "c1db3d631438f5b5cef426c630c22c5f99f59274692aa18379b0cce123ebfa02",
+    "godot/tests/fixtures/operative-motion144-state.bin": "bede655e30c63ae67e2a6aa1067fede6226af814c885ee8b7c16836462caa750",
+    "docs/assets/operative-motion144-replay-2026-11-05.json": "8eee8ad8d71c4ee10d0d1726635eb9e50b0766ac253e01e83236478595cd525d"
+  },
+  "state_description": {
+    "accepted_steps": 143,
+    "controls": 351,
+    "damping": 0.98,
+    "dt": 0.016666666666666666,
+    "minimum_mass": 1.3555044225459368e-15,
+    "reason": "native_contact_motion",
+    "staged_events": 178,
+    "triangles": 2091,
+    "vertices": 1902
+  },
+  "expected_exit_code": 1
+}
