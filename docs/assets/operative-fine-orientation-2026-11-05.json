@@ -1,0 +1,12 @@
+{
+  "controls": 346,
+  "events": 290,
+  "result": {
+    "changed": false,
+    "reason": "fine_orientation",
+    "valid": false
+  },
+  "steps": 177,
+  "triangles": 4307,
+  "vertices": 3986
+}

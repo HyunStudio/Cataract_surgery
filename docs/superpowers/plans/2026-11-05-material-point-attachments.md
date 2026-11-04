@@ -89,3 +89,39 @@ new material-point patch and is still not terminal. Do not poll the terminal
 merely for this unused material API. Observe and preserve its next actual outcome.
 Main/default game, real-time, all surgical phases, actual input, GPU and Windows
 release remain unqualified. Keep the full goal active.
+
+
+## Superseding terminal full-route result
+
+Old conservative-material full route21893is now TERMINAL, child exit1,
+route_passed=false; all frozen expected bytes unchanged. Do not poll/restart it.
+It clears the previous177/289-event vertex-budget checkpoint, then the next
+incision fails `fine_orientation` at177accepted physics steps,290cut events,
+3986vertices,4307triangles,346controls. The intended central flap is still attached.
+The frozen route predates this material-point patch; the failure is not caused
+by a new material hold (no grasp was active).
+
+Exact new checkpoint `godot/tests/fixtures/operative-fine-orientation-state.bin`
+was copied byte-for-byte from capture. Report/log:
+`docs/assets/conservative-material-full-route-2026-11-05.{json,txt}`.
+Small state/row evidence:
+`docs/assets/operative-fine-orientation-2026-11-05.json` and
+`docs/assets/operative-fine-orientation-detail-2026-11-05.json`.
+
+Disposable replay `.tools/fine-orientation-diagnose-b43y12yf` reproduces current
+root `_incise_one` failure. Support.build face2845: retained area3.707244931142988e-21,
+exact rawB determinant+3.048529372096961e-19. Independent Fraction.from_float
+calculation from preserved rawLE binary64 confirms positive material orientation,
+while published float32 rest points give exact dot against parent normal
+-1.8358120199413976e-12. Physical material is positive; its rounded rest proxy flips.
+
+Diagnostic variable shadowing of parent was caught by --check-only and fixed in
+the disposable script only. Its verified stranded child7500was stopped, handle
+15482terminated; successful replay70017is terminal. No product source changed.
+No own local Godot validation/route jobs remain live after this turn.
+
+Next fix must replace publication-based rest winding/resolution gates with actual
+original material proof in the physical/B-supplied path, including downstream
+Refinement.prepare consistency. Preserve every positive area and old display-only
+contracts; never flip topology, erase slivers, relax force tolerance or raise
+budgets. Use this exact saved case and binary rows rather than repeat long prefix.

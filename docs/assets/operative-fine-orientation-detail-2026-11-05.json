@@ -1,0 +1,21 @@
+{
+  "area": 3.707244931142988e-21,
+  "face": 2845,
+  "material_weights_le": "AAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAACUMqYAtG6j/oIWmcKzPCP9xHt4ub0qI/bV9G5AVG6j/1ZlIKPTPCP2FtUJKt0qI/",
+  "original_rest_le": "AAAAILGm2z8AAABgxUPdPwAAAEC6M9c/AAAAQLoz1z8AAABgxUPdPwAAACCxpts/AAAAIGSN4z8AAABgAeXXPwAAAKAFaOA/",
+  "predicate": {
+    "sign": 1,
+    "valid": true,
+    "value": 3.048529372096961e-19
+  },
+  "published_rest_le": "AAAAILGm2z8AAABgxUPdPwAAAEC6M9c/AAAAAIpw2z8AAAAAOxHdPwAAACAfMNg/AAAAwIlw2z8AAADAOhHdPwAAACAgMNg/",
+  "independent_fraction": {
+    "material_det_sign": 1,
+    "material_det": 3.048529372096961e-19,
+    "material_det_numerator": "395721737047255",
+    "material_det_denominator": "1298074214633706907132624082305024",
+    "published_exact_orientation_sign": -1,
+    "published_exact_orientation_dot": -1.8358120199413976e-12,
+    "scope": "Exact Fraction.from_float audit of owned binary64 rows and published float32-as-binary64 positions; no solver acceptance or whole route qualification."
+  }
+}
