@@ -602,7 +602,7 @@ class App:
         pg=self.pg
         g=self.game
         if event.type==pg.QUIT:
-            self.autosave(wait=True)
+            self.autosave()
             self.running=False
         elif event.type==pg.VIDEORESIZE:
             self.screen=pg.display.set_mode((max(640,event.w),max(360,event.h)),pg.RESIZABLE)
@@ -1160,10 +1160,13 @@ def main(argv=None):
         print('Pygame is missing. Install with: python -m pip install -r requirements.txt',file=sys.stderr)
         raise SystemExit(2)
     pygame.init()
+    app=None
     try:
         app=App(pygame,ns.case,ns.seed,ns.scale,ns.difficulty,ns.lang)
         if ns.resume:
             app.resume(ns.resume)
         app.run()
     finally:
+        if app is not None:
+            app.autosaver.close()
         pygame.quit()

@@ -221,3 +221,4 @@ __marimo__/
 
 # Local synthetic session exports and autosaves
 session_logs/
+.venv-build/

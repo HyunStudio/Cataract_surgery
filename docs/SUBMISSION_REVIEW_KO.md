@@ -1,5 +1,13 @@
 # 출품 준비 정밀 검수 (2026-11-04)
 
+후속 개선: `feat/submission-improvements`에서 자동 저장 종료 처리를 보강하고
+공통 실행 진입점과 Windows 폴더 빌드를 추가했습니다. 실행본의 한국어 화면,
+렌더링, 마우스 반응과 종료를 확인했습니다. 키보드 자동화와 전체 실행본 증례,
+Python 미설치 PC 검증은 아직 통과하지 않았으므로 B2를 완전히 해소한 것은
+아닙니다. 아래 표는 원 검수 시점의 기록입니다. 최신 범위와 실행 방법은
+[Windows 실행본](WINDOWS_DESKTOP_KO.md), 개선 순서는
+[개선 계획](superpowers/plans/2026-11-04-submission-improvements.md)을 확인하세요.
+
 - 대상: `claude/kind-ride-y03hcc` 브랜치(엔진 v3 + v4 3D 수술실)
 - 환경: Windows 11, Python 3.12, RTX 3070
 

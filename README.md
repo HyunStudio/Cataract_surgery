@@ -31,6 +31,9 @@ python -m ophthosim.gl_surgery --case decenter   # experimental 3D game (OpenGL 
 
 Korean step-by-step guide: [사용자 가이드](docs/USER_GUIDE_KO.md).
 Submission-readiness review: [출품 준비 검수](docs/SUBMISSION_REVIEW_KO.md).
+Windows folder-build instructions and current limits:
+[Windows 실행본](docs/WINDOWS_DESKTOP_KO.md). The new shared entry point is
+`python desktop.py` (Korean 3D by default; `--mode 2d` selects 2D).
 
 ## The encounter
 

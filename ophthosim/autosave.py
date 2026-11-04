@@ -51,6 +51,8 @@ class BackgroundAutosave:
         self._idle = threading.Event()
         self._idle.set()
         self._thread: threading.Thread | None = None
+        self._closed = False
+        self.last_error: OSError | None = None
 
     def submit(self, game: ReplayGame, path: str | Path = AUTOSAVE) -> None:
         if game.ending:
@@ -61,6 +63,8 @@ class BackgroundAutosave:
             except RuntimeError:      # capture over its safety limits: skip
                 return
         with self._lock:
+            if self._closed:
+                raise RuntimeError("autosave is closed")
             self._job = job
             self._idle.clear()
             if self._thread is None or not self._thread.is_alive():
@@ -69,8 +73,23 @@ class BackgroundAutosave:
         self._wake.set()
 
     def flush(self, timeout: float = 5.0) -> bool:
-        """Wait until every submitted save is on disk (call before exit)."""
+        """Wait for pending I/O; inspect last_error to detect a failed write."""
         return self._idle.wait(timeout)
+
+    def close(self, timeout: float | None = None) -> bool:
+        """Stop accepting saves, drain pending I/O and join the worker.
+
+        A timeout reports incomplete shutdown; calling close again may wait
+        for it. Normal exit waits without silently discarding a slow save.
+        """
+        with self._lock:
+            self._closed = True
+            worker = self._thread
+            self._wake.set()
+        if worker is not None:
+            worker.join(timeout)
+            return not worker.is_alive()
+        return True
 
     def _run(self) -> None:
         while True:
@@ -80,6 +99,8 @@ class BackgroundAutosave:
                 self._wake.clear()
                 if job is None:
                     self._idle.set()
+                    if self._closed:
+                        return
                     continue
             kind, target, text = job
             try:
@@ -87,11 +108,15 @@ class BackgroundAutosave:
                     clear_autosave(target)
                 else:
                     _write(target, text)
-            except OSError:
-                pass              # a missed recovery point never stops the game
+            except OSError as exc:
+                self.last_error = exc
+            else:
+                self.last_error = None
             with self._lock:
                 if self._job is None:
                     self._idle.set()
+                    if self._closed:
+                        return
                 else:
                     self._wake.set()
 

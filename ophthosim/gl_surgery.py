@@ -509,6 +509,7 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
     pygame.init()
     atlas=None
     room=None
+    autosaver=None
     try:
         from .app import Sounds
         controller=Surgery3DController(case,seed,difficulty)
@@ -548,7 +549,6 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                 g=controller.game
                 if event.type==pygame.QUIT:
                     autosaver.submit(controller.game)
-                    autosaver.flush()
                     running=False
                 elif event.type==pygame.MOUSEBUTTONUP and event.button==1:
                     dragging=False
@@ -700,6 +700,8 @@ def run(case: str="normal",seed: int=7,difficulty: str="standard",
                                   (controller.game.paused or controller.game.ending
                                    or controller.game.patient.alert) else None))
     finally:
+        if autosaver is not None:
+            autosaver.close()
         if room is not None:
             room.release()
         if atlas is not None:
