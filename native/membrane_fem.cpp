@@ -6,6 +6,8 @@
 #include <algorithm>
 #include "embedded_contact.h"
 #include "contact_merit_difference.h"
+#include "contact_guard.h"
+#include "fem_trajectory_merit.h"
 
 #if defined(_WIN32)
 #define FEM_EXPORT extern "C" __declspec(dllexport)
@@ -391,4 +393,44 @@ FEM_EXPORT int membrane_fem_solve_contact(int n,double* output,const double* inv
     try {return solve_contact(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
                              grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules,dual,stats);}
     catch(...) {return 2;}
+}
+
+// Layer-major collocation candidate only; complete motion clearance remains a
+// separate mandatory acceptance condition in the caller.
+FEM_EXPORT int membrane_fem_solve_trajectory(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
+    const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
+    int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
+    int faces,const int* face_nodes,const double* face_weights,int bodies,const int* kinds,const double* packets,
+    const double* previous,int layers,const double* times,double* dual,double* stats) {
+    membrane::numeric::Scope environment;
+    if(stats) {std::fill(stats,stats+16,0.);stats[0]=stats[1]=stats[8]=stats[12]=stats[13]=std::numeric_limits<double>::infinity();}
+    try {
+        if(!output || !inverse || !stats || !times || layers<1 || layers>16 || faces<0 || faces>8192 || bodies<0 || bodies>64 ||
+           faces*bodies*layers>65536) return -1;
+        double last=0.;
+        for(int layer=0;layer<layers;++layer) {
+            if(!std::isfinite(times[layer]) || !(times[layer]>last) || times[layer]>1.) return -1;
+            last=times[layer];
+        }
+        if(last!=1.) return -1;
+        double validation[8];
+        // Reuse the actual recorded-pose validation without a clearance query.
+        if(membrane::guard::check(n,previous,previous,0,nullptr,bodies,kinds,packets,0,gap_tolerance,validation)!=0) return -1;
+        for(int node=0;node<n;++node) if(inverse[node]==0.)
+            for(int axis=0;axis<3;++axis) if(previous[node*3+axis]!=output[node*3+axis]) return -1;
+        Vec capsules(size_t(bodies)*layers*7);
+        for(int body=0;body<bodies;++body) {
+            membrane::guard::Motion motion;motion.init(packets+body*41,kinds[body]);
+            for(int layer=0;layer<layers;++layer) {
+                const int off=(layer*bodies+body)*7;
+                for(int end=0;end<2;++end) {
+                    const auto point=motion.sample(end,times[layer]);
+                    for(int axis=0;axis<3;++axis) capsules[off+end*3+axis]=static_cast<double>(point[axis]);
+                }
+                capsules[off+6]=packets[body*41+12];
+            }
+        }
+        return solve_contact(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
+            grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules.data(),dual,stats,layers,layers==1 ? nullptr : previous,layers==1 ? nullptr : times);
+    } catch(...) {return 2;}
 }

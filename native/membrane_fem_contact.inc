@@ -9,10 +9,18 @@ struct FineContacts {
     int faces,bodies;
     const int* nodes;
     const double *weights,*capsules;
-    int pairs() const {return faces*bodies;}
+    int layers=1;
+    const double *previous=nullptr,*times=nullptr;
+    int pairs() const {return faces*bodies*layers;}
+    int face_index(int pair) const {return (pair/bodies)%faces;}
+    double time(int pair) const {return previous ? times[pair/(faces*bodies)] : 1.;}
+    const double* body(int pair) const {return capsules+7*((pair/(faces*bodies))*bodies+pair%bodies);}
     void local(const Vec& x,int pair,double* controls,double* triangle) const {
-        const int face=pair/bodies;
-        for(int j=0;j<3;++j) for(int a=0;a<3;++a) controls[3*j+a]=x[nodes[face*3+j]*3+a];
+        const int face=face_index(pair);const double t=time(pair);
+        for(int j=0;j<3;++j) for(int a=0;a<3;++a) {
+            const int k=nodes[face*3+j]*3+a;
+            controls[3*j+a]=previous && t!=1. ? static_cast<double>(static_cast<long double>(previous[k])+t*(static_cast<long double>(x[k])-previous[k])) : x[k];
+        }
         for(int j=0;j<3;++j) {
             const double* w=weights+face*9+j*3;
             const long double sum=static_cast<long double>(w[0])+w[1]+w[2];
@@ -27,11 +35,11 @@ struct FineContacts {
         out.updated.resize(pairs());
         for(int p=0;p<pairs();++p) {
             double controls[9],triangle[9];local(x,p,controls,triangle);
-            const double* body=capsules+7*(p%bodies);const double r2=body[6]*body[6];
+            const double* capsule=body(p);const double r2=capsule[6]*capsule[6];
 #ifdef FEM_CONTACT_OBSERVER
             observe_contact_query(false);
 #endif
-            const auto query=membrane::contact::distance(body,triangle,body[6]);
+            const auto query=membrane::contact::distance(capsule,triangle,capsule[6]);
             if(query.status!=0 && query.status!=3) return false;
             const double g=query.values[0]/r2-1.,u=std::max(0.,dual[p]-rho*g);
             if(!std::isfinite(g) || !std::isfinite(u)) return false;
@@ -39,15 +47,18 @@ struct FineContacts {
             out.penetration=std::max(out.penetration,-query.values[1]);
             out.complementarity=std::max(out.complementarity,std::abs(u*g));
             if(u==0.) continue; // inactive ties need no ordinary Hessian
-            const int face=p/bodies;
-            const auto exact=membrane::embedded_contact::distance(body,controls,weights+face*9,body[6]);
+            const int face=face_index(p);const double t=time(p);
+            const auto exact=membrane::embedded_contact::distance(capsule,controls,weights+face*9,capsule[6]);
             if(exact.status!=0) return false;
             for(int i=0;i<9;++i) {
                 const int k=nodes[face*3+i/3]*3+i%3;
                 const double ji=exact.gradient[i]/r2;
-                if(problem.mass[k/3]>0.) out.gradient[k]-=u*ji;
-                for(int j=0;j<9;++j) out.blocks[offset+size_t(p)*81+i*9+j]=
-                    -u*exact.hessian[i*9+j]/r2+rho*ji*exact.gradient[j]/r2;
+                if(problem.mass[k/3]>0.) out.gradient[k]-=previous ? u*t*ji : u*ji;
+                for(int j=0;j<9;++j) {
+                    double block=-u*exact.hessian[i*9+j]/r2+rho*ji*exact.gradient[j]/r2;
+                    if(previous) block*=t*t;
+                    out.blocks[offset+size_t(p)*81+i*9+j]=block;
+                }
             }
         }
         for(double value:out.gradient) if(!std::isfinite(value)) return false;
@@ -60,9 +71,24 @@ struct FineContacts {
         membrane::merit::Interval value(original);
         for(int p=0;p<pairs();++p) {
             double controls[9],before[9],after[9];local(x,p,controls,before);local(y,p,controls,after);
-            const double* body=capsules+7*(p%bodies);membrane::merit::Interval term;
+            const double* capsule=body(p);membrane::merit::Interval term;
+            if(previous) {
+                double old[9],first[9],last[9];const int face=face_index(p);
+                for(int j=0;j<3;++j) for(int a=0;a<3;++a) {
+                    const int k=nodes[face*3+j]*3+a;old[j*3+a]=previous[k];first[j*3+a]=x[k];last[j*3+a]=y[k];
+                }
+                if(current.updated[p]==0. && candidate.updated[p]==0. &&
+                   membrane::fem_trajectory_merit::inactive(old,first,last,time(p),capsule,capsule[6],dual[p],rho)) {
+                    value=value+membrane::merit::Interval(0);continue;
+                }
+#ifdef FEM_CONTACT_OBSERVER
+                observe_contact_query(true);
+#endif
+                if(!membrane::fem_trajectory_merit::contact_change(old,first,last,weights+face*9,time(p),capsule,capsule[6],dual[p],rho,term)) return false;
+                value=value+term;continue;
+            }
             if(current.updated[p]==0. && candidate.updated[p]==0. &&
-               membrane::merit::inactive_box(before,after,body,body[6],dual[p],rho)) {
+               membrane::merit::inactive_box(before,after,capsule,capsule[6],dual[p],rho)) {
                 // Both full distance evaluations already passed at this same
                 // dual/rho. Preserve rounded activation AND the old interval
                 // certificate; do not infer inactive Hessians from the box.
@@ -71,7 +97,7 @@ struct FineContacts {
 #ifdef FEM_CONTACT_OBSERVER
             observe_contact_query(true);
 #endif
-            if(!membrane::merit::contact_change(before,after,body,body[6],dual[p],rho,term)) return false;
+            if(!membrane::merit::contact_change(before,after,capsule,capsule[6],dual[p],rho,term)) return false;
             value=value+term;
         }
         upper=std::nextafter(static_cast<double>(value.hi),std::numeric_limits<double>::infinity());
@@ -82,9 +108,10 @@ struct FineContacts {
 int solve_contact(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
                   const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
                   int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
-                  int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* contact_dual,double* stats) {
+                  int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* contact_dual,double* stats,
+                  int layers=1,const double* previous=nullptr,const double* times=nullptr) {
     if(!output || !inverse || !stats || grips<0 || grips>2 || (grips && (!grip_nodes || !weights || !targets || !reaction)) ||
-       faces<0 || faces>8192 || bodies<0 || bodies>64 || faces*bodies>65536 ||
+       faces<0 || faces>8192 || bodies<0 || bodies>64 || layers<1 || layers>16 || faces*bodies*layers>65536 ||
        (faces && (!face_nodes || !face_weights)) || (bodies && !capsules) || (faces*bodies && !contact_dual) ||
        !material(mu,lambda) || !std::isfinite(dt) || dt<1e-6 || dt>.1 || budget<0 || budget>1000 ||
        !std::isfinite(tolerance) || tolerance<=0. || !std::isfinite(gap_tolerance) || gap_tolerance<=0. ||
@@ -100,7 +127,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
             if(std::abs(sum-1.)>64.*std::numeric_limits<double>::epsilon()) return -1;
         }
     }
-    for(int b=0;b<bodies;++b) {
+    for(int b=0;b<bodies*layers;++b) {
         for(int j=0;j<6;++j) if(!std::isfinite(capsules[b*7+j]) || std::abs(capsules[b*7+j])>16.) return -1;
         const double r=capsules[b*7+6];if(!std::isfinite(r) || r<=0. || r>.3 || r*r==0.) return -1;
     }
@@ -138,9 +165,9 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         if(!q.allFinite() || projection_gap>gap_tolerance) return 2;
         for(int j=0;j<size;++j) x[free[j]]=q[j];
     }
-    FineContacts contacts{faces,bodies,face_nodes,face_weights,capsules};
+    FineContacts contacts{faces,bodies,face_nodes,face_weights,capsules,layers,previous,times};
     auto pattern=problem.cells;
-    for(int p=0;p<contacts.pairs();++p) {Cell cell{};for(int j=0;j<3;++j) cell.node[j]=face_nodes[(p/bodies)*3+j];pattern.push_back(cell);}
+    for(int p=0;p<contacts.pairs();++p) {Cell cell{};for(int j=0;j<3;++j) cell.node[j]=face_nodes[contacts.face_index(p)*3+j];pattern.push_back(cell);}
     SparseCells system(n,pattern,problem.mass,rows ? &a : nullptr);
     Vec dual(contacts.pairs(),0.),metric(n*3),trial(n*3),direction(n*3);
     Eigen::VectorXd gf(size),balance(size),hold=Eigen::VectorXd::Zero(rows),rhs_gap(rows);

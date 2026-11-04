@@ -54,16 +54,9 @@ base_key = repr(flags)+repr(PINS)+repr(compiler)+api_path.read_text(encoding="ut
 def compile_one(source):
     key = base_key.encode()+source.read_bytes()
     if source.parent == ROOT / "native":
-        key += (ROOT / "native/membrane_sparse.h").read_bytes()
-        key += (ROOT / "native/membrane_fem.h").read_bytes()
-        key += (ROOT / "native/membrane_fem_contact.inc").read_bytes()
-        key += (ROOT / "native/embedded_contact.h").read_bytes()
-        key += (ROOT / "native/fp_environment.h").read_bytes()
-        key += (ROOT / "native/membrane_contact_solver.h").read_bytes()
-        key += (ROOT / "native/contact_distance.h").read_bytes()
-        key += (ROOT / "native/contact_guard.h").read_bytes()
-        key += (ROOT / "native/contact_merit_difference.h").read_bytes()
-        key += (ROOT / "native/contact_step_model.h").read_bytes()
+        # Match the manifest's transitive quoted includes. New local headers
+        # must invalidate cached objects without another hand-maintained list.
+        key += repr(source_hashes([source])).encode()
     digest = hashlib.sha256(key).hexdigest()
     obj = WORK / "obj" / f"{source.stem}-{digest[:20]}.o"
     if not obj.exists():

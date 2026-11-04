@@ -1,0 +1,523 @@
+{
+  "qualified": true,
+  "scope": "Native numerical boundary and component regressions only. Runtime enclosure, normal/early/exception/nested restoration, actual API bitwise results across64caller contexts with independent x87/SSE rounding, old/new numerical suites. No actual surgical/controller case, real-time/GPU throughput, clinical calibration or Windows release claim.",
+  "probe": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7",
+  "builds": {
+    "membrane_kernel": {
+      "artifact_sha256": "5484b617bf6c8da6e23338fd969e65c1cdd14f454f8b98eefa6d15b1ba0f46a3",
+      "sources": {
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "native\\membrane_kernel.cpp": "f4f21d3aab8dadc62da3f7600bcf42efda072c4f0a1a09590e1930608cad2518",
+        "native\\membrane_sparse.h": "8ab3fcbfdc2dc942b251093c0fe1658c20866356d15ba28f07ded423b0bf5439",
+        "tools\\build_membrane_kernel.py": "287cf9a160220ed58e4a6ef0ff6b99f0bcaa431a261300c2e6824f4ab8c215fb",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {
+        ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+      },
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-DEIGEN_MPL2_ONLY",
+        "-isystem",
+        "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "f23fa4c247e28e0da21e921e4a663d82ff40a10d",
+      "source_dirty": true
+    },
+    "contact_distance": {
+      "artifact_sha256": "224799f05374e17efba48528bb5e5aada083ec9c90563387dd1d89bc32c5ed02",
+      "sources": {
+        "native\\contact_distance.cpp": "22281a9a791b7c18c9977d429c098b59c6131c546db24d38d1cb289394187965",
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "tools\\build_contact_distance.py": "26f3cdcd0d578e03b2d903c080a70d23bd100e95e9356a2f0ee94ed041365d3e",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {},
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "f23fa4c247e28e0da21e921e4a663d82ff40a10d",
+      "source_dirty": true
+    },
+    "contact_guard": {
+      "artifact_sha256": "559217256a5fad5b2942fa0c27431320fa78812d8bf8c9522f3019b9fbd7e00d",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.cpp": "457bd0127da0f25c2125da32d52a60437adebdd307a918ed2d581f16b6c63a61",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "tools\\build_contact_guard.py": "0317e85f9015598e5ed869faf27870cb71c770ec8d0e5052b8b5fc6239bb07d7",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {},
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "f23fa4c247e28e0da21e921e4a663d82ff40a10d",
+      "source_dirty": true
+    },
+    "contact_merit_probe": {
+      "artifact_sha256": "c3322ebfab7cacb5f442a1ce1b214cc0a645adbc4064f4d9c9695ebcd04d0faa",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "native\\tests\\merit_difference_probe.cpp": "2b23dfaab074732045b5821604994232a291dbb8c8495ac7e2c6a1bcb0043931",
+        "tools\\build_contact_merit_probe.py": "179e21bb89608a8a46d4ac23835179a6938601d8184cb83918c9a42ef5bece85",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {},
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "f23fa4c247e28e0da21e921e4a663d82ff40a10d",
+      "source_dirty": true
+    },
+    "contact_step_probe": {
+      "artifact_sha256": "954b56d209b502eef7d8d3b2873b5a7d2c63ffdb88263424f69d7be76f345b23",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+        "native\\contact_step_model.h": "ba3eaaa8fe87cd7e36263d9a214bf1c37c5bc8a1254b5c414408c247574c3569",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "native\\tests\\contact_step_probe.cpp": "cd4c3422a06d408b2164a97d81d33717528c4d8abcffe5b50ea5f2b1387212f0",
+        "tools\\build_contact_step_probe.py": "2cdff027dd5c7701c59ca33df45f1f734ce89e712e4ff626aa04dc1fbaa906e4",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {
+        ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+      },
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-DEIGEN_MPL2_ONLY",
+        "-isystem",
+        "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "f23fa4c247e28e0da21e921e4a663d82ff40a10d",
+      "source_dirty": true
+    },
+    "membrane_contact": {
+      "artifact_sha256": "23271aa92f74fd77acdf5a48e2709baae067ea507273cc4770fdc0a65129929a",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+        "native\\contact_step_model.h": "ba3eaaa8fe87cd7e36263d9a214bf1c37c5bc8a1254b5c414408c247574c3569",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "native\\membrane_contact_solver.cpp": "52f2edbe533c1f0d4d5c8b0357cf0a32a2eb988fe7114fa56d78080462cde4ad",
+        "native\\membrane_contact_solver.h": "d355bd9a9f99d6cdb1c3e18c8dbc34e09a432f31ad1a78efd360cd416d8e1c70",
+        "tools\\build_coupled_contact.py": "401a8427564e09e700bd83b7c2d1ffd0ea398ec6e6fa35136b6f05de07e10b19",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {
+        ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+      },
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-DEIGEN_MPL2_ONLY",
+        "-isystem",
+        "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "f23fa4c247e28e0da21e921e4a663d82ff40a10d",
+      "source_dirty": true
+    },
+    "membrane_fem": {
+      "artifact_sha256": "7c5dc3227944f2e12e51d0c39500e9fb3169dbb45d0181b967f865c9d347650a",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+        "native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+        "native\\fem_trajectory_merit.h": "e275bfa67ef6955f081991d89d8ec5b6b2f862ac1499d294b51145515b29e13c",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "native\\membrane_fem.cpp": "508f84ec742577332cf8058ba30bb98a507b33ad65304966fb7dd2679c5fcf0a",
+        "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+        "native\\membrane_fem_contact.inc": "f7fa2c0a9cad64fde3c263e71a2ff6cba894ed8556021f6a38d68c57461e121b",
+        "tools\\build_membrane_fem.py": "85201d97c864304727b9e46ebcc689690735613e9c4c244b1100248846ca110f",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {
+        ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+      },
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-DEIGEN_MPL2_ONLY",
+        "-isystem",
+        "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "76fb8ed24b4db4a3d9d677ba04589690dc7bbc06",
+      "source_dirty": true
+    },
+    "fp_environment_probe": {
+      "artifact_sha256": "ff3551e0d3588f7232b7a9eda5751254ecc943b356a68ce73da04f40e99c44e4",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "native\\tests\\fp_environment_probe.cpp": "73275db5596b4c3f09b93d8f7692c394c47930c43ba5ce07a6e31c24e6ed034a",
+        "tools\\build_fp_environment_probe.py": "fc62dd6341b153e9002ccc367f200270366c75095c988e16b505176a23679052",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {},
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "f23fa4c247e28e0da21e921e4a663d82ff40a10d",
+      "source_dirty": true
+    },
+    "contact_activity_probe": {
+      "artifact_sha256": "71623c2eb1d84ad1bca71fe8aa9d7dba88991770a3bdd42e0a16f52f2b5db2ff",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+        "native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+        "native\\fem_trajectory_merit.h": "e275bfa67ef6955f081991d89d8ec5b6b2f862ac1499d294b51145515b29e13c",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "native\\membrane_fem.cpp": "508f84ec742577332cf8058ba30bb98a507b33ad65304966fb7dd2679c5fcf0a",
+        "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+        "native\\membrane_fem_contact.inc": "f7fa2c0a9cad64fde3c263e71a2ff6cba894ed8556021f6a38d68c57461e121b",
+        "native\\tests\\fem_activity_probe.cpp": "e9e746e0addb151e87e5d5c0410f2e39295beccf48198d6d95e58c30e30ce218",
+        "tools\\build_contact_activity_probe.py": "e7ae9c2808d32d0a7e4ec33ae9d57a8c43dabc6f372275fa40ca9c2ac9f88f06",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {
+        ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+      },
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DEIGEN_MPL2_ONLY",
+        "-isystem",
+        "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "76fb8ed24b4db4a3d9d677ba04589690dc7bbc06",
+      "source_dirty": true
+    }
+  },
+  "inputs": {
+    "native\\tests\\decimal_distance_reference.py": "00d3b6d69ec1b23d210cc1d4fa1aa03969a3a9c94204f8a0aad2d14df470115d",
+    "native\\tests\\fixtures\\curved_coupled_two_hands.json": "8964a98838d381270384a635c78052f16371cdd3da0e2b90379996689cc7a9cb",
+    "native\\tests\\fixtures\\embedded_membrane_reference.json": "5cfdf064bf00ae4ef762569f057c6ae8c9e6c06e97d380c630fa3daecefe3bcc",
+    "native\\tests\\fixtures\\fem_time_merit_stall.json": "715536840045f5a31ef5164782a9f1a879d3df10899ebadd1a5169ba87c312bc",
+    "native\\tests\\fixtures\\iris_boundary265.json": "f3012c4a59a8d32ad6d90423a2714e718a8d4d74d3736a88546e36735610e15d",
+    "native\\tests\\fixtures\\joint_anatomy264.json": "ef55945a85d0d975d968fa5d53aeb4687b4dfc89c9d4f8a538e985d4eed08f96",
+    "native\\tests\\fixtures\\joint_anatomy265.json": "f3667fb46cebc4e8e084503056c58d2a86dc262f642e7a342173843067baf881",
+    "native\\tests\\fixtures\\joint_motion261.json": "bf756095c5c0a4846b29ddea032bea4a5708a9bafd5f7702639b8ea6f794dc8e",
+    "native\\tests\\fixtures\\joint_motion261_second.json": "f8f6d923019e7fce8f626500a2af707a794e4f7a0d01501e612a865e98c78587",
+    "native\\tests\\fixtures\\joint_motion262.json": "a776584e556c29ba719195988ac8d905d21dffe8ebeaa5c57379d369f40fd491",
+    "native\\tests\\fixtures\\joint_motion263.json": "ec970383b614fa5720f3dad7726064564e367e6293e532c9ed78e97091d0eaa5",
+    "native\\tests\\fixtures\\joint_motion263_refined.json": "55e8034a73fc0d862b30dd25c42acbaeb29e21c500ed53ff6ecf924ea594bca6",
+    "native\\tests\\fixtures\\joint_physical264_second.json": "a89973d2dac52d695a628b608471070e8fce76813b711d2f87b7f2d4cf569f01",
+    "native\\tests\\fixtures\\joint_physical265.json": "0d7a1a09257647e7155cc9e076b80d3741a60eaf48157a88e5e9c79026c91b62",
+    "native\\tests\\fixtures\\joint_static262.json": "19220bb4824678b619d67e92cc6ec4e924f9722a92cab089dd0424974519b1a2",
+    "native\\tests\\fixtures\\joint_static265.json": "8d41514eb46c52a464cb080700b799e1084f3dfe45bba6595c5f637f13ab3905",
+    "native\\tests\\fixtures\\joint_tick264.json": "954a753e025a2a3fdaf8f63a308ad0c413623244e8b8a9155a47ce67241424bc",
+    "native\\tests\\fixtures\\joint_trajectory263.json": "334a6c5725348818c4de48addee23d775e06f07305bfe0fe9f2e09ddae678acd",
+    "native\\tests\\fixtures\\joint_trajectory263_refined.json": "11f1e92c712c1dd3407463a4f4251b0110fdb4facb0f12d1f925472d28bff576",
+    "native\\tests\\fixtures\\joint_trajectory264_second.json": "3544e6536474803ee7d1d411512ebb0c103a70978f932a18f19ebf230e951b30",
+    "native\\tests\\fixtures\\joint_trajectory265_boundary.json": "1fb13dbcf82a8eb26f46d869ddf1e7c16a8f0bca2675c8d35b4d9d3e4fbedfe5",
+    "native\\tests\\fixtures\\joint_trajectory265_post_anatomy.json": "a288ccc5827e310af2d76fa04e54cb8701571c9a2c737fd73a5a8d0d8a28bad6",
+    "native\\tests\\fixtures\\joint_trajectory265_post_anatomy_context.json": "1a076d712962e9b70e60524d471790b0eb89c3cdef2e569d4164b9d017a0c5ee",
+    "native\\tests\\fixtures\\local_jaw_contact.json": "a3a42402f9de39742a60371668e9f9449d52bae2bd31ab3b1d24b6120b8fc561",
+    "native\\tests\\fixtures\\merit_stagnation265.json": "4f4c6b31c77fd8e84f22585edfefe772ee98b5d6489b0c791dd7f3f466233323",
+    "native\\tests\\fixtures\\moving_plane_crossings.json": "09900d05013dcc25eef933daacbf0620b677e2af90c69f554fb86b44ff1aaec6",
+    "native\\tests\\fixtures\\operative_motion144.json": "c1db3d631438f5b5cef426c630c22c5f99f59274692aa18379b0cce123ebfa02",
+    "native\\tests\\fixtures\\operative_motion144_controls.json": "eda1652544bd25cf044399be99abfe6867602d6e02d9e7fe483546239e299667",
+    "native\\tests\\fixtures\\refined_flap.json": "0d5a27d589e351bf6dbd25a41d8caf69df6ab54502eedd8c16b231069ccbfe62",
+    "native\\tests\\replay_fem_contact.py": "187683d3136def5871b260a0ed34951e0edb625d29f53f495ab31a2a1b600b52",
+    "native\\tests\\replay_fem_trajectory.py": "8a3b77998eb183b7f9e2f4091261f87e1db4497f6495971f04ed827d19434388",
+    "native\\tests\\test_anatomical_contact.py": "45aa31da363e6016f4cfc9e3391ab9955a62d2cc26c6e155976f8fb1e7118b73",
+    "native\\tests\\test_contact_activity.py": "8f8687fc52253569befed8053028b977ede64120e6c35915a526f11548211732",
+    "native\\tests\\test_contact_distance.py": "550309aee8d0e75589e248b955723688b85b26c5df0e349ca982cf02cdff0323",
+    "native\\tests\\test_contact_guard.py": "37befa38dc6e75253de469a22b76de290bab792e25139f5babc5a05daaaf81f9",
+    "native\\tests\\test_contact_merit_difference.py": "33fbbe5418b42be8b763086f8a56b94ffbac3b611d306ffd625bf99bc835e396",
+    "native\\tests\\test_contact_step_model.py": "5eafd9a2379c762ed84cb8a5c61237eee21bfa434c965dac073f7841558e7c90",
+    "native\\tests\\test_coupled_contact.py": "abb4243e226dcff627ea5cf7330e6f3e5102ad4ace2e164a37b4e02fa4d1f60e",
+    "native\\tests\\test_embedded_contact.py": "8efe455c51acac6514c0574680e908b915b48c88829d69323d482e14220e5a35",
+    "native\\tests\\test_fem_contact.py": "e58bf24de908fd1ae318f352568d0c31f1df02da369b38319e4cdcd8dbe93ccd",
+    "native\\tests\\test_fem_trajectory.py": "f7723be2efdc4972b5e227a68e3fe33fe0da7a501f9abebbfa5a4b773796a088",
+    "native\\tests\\test_fp_environment.py": "c26e86f7025f08fa27dbbbec0ba07ad796dda8734a4c52dbcc8367652f7f33f1",
+    "native\\tests\\test_membrane_fem.py": "f9f8223c63e28db56d9e97e94dce3e11d7c2f38f26efa9ecafcfc64acdd690f2",
+    "native\\tests\\test_membrane_grasp.py": "b8f5e7ca700636ccaa20f1a4bf47789e381fb90cdb7e23585a43e85427a0d64f",
+    "native\\tests\\test_membrane_kernel.py": "2534d0bc65322c53bba219a5f9fb97ead5aab526f204fd13761bd2b13554772b",
+    "native\\tests\\test_native_provenance.py": "2b5a79386d4342b0917fd1fe2995a8a35b8e062e7d3c8a2184d769b89e9f37bb",
+    "native\\tests\\test_point_merit_difference.py": "f38ed25eb40484e306cc5a2ac75f87c0b930a09534004141bfbe76af966f832c",
+    "native\\tests\\test_trajectory_contact.py": "80810e2a2be40e2dc77a1fb5336ad347c4435792cd489552f30a7cfb20db8db1",
+    "tools\\validate_fp_environment.py": "3ce3be1b27e2b906608d9c1c7fccd20351cf6c5e9a21b65240ed11ccf4175dfb"
+  },
+  "results": [
+    {
+      "pattern": "test_membrane_kernel.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 12,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_membrane_kernel.py.log",
+      "log_sha256": "6f0645138eec9194f8e6e7ef082317364da0ddd6ed89b7b855f480f3d9c2f831",
+      "output": "test_collective_buckling_with_positive_coordinate_diagonals_is_rejected (test_membrane_kernel.KernelTests.test_collective_buckling_with_positive_coordinate_diagonals_is_rejected) ... ok\ntest_compressed_stationary_saddle_is_not_accepted (test_membrane_kernel.KernelTests.test_compressed_stationary_saddle_is_not_accepted) ... ok\ntest_invalid_inputs_are_atomic (test_membrane_kernel.KernelTests.test_invalid_inputs_are_atomic) ... ok\ntest_nonfinite_geometric_stiffness_is_numeric_failure (test_membrane_kernel.KernelTests.test_nonfinite_geometric_stiffness_is_numeric_failure) ... ok\ntest_overflowing_linear_norm_does_not_report_zero_residual (test_membrane_kernel.KernelTests.test_overflowing_linear_norm_does_not_report_zero_residual) ... ok\ntest_pin_is_exact (test_membrane_kernel.KernelTests.test_pin_is_exact) ... ok\ntest_refined_flap_against_independent_energy_reference (test_membrane_kernel.KernelTests.test_refined_flap_against_independent_energy_reference) ... ok\ntest_rotated_spring_and_empty_edge_set (test_membrane_kernel.KernelTests.test_rotated_spring_and_empty_edge_set) ... ok\ntest_small_edge_uses_its_actual_rest_length (test_membrane_kernel.KernelTests.test_small_edge_uses_its_actual_rest_length) ... ok\ntest_undefined_collapsed_edge_reports_numeric_failure (test_membrane_kernel.KernelTests.test_undefined_collapsed_edge_reports_numeric_failure) ... ok\ntest_unequal_masses_analytic_solution (test_membrane_kernel.KernelTests.test_unequal_masses_analytic_solution) ... ok\ntest_work_exhaustion_is_not_convergence (test_membrane_kernel.KernelTests.test_work_exhaustion_is_not_convergence) ... ok\n\n----------------------------------------------------------------------\nRan 12 tests in 0.064s\n\nOK\n"
+    },
+    {
+      "pattern": "test_contact_distance.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 17,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_contact_distance.py.log",
+      "log_sha256": "e8f82b0b4360dc791432f06f3afb49fc62ce5f1b253ff59af3e18e4fbd0936a9",
+      "output": "test_ambiguity_does_not_disappear_at_small_gradient_scale (test_contact_distance.ContactDistanceTests.test_ambiguity_does_not_disappear_at_small_gradient_scale) ... ok\ntest_axis_reversal_and_triangle_permutations (test_contact_distance.ContactDistanceTests.test_axis_reversal_and_triangle_permutations) ... ok\ntest_axis_triangle_crossing_is_not_edge_only_distance (test_contact_distance.ContactDistanceTests.test_axis_triangle_crossing_is_not_edge_only_distance) ... ok\ntest_coplanar_axis_crosses_triangle (test_contact_distance.ContactDistanceTests.test_coplanar_axis_crosses_triangle) ... ok\ntest_degenerate_face_is_not_regular_clearance (test_contact_distance.ContactDistanceTests.test_degenerate_face_is_not_regular_clearance) ... ok\ntest_finite_endpoint_not_infinite_axis (test_contact_distance.ContactDistanceTests.test_finite_endpoint_not_infinite_axis) ... ok\ntest_gradient_matches_finite_differences (test_contact_distance.ContactDistanceTests.test_gradient_matches_finite_differences) ... ok\ntest_invalid_query_does_not_publish_output (test_contact_distance.ContactDistanceTests.test_invalid_query_does_not_publish_output) ... ok\ntest_parallel_minimizers_are_explicitly_ambiguous (test_contact_distance.ContactDistanceTests.test_parallel_minimizers_are_explicitly_ambiguous) ... ok\ntest_plane_cancellation_cannot_be_definite_intersection (test_contact_distance.ContactDistanceTests.test_plane_cancellation_cannot_be_definite_intersection) ... ok\ntest_shared_finite_endpoint_is_one_witness (test_contact_distance.ContactDistanceTests.test_shared_finite_endpoint_is_one_witness) ... ok\ntest_skew_edge_interior_feature (test_contact_distance.ContactDistanceTests.test_skew_edge_interior_feature) ... ok\ntest_skinny_nondegenerate_face (test_contact_distance.ContactDistanceTests.test_skinny_nondegenerate_face) ... ok\ntest_sphere_face_analytic_distance_and_derivative (test_contact_distance.ContactDistanceTests.test_sphere_face_analytic_distance_and_derivative) ... ok\ntest_translated_small_geometry_retains_distance_and_gradient (test_contact_distance.ContactDistanceTests.test_translated_small_geometry_retains_distance_and_gradient) ... ok\ntest_unsigned_distance_does_not_hide_side_change (test_contact_distance.ContactDistanceTests.test_unsigned_distance_does_not_hide_side_change) ... ok\ntest_vertex_feature (test_contact_distance.ContactDistanceTests.test_vertex_feature) ... ok\n\n----------------------------------------------------------------------\nRan 17 tests in 0.005s\n\nOK\n"
+    },
+    {
+      "pattern": "test_embedded_contact.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 10,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_embedded_contact.py.log",
+      "log_sha256": "f6932c975101be6b35c665987eefff0313147b0c3432caef7b6509ab2c1256ee",
+      "output": "test_absent_parent_material_does_not_collide (test_embedded_contact.EmbeddedContactTests.test_absent_parent_material_does_not_collide) ... ok\ntest_c1_feature_switch_and_parallel_tie_are_not_c2 (test_embedded_contact.EmbeddedContactTests.test_c1_feature_switch_and_parallel_tie_are_not_c2) ... ok\ntest_finite_capsule_endpoint_and_interior_edge (test_embedded_contact.EmbeddedContactTests.test_finite_capsule_endpoint_and_interior_edge) ... ok\ntest_invalid_or_undefined_is_atomic (test_embedded_contact.EmbeddedContactTests.test_invalid_or_undefined_is_atomic) ... ok\ntest_nonfinite_coordinates_and_null_outputs (test_embedded_contact.EmbeddedContactTests.test_nonfinite_coordinates_and_null_outputs) ... ok\ntest_permutations_and_axis_reversal (test_embedded_contact.EmbeddedContactTests.test_permutations_and_axis_reversal) ... ok\ntest_sphere_edge_curvature (test_embedded_contact.EmbeddedContactTests.test_sphere_edge_curvature) ... ok\ntest_sphere_face_with_affine_control_map (test_embedded_contact.EmbeddedContactTests.test_sphere_face_with_affine_control_map) ... ok\ntest_sphere_vertex_curvature (test_embedded_contact.EmbeddedContactTests.test_sphere_vertex_curvature) ... ok\ntest_tiny_retained_face_and_deformed_controls (test_embedded_contact.EmbeddedContactTests.test_tiny_retained_face_and_deformed_controls) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.251s\n\nOK\n"
+    },
+    {
+      "pattern": "test_contact_guard.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 31,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_contact_guard.py.log",
+      "log_sha256": "a8a31e5ecd2f0e13d2f91ab5ecfbb8b6577a7d74d745032e6c342d8d52286ac9",
+      "output": "test_accepted_endpoint_gap_tolerance_is_not_replaced_by_proxy_skin (test_contact_guard.ContactGuardTests.test_accepted_endpoint_gap_tolerance_is_not_replaced_by_proxy_skin) ... ok\ntest_actual263_search_reaches_late_penetration_without_left_branch_starvation (test_contact_guard.ContactGuardTests.test_actual263_search_reaches_late_penetration_without_left_branch_starvation) ... ok\ntest_actual265_iris_contact_cannot_be_accepted_as_clear_tissue_motion (test_contact_guard.ContactGuardTests.test_actual265_iris_contact_cannot_be_accepted_as_clear_tissue_motion) ... ok\ntest_actual_operative144_clear_endpoints_do_not_clear_the_path (test_contact_guard.ContactGuardTests.test_actual_operative144_clear_endpoints_do_not_clear_the_path) ... ok\ntest_actual_saved_joint_motion261_clears_without_proxy_projection (test_contact_guard.ContactGuardTests.test_actual_saved_joint_motion261_clears_without_proxy_projection) ... ok\ntest_actual_second_substep_is_certified_with_original_query_limit (test_contact_guard.ContactGuardTests.test_actual_second_substep_is_certified_with_original_query_limit) ... ok\ntest_actual_tick262_intermediate_penetration_must_reject (test_contact_guard.ContactGuardTests.test_actual_tick262_intermediate_penetration_must_reject) ... ok\ntest_arc_crossing_is_not_replaced_by_its_clear_chord (test_contact_guard.ContactGuardTests.test_arc_crossing_is_not_replaced_by_its_clear_chord) ... ok\ntest_capsule_endpoints_on_opposite_plane_sides_reject (test_contact_guard.ContactGuardTests.test_capsule_endpoints_on_opposite_plane_sides_reject) ... ok\ntest_clear_arc_is_refined_instead_of_using_a_solid_enclosure (test_contact_guard.ContactGuardTests.test_clear_arc_is_refined_instead_of_using_a_solid_enclosure) ... ok\ntest_closest_time_proposal_keeps_unsupported_and_ambiguous_witnesses (test_contact_guard.ContactGuardTests.test_closest_time_proposal_keeps_unsupported_and_ambiguous_witnesses) ... ok\ntest_collision_away_from_midpoint_requires_interval_search (test_contact_guard.ContactGuardTests.test_collision_away_from_midpoint_requires_interval_search) ... ok\ntest_degenerate_nearby_geometry_is_uncertain (test_contact_guard.ContactGuardTests.test_degenerate_nearby_geometry_is_uncertain) ... ok\ntest_finite_feature_midtime_penetration_is_not_certified_clear (test_contact_guard.ContactGuardTests.test_finite_feature_midtime_penetration_is_not_certified_clear) ... ok\ntest_independent_interior_plane_witnesses_cannot_be_certified_clear (test_contact_guard.ContactGuardTests.test_independent_interior_plane_witnesses_cannot_be_certified_clear) ... ok\ntest_invalid_motion_rejects_without_overwriting_diagnostics (test_contact_guard.ContactGuardTests.test_invalid_motion_rejects_without_overwriting_diagnostics) ... ok\ntest_moving_finite_edge_vertex_and_skew_axis_contact (test_contact_guard.ContactGuardTests.test_moving_finite_edge_vertex_and_skew_axis_contact) ... ok\ntest_moving_plane_retains_time_correlation_at_contact (test_contact_guard.ContactGuardTests.test_moving_plane_retains_time_correlation_at_contact) ... ok\ntest_moving_tissue_crossing_is_rejected (test_contact_guard.ContactGuardTests.test_moving_tissue_crossing_is_rejected) ... ok\ntest_no_query_budget_is_uncertain_never_clear (test_contact_guard.ContactGuardTests.test_no_query_budget_is_uncertain_never_clear) ... ok\ntest_off_midpoint_triangle_collapse_cannot_hide_later_crossing (test_contact_guard.ContactGuardTests.test_off_midpoint_triangle_collapse_cannot_hide_later_crossing) ... ok\ntest_original_pose_subinterval_cannot_replay_entire_arc (test_contact_guard.ContactGuardTests.test_original_pose_subinterval_cannot_replay_entire_arc) ... ok\ntest_penetration_beyond_original_gap_tolerance_rejects (test_contact_guard.ContactGuardTests.test_penetration_beyond_original_gap_tolerance_rejects) ... ok\ntest_recorded_endpoints_are_retained_with_affine_pose_correction (test_contact_guard.ContactGuardTests.test_recorded_endpoints_are_retained_with_affine_pose_correction) ... ok\ntest_refined263_finite_edge_motion_is_certified_with_original_limits (test_contact_guard.ContactGuardTests.test_refined263_finite_edge_motion_is_certified_with_original_limits) ... ok\ntest_rigid_comotion_at_contact_retains_complete_clearance (test_contact_guard.ContactGuardTests.test_rigid_comotion_at_contact_retains_complete_clearance) ... ok\ntest_static_clear_is_certified_without_queries (test_contact_guard.ContactGuardTests.test_static_clear_is_certified_without_queries) ... ok\ntest_static_triangle_linear_point_prefers_verified_closest_time (test_contact_guard.ContactGuardTests.test_static_triangle_linear_point_prefers_verified_closest_time) ... ok\ntest_translation_crossing_with_clear_endpoints_is_rejected (test_contact_guard.ContactGuardTests.test_translation_crossing_with_clear_endpoints_is_rejected) ... ok\ntest_winding_and_axis_endpoint_order_do_not_hide_crossing (test_contact_guard.ContactGuardTests.test_winding_and_axis_endpoint_order_do_not_hide_crossing) ... ok\ntest_witness_abi_reports_sample_time_without_changing_legacy_stats (test_contact_guard.ContactGuardTests.test_witness_abi_reports_sample_time_without_changing_legacy_stats) ... ok\n\n----------------------------------------------------------------------\nRan 31 tests in 1.422s\n\nOK\n"
+    },
+    {
+      "pattern": "test_contact_merit_difference.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 10,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_contact_merit_difference.py.log",
+      "log_sha256": "79c09f46ddcdc990372173f2016fd53eed1b60b17cea58cddf81a412b3065e5c",
+      "output": "test_actual265_failed_full_step_has_certified_merit_descent (test_contact_merit_difference.MeritDifferenceTests.test_actual265_failed_full_step_has_certified_merit_descent) ... ok\ntest_inactive_to_active_and_active_to_inactive (test_contact_merit_difference.MeritDifferenceTests.test_inactive_to_active_and_active_to_inactive) ... ok\ntest_independent_random_finite_feature_bounds (test_contact_merit_difference.MeritDifferenceTests.test_independent_random_finite_feature_bounds) ... ok\ntest_invalid_geometry_cannot_publish_a_bound (test_contact_merit_difference.MeritDifferenceTests.test_invalid_geometry_cannot_publish_a_bound) ... ok\ntest_no_represented_motion_is_exactly_zero (test_contact_merit_difference.MeritDifferenceTests.test_no_represented_motion_is_exactly_zero) ... ok\ntest_selected_time_uses_represented_rounding_not_scaled_endpoint_delta (test_contact_merit_difference.MeritDifferenceTests.test_selected_time_uses_represented_rounding_not_scaled_endpoint_delta) ... ok\ntest_spring_change_retains_tiny_cancellation (test_contact_merit_difference.MeritDifferenceTests.test_spring_change_retains_tiny_cancellation) ... ok\ntest_suboptimal_new_witness_cannot_invent_descent (test_contact_merit_difference.MeritDifferenceTests.test_suboptimal_new_witness_cannot_invent_descent) ... ok\ntest_tiny_plane_change_and_translations (test_contact_merit_difference.MeritDifferenceTests.test_tiny_plane_change_and_translations) ... ok\ntest_vertices_edges_and_segment_interior (test_contact_merit_difference.MeritDifferenceTests.test_vertices_edges_and_segment_interior) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.909s\n\nOK\n"
+    },
+    {
+      "pattern": "test_point_merit_difference.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 4,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_point_merit_difference.py.log",
+      "log_sha256": "066a7c0c3687c407551dfa323b0a07d375412f173a2d7b22cd49c0dce3650ce5",
+      "output": "test_independent_random_finite_point_triangle_changes (test_point_merit_difference.PointMeritTests.test_independent_random_finite_point_triangle_changes) ... ok\ntest_invalid_geometry_does_not_publish_bounds (test_point_merit_difference.PointMeritTests.test_invalid_geometry_does_not_publish_bounds) ... ok\ntest_noop_transitions_and_finite_feature_changes (test_point_merit_difference.PointMeritTests.test_noop_transitions_and_finite_feature_changes) ... ok\ntest_tiny_normal_motion_survives_energy_cancellation (test_point_merit_difference.PointMeritTests.test_tiny_normal_motion_survives_energy_cancellation) ... ok\n\n----------------------------------------------------------------------\nRan 4 tests in 0.159s\n\nOK\n"
+    },
+    {
+      "pattern": "test_contact_step_model.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 27,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_contact_step_model.py.log",
+      "log_sha256": "9facb76c40d717b00819b1d3a2f9e0ef7e16ba57d2145bbaa4b2809bfe5e1858",
+      "output": "test_active_plane_releases_and_removes_affine_rhs (test_contact_step_model.ContactStepModelTests.test_active_plane_releases_and_removes_affine_rhs) ... ok\ntest_an_ambiguous_newly_active_normal_cannot_be_used (test_contact_step_model.ContactStepModelTests.test_an_ambiguous_newly_active_normal_cannot_be_used) ... ok\ntest_budget_exhaustion_preserves_raw_newton_seed_without_model_certificate (test_contact_step_model.ContactStepModelTests.test_budget_exhaustion_preserves_raw_newton_seed_without_model_certificate) ... ok\ntest_deep_simultaneous_contacts_get_a_coercive_model_in_budget (test_contact_step_model.ContactStepModelTests.test_deep_simultaneous_contacts_get_a_coercive_model_in_budget) ... ok\ntest_inactive_plane_activates_and_changes_affine_rhs (test_contact_step_model.ContactStepModelTests.test_inactive_plane_activates_and_changes_affine_rhs) ... ok\ntest_indefinite_retry_cannot_reset_the_factor_budget (test_contact_step_model.ContactStepModelTests.test_indefinite_retry_cannot_reset_the_factor_budget) ... ok\ntest_invalid_model_is_atomic (test_contact_step_model.ContactStepModelTests.test_invalid_model_is_atomic) ... ok\ntest_known_nonfinite_gradient_is_invalid (test_contact_step_model.ContactStepModelTests.test_known_nonfinite_gradient_is_invalid) ... ok\ntest_negative_overflow_is_provably_inactive_and_unmodelled (test_contact_step_model.ContactStepModelTests.test_negative_overflow_is_provably_inactive_and_unmodelled) ... ok\ntest_normal_penalty_does_not_freeze_physical_tangent_proposal (test_contact_step_model.ContactStepModelTests.test_normal_penalty_does_not_freeze_physical_tangent_proposal) ... ok\ntest_one_contact_can_couple_multiple_free_coordinates (test_contact_step_model.ContactStepModelTests.test_one_contact_can_couple_multiple_free_coordinates) ... ok\ntest_opposing_shared_constraints_remain_in_the_model (test_contact_step_model.ContactStepModelTests.test_opposing_shared_constraints_remain_in_the_model) ... ok\ntest_overflowing_force_norm_never_reports_zero_residual (test_contact_step_model.ContactStepModelTests.test_overflowing_force_norm_never_reports_zero_residual) ... ok\ntest_positive_overflow_cannot_be_clipped_to_an_inactive_contact (test_contact_step_model.ContactStepModelTests.test_positive_overflow_cannot_be_clipped_to_an_inactive_contact) ... ok\ntest_proposal_preserves_gradual_damping_for_deep_contacts (test_contact_step_model.ContactStepModelTests.test_proposal_preserves_gradual_damping_for_deep_contacts) ... ok\ntest_proposal_release_reports_descent_without_claiming_model_optimum (test_contact_step_model.ContactStepModelTests.test_proposal_release_reports_descent_without_claiming_model_optimum) ... ok\ntest_proposal_still_models_a_new_activation (test_contact_step_model.ContactStepModelTests.test_proposal_still_models_a_new_activation) ... ok\ntest_proposal_zero_budget_has_no_seed_to_publish (test_contact_step_model.ContactStepModelTests.test_proposal_zero_budget_has_no_seed_to_publish) ... ok\ntest_released_set_survives_indefinite_damping_retries (test_contact_step_model.ContactStepModelTests.test_released_set_survives_indefinite_damping_retries) ... ok\ntest_reported_change_is_an_outward_upper_bound (test_contact_step_model.ContactStepModelTests.test_reported_change_is_an_outward_upper_bound) ... ok\ntest_small_convex_models_match_exhaustive_active_set_oracle (test_contact_step_model.ContactStepModelTests.test_small_convex_models_match_exhaustive_active_set_oracle) ... ok\ntest_stationary_saddle_is_not_qualified_by_inactive_rows (test_contact_step_model.ContactStepModelTests.test_stationary_saddle_is_not_qualified_by_inactive_rows) ... ok\ntest_symmetrizing_finite_large_inertia_does_not_overflow (test_contact_step_model.ContactStepModelTests.test_symmetrizing_finite_large_inertia_does_not_overflow) ... ok\ntest_unavailable_active_gradient_never_produces_a_direction (test_contact_step_model.ContactStepModelTests.test_unavailable_active_gradient_never_produces_a_direction) ... ok\ntest_unavailable_inactive_gradient_is_an_explicit_unmodelled_proposal (test_contact_step_model.ContactStepModelTests.test_unavailable_inactive_gradient_is_an_explicit_unmodelled_proposal) ... ok\ntest_working_set_changes_share_the_factor_budget (test_contact_step_model.ContactStepModelTests.test_working_set_changes_share_the_factor_budget) ... ok\ntest_zero_budget_is_atomic (test_contact_step_model.ContactStepModelTests.test_zero_budget_is_atomic) ... ok\n\n----------------------------------------------------------------------\nRan 27 tests in 0.228s\n\nOK\n"
+    },
+    {
+      "pattern": "test_coupled_contact.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 20,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_coupled_contact.py.log",
+      "log_sha256": "a7a8fbc2a614a58ce3a5af4ffcbe44c3e4e1132ab07cfdc48022b468a3726d3d",
+      "output": "test_actual265_authoritative_physical_dimensions_reach_original_gates (test_coupled_contact.CoupledContactTests.test_actual265_authoritative_physical_dimensions_reach_original_gates) ... ok\ntest_actual_packed64_tick264_converges_without_changing_predictor (test_coupled_contact.CoupledContactTests.test_actual_packed64_tick264_converges_without_changing_predictor) ... ok\ntest_actual_physical_jaws_second_substep_reaches_requested_kkt_gates (test_coupled_contact.CoupledContactTests.test_actual_physical_jaws_second_substep_reaches_requested_kkt_gates) ... ok\ntest_all_invalid_line_trials_without_contact_progress_fail_atomically (test_coupled_contact.CoupledContactTests.test_all_invalid_line_trials_without_contact_progress_fail_atomically) ... ok\ntest_ambiguous_active_geometry_is_not_an_accepted_reaction (test_coupled_contact.CoupledContactTests.test_ambiguous_active_geometry_is_not_an_accepted_reaction) ... ok\ntest_analytic_contact_reaction_balances_inertia (test_coupled_contact.CoupledContactTests.test_analytic_contact_reaction_balances_inertia) ... ok\ntest_collapsed_material_edge_is_explicit_numerical_failure (test_coupled_contact.CoupledContactTests.test_collapsed_material_edge_is_explicit_numerical_failure) ... ok\ntest_duplicate_constraints_preserve_the_same_solution (test_coupled_contact.CoupledContactTests.test_duplicate_constraints_preserve_the_same_solution) ... ok\ntest_exhaustion_does_not_publish_partial_motion (test_coupled_contact.CoupledContactTests.test_exhaustion_does_not_publish_partial_motion) ... ok\ntest_finite_large_inertia_keeps_the_existing_static_domain (test_coupled_contact.CoupledContactTests.test_finite_large_inertia_keeps_the_existing_static_domain) ... ok\ntest_inactive_contact_has_zero_reaction (test_coupled_contact.CoupledContactTests.test_inactive_contact_has_zero_reaction) ... ok\ntest_invalid_arguments_leave_positions_and_duals_unchanged (test_coupled_contact.CoupledContactTests.test_invalid_arguments_leave_positions_and_duals_unchanged) ... ok\ntest_local_jaw_fixture_matches_independent_constrained_reference (test_coupled_contact.CoupledContactTests.test_local_jaw_fixture_matches_independent_constrained_reference) ... ok\ntest_opposing_contact_forces_cannot_hide_penetration (test_coupled_contact.CoupledContactTests.test_opposing_contact_forces_cannot_hide_penetration) ... ok\ntest_original265_overlapping_proxy_jaws_reject_atomically (test_coupled_contact.CoupledContactTests.test_original265_overlapping_proxy_jaws_reject_atomically) ... ok\ntest_overflowed_linear_norm_never_reports_zero_residual (test_coupled_contact.CoupledContactTests.test_overflowed_linear_norm_never_reports_zero_residual) ... ok\ntest_overflowing_negative_inactive_intercept_keeps_zero_reaction (test_coupled_contact.CoupledContactTests.test_overflowing_negative_inactive_intercept_keeps_zero_reaction) ... ok\ntest_prescribed_penetration_rejects_atomically (test_coupled_contact.CoupledContactTests.test_prescribed_penetration_rejects_atomically) ... ok\ntest_stationary_compressed_saddle_is_not_a_minimum (test_coupled_contact.CoupledContactTests.test_stationary_compressed_saddle_is_not_a_minimum) ... ok\ntest_unusable_inactive_normal_does_not_invalidate_a_clear_step (test_coupled_contact.CoupledContactTests.test_unusable_inactive_normal_does_not_invalidate_a_clear_step) ... ok\n\n----------------------------------------------------------------------\nRan 20 tests in 35.641s\n\nOK\n"
+    },
+    {
+      "pattern": "test_trajectory_contact.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 8,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_trajectory_contact.py.log",
+      "log_sha256": "2ff770096e6cca66797f82d58ba8d51a8f433880a168b3a15914aa74ef09aee4",
+      "output": "test_actual262_midpoint_and_endpoint_constraints_reach_physical_gates (test_trajectory_contact.TrajectoryContactTests.test_actual262_midpoint_and_endpoint_constraints_reach_physical_gates) ... ok\ntest_actual264_three_layer_force_stagnation_reaches_original_gates (test_trajectory_contact.TrajectoryContactTests.test_actual264_three_layer_force_stagnation_reaches_original_gates) ... ok\ntest_actual265_tool_contact_pass_is_not_anatomical_clearance (test_trajectory_contact.TrajectoryContactTests.test_actual265_tool_contact_pass_is_not_anatomical_clearance) ... ok\ntest_endpoint_only_trajectory_matches_unchanged_static_abi (test_trajectory_contact.TrajectoryContactTests.test_endpoint_only_trajectory_matches_unchanged_static_abi) ... ok\ntest_exhaustion_preserves_positions_and_all_layer_reactions (test_trajectory_contact.TrajectoryContactTests.test_exhaustion_preserves_positions_and_all_layer_reactions) ... ok\ntest_invalid_times_and_motion_reject_atomically (test_trajectory_contact.TrajectoryContactTests.test_invalid_times_and_motion_reject_atomically) ... ok\ntest_midpoint_arc_constraint_has_time_weighted_reaction (test_trajectory_contact.TrajectoryContactTests.test_midpoint_arc_constraint_has_time_weighted_reaction) ... ok\ntest_saved_four_layer_problem_balances_all_time_reactions (test_trajectory_contact.TrajectoryContactTests.test_saved_four_layer_problem_balances_all_time_reactions) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 70.745s\n\nOK\n"
+    },
+    {
+      "pattern": "test_anatomical_contact.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 15,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_anatomical_contact.py.log",
+      "log_sha256": "d832a3ef605a41bf467b49b23f7689436a7f5517f833e6c225d1e98e3978dd8b",
+      "output": "test_anatomy_balances_elastic_spring_and_inertial_force (test_anatomical_contact.AnatomicalContactTests.test_anatomy_balances_elastic_spring_and_inertial_force) ... ok\ntest_clear_anatomy_keeps_predictor_and_zero_reaction (test_anatomical_contact.AnatomicalContactTests.test_clear_anatomy_keeps_predictor_and_zero_reaction) ... ok\ntest_constraint_selects_the_named_vertex_only (test_anatomical_contact.AnatomicalContactTests.test_constraint_selects_the_named_vertex_only) ... ok\ntest_degenerate_nearby_anatomy_is_not_a_regular_contact (test_anatomical_contact.AnatomicalContactTests.test_degenerate_nearby_anatomy_is_not_a_regular_contact) ... ok\ntest_exhaustion_rejects_without_publication (test_anatomical_contact.AnatomicalContactTests.test_exhaustion_rejects_without_publication) ... ok\ntest_finite_edge_reaction_is_not_an_infinite_plane (test_anatomical_contact.AnatomicalContactTests.test_finite_edge_reaction_is_not_an_infinite_plane) ... ok\ntest_finite_vertex_reaction_is_radial (test_anatomical_contact.AnatomicalContactTests.test_finite_vertex_reaction_is_radial) ... ok\ntest_inactive_anatomy_normals_cannot_hide_a_compressed_saddle (test_anatomical_contact.AnatomicalContactTests.test_inactive_anatomy_normals_cannot_hide_a_compressed_saddle) ... ok\ntest_invalid_constraint_domain_is_atomic (test_anatomical_contact.AnatomicalContactTests.test_invalid_constraint_domain_is_atomic) ... ok\ntest_no_anatomy_matches_original_trajectory_abi_exactly (test_anatomical_contact.AnatomicalContactTests.test_no_anatomy_matches_original_trajectory_abi_exactly) ... ok\ntest_plane_reaction_balances_original_inertia (test_anatomical_contact.AnatomicalContactTests.test_plane_reaction_balances_original_inertia) ... ok\ntest_prescribed_penetration_rejects_without_publication (test_anatomical_contact.AnatomicalContactTests.test_prescribed_penetration_rejects_without_publication) ... ok\ntest_rotation_translation_preserve_equilibrium (test_anatomical_contact.AnatomicalContactTests.test_rotation_translation_preserve_equilibrium) ... ok\ntest_simultaneous_tool_and_anatomy_reactions_balance_inertia (test_anatomical_contact.AnatomicalContactTests.test_simultaneous_tool_and_anatomy_reactions_balance_inertia) ... ok\ntest_time_weighted_anatomy_reaction_uses_fixed_history (test_anatomical_contact.AnatomicalContactTests.test_time_weighted_anatomy_reaction_uses_fixed_history) ... ok\n\n----------------------------------------------------------------------\nRan 15 tests in 0.012s\n\nOK\n"
+    },
+    {
+      "pattern": "test_membrane_fem.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 11,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_membrane_fem.py.log",
+      "log_sha256": "d70369eef57ccbefdeb5ebf8051481cfcd8012633af377f8f01af46830465074",
+      "output": "test_curved_godot_reference_and_implicit_step (test_membrane_fem.MembraneFEMTests.test_curved_godot_reference_and_implicit_step) ... ok\ntest_extreme_finite_inertia_without_elastic_scale_is_retained (test_membrane_fem.MembraneFEMTests.test_extreme_finite_inertia_without_elastic_scale_is_retained) ... ok\ntest_failures_do_not_publish_unaccepted_iterates (test_membrane_fem.MembraneFEMTests.test_failures_do_not_publish_unaccepted_iterates) ... ok\ntest_implicit_equilibrium_and_exact_pin (test_membrane_fem.MembraneFEMTests.test_implicit_equilibrium_and_exact_pin) ... ok\ntest_mixed_macro_and_micro_components_keep_distinct_mass (test_membrane_fem.MembraneFEMTests.test_mixed_macro_and_micro_components_keep_distinct_mass) ... ok\ntest_positive_micro_material_preserves_nonlinear_equilibrium (test_membrane_fem.MembraneFEMTests.test_positive_micro_material_preserves_nonlinear_equilibrium) ... ok\ntest_rest_objectivity_and_exact_hessian (test_membrane_fem.MembraneFEMTests.test_rest_objectivity_and_exact_hessian) ... ok\ntest_rigid_prediction_has_no_internal_impulse (test_membrane_fem.MembraneFEMTests.test_rigid_prediction_has_no_internal_impulse) ... ok\ntest_shared_nodes_and_permuted_cells (test_membrane_fem.MembraneFEMTests.test_shared_nodes_and_permuted_cells) ... ok\ntest_small_energy_change_matches_high_precision_subtraction (test_membrane_fem.MembraneFEMTests.test_small_energy_change_matches_high_precision_subtraction) ... ok\ntest_stationary_compressed_saddle_is_not_convergence (test_membrane_fem.MembraneFEMTests.test_stationary_compressed_saddle_is_not_convergence) ... ok\n\n----------------------------------------------------------------------\nRan 11 tests in 0.351s\n\nOK\n"
+    },
+    {
+      "pattern": "test_membrane_grasp.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 8,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_membrane_grasp.py.log",
+      "log_sha256": "57787f7c9e6a01ec22d68a4185db1df531424d927f63db899db4c9bf9cef0de0",
+      "output": "test_constraints_stabilize_only_the_constrained_curvature (test_membrane_grasp.GraspTests.test_constraints_stabilize_only_the_constrained_curvature) ... ok\ntest_finite_micro_inertia_keeps_exact_attachment (test_membrane_grasp.GraspTests.test_finite_micro_inertia_keeps_exact_attachment) ... ok\ntest_interior_material_point_and_reaction (test_membrane_grasp.GraspTests.test_interior_material_point_and_reaction) ... ok\ntest_invalid_rank_and_exhaustion_are_atomic (test_membrane_grasp.GraspTests.test_invalid_rank_and_exhaustion_are_atomic) ... ok\ntest_nodal_hold_with_repeated_zero_weight_slots (test_membrane_grasp.GraspTests.test_nodal_hold_with_repeated_zero_weight_slots) ... ok\ntest_two_distinct_grips_on_shared_cells (test_membrane_grasp.GraspTests.test_two_distinct_grips_on_shared_cells) ... ok\ntest_unheld_negative_tangent_cannot_be_hidden_by_augmentation (test_membrane_grasp.GraspTests.test_unheld_negative_tangent_cannot_be_hidden_by_augmentation) ... ok\ntest_zero_grips_preserve_existing_unconstrained_contract (test_membrane_grasp.GraspTests.test_zero_grips_preserve_existing_unconstrained_contract) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.165s\n\nOK\n"
+    },
+    {
+      "pattern": "test_fem_contact.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 17,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_fem_contact.py.log",
+      "log_sha256": "883af49b8c428e4292701cf84176734d910e93e4cf239391f01d4445d08d5c73",
+      "output": "test_actual_curved_retained_two_hands_two_bodies (test_fem_contact.FEMContactTests.test_actual_curved_retained_two_hands_two_bodies) ... ok\ntest_actual_curved_under_extended_x87 (test_fem_contact.FEMContactTests.test_actual_curved_under_extended_x87) ... ok\ntest_actual_operative144_endpoint_is_equilibrium_not_motion_clearance (test_fem_contact.FEMContactTests.test_actual_operative144_endpoint_is_equilibrium_not_motion_clearance) ... ok\ntest_budget_and_impossible_targets_are_atomic (test_fem_contact.FEMContactTests.test_budget_and_impossible_targets_are_atomic) ... ok\ntest_empty_parent_material_is_not_constrained (test_fem_contact.FEMContactTests.test_empty_parent_material_is_not_constrained) ... ok\ntest_finite_capsule_endpoint (test_fem_contact.FEMContactTests.test_finite_capsule_endpoint) ... ok\ntest_finite_micro_inertia_with_active_and_inactive_contact (test_fem_contact.FEMContactTests.test_finite_micro_inertia_with_active_and_inactive_contact) ... ok\ntest_finite_micro_inertia_with_exact_hold_and_contact (test_fem_contact.FEMContactTests.test_finite_micro_inertia_with_exact_hold_and_contact) ... ok\ntest_inactive_contact_cannot_hide_negative_free_tangent (test_fem_contact.FEMContactTests.test_inactive_contact_cannot_hide_negative_free_tangent) ... ok\ntest_interior_material_hold_with_partially_fixed_controls (test_fem_contact.FEMContactTests.test_interior_material_hold_with_partially_fixed_controls) ... ok\ntest_invalid_geometry_is_atomic (test_fem_contact.FEMContactTests.test_invalid_geometry_is_atomic) ... ok\ntest_no_body_preserves_old_grasp_result (test_fem_contact.FEMContactTests.test_no_body_preserves_old_grasp_result) ... ok\ntest_one_and_two_hands_with_contact (test_fem_contact.FEMContactTests.test_one_and_two_hands_with_contact) ... ok\ntest_redundant_contact_rows_remain_nonnegative_and_balanced (test_fem_contact.FEMContactTests.test_redundant_contact_rows_remain_nonnegative_and_balanced) ... ok\ntest_two_bodies_and_held_corner (test_fem_contact.FEMContactTests.test_two_bodies_and_held_corner) ... ok\ntest_unheld_body_reaction (test_fem_contact.FEMContactTests.test_unheld_body_reaction) ... ok\ntest_unrepresentable_inertia_rejects_without_contact_publication (test_fem_contact.FEMContactTests.test_unrepresentable_inertia_rejects_without_contact_publication) ... ok\n\n----------------------------------------------------------------------\nRan 17 tests in 16.246s\n\nOK\n"
+    },
+    {
+      "pattern": "test_fem_trajectory.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 9,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_fem_trajectory.py.log",
+      "log_sha256": "5423efa356fd5b81fe254aec7983e7c7422a31f8f923904628d688f7cc954dab",
+      "output": "test_budget_exhaustion_preserves_all_candidate_outputs (test_fem_trajectory.FEMTrajectoryTests.test_budget_exhaustion_preserves_all_candidate_outputs) ... ok\ntest_contact_time_gradient_and_hessian_match_independent_merit (test_fem_trajectory.FEMTrajectoryTests.test_contact_time_gradient_and_hessian_match_independent_merit) ... ok\ntest_endpoint_only_preserves_static_candidate (test_fem_trajectory.FEMTrajectoryTests.test_endpoint_only_preserves_static_candidate) ... ok\ntest_invalid_history_and_recorded_bodies_are_atomic (test_fem_trajectory.FEMTrajectoryTests.test_invalid_history_and_recorded_bodies_are_atomic) ... ok\ntest_invalid_times_and_history_are_atomic (test_fem_trajectory.FEMTrajectoryTests.test_invalid_times_and_history_are_atomic) ... ok\ntest_mid_arc_obstruction_uses_time_weighted_material_reaction (test_fem_trajectory.FEMTrajectoryTests.test_mid_arc_obstruction_uses_time_weighted_material_reaction) ... ok\ntest_multiple_bodies_layers_with_exact_hold_and_pin (test_fem_trajectory.FEMTrajectoryTests.test_multiple_bodies_layers_with_exact_hold_and_pin) ... ok\ntest_real_api_preserves_caller_modes_on_success_invalid_and_exhaustion (test_fem_trajectory.FEMTrajectoryTests.test_real_api_preserves_caller_modes_on_success_invalid_and_exhaustion) ... ok\ntest_unrounded_affine_merit_encloses_decimal_change_at_stalled_step (test_fem_trajectory.FEMTrajectoryTests.test_unrounded_affine_merit_encloses_decimal_change_at_stalled_step) ... ok\n\n----------------------------------------------------------------------\nRan 9 tests in 0.948s\n\nOK\n"
+    },
+    {
+      "pattern": "test_fp_environment.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 6,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_fp_environment.py.log",
+      "log_sha256": "d6a9c01c78b3556e11c58325a4434321744165bb6e10c05a7dd98fa6a52702db",
+      "output": "test_early_return_restores_caller (test_fp_environment.EnvironmentTests.test_early_return_restores_caller) ... ok\ntest_exception_restores_caller (test_fp_environment.EnvironmentTests.test_exception_restores_caller) ... ok\ntest_nested_boundary_restores_both_levels (test_fp_environment.EnvironmentTests.test_nested_boundary_restores_both_levels) ... ok\ntest_real_distance_guard_and_solver_preserve_caller_modes (test_fp_environment.EnvironmentTests.test_real_distance_guard_and_solver_preserve_caller_modes) ... ok\ntest_runtime_interval_encloses_small_addend (test_fp_environment.EnvironmentTests.test_runtime_interval_encloses_small_addend) ... ok\ntest_unscoped_runtime_counterexample_is_real (test_fp_environment.EnvironmentTests.test_unscoped_runtime_counterexample_is_real) ... ok\n\n----------------------------------------------------------------------\nRan 6 tests in 0.056s\n\nOK\n"
+    },
+    {
+      "pattern": "test_native_provenance.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 2,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_native_provenance.py.log",
+      "log_sha256": "91c1c7e0a343df1c2c3a51c97153db2d0c477febfb2fb685524163467b02a770",
+      "output": "test_quoted_dependency_cannot_leave_workspace (test_native_provenance.ProvenanceTests.test_quoted_dependency_cannot_leave_workspace) ... ok\ntest_transitive_local_headers_and_cycles (test_native_provenance.ProvenanceTests.test_transitive_local_headers_and_cycles) ... ok\n\n----------------------------------------------------------------------\nRan 2 tests in 0.041s\n\nOK\n"
+    },
+    {
+      "pattern": "test_contact_activity.py",
+      "returncode": 0,
+      "passed": true,
+      "tests": 7,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fp-qualification-aan49tj7\\test_contact_activity.py.log",
+      "log_sha256": "2cf797a8b237ca571a7c847accef3c95cbef4222170a4425ac0cc1abb3e39062",
+      "output": "test_a_newly_active_trial_cannot_reuse_old_inactivity (test_contact_activity.ContactActivityTests.test_a_newly_active_trial_cannot_reuse_old_inactivity) ... ok\ntest_close_and_positive_multiplier_pairs_keep_exact_path (test_contact_activity.ContactActivityTests.test_close_and_positive_multiplier_pairs_keep_exact_path) ... ok\ntest_degenerate_fine_geometry_and_nan_still_reject (test_contact_activity.ContactActivityTests.test_degenerate_fine_geometry_and_nan_still_reject) ... ok\ntest_far_inactive_pair_reuses_both_validated_queries (test_contact_activity.ContactActivityTests.test_far_inactive_pair_reuses_both_validated_queries) ... ok\ntest_inactive_nonzero_multiplier_reuses_validated_queries (test_contact_activity.ContactActivityTests.test_inactive_nonzero_multiplier_reuses_validated_queries) ... ok\ntest_rounded_touch_retains_tiny_positive_multiplier (test_contact_activity.ContactActivityTests.test_rounded_touch_retains_tiny_positive_multiplier) ... ok\ntest_tiny_radius_preserves_normalized_gap_overflow_rejection (test_contact_activity.ContactActivityTests.test_tiny_radius_preserves_normalized_gap_overflow_rejection) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.003s\n\nOK\n"
+    }
+  ],
+  "tests": 214
+}

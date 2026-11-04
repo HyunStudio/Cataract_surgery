@@ -2,7 +2,7 @@
 from decimal import Decimal as D,localcontext
 from itertools import combinations
 
-def decimal(value): return D.from_float(float(value))
+def decimal(value): return value if isinstance(value,D) else D.from_float(float(value))
 def dot(a,b): return sum((x*y for x,y in zip(a,b)),D(0))
 
 def solve(matrix,rhs):

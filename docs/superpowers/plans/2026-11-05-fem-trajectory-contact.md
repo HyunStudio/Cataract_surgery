@@ -62,3 +62,82 @@ or previous-dt metadata, damping/force scaling, original history timestamps,
 outer-tick clocks, render history and whole-tick rollback. Simply running the
 current displacement predictor twice at half dt doubles inherited velocity and
 changes the physical model. Do not use that shortcut to clear this fixture.
+
+## Native candidate implementation and remaining failure
+
+Implemented the separate `membrane_fem_solve_trajectory` C API, with up to16
+strictly increasing sample times ending at1 and layer-major contact multipliers.
+It validates the same41-value recorded body poses as the complete motion guard.
+Original endpoint material energy, finite inertia, exact holds, force/gap/COMP
+limits, SPD and linear residual checks are unchanged. The t=1-only path preserves
+the static candidate bitwise. This API is not yet wired into the Godot controller.
+
+Each intermediate tissue field is B[q0+t(q1-q0)]; its contact derivative carries
+t and its Hessian t². An initial analytic regression exposed merit cancellation
+after separately rounding intermediate control coordinates. New interval merit
+code bounds the unrounded affine field using binary128 support certificates.
+Closest-feature refinement only proposes feasible witnesses; support residuals
+still certify their error. Cache reuse requires both complete evaluations to have
+passed and a strict original-control-hull separation certificate.
+
+Nine new tests pass: independent original-material KKT for a curved mid-arc
+obstruction, t/t² derivative finite differences,80-digit Decimal enclosure of the
+stalled merit comparison, bitwise endpoint compatibility, malformed history and
+recorded-pose rejection, exact pins/holds with multiple bodies/layers, atomic
+budget exhaustion, and identical results/caller restoration across64 FP modes.
+A read-only independent reviewer found no substantive native defect after the
+test observer counter was corrected. No controller, anatomy or full-case
+qualification follows from these component tests.
+
+Exported exact original controls from the already frozen143-step owned state;
+canonical B reconstruction is bitwise identical to all1902 captured fine
+positions. `replay_fem_trajectory.py --output <report.json>` now reproduces bounded
+offline witness generation with the same predictor/history/dt. It verifies source
+and DLL build provenance before and after execution. Complete CCD is mandatory;
+all retries share the original250-iteration budget and never publish a candidate.
+
+The exact motion is **still unqualified**, reproduced twice:
+
+| Contact times | Native iterations | Full interval guard |
+|---|---:|---|
+|1|15|Rejects t=.5, gap-1.9805e-4|
+|.5,1|18|Rejects t=.375, gap-1.9092e-5|
+|.375,.5,1|24|Rejects t=.25, gap-3.5516e-6|
+|.25,.375,.5,1|38|Candidate status2; no state publication|
+
+The final attempt has force residual3.572208300273161e-7 (required1e-8), gap
+2.42946e-17 and COMP7.08575e-17, rho1e7. Cumulative work is95 iterations, so this
+is a failed merit descent rather than exhaustion. At iteration38/fraction1,
+slope=-2.106188217037991e-23 but certified merit upper=+2.642605576508075e-24;
+all32 line fractions reject. Largest candidate displacement is1.05305e-13.
+Rounded contact activation at high penalty is the next hypothesis to isolate
+against independent high-precision force evaluation; it is not yet a proven fix.
+Do not relax acceptance thresholds or claim that the smaller sampled gaps clear
+the physical path. Failed final outputs preserve the original predictor.
+
+The previous76fb8ed native Windows CI and Python CI succeeded. Its default Godot
+CI41874959884 remains red at `test_volumetric_encounter`: continuous blade target
+blocked and no detached anterior flap. This remains separate from the optional
+original-material candidate and is not waived. No main merge, release tag or
+default-backend promotion has been performed.
+
+## Verification ledger
+
+- Source-bound numerical validator:214 tests across17 suites/nine DLLs passed,
+  exit0. A prior pass was deliberately discarded because the diagnostic replay
+  helper changed during that run; the successful run used stable inputs.
+  [Numerical evidence](../../assets/fem-trajectory-numerical-validation-2026-11-05.json).
+- Frozen focused engine regression:40 suites plus fresh import passed, exit0,
+  probeu16onsdg. [Engine evidence](../../assets/embedded-precision-regression-2026-11-05.json).
+- Exact original-control reconstruction and bounded native replay: exit1,
+  qualified=false, failed candidate preserves the original predictor. The API is
+  not connected to operative input and no new accepted operative tick is claimed.
+  [Unqualified actual-motion evidence](../../assets/fem-trajectory144-validation-2026-11-05.json).
+- Extension object cache now hashes transitive local includes using the same
+  helper as its manifest, replacing a handwritten header list which omitted the
+  new merit header. Compiler, flags, API and pinned third-party dependencies stay
+  in the cache key. Independent read-only review found no substantive issue.
+- Rebuilt extension after the cache correction; frozen probeg4u5_cmo passed all11
+  retained bridge/dynamics/grasp/contact/coupled/curved stages, exit0. This tests
+  compatibility of existing entry points, not new operative trajectory wiring.
+  [Native engine evidence](../../assets/fem-trajectory-engine-validation-2026-11-05.json).
