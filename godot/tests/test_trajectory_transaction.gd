@@ -6,8 +6,12 @@ class Backend extends RefCounted:
 	var requests:Array=[]
 	var cost:=3.
 	var bad_force:=false
+	var bad_penetration:=false
+	var bad_comp:=false
 	var fail_static:=false
 	var failed_force:=7e-7
+	var failed_penetration:=0.
+	var failed_comp:=0.
 	func solve_contact_fem(request:Dictionary)->Dictionary:return candidate(request,1)
 	func solve_trajectory_fem(request:Dictionary)->Dictionary:return candidate(request,request.times.size())
 	func candidate(request:Dictionary,layers:int)->Dictionary:
@@ -15,8 +19,10 @@ class Backend extends RefCounted:
 		if bad_force and layers>1:xyz[4]+=.001
 		var stats:=PackedFloat64Array();stats.resize(16);stats[2]=cost
 		if fail_static and layers==1:
-			stats[1]=failed_force
+			stats[1]=failed_force;stats[12]=failed_penetration;stats[13]=failed_comp
 			return {"status":2,"xyz":xyz,"stats":stats,"reaction":PackedFloat64Array(),"dual":PackedFloat64Array()}
+		if layers>1 and bad_penetration:stats[12]=1e-6
+		if layers>1 and bad_comp:stats[13]=1e-6
 		var dual:=PackedFloat64Array();dual.resize(layers)
 		return {"status":0,"xyz":xyz,"stats":stats,"reaction":PackedFloat64Array(),"dual":dual}
 class Guard extends RefCounted:
@@ -70,6 +76,15 @@ func _initialize()->void:
 	if recovered.valid:check(value.snapshot().steps==1 and backend.requests[1].xyz==backend.requests[0].xyz and recovered.trajectory_iterations==6,"larger endpoint residual cannot change the predictor, work budget or single publication")
 	value=model();backend=Backend.new();backend.fail_static=true;backend.failed_force=1.1889320067348663e-6;backend.bad_force=true;guard=Guard.new();guard.always_clear=true;before=value.snapshot()
 	check(not value.advance_contact(1./60.,force,backend,2.,3.,motion(guard),1.,20).valid and backend.requests.size()==2 and value.snapshot()==before,"retry eligibility never waives the candidate independent physical force gate")
+	value=model();backend=Backend.new();backend.fail_static=true;backend.failed_force=1.235052110692969e-6;backend.failed_penetration=3.6986404357918054e-8;backend.failed_comp=8.919789087559183e-8;guard=Guard.new();guard.always_clear=true;before=value.snapshot()
+	recovered=value.advance_contact(1./60.,force,backend,2.,3.,motion(guard),1.,20)
+	check(recovered.valid and backend.requests.size()==2 and guard.calls==1,"finite unpublished endpoint penetration/COMP stall can try one accurate cold candidate")
+	if recovered.valid:check(backend.requests[0].xyz==backend.requests[1].xyz and recovered.trajectory_iterations==6 and value.snapshot().steps==1,"infeasible failed iterate is discarded while original predictor/work/history remain")
+	value=model();backend=Backend.new();backend.fail_static=true;backend.failed_penetration=3.6986404357918054e-8;backend.failed_comp=8.919789087559183e-8;backend.bad_force=true;guard=Guard.new();guard.always_clear=true;before=value.snapshot()
+	check(not value.advance_contact(1./60.,force,backend,2.,3.,motion(guard),1.,20).valid and backend.requests.size()==2 and value.snapshot()==before,"broader numerical retry never publishes a candidate failing the independent force gate")
+	for mode in ["penetration","comp"]:
+		value=model();backend=Backend.new();backend.fail_static=true;backend.failed_penetration=3.6986404357918054e-8;backend.failed_comp=8.919789087559183e-8;backend.bad_penetration=mode=="penetration";backend.bad_comp=mode=="comp";guard=Guard.new();guard.always_clear=true;before=value.snapshot()
+		check(not value.advance_contact(1./60.,force,backend,2.,3.,motion(guard),1.,20).valid and backend.requests.size()==2 and guard.calls==0 and value.snapshot()==before,"failed endpoint retry never waives final candidate "+mode+" limits")
 	value=model();backend=Backend.new();backend.fail_static=true;backend.failed_force=INF;guard=Guard.new();before=value.snapshot()
 	check(not value.advance_contact(1./60.,force,backend,2.,3.,motion(guard),1.,20).valid and backend.requests.size()==1 and value.snapshot()==before,"invalid static geometry/nonfinite residual cannot trigger numerical recovery")
 	print("Trajectory step transaction: ",failures," failures");quit(1 if failures else 0)

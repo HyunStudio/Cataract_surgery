@@ -7,10 +7,10 @@ func _initialize()->void:
 	check(backend!=null and guard!=null,"actual native trajectory and full interval guard register")
 	if failures:quit(1);return
 	var metrics:Array=[]
-	for number in [144,146,150,156]:metrics.append(run_case(number,backend,guard))
+	for number in [144,146,150,156,167]:metrics.append(run_case(number,backend,guard))
 	DirAccess.make_dir_recursive_absolute("res://reports")
 	var file:=FileAccess.open("res://reports/trajectory-advance-metrics.json",FileAccess.WRITE)
-	file.store_string(JSON.stringify({"qualified":failures==0,"scope":"Exact captured144/146/150/156 core states only; not outer operative anatomy, full route, real-time or release qualification.","cases":metrics},"  ",true,true))
+	file.store_string(JSON.stringify({"qualified":failures==0,"scope":"Exact captured144/146/150/156/167 core states only; not outer operative anatomy, full route, real-time or release qualification.","cases":metrics},"  ",true,true))
 	print("Embedded trajectory advance: ",failures," failures");quit(1 if failures else 0)
 func run_case(number:int,backend,guard)->Dictionary:
 	var saved:Dictionary=FileAccess.open("res://tests/fixtures/operative-motion%s-state.bin"%number,FileAccess.READ).get_var()

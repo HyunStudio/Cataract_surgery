@@ -34,15 +34,17 @@ struct FineContacts {
         if(!problem.evaluate(x,out.energy,out.gradient,&out.blocks)) return false;
         // Hulls belong to this exact x evaluation, never to a body, dual or rho.
         // A fresh candidate rebuilds them; accepted state/next swaps carry them.
-        out.hulls.clear();
+        out.hulls.clear();std::vector<unsigned char> regular;
         if(previous) {
             out.hulls.resize(faces*layers);
+            if(physical_dual)regular.resize(faces*layers);
             for(int layer=0;layer<layers;++layer) for(int face=0;face<faces;++face) {
                 double old[9],end[9];
                 for(int j=0;j<3;++j) for(int axis=0;axis<3;++axis) {
                     const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=previous[k];end[j*3+axis]=x[k];
                 }
                 out.hulls[layer*faces+face]=membrane::fem_trajectory_merit::hull(old,end,times[layer]);
+                if(physical_dual)regular[layer*faces+face]=membrane::fem_trajectory_merit::regular(old,end,weights+face*9,times[layer]);
             }
         }
         const size_t offset=out.blocks.size();out.blocks.resize(offset+size_t(pairs())*81,0.);
@@ -62,14 +64,22 @@ struct FineContacts {
                 // The full query above is mandatory. Only its known-zero PHR
                 // refinement may reuse this unrounded original-control hull.
                 const auto& box=out.hulls[p/bodies];
-                if(!physical_dual && u==0. && membrane::fem_trajectory_merit::inactive_hulls(box,box,capsule,capsule[6],dual[p],rho)) {
-                    out.updated[p]=0.;continue;
+                const bool zero=physical_dual ? dual[p]==0. : u==0.;
+                if(zero && (!physical_dual || regular[p/bodies]) &&
+                   membrane::fem_trajectory_merit::inactive_hulls(box,box,capsule,capsule[6],dual[p],rho)) {
+                    out.updated[p]=physical_dual ? dual[p] : 0.;
+                    // Preserve the old outward zero-times-interval COMP bound.
+                    if(physical_dual)out.complementarity=std::max(out.complementarity,std::numeric_limits<double>::denorm_min());
+                    continue;
                 }
                 double old[9],end[9];const int face=face_index(p);
                 for(int j=0;j<3;++j) for(int axis=0;axis<3;++axis) {
                     const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=previous[k];end[j*3+axis]=x[k];
                 }
                 membrane::merit::Interval bounded_gap,separation;
+#ifdef FEM_TEMPORAL_FIELD_OBSERVER
+                observe_temporal_field();
+#endif
                 if(!membrane::fem_trajectory_merit::gap(old,end,weights+face*9,time(p),capsule,capsule[6],query,bounded_gap,separation)) return false;
                 namespace m=membrane::merit;
                 const auto multiplier=physical_dual ? m::Interval(dual[p]) : m::positive(m::Interval(dual[p])-m::Interval(rho)*bounded_gap);

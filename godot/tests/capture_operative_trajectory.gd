@@ -17,7 +17,7 @@ class GuardProxy extends RefCounted:
 	func guard_motion(value:Dictionary)->Dictionary:
 		var result:Dictionary=inner.guard_motion(value);history.append({"request":value.duplicate(true),"response":result.duplicate(true)});return result
 class TraceState:
-	extends "res://scripts/embedded_membrane.gd"
+	extends "res://tests/test_operative_blade.gd".CaptureState
 	func advance_contact(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,motion:Dictionary,damping:float=1.,budget:int=100,targets:Dictionary={})->Dictionary:
 		backend.history=[];motion.guard.history=[]
 		var before:=snapshot();var answer:=super.advance_contact(dt,force,backend,mu,lambda,motion,damping,budget,targets)

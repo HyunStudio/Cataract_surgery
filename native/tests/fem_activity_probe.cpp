@@ -1,5 +1,7 @@
 // Count exact private helper calls only in this isolated qualification DLL.
-static int query_calls=0,merit_calls=0;
+static int query_calls=0,merit_calls=0,field_calls=0;
+static void observe_temporal_field(){++field_calls;}
+#define FEM_TEMPORAL_FIELD_OBSERVER
 static void observe_contact_query(bool merit) {if(merit) ++merit_calls;else ++query_calls;}
 #define FEM_CONTACT_OBSERVER
 #include "../membrane_fem.cpp"
@@ -44,4 +46,27 @@ FEM_EXPORT int fem_time_merit_probe(const double* previous,const double* before,
     membrane::merit::Interval change;
     if(!membrane::fem_trajectory_merit::contact_change(previous,before,after,shape,time,body,radius,dual,rho,change)) return 1;
     output[0]=membrane::merit::lower_double(change);output[1]=membrane::merit::upper_double(change);return 0;
+}
+
+// Isolated physical reaction/geometry checks; no new product ABI.
+FEM_EXPORT int fem_physical_zero_probe(double height,double dual,int physical,int bad,double radius,int* counts,double* output) {
+    membrane::numeric::Scope environment;query_calls=merit_calls=field_calls=0;
+    double xyz[9]{0.,0.,0.,1.,0.,0.,0.,0.,1.};
+    if(bad==2)xyz[0]=std::numeric_limits<double>::quiet_NaN();
+    const int nodes[3]{0,1,2};const double gradients[6]{-1.,1.,0.,-1.,0.,1.},areas[1]{.5},time=.5;
+    double shape[9]{1.,0.,0.,0.,1.,0.,0.,0.,1.};
+    if(bad==1) {std::fill(shape,shape+9,0.);shape[0]=shape[3]=shape[6]=1.;}
+    const double body[7]{.3,height,.3,.3,height,.3,radius};
+    Problem problem;problem.mu=2.;problem.lambda=3.;problem.mass={1.,1.,1.};problem.predicted.assign(xyz,xyz+9);
+    if(!membrane_fem::cells(3,1,nodes,gradients,areas,problem.cells)) return -1;
+    Vec x(xyz,xyz+9);FineContacts contacts{1,1,nodes,shape,body,1,xyz,&time};ContactState state;
+    const bool valid=contacts.evaluate(problem,x,Vec{dual},1.,state,physical!=0);
+    counts[0]=query_calls;counts[1]=field_calls;
+    if(valid) {output[0]=0.;for(double v:state.gradient)output[0]=std::max(output[0],std::abs(v));output[1]=state.penetration;output[2]=state.complementarity;output[3]=state.updated[0];}
+    return valid?0:2;
+}
+
+FEM_EXPORT int fem_field_regular_probe(const double* previous,const double* end,const double* shape,double time) {
+    membrane::numeric::Scope environment;
+    return membrane::fem_trajectory_merit::regular(previous,end,shape,time)?1:0;
 }

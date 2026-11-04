@@ -50,6 +50,8 @@ old='if(previous) {\n                // The full query above'
 assert inc.count(old)==1;inc=inc.replace(old,'if(previous) {ProfileScope field_timing(3);\n                // The full query above')
 header=(probe/'fem_trajectory_merit.h').read_text();signature='inline Hull hull(const double* previous,const double* end,double time) {'
 assert header.count(signature)==1;header=header.replace(signature,signature+'ProfileScope hull_timing(3);')
+signature='inline bool regular(const double* previous,const double* end,const double* shape,double time) {'
+assert header.count(signature)==1;header=header.replace(signature,signature+'ProfileScope regular_timing(3);')
 (probe/'fem_trajectory_merit.h').write_text(header)
 (probe/'membrane_fem_contact.inc').write_text(inc)
 library=probe/'profile.dll'

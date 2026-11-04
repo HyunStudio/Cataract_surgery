@@ -178,15 +178,15 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array:return invalid("native_fem_shape")
 	if result.status!=0:
 		var failed:={"valid":false,"changed":false,"reason":"native_fem_solve","status":result.status,"stats":result.stats}
-		# A feasible endpoint may stall from rho-amplified rounding before it
+		# An endpoint force/feasibility solve may stall from rounded fields before it
 		# reaches the path guard. A finite failed-force magnitude only selects
-		# this bounded retry; the final physical force gate is never relaxed.
+		# this bounded cold retry; final force/gap/COMP gates are never relaxed.
 		# Try the accurate temporal field once from the
 		# same immutable predictor; its independent/full-path gates remain strict.
 		var retry:bool=coupled and not trajectory and result.status==2 and result.xyz==predicted and result.stats.size()==16
 		for value in result.stats:
 			if not is_finite(value):retry=false
-		if retry and result.stats[2]>=0. and result.stats[2]<=budget and floor(result.stats[2])==result.stats[2] and result.stats[1]>=0. and result.stats[8]>=0. and result.stats[8]<=GAP_TOLERANCE and result.stats[12]>=0. and result.stats[12]<=GAP_TOLERANCE and result.stats[13]>=0. and result.stats[13]<=ContactStep.COMP:
+		if retry and result.stats[2]>=0. and result.stats[2]<=budget and floor(result.stats[2])==result.stats[2] and result.stats[1]>=0. and result.stats[8]>=0. and result.stats[8]<=GAP_TOLERANCE and result.stats[12]>=0. and result.stats[13]>=0.:
 			failed["retry_temporal"]=true;failed["work_iterations"]=int(result.stats[2])
 		return failed
 	if result.xyz.size()!=current.size() or result.stats.size()!=(16 if coupled else (12 if gripping else 8)):return invalid("native_fem_shape")

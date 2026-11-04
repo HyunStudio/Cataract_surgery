@@ -1,4 +1,5 @@
 """Qualify the captured motion156 native path under original work/physical gates."""
+import argparse
 import json
 from pathlib import Path
 import sys
@@ -8,7 +9,8 @@ from native_build_provenance import sha256,source_hashes,verify_sources
 from replay_fem_trajectory import replay,publish,guard
 from replay_seeded_trajectory import exchange
 from test_fem_trajectory import FEMTrajectoryTests
-fixture=root/'docs/assets/operative-motion156-native-case-2026-11-05.json'
+parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--motion',type=int,default=156);args=parser.parse_args()
+fixture=root/f'docs/assets/operative-motion{args.motion}-native-case-2026-11-05.json'
 inputs=source_hashes([fixture,Path(__file__),root/'native/tests/replay_fem_trajectory.py',root/'native/tests/replay_seeded_trajectory.py',root/'native/tests/test_fem_trajectory.py'])
 library=root/'.tools/native/membrane_fem.dll';guardlib=root/'.tools/native/contact_guard.dll';builds={}
 for lib in [library,guardlib]:
@@ -24,6 +26,6 @@ for attempt in range(15):
  times,seed=exchange(times,result[3],pairs,checked[2]);initial=result[1];penalty=result[4][15]
 verify_sources(inputs)
 for name,manifest in builds.items():verify_sources(manifest['sources']);assert sha256(root/name)==manifest['artifact_sha256']
-report={'qualified':qualified,'scope':'Exact captured motion156 native original KKT and complete interval guard only; not engine, outer anatomy, whole surgery, real-time or release qualification.','inputs':inputs,'builds':builds,'history':history,'total_iterations':spent,'elapsed_seconds':time.perf_counter()-started}
-(root/'godot/reports/motion156-fresh-polish-resolve.json').write_text(json.dumps(report,indent=2));print(json.dumps({'qualified':qualified,'iterations':spent,'seconds':report['elapsed_seconds']}),flush=True)
+report={'qualified':qualified,'scope':f'Exact captured motion{args.motion} native original KKT and complete interval guard only; not engine, outer anatomy, whole surgery, real-time or release qualification.','inputs':inputs,'builds':builds,'history':history,'total_iterations':spent,'elapsed_seconds':time.perf_counter()-started}
+(root/f'godot/reports/motion{args.motion}-fresh-polish-resolve.json').write_text(json.dumps(report,indent=2));print(json.dumps({'qualified':qualified,'iterations':spent,'seconds':report['elapsed_seconds']}),flush=True)
 raise SystemExit(0 if qualified else 1)

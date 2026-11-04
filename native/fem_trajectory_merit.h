@@ -22,6 +22,16 @@ inline Face posed(const double* previous,const double* end,const double* shape,d
     for(int j=0;j<3;++j) controls[j]=m::add(m::intervals(m::read(previous,j*3)),m::mul(m::sub(m::intervals(m::read(end,j*3)),m::intervals(m::read(previous,j*3))),m::Interval(time)));
     return map(controls,shape);
 }
+// A zero physical reaction can skip gap refinement only with a certified
+// regular unrounded material face. Rounded proxy area alone is insufficient.
+inline bool regular(const double* previous,const double* end,const double* shape,double time) {
+    const auto face=posed(previous,end,shape,time);
+    const auto e=m::sub(face[1],face[0]),f=m::sub(face[2],face[0]);
+    const m::IVec normal{e[1]*f[2]-e[2]*f[1],e[2]*f[0]-e[0]*f[2],e[0]*f[1]-e[1]*f[0]};
+    const auto squared=m::norm2(normal);
+    return m::finite(squared) && squared.lo>0;
+}
+
 // Refine the proposed feature on the unrounded binary128 face. Using its
 // rounded proxy here leaves a first-order support residual near cancellation.
 // Feasibility is clamped; witness support bounds still certify optimality error.

@@ -146,3 +146,21 @@ Do not edit validator/build source inputs while the current full run is live:
 its terminal source-hash verification must remain valid. Future full runs should
 use the transparent capture subclass from the outset to avoid repeating long
 prefixes solely to obtain exact failure inputs.
+
+
+## Full-run terminal observation supersedes live status
+
+Exec87686 is now terminal1, all source/build hash checks complete.21 of22 stages
+pass; the final operative blade route rejects another finite native status2.
+Its force is1.23505211e-6, penetration3.69864e-8 andCOMP8.919789e-8 after24 Newton
+steps, all above their original acceptance limits. The actual last accepted
+count is at least160; no exact later count is inferred from twelve-target logs.
+[Terminal full report](../../assets/fresh-physical-reactions-final-route-2026-11-05.json)
+and [log](../../assets/fresh-physical-reactions-final-route-2026-11-05.txt).
+
+Its exact next state is being captured by exec66453 on the identical frozen
+`.tools/fem-extension-3yegdgdp` source and DLL. That observer verifies its own
+frozen bytes at the end, so subsequent root improvements cannot alter it. No
+operation has been restarted because of a timeout. The earlier live160 snapshot
+is historical, not a terminal success. Zero-reaction certificate optimization and
+future default failure capture continue in the original isolated worktree.

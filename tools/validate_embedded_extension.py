@@ -16,9 +16,11 @@ parser.add_argument('--contact', action='store_true', help='Include retained fin
 parser.add_argument('--coupled', action='store_true', help='Include simultaneous FEM/grasp/contact candidate bridge')
 parser.add_argument('--curved', action='store_true', help='Include retained curved coupled dynamics and multi-body maps')
 parser.add_argument('--trajectory', action='store_true', help='Include original-material trajectory bridge, scalar poses and exact captured core step')
+parser.add_argument('--operative-components', action='store_true', help='Qualify operative component contracts, then run a long frozen route separately')
 parser.add_argument('--operative-blade', action='store_true', help='Run the same application closed-blade route with original-material dynamics')
 options = parser.parse_args()
-if options.operative_blade and options.bridge_only:parser.error('--operative-blade requires the application probe')
+if (options.operative_blade or options.operative_components) and options.bridge_only:parser.error('Operative contracts require the application probe')
+if options.operative_blade:options.operative_components=True
 if options.curved:
     if options.bridge_only:parser.error('--curved requires the full state probe')
     options.coupled=True
@@ -51,7 +53,7 @@ if not options.bridge_only:
         if source.is_file() and name != 'godot/project.godot':
             intended[str(source.relative_to(ROOT/'godot'))] = source
     intended['embedded_native.gd'] = ROOT/'godot/tests/test_embedded_native.gd'
-    if options.operative_blade:
+    if options.operative_components:
         for name in ['scripts/cut_geometry.gd','tests/test_binary64_incision.gd','scripts/operative_membrane.gd','tests/test_operative_embedded.gd','tests/test_operative_blade.gd','tests/test_operative_cut_geometry.gd','tests/test_material_edge_insertion.gd','tests/test_operative_resolution_native.gd','tests/fixtures/operative-blade-area.bin']:
             intended[name]=ROOT/'godot'/name
     if options.grasp:intended['embedded_grasp.gd'] = ROOT/'godot/tests/test_embedded_grasp_native.gd'
@@ -70,7 +72,7 @@ shutil.copyfile(build/'membrane.dll', probe/'bin/membrane.dll')
 expected = {name:sha256(probe/name) for name in intended}
 expected['bin/membrane.dll'] = manifest['artifact_sha256']
 engine = ROOT/'.tools/godot/Godot_v4.7.2-stable_win64_console.exe'
-report = {'scope':'Isolated real Godot FEM bridge and optional embedded state; no app/contact/full operation qualification.',
+report = {'scope':'Native bridge/core and optional original-material closed-blade engineering route only; no complete surgery, actual OS input, clinical, real-time, GPU or release qualification.',
           'qualified':False, 'probe':str(probe), 'inputs':inputs, 'frozen_inputs':expected,
           'build':manifest, 'engine_sha256':sha256(engine), 'stages':[]}
 destination = ROOT/'godot/reports'/('grasp-bridge-validation.json' if options.bridge_only and options.grasp else 'fem-bridge-validation.json' if options.bridge_only else 'embedded-grasp-validation.json' if options.grasp else 'embedded-native-validation.json')
@@ -79,6 +81,7 @@ if options.coupled:destination = destination.with_name('coupled-'+destination.na
 if options.curved:destination = destination.with_name('curved-'+destination.name)
 if options.trajectory:destination = destination.with_name('trajectory-'+destination.name)
 if options.operative_blade:destination = destination.with_name('operative-blade-'+destination.name)
+elif options.operative_components:destination = destination.with_name('operative-components-'+destination.name)
 destination.parent.mkdir(parents=True, exist_ok=True)
 stages = [('fresh_import', ['--editor','--import','--quit-after','35','--frame-delay','1000'], None),
           ('legacy_bridge', ['--script','res://legacy_bridge.gd'], 'Native Godot bridge: 0 failures'),
@@ -101,13 +104,14 @@ if options.trajectory:
     stages.append(('trajectory_transaction',['--script','res://tests/test_trajectory_transaction.gd'],'Trajectory step transaction: 0 failures'))
     stages.append(('trajectory_seed',['--script','res://tests/test_trajectory_seed.gd'],'Trajectory numerical seed: 0 failures'))
     stages.append(('trajectory_advance',['--script','res://trajectory_advance.gd'],'Embedded trajectory advance: 0 failures'))
-if options.operative_blade:
+if options.operative_components:
     stages.append(('binary64_incision',['--script','res://tests/test_binary64_incision.gd'],'Binary64 incision geometry: 0 failures'))
     stages.append(('operative_contract',['--script','res://tests/test_operative_embedded.gd'],'Operative embedded contract: 0 failures'))
     stages.append(('operative_cut_geometry',['--script','res://tests/test_operative_cut_geometry.gd'],'Operative cut geometry: 0 failures'))
     stages.append(('material_edge_insertion',['--script','res://tests/test_material_edge_insertion.gd'],'Material edge insertion: 0 failures'))
     stages.append(('operative_resolution_native',['--script','res://tests/test_operative_resolution_native.gd'],'Operative resolution native: 0 failures'))
-    stages.append(('operative_blade',['--script','res://tests/test_operative_blade.gd'],'Closed blade result: 0 failures'))
+if options.operative_blade:
+    stages.append(('operative_blade',['--script','res://tests/capture_operative_trajectory.gd'],'Closed blade result: 0 failures'))
 for name, arguments, marker in stages:
     log = probe/f'{name}.log'
     print(f'FEM extension {name}: {probe}', flush=True)
