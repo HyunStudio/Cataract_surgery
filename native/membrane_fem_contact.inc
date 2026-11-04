@@ -330,6 +330,9 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
             }
             if(!accepted) {status=2;break;}
             x.swap(trial);std::swap(state,next);++iterations;min_step=std::min(min_step,fraction);
+            // A failed physical-dual refinement belongs only to its old x.
+            // New accepted coordinates may now balance with valid reactions.
+            polish_tried=false;
             damping=fraction>=.5 ? std::max(1e-12,damping*.25) : std::min(1e12,damping*4.);
         }
         if(!inner_done) break;

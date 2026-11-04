@@ -1,0 +1,210 @@
+{
+  "qualified": true,
+  "scope": "Exact captured motion156 native original KKT and complete interval guard only; not engine, outer anatomy, whole surgery, real-time or release qualification.",
+  "inputs": {
+    "docs\\assets\\operative-motion156-native-case-2026-11-05.json": "3d905fa7e8741f2de0cf7fd565e3aba3945836c910175f5779f13fc56274032d",
+    "native\\tests\\replay_fem_trajectory.py": "b64a9a9113f32b8e2049374dde43f3d5f945ead2e204c1d7b57a7855ed682b02",
+    "native\\tests\\replay_seeded_trajectory.py": "bf12c175dad9aba110362c8ffd699d9a9c1cb4eba22396d3d43bc06ee8a4dcd5",
+    "native\\tests\\test_fem_trajectory.py": "141dbef58cb0f1b7626838b7b6377e1f16ea68bfac7830c1dc2df25e627623ae",
+    "tools\\qualify_motion156.py": "d215a34ec05b9a9e376e06b3c70bc18488e13ae054d436088ef46acd9efdc757"
+  },
+  "builds": {
+    ".tools\\native\\membrane_fem.dll": {
+      "artifact_sha256": "6b6d715cd49c5e516cedc8bb232f1eba43e88f156f240db6c82bbf653e59bec6",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+        "native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+        "native\\fem_trajectory_merit.h": "505cccad91654c4626bbd19254bb18a30179d6c03be69263865c48cf4f6adc8e",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "native\\membrane_fem.cpp": "8cfd2c9775c50d0e0e222cdef883b6becf807c8c8dc9654e9b5dd6a02d748a95",
+        "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+        "native\\membrane_fem_contact.inc": "efca09aab9abcb04af7ae87db159bac9dc3fc05453766c90f1f510df81457b86",
+        "tools\\build_membrane_fem.py": "85201d97c864304727b9e46ebcc689690735613e9c4c244b1100248846ca110f",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {
+        ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+      },
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-DEIGEN_MPL2_ONLY",
+        "-isystem",
+        "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "2888ccb361b4a7b45e2df8b9f7a16436ca314ed4",
+      "source_dirty": true
+    },
+    ".tools\\native\\contact_guard.dll": {
+      "artifact_sha256": "559217256a5fad5b2942fa0c27431320fa78812d8bf8c9522f3019b9fbd7e00d",
+      "sources": {
+        "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+        "native\\contact_guard.cpp": "457bd0127da0f25c2125da32d52a60437adebdd307a918ed2d581f16b6c63a61",
+        "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+        "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+        "tools\\build_contact_guard.py": "0317e85f9015598e5ed869faf27870cb71c770ec8d0e5052b8b5fc6239bb07d7",
+        "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+      },
+      "compiler": {
+        "version": "0.17.0",
+        "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+        "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+      },
+      "dependencies": {},
+      "flags": [
+        "-std=c++17",
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wpedantic",
+        "-Werror",
+        "-shared",
+        "-target",
+        "x86_64-windows-gnu"
+      ],
+      "source_revision": "f23fa4c247e28e0da21e921e4a663d82ff40a10d",
+      "source_dirty": true
+    }
+  },
+  "history": [
+    {
+      "times": [
+        0.5,
+        1.0
+      ],
+      "status": 0,
+      "stats": [
+        0.03630045583449109,
+        1.0196650453670384e-11,
+        24.0,
+        35.0,
+        26.0,
+        3.7787267770516125e-16,
+        0.25,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        7.336141891832416e-18,
+        0.0,
+        4.170879784468064e-12,
+        8.0,
+        100.0
+      ],
+      "total_iterations": 46,
+      "elapsed_seconds": 11.538994200062007,
+      "independent_kkt_passed": true,
+      "guard_status": 1,
+      "guard_stats": [
+        617.0,
+        3297.0,
+        824.0,
+        0.0,
+        -2.2197969624382363e-06,
+        32.0,
+        7.0,
+        4.0
+      ],
+      "witness_t": 0.46875
+    },
+    {
+      "times": [
+        0.46875,
+        0.5,
+        1.0
+      ],
+      "status": 0,
+      "stats": [
+        0.03631148466730552,
+        5.60203101811428e-11,
+        10.0,
+        15.0,
+        11.0,
+        2.1335389052049197e-16,
+        1.0,
+        9.5367431640625e-10,
+        0.0,
+        1.0,
+        0.0,
+        1.0670791873173522e-17,
+        3.610134929651177e-16,
+        1.8749856079354423e-15,
+        4.0,
+        10000.0
+      ],
+      "total_iterations": 56,
+      "elapsed_seconds": 7.103419399820268,
+      "independent_kkt_passed": true,
+      "guard_status": 1,
+      "guard_stats": [
+        624.0,
+        3297.0,
+        824.0,
+        0.0,
+        -2.569397139495777e-09,
+        39.0,
+        8.0,
+        4.0
+      ],
+      "witness_t": 0.4697265625
+    },
+    {
+      "times": [
+        0.46875,
+        0.4697265625,
+        0.5,
+        1.0
+      ],
+      "status": 0,
+      "stats": [
+        0.036311497492277654,
+        1.309019559414537e-11,
+        11.0,
+        20.0,
+        15.0,
+        1.0330006996423982e-10,
+        1.0,
+        2.384185791015625e-10,
+        0.0,
+        1.0,
+        0.0,
+        1.3e-322,
+        2.124238988603752e-17,
+        1.1038528640193495e-16,
+        5.0,
+        10000000.0
+      ],
+      "total_iterations": 67,
+      "elapsed_seconds": 14.76445379992947,
+      "independent_kkt_passed": true,
+      "guard_status": 0,
+      "guard_stats": [
+        714.0,
+        10660.0,
+        -1.0,
+        -1.0,
+        -1.6896206656014101e-15,
+        44.0,
+        8.0,
+        0.0
+      ],
+      "witness_t": -1.0
+    }
+  ],
+  "total_iterations": 67,
+  "elapsed_seconds": 43.98501980002038
+}

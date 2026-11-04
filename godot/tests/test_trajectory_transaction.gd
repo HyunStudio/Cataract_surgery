@@ -64,6 +64,12 @@ func _initialize()->void:
 	if recovered.valid:
 		check(backend.requests[0].xyz==backend.requests[1].xyz and backend.requests[1].budget==17 and recovered.trajectory_iterations==6,"numerical recovery keeps predictor and accounts for failed static work")
 		check(value.snapshot().steps==1 and value.snapshot().previous==before.xyz,"numerical recovery commits one history step")
+	value=model();backend=Backend.new();backend.fail_static=true;backend.failed_force=1.1889320067348663e-6;guard=Guard.new();guard.always_clear=true;before=value.snapshot()
+	recovered=value.advance_contact(1./60.,force,backend,2.,3.,motion(guard),1.,20)
+	check(recovered.valid and backend.requests.size()==2 and guard.calls==1,"finite feasible endpoint force stall above the old heuristic cap still tries one accurate cold candidate")
+	if recovered.valid:check(value.snapshot().steps==1 and backend.requests[1].xyz==backend.requests[0].xyz and recovered.trajectory_iterations==6,"larger endpoint residual cannot change the predictor, work budget or single publication")
+	value=model();backend=Backend.new();backend.fail_static=true;backend.failed_force=1.1889320067348663e-6;backend.bad_force=true;guard=Guard.new();guard.always_clear=true;before=value.snapshot()
+	check(not value.advance_contact(1./60.,force,backend,2.,3.,motion(guard),1.,20).valid and backend.requests.size()==2 and value.snapshot()==before,"retry eligibility never waives the candidate independent physical force gate")
 	value=model();backend=Backend.new();backend.fail_static=true;backend.failed_force=INF;guard=Guard.new();before=value.snapshot()
 	check(not value.advance_contact(1./60.,force,backend,2.,3.,motion(guard),1.,20).valid and backend.requests.size()==1 and value.snapshot()==before,"invalid static geometry/nonfinite residual cannot trigger numerical recovery")
 	print("Trajectory step transaction: ",failures," failures");quit(1 if failures else 0)

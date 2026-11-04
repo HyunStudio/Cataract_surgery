@@ -67,3 +67,54 @@ are terminal success. Read-only review found no substantive defect in indexing,
 state ownership/invalidation, outward arithmetic or memory bounds. This is
 component qualification; no convergence, engine, full-route or real-time claim.
 An old/cached serialized bitwise/timing replay is running on frozen DLL copies.
+
+
+The serialized old/cached replay is terminal: return code, coordinates, reactions,
+duals and every stats value match bitwise on the exact four-layer failure.
+Baseline106.5084s versus cached74.8672s (~1.42x,29.7% elapsed reduction) on this
+single input. The failure remains status2 as required for a pure optimization.
+[Artifact-bound comparison](../../assets/temporal-hull-cache-comparison-2026-11-05.json).
+This is still nowhere near real-time. It does not qualify the engine or full case.
+
+
+## Fresh physical reactions after changed coordinates
+
+The new owned sparse seed reproduces the four-layer156 failure (REDstatus2,
+force3.10494e-8,73.830s with the pure cache). Resetting polish_tried only after
+an accepted coordinate update allows the existing physical-dual refinement to
+revisit that new x. The same test is GREEN (19.083s) and independently verifies
+the original material/inertial/contact KKT, exact holds and original total budget.
+No physical parameter, energy, tolerance, SPD or publication gate changed.
+Read-only review found no correctness/boundedness/atomicity defect.
+
+[229 tests across20 native suites](../../assets/fresh-physical-reactions-numerical-2026-11-05.json)
+are terminal success. [Complete captured156 native resolution](../../assets/fresh-physical-reactions-motion156-2026-11-05.json)
+also passes: finalforce1.309019559414537e-11,67/250 total Newton steps and full
+interval guard clear. The4-layer solve itself now needs11 steps/20 evaluations,
+versus19/113 at the old rejected point. Native/controller exact predictors,
+accepted q0, dt, material law, work and pair limits remain unchanged.
+
+The controller was still preventing this cold accurate retry only because the
+failed endpoint force1.1889e-6 exceeded its1e-6 RETRY-selection heuristic. A mock
+transaction regression is REDbefore removing that upper selection cap and
+GREENafter. A companion malformed temporal-force candidate still rejects and
+rolls back. Successful candidates retain the final1e-8 native and independent
+force gates plus complete path clearance. The one cold retry shares the original
+budget and physical predictor; a failed iterate is never used as a seed.
+Read-only review found no selection loophole. Real144/146/150/156 engine-core,
+44-suite focused regressions and the full22-stage operative run are in progress.
+No outer-anatomy/full-case/real-time/GPU/Windows release conclusion follows yet.
+
+
+## Engine checkpoint verification
+
+The focused44 suites plus fresh import are terminal success.
+[Current engine regressions](../../assets/fresh-physical-reactions-regressions-2026-11-05.json).
+The actual native core checkpoint stage passes144,146,150 AND156. For156 its
+independent engine force is1.298e-11 and exactly one physical/history step is
+published after complete recorded-path clearance. Observed time37.906s remains
+far from real-time. [Core metrics](../../assets/fresh-physical-reactions-core-metrics-2026-11-05.json)
+and [frozen source/build/stage checkpoint](../../assets/fresh-physical-reactions-engine-checkpoint-2026-11-05.json)
+retain provenance. The latter is deliberately qualified:false because only21
+stages have completed and the22nd full operative route is live. It must not be
+presented as a full-route success. Fresh route/anatomy qualification is pending.
