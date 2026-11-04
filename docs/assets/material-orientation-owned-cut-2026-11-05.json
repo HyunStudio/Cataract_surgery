@@ -1,0 +1,13 @@
+{
+  "after_events": 291,
+  "after_vertices": 3936,
+  "area_error": -8.881784197001252e-16,
+  "before_events": 290,
+  "before_vertices": 3986,
+  "material_determinant": 3.048529372096961e-19,
+  "passed": true,
+  "physical_steps": 177,
+  "positive_sliver_area": 3.707244931142988e-21,
+  "scope": "Owned177-step290-event incision only; not full route, real-time or surgical completion.",
+  "triangles": 4257
+}

@@ -315,12 +315,12 @@ func _incise_prepared(patch:PackedVector3Array)->Dictionary:
 	var fine:=physical_positions()
 	var cut:Dictionary=_cutter.slice_triangle64(fine,_state.indices,patch[0],patch[1],patch[2],4096,8192)
 	if not cut.valid or not cut.changed:return cut
-	var prepared:=Refinement.prepare({"rest":_state.rest,"previous":Precision.publish(_publish(_state,_state.previous)),"anchored":_state.anchored,"removed":_state.removed,"outside":_state.outside,"indices":_state.indices,"face_areas":_state.areas},cut)
+	var transferred:=_cut_material_weights(cut)
+	if not transferred.valid:return transferred
+	var prepared:=Refinement.prepare({"rest":_state.rest,"previous":Precision.publish(_publish(_state,_state.previous)),"anchored":_state.anchored,"removed":_state.removed,"outside":_state.outside,"indices":_state.indices,"face_areas":_state.areas},cut,transferred.weights)
 	if not prepared.valid:return invalid(prepared.reason)
 	var ancestors:=PackedInt32Array()
 	for source in cut.sources:ancestors.append(_state.ancestors[source])
-	var transferred:=_cut_material_weights(cut)
-	if not transferred.valid:return transferred
 	var support:=Support.build(_state.original,_state.original_indices,prepared.rest,cut.indices,ancestors,prepared.face_areas,_state.density,transferred.weights)
 	if not support.valid:return invalid(support.reason)
 	for mass in support.mass:

@@ -22,6 +22,7 @@ SUITES.insert(0,'test_binary64_incision')
 SUITES.insert(0,'test_material_reduce')
 SUITES.insert(0,'test_exact_material')
 SUITES.insert(0,'test_material_attachment')
+SUITES.insert(0,'test_material_orientation')
 probe = Path(tempfile.mkdtemp(prefix='embedded-regressions-', dir=ROOT/'.tools'))
 sources = [ROOT/name for name in subprocess.check_output(['git','ls-files','--','godot'], cwd=ROOT, text=True).splitlines()]
 sources = sorted({p for p in sources if p.is_file()} | {ROOT/'godot/tests'/f'{name}.gd' for name in SUITES} |

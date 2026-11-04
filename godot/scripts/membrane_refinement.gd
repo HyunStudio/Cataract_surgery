@@ -1,5 +1,6 @@
 extends RefCounted
 const Precision=preload("res://scripts/membrane_precision.gd")
+const Exact=preload("res://scripts/exact_material.gd")
 ## Transactional material-state transfer for a verified geometric incision.
 ## Lumped areal mass and rest/history bindings are engineering approximations.
 static func invalid(reason:String)->Dictionary:
@@ -21,9 +22,14 @@ static func flag(values:PackedByteArray,binding:Dictionary)->int:
 ## Geometry/material preparation has no mechanical support policy. Both the
 ## existing fine-node backend and an embedded backend can consume identical
 ## retained rest areas and histories without bypassing their own mass guards.
-static func prepare(state:Dictionary,cut:Dictionary)->Dictionary:
+static func prepare(state:Dictionary,cut:Dictionary,material_rows:PackedFloat64Array=PackedFloat64Array())->Dictionary:
 	if not cut.get("valid",false):return invalid("transfer_input")
 	var size:int=cut.points.size(); var faces:int=cut.indices.size()/3
+	var physical:=not material_rows.is_empty()
+	if physical:
+		if material_rows.size()!=faces*9 or not cut.get("points64") is PackedFloat64Array or cut.points64.size()!=size*3 or not cut.get("fractions") is PackedFloat64Array or cut.fractions.size()!=faces:return invalid("material_orientation_shape")
+		for value in cut.points64:
+			if not is_finite(value) or absf(value)>16.:return invalid("transfer_state")
 	var rest:=PackedVector3Array(); var previous:=PackedVector3Array()
 	var anchored:=PackedByteArray(); var removed:=PackedByteArray(); var outside:=PackedByteArray()
 	for binding in cut.bindings:
@@ -37,12 +43,22 @@ static func prepare(state:Dictionary,cut:Dictionary)->Dictionary:
 	if not material.is_empty() and material.size()!=faces:return invalid("material_fraction_count")
 	for i in range(faces):
 		var a:int=cut.indices[i*3]; var b:int=cut.indices[i*3+1]; var c:int=cut.indices[i*3+2]; var parent:int=cut.sources[i]
-		var normal:=(rest[b]-rest[a]).cross(rest[c]-rest[a]); var area:=normal.length()*.5
-		var u:int=state.indices[parent*3]; var v:int=state.indices[parent*3+1]; var w:int=state.indices[parent*3+2]
-		var original:Vector3=(state.rest[v]-state.rest[u]).cross(state.rest[w]-state.rest[u])
-		if not is_finite(area) or area<=1e-16 or normal.dot(original)<=0.: return invalid("rest_subdivision")
-		for edge in [[a,b],[b,c],[c,a]]:
-			if rest[edge[0]].distance_to(rest[edge[1]])<=1e-8: return invalid("rest_edge_resolution")
+		var area:=0.
+		if physical:
+			# The caller composes these rows from the accepted original B before
+			# any display publication. Positive source fractions alone do not
+			# certify the orientation of that composed material triangle.
+			var orientation:=Exact.orientation(material_rows.slice(i*9,i*9+3),material_rows.slice(i*9+3,i*9+6),material_rows.slice(i*9+6,i*9+9))
+			if not orientation.valid:return invalid("material_orientation_precision")
+			if orientation.sign<=0:return invalid("material_orientation")
+			if not is_finite(state.face_areas[parent]) or state.face_areas[parent]<=0.:return invalid("material_area")
+		else:
+			var normal:=(rest[b]-rest[a]).cross(rest[c]-rest[a]);area=normal.length()*.5
+			var u:int=state.indices[parent*3]; var v:int=state.indices[parent*3+1]; var w:int=state.indices[parent*3+2]
+			var original:Vector3=(state.rest[v]-state.rest[u]).cross(state.rest[w]-state.rest[u])
+			if not is_finite(area) or area<=1e-16 or normal.dot(original)<=0.: return invalid("rest_subdivision")
+			for edge in [[a,b],[b,c],[c,a]]:
+				if rest[edge[0]].distance_to(rest[edge[1]])<=1e-8: return invalid("rest_edge_resolution")
 		var portion:float=area if material.is_empty() else material[i]
 		if not is_finite(portion) or portion<=0.:return invalid("material_fraction")
 		raw.append(portion); totals[parent]+=portion
@@ -55,7 +71,9 @@ static func prepare(state:Dictionary,cut:Dictionary)->Dictionary:
 		if totals[parent]<=0.: return invalid("material_area")
 		# Geometry fractions distribute the existing material area, rather
 		# than assigning new material or accumulating remeshing area drift.
-		var area:float=state.face_areas[parent]*(raw[i]/totals[parent]); areas.append(area)
+		var area:float=state.face_areas[parent]*(raw[i]/totals[parent])
+		if physical and (not is_finite(area) or area<=0.):return invalid("material_area_resolution")
+		areas.append(area)
 		for j in range(3): lumped[cut.indices[i*3+j]]+=area/3.
 	return {"valid":true,"reason":"","rest":rest,"previous":previous,"anchored":anchored,"removed":removed,"outside":outside,"face_areas":areas,"lumped":lumped}
 

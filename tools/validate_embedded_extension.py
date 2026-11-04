@@ -107,6 +107,7 @@ if options.trajectory:
     stages.append(('trajectory_seed',['--script','res://tests/test_trajectory_seed.gd'],'Trajectory numerical seed: 0 failures'))
     stages.append(('trajectory_advance',['--script','res://trajectory_advance.gd'],'Embedded trajectory advance: 0 failures'))
 if options.operative_components:
+    stages.append(('material_orientation',['--script','res://tests/test_material_orientation.gd'],'Original material orientation: 0 failures'))
     stages.append(('exact_material',['--script','res://tests/test_exact_material.gd'],'Exact material predicates: 0 failures'))
     stages.append(('material_reduce',['--script','res://tests/test_material_reduce.gd'],'Conservative material reduction: 0 failures'))
     stages.append(('binary64_incision',['--script','res://tests/test_binary64_incision.gd'],'Binary64 incision geometry: 0 failures'))

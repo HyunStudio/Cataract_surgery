@@ -1,4 +1,5 @@
 extends RefCounted
+const Exact=preload("res://scripts/exact_material.gd")
 ## Linear original-material bases with one virtual control per connected support
 ## star. Fine cut geometry is retained. This builds a discretization only; it is
 ## not an accepted mechanical solve or calibrated biological material model.
@@ -116,7 +117,14 @@ static func build(original:PackedVector3Array,original_indices:PackedInt32Array,
 		covered[ancestor]+=areas[face]
 		var a:Vector3=original[original_indices[ancestor*3]];var b:Vector3=original[original_indices[ancestor*3+1]];var c:Vector3=original[original_indices[ancestor*3+2]]
 		var u:Vector3=points[indices[face*3]];var v:Vector3=points[indices[face*3+1]];var w:Vector3=points[indices[face*3+2]]
-		if (v-u).cross(w-u).dot((b-a).cross(c-a))<=0.:return invalid("fine_orientation")
+		if material_weights.is_empty():
+			if (v-u).cross(w-u).dot((b-a).cross(c-a))<=0.:return invalid("fine_orientation")
+		else:
+			# Original-material rows define the rest domain. Its display proxy
+			# can flip or collapse after binary32 publication on a positive sliver.
+			var orientation:=Exact.orientation(material_weights.slice(face*9,face*9+3),material_weights.slice(face*9+3,face*9+6),material_weights.slice(face*9+6,face*9+9))
+			if not orientation.valid:return invalid("material_orientation_precision")
+			if orientation.sign<=0:return invalid("material_orientation")
 		for corner in range(3):
 			var triangle:=PackedInt32Array([original_indices[ancestor*3],original_indices[ancestor*3+1],original_indices[ancestor*3+2]])
 			var vertex:int=indices[face*3+corner]
