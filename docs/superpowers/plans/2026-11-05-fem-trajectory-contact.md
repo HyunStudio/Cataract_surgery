@@ -141,3 +141,67 @@ default-backend promotion has been performed.
   retained bridge/dynamics/grasp/contact/coupled/curved stages, exit0. This tests
   compatibility of existing entry points, not new operative trajectory wiring.
   [Native engine evidence](../../assets/fem-trajectory-engine-validation-2026-11-05.json).
+
+## Force-precision correction (supersedes the native144 rejection above)
+
+An independent80-digit planar regression reproduced a2.636779682096968e-8
+contact-force error at t=.25/rho1e7. The intermediate material plane lay between
+binary64 coordinates. Rounding that plane, then the squared distance, then
+subtracting1 from its ratio injected penalty-amplified force noise. The new test
+was RED against364cd36 before implementation. It now checks t=.25,.375,.5,1
+against the unrounded Decimal field and passes with a2e-12 force comparison.
+
+Temporal evaluation now refines the closest feature on the original affine
+binary128 field, encloses its squared distance, and subtracts1 before conversion
+to binary64. Multiplier interval uncertainty is added to the force gate; sampled
+penetration and complementarity use conservative interval endpoints. Equality
+projection uses the conservative sqrt(free-coordinate-count) error factor. This
+does not change static or t=1-only compatibility. Trajectory stats[11] now reports
+the unprojected multiplier-induced force uncertainty, previously reserved zero.
+
+Accurate activation exposed an existing high-penalty coordinate-quantization
+floor in the two-body held/pinned regression. At an already feasible near-
+equilibrium point, a bounded optional correction solves for physical multipliers
+in the hold-nullspace. It adjusts no material coordinates, predictor or timestep.
+Negative/nonfinite proposals reject; a fresh full evaluation must satisfy every
+original force/gap/COMP condition, followed by the unchanged final SPD check.
+The proposal handles at most128 active multipliers once per outer iteration;
+larger/failed proposals retain the existing Newton path. QR and full-evaluation
+work is counted. No acceptance threshold or iteration budget was increased.
+
+The exact captured144 native replay now passes at times[.25,.375,.5,1], using
+92 cumulative Newton iterations across all four retries, within the original250.
+Final original force9.95536080143217e-9, sampled penetration1.36972e-17,
+COMP4.93879e-17; full interval guard status0 (nearest sampled gap-6.09936e-11,
+within the existing1e-9 clearance contract). The failed endpoint and intermediate
+candidates remain unpublished. Independent NumPy original-material KKT, SciPy
+recorded poses, fine-face distances and the complete interval guard all pass in
+the new exact-capture regression. All11 focused trajectory tests pass,47.241s
+including that captured problem. This is not real-time throughput qualification.
+
+A read-only independent reviewer found no substantive issue in the refined
+multiplier sign, hold-nullspace projection, conservative uncertainty gates or
+post-proposal physical acceptance. The controller still uses the old static
+entry point: no additional accepted live operative tick is claimed yet.
+
+Next implement the planned Godot connection with its own RED regressions:
+expose the typed trajectory request, independently sample recorded scalar-double
+poses (no Float32 Quaternion round-trip), accumulate t-weighted sampled forces,
+and retry the same accepted state/predictor/dt on complete-guard witnesses.
+Bound total retry work and reject t0/duplicate/exhausted witnesses atomically.
+Re-run the identical actual blade route; preserve outer anatomy and transaction
+acceptance. Finite-jaw interaction, full input cases, real-time/GPU and Windows
+delivery remain completion requirements.
+
+Final force-correction qualification:
+
+- Source-bound numerical qualification:216/216 tests across17 suites/nine DLLs,
+  exit0, including the exact captured material KKT plus full motion guard.
+  [Numerical evidence](../../assets/fem-trajectory-force-numerical-2026-11-05.json).
+- The same frozen native extension compatibility probe passed11/11 stages,
+  exit0, probepifh4hxo. [Bridge evidence](../../assets/fem-trajectory-force-engine-2026-11-05.json).
+- Bounded native witness replay passes without controller state publication.
+  [Captured-motion evidence](../../assets/fem-trajectory144-force-validation-2026-11-05.json).
+- Previous364cd36 Windows native CI41881944062 and Python CI41881944140 both
+  succeeded. This does not waive the earlier default Godot blade failure, or
+  qualify the not-yet-connected trajectory controller.

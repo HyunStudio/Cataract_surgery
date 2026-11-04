@@ -11,7 +11,7 @@ import test_fp_environment as environment
 from test_contact_guard import linear
 from test_trajectory_contact import sample
 from replay_fem_contact import replay as static_replay
-from replay_fem_trajectory import replay
+from replay_fem_trajectory import replay,publish,guard
 from decimal_distance_reference import contact_merit
 
 LIB=fem.ROOT/'.tools/native/membrane_fem.dll'
@@ -44,12 +44,18 @@ class FEMTrajectoryTests(unittest.TestCase):
         packets=np.array(packets).reshape(-1,41);multipliers=dual.reshape(len(times),len(faces),len(kinds))
         for layer,t in enumerate(times):
             posed=(1-t)*old+t*q
+            segments=[sample(packet,t) if kinds[body] else ((1-t)*packet[:6]+t*packet[6:12]).reshape(2,3) for body,packet in enumerate(packets)]
             for face,(ids,shape) in enumerate(zip(faces,shapes)):
                 shape=shape/shape.sum(axis=1)[:,None]
+                triangle=shape@posed[ids]
                 for body,packet in enumerate(packets):
-                    segment=sample(packet,t) if kinds[body] else ((1-t)*packet[:6]+t*packet[6:12]).reshape(2,3)
+                    segment=segments[body]
                     capsule=np.r_[segment.ravel(),packet[12]];u=multipliers[layer,face,body]
-                    sq,w,delta=contact.FEMContactTests.closest(capsule,shape@posed[ids])
+                    # Independent far-pair separation; the generous positive
+                    # margin avoids using rounded near-contact AABBs as proof.
+                    box=np.maximum(0.,np.maximum(triangle.min(axis=0)-segment.max(axis=0),segment.min(axis=0)-triangle.max(axis=0)))
+                    if u==0. and np.linalg.norm(box)>packet[12]+1e-10:continue
+                    sq,w,delta=contact.FEMContactTests.closest(capsule,triangle)
                     self.assertGreaterEqual(u,0.);self.assertGreaterEqual(math.sqrt(sq)-packet[12],-1e-9)
                     self.assertLessEqual(abs(u*(sq/packet[12]**2-1.)),1e-11)
                     force[ids]-=u*t*(shape.T@(2*w[:,None]*delta))/packet[12]**2
@@ -61,6 +67,15 @@ class FEMTrajectoryTests(unittest.TestCase):
         packet=[0.,-1.,0.]*2+[0.,1.,0.]*2+[.1]+[0.]*6+[0.,0.,-h,h,0.,0.,h,h]+[1.,0.,0.]*4+[0.,1.]
         result=replay(p,old,[1],packet,[.5,1.],LIB);self.verify(p,old,[1],packet,[.5,1.],result)
         self.assertGreater(np.max(abs(result[1]-old)),.01)
+
+    def test_actual_operative144_satisfies_material_kkt_and_complete_motion_guard(self):
+        fixture=json.loads((fem.ROOT/'native/tests/fixtures/operative_motion144.json').read_text())
+        old=json.loads((fem.ROOT/'native/tests/fixtures/operative_motion144_controls.json').read_text())['xyz']
+        p=fixture['fem_request'];motion=fixture['guard_request'];times=[.25,.375,.5,1.]
+        result=replay(p,old,motion['kinds'],motion['packets'],times,LIB)
+        self.verify(p,old,motion['kinds'],motion['packets'],times,result)
+        code,stats,_=guard(motion,publish(result[1],p,motion['triangles']),fem.ROOT/'.tools/native/contact_guard.dll')
+        self.assertEqual(code,0,stats)
 
     def test_contact_time_gradient_and_hessian_match_independent_merit(self):
         probe=ct.CDLL(str(fem.ROOT/'.tools/native/contact_activity_probe.dll')).fem_time_contact_probe
@@ -108,6 +123,24 @@ class FEMTrajectoryTests(unittest.TestCase):
                     expected=contact_merit(body[:6],face(arrays[2]),body[6],data['dual'],data['rho'])-contact_merit(body[:6],face(arrays[1]),body[6],data['dual'],data['rho'])
                     self.assertLessEqual(d(float(out[0])),expected);self.assertGreaterEqual(d(float(out[1])),expected)
                 self.assertLess(out[1]-out[0],1e-22)
+
+    def test_high_penalty_force_uses_unrounded_intermediate_gap(self):
+        probe=ct.CDLL(str(fem.ROOT/'.tools/native/contact_activity_probe.dll')).fem_time_contact_probe
+        probe.argtypes=[fem.D]*4+[ct.c_double]*3+[fem.D]*2;probe.restype=ct.c_int
+        for t in [.25,.375,.5,1.]:
+            old=np.array([[0.,.5,0.],[1.,.5,0.],[0.,.5,1.]])
+            end=old.copy();end[:,1]=math.nextafter(.5,1.)
+            body=np.array([.3,.6,.3,.3,.6,.3,.1]);shape=np.array([[.8,.1,.1],[.1,.8,.1],[.1,.1,.8]])
+            arrays=[np.ascontiguousarray(v,dtype=np.float64) for v in [old,end,body,shape]]
+            g=np.full(9,123.);h=np.full(81,123.)
+            self.assertEqual(probe(*(v.ctypes.data_as(fem.D) for v in arrays),t,.01,1e7,g.ctypes.data_as(fem.D),h.ctypes.data_as(fem.D)),0)
+            with localcontext() as context:
+                context.prec=80;d=Decimal.from_float
+                height=d(.5)+d(t)*(d(float(end[0,1]))-d(.5));distance=d(.6)-height
+                r2=d(.1*.1);gap=distance*distance/r2-1
+                multiplier=max(Decimal(0),d(.01)-d(1e7)*gap)
+                expected=float(multiplier*d(t)*2*distance/r2)
+            self.assertAlmostEqual(float(g.reshape(3,3)[:,1].sum()),expected,delta=2e-12,msg=f't={t}')
 
     def test_endpoint_only_preserves_static_candidate(self):
         p=self.request();packet=linear([1.,0.,0.],[1.,0.,0.],.1);p['capsules']=packet[6:13]

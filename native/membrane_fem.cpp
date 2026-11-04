@@ -3,6 +3,7 @@
 #include "membrane_fem.h"
 #include <Eigen/SparseCholesky>
 #include <Eigen/Cholesky>
+#include <Eigen/QR>
 #include <algorithm>
 #include "embedded_contact.h"
 #include "contact_merit_difference.h"

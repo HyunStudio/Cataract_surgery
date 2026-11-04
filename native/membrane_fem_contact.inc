@@ -2,7 +2,7 @@
 // original energy, sparse cell factors and equality machinery. Static candidate
 // only: a separate whole-interval guard is mandatory before engine acceptance.
 struct ContactState {
-    double energy=0.,penetration=0.,complementarity=0.;
+    double energy=0.,penetration=0.,complementarity=0.,force_error=0.;
     Vec gradient,blocks,updated;
 };
 struct FineContacts {
@@ -28,11 +28,12 @@ struct FineContacts {
                 (w[1]*(static_cast<long double>(controls[3+a])-controls[a])+w[2]*(static_cast<long double>(controls[6+a])-controls[a]))/sum);
         }
     }
-    bool evaluate(const Problem& problem,const Vec& x,const Vec& dual,double rho,ContactState& out) const {
-        out.penetration=out.complementarity=0.;
+    bool evaluate(const Problem& problem,const Vec& x,const Vec& dual,double rho,ContactState& out,bool physical_dual=false) const {
+        out.penetration=out.complementarity=out.force_error=0.;
         if(!problem.evaluate(x,out.energy,out.gradient,&out.blocks)) return false;
         const size_t offset=out.blocks.size();out.blocks.resize(offset+size_t(pairs())*81,0.);
         out.updated.resize(pairs());
+        Vec uncertainty(previous ? x.size() : 0,0.);
         for(int p=0;p<pairs();++p) {
             double controls[9],triangle[9];local(x,p,controls,triangle);
             const double* capsule=body(p);const double r2=capsule[6]*capsule[6];
@@ -41,12 +42,39 @@ struct FineContacts {
 #endif
             const auto query=membrane::contact::distance(capsule,triangle,capsule[6]);
             if(query.status!=0 && query.status!=3) return false;
-            const double g=query.values[0]/r2-1.,u=std::max(0.,dual[p]-rho*g);
+            double g=query.values[0]/r2-1.,u=std::max(0.,dual[p]-rho*g),u_error=0.;
             if(!std::isfinite(g) || !std::isfinite(u)) return false;
+            if(previous) {
+                double old[9],end[9];const int face=face_index(p);
+                for(int j=0;j<3;++j) for(int axis=0;axis<3;++axis) {
+                    const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=previous[k];end[j*3+axis]=x[k];
+                }
+                // The full geometry query above remains mandatory. This strict
+                // unrounded hull certificate only avoids refining a known-zero
+                // PHR multiplier; it never clears the complete physical path.
+                if(!physical_dual && u==0. && membrane::fem_trajectory_merit::inactive(old,end,end,time(p),capsule,capsule[6],dual[p],rho)) {
+                    out.updated[p]=0.;continue;
+                }
+                membrane::merit::Interval bounded_gap,separation;
+                if(!membrane::fem_trajectory_merit::gap(old,end,weights+face*9,time(p),capsule,capsule[6],query,bounded_gap,separation)) return false;
+                namespace m=membrane::merit;
+                const auto multiplier=physical_dual ? m::Interval(dual[p]) : m::positive(m::Interval(dual[p])-m::Interval(rho)*bounded_gap);
+                g=static_cast<double>((bounded_gap.lo+bounded_gap.hi)/2);
+                u=static_cast<double>((multiplier.lo+multiplier.hi)/2);
+                const auto error=multiplier-m::Interval(u);
+                const auto radius=std::max(-error.lo,error.hi);
+                u_error=multiplier.hi==0 || radius==0 ? 0. : m::upper_double(m::Interval(0,radius));
+                const auto comp=multiplier*bounded_gap;
+                out.complementarity=std::max(out.complementarity,m::upper_double(m::Interval(0,std::max(-comp.lo,comp.hi))));
+                out.penetration=std::max(out.penetration,m::upper_double(m::Interval(capsule[6])-separation));
+                if(!std::isfinite(g) || !std::isfinite(u) || !std::isfinite(u_error)) return false;
+            }
             out.updated[p]=u;
-            out.penetration=std::max(out.penetration,-query.values[1]);
-            out.complementarity=std::max(out.complementarity,std::abs(u*g));
-            if(u==0.) continue; // inactive ties need no ordinary Hessian
+            if(!previous) {
+                out.penetration=std::max(out.penetration,-query.values[1]);
+                out.complementarity=std::max(out.complementarity,std::abs(u*g));
+            }
+            if(u==0. && u_error==0.) continue; // certified inactive ties need no ordinary Hessian
             const int face=face_index(p);const double t=time(p);
             const auto exact=membrane::embedded_contact::distance(capsule,controls,weights+face*9,capsule[6]);
             if(exact.status!=0) return false;
@@ -54,6 +82,10 @@ struct FineContacts {
                 const int k=nodes[face*3+i/3]*3+i%3;
                 const double ji=exact.gradient[i]/r2;
                 if(problem.mass[k/3]>0.) out.gradient[k]-=previous ? u*t*ji : u*ji;
+                if(previous && problem.mass[k/3]>0.) {
+                    const auto bound=membrane::merit::Interval(u_error)*membrane::merit::Interval(std::abs(t*ji));
+                    uncertainty[k]=std::nextafter(uncertainty[k]+membrane::merit::upper_double(bound),std::numeric_limits<double>::infinity());
+                }
                 for(int j=0;j<9;++j) {
                     double block=-u*exact.hessian[i*9+j]/r2+rho*ji*exact.gradient[j]/r2;
                     if(previous) block*=t*t;
@@ -63,6 +95,7 @@ struct FineContacts {
         }
         for(double value:out.gradient) if(!std::isfinite(value)) return false;
         for(double value:out.blocks) if(!std::isfinite(value)) return false;
+        for(double value:uncertainty) {if(!std::isfinite(value)) return false;out.force_error=std::max(out.force_error,value);}
         return true;
     }
     bool difference(const Problem& problem,const Vec& x,const Vec& y,const Vec& dual,double rho,
@@ -179,13 +212,54 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         // Early infeasible AL models need only inexact minimization. This is
         // not acceptance: the original final force tolerance is checked below.
         const double inner_tolerance=(state.penetration>gap_tolerance || state.complementarity>comp_tolerance) ? std::max(tolerance,1e-6) : tolerance;
-        bool inner_done=false;
+        bool inner_done=false,polish_tried=false;
         for(;;) {
             for(int j=0;j<size;++j) {q[j]=x[free[j]];gf[j]=state.gradient[free[j]];}
             balance=gf;
             if(rows) {hold=-gram_factor.solve(a*gf);balance+=a.transpose()*hold;rhs_gap=target-a*q;gap=rhs_gap.lpNorm<Eigen::Infinity>();}
-            force=size ? balance.lpNorm<Eigen::Infinity>() : 0.;
+            // Equality projection is nonexpansive in2-norm, not infinity norm.
+            force=size ? balance.lpNorm<Eigen::Infinity>()+state.force_error*(rows ? std::sqrt(double(size)) : 1.) : 0.;
             if(!std::isfinite(force) || !std::isfinite(gap) || !hold.allFinite()) {status=2;break;}
+            // At a feasible material point, solve for physical multipliers
+            // directly instead of amplifying coordinate rounding by another
+            // penalty step. The proposed duals get a fresh full evaluation;
+            // every original acceptance gate, including final SPD, still applies.
+            if(previous && !polish_tried && force>tolerance && force<=std::max(tolerance,1e-6) &&
+               gap<=gap_tolerance && state.penetration<=gap_tolerance && state.complementarity<=comp_tolerance) {
+                polish_tried=true;std::vector<int> active;
+                for(int p=0;p<contacts.pairs();++p) if(state.updated[p]>0.) active.push_back(p);
+                if(!active.empty() && active.size()<=128) {
+                    Eigen::MatrixXd jac=Eigen::MatrixXd::Zero(size,active.size());bool valid=true;
+                    for(size_t column=0;column<active.size();++column) {
+                        const int p=active[column],face=contacts.face_index(p);double controls[9],triangle[9];contacts.local(x,p,controls,triangle);
+                        const double* body=contacts.body(p);const double r2=body[6]*body[6];
+                        const auto exact=membrane::embedded_contact::distance(body,controls,face_weights+face*9,body[6]);
+                        if(exact.status!=0) {valid=false;break;}
+                        for(int j=0;j<9;++j) {const int k=map[face_nodes[face*3+j/3]*3+j%3];
+                            if(k>=0) jac(k,column)+=contacts.time(p)*exact.gradient[j]/r2;}
+                    }
+                    if(valid && jac.allFinite()) {
+                        if(rows) jac-=a.transpose()*gram_factor.solve(a*jac).eval();
+                        ++factors;const Eigen::VectorXd correction=jac.completeOrthogonalDecomposition().solve(balance);
+                        Vec physical=state.updated;
+                        if(!correction.allFinite()) valid=false;
+                        else for(size_t j=0;j<active.size();++j) {physical[active[j]]+=correction[j];
+                            if(!std::isfinite(physical[active[j]]) || physical[active[j]]<0.) valid=false;}
+                        ContactState polished;
+                        if(valid) {++evaluations;valid=contacts.evaluate(problem,x,physical,rho,polished,true);}
+                        if(valid) {
+                            Eigen::VectorXd pg(size),ph=Eigen::VectorXd::Zero(rows),pb;
+                            for(int j=0;j<size;++j) pg[j]=polished.gradient[free[j]];
+                            pb=pg;if(rows) {ph=-gram_factor.solve(a*pg);pb+=a.transpose()*ph;}
+                            const double pf=pb.lpNorm<Eigen::Infinity>()+polished.force_error*(rows?std::sqrt(double(size)):1.);
+                            if(std::isfinite(pf) && ph.allFinite() && pf<=tolerance &&
+                               polished.penetration<=gap_tolerance && polished.complementarity<=comp_tolerance) {
+                                state=std::move(polished);balance=pb;hold=ph;force=pf;inner_done=true;break;
+                            }
+                        }
+                    }
+                }
+            }
             if(force<=inner_tolerance && gap<=gap_tolerance) {inner_done=true;break;}
             if(iterations>=budget) break;
             for(int k=0;k<n*3;++k) metric[k]=problem.mass[k/3]>0. ? problem.mass[k/3] : 1.;
@@ -251,7 +325,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         last_violation=violation;
     }
     stats[0]=state.energy;stats[1]=force;stats[2]=iterations;stats[3]=evaluations;stats[4]=factors;stats[5]=linear;
-    stats[6]=min_step;stats[7]=damping;stats[8]=gap;stats[9]=hold_rho;stats[10]=projection_gap;stats[11]=0.;
+    stats[6]=min_step;stats[7]=damping;stats[8]=gap;stats[9]=hold_rho;stats[10]=projection_gap;stats[11]=state.force_error;
     stats[12]=state.penetration;stats[13]=state.complementarity;stats[14]=outer;stats[15]=rho;
     if(status==0) {std::copy(x.begin(),x.end(),output);if(rows) std::copy(hold.data(),hold.data()+rows,reaction);std::copy(state.updated.begin(),state.updated.end(),contact_dual);}
     return status;

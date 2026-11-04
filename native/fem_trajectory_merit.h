@@ -68,6 +68,16 @@ inline m::Interval fixed(const Face& delta,m::Parameters q,const m::Witness& old
     const auto moved=m::point(delta,q);
     return m::Interval(2)*m::dot(old.normal,moved)+m::norm2(moved);
 }
+// Preserve the small normalized gap before binary64 conversion. Subtracting1
+// from an already rounded squared-distance ratio injects rho-scaled force noise.
+inline bool gap(const double* previous,const double* end,const double* shape,double time,
+                const double* axis,double radius,const membrane::contact::Result& query,m::Interval& result,m::Interval& separation) {
+    const auto face=posed(previous,end,shape,time);m::Parameters q;
+    if(!parameters(axis,face,query,q)) return false;
+    const auto squared=m::squared_bounds(witness(axis,face,q));
+    result=m::divide(squared,m::Interval(radius*radius))-m::Interval(1);
+    return m::finite(result) && m::root(squared,separation);
+}
 inline bool contact_change(const double* previous,const double* before,const double* after,const double* shape,double time,
                            const double* axis,double radius,double dual,double rho,m::Interval& result) {
     membrane::numeric::Scope environment;
