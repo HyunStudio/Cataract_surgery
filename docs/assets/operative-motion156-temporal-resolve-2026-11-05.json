@@ -1,0 +1,126 @@
+{
+  "qualified": false,
+  "scope": "Exact motion156 native candidates plus independent original KKT and full guard; not engine, outer anatomy, full route, real-time or release qualification.",
+  "inputs": {
+    "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\docs\\assets\\operative-motion156-native-case-2026-11-05.json": "3d905fa7e8741f2de0cf7fd565e3aba3945836c910175f5779f13fc56274032d",
+    "native\\tests\\replay_fem_trajectory.py": "b64a9a9113f32b8e2049374dde43f3d5f945ead2e204c1d7b57a7855ed682b02",
+    "native\\tests\\replay_seeded_trajectory.py": "bf12c175dad9aba110362c8ffd699d9a9c1cb4eba22396d3d43bc06ee8a4dcd5",
+    "native\\tests\\test_fem_trajectory.py": "141dbef58cb0f1b7626838b7b6377e1f16ea68bfac7830c1dc2df25e627623ae",
+    "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\native\\membrane_fem.dll": "87b80a787c945da7473d085a7ca267a236c53a11f4e14525f9e914c7449ff0e2",
+    "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\native\\contact_guard.dll": "559217256a5fad5b2942fa0c27431320fa78812d8bf8c9522f3019b9fbd7e00d"
+  },
+  "history": [
+    {
+      "times": [
+        0.5,
+        1.0
+      ],
+      "status": 0,
+      "stats": [
+        0.03630045583449109,
+        1.0196650453670384e-11,
+        24.0,
+        35.0,
+        26.0,
+        3.7787267770516125e-16,
+        0.25,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        7.336141891832416e-18,
+        0.0,
+        4.170879784468064e-12,
+        8.0,
+        100.0
+      ],
+      "total_iterations": 46,
+      "elapsed_seconds": 15.911049999995157,
+      "independent_kkt_passed": true,
+      "guard_status": 1,
+      "guard_stats": [
+        617.0,
+        3297.0,
+        824.0,
+        0.0,
+        -2.2197969624382363e-06,
+        32.0,
+        7.0,
+        4.0
+      ],
+      "witness_t": 0.46875
+    },
+    {
+      "times": [
+        0.46875,
+        0.5,
+        1.0
+      ],
+      "status": 0,
+      "stats": [
+        0.03631148466730552,
+        5.60203101811428e-11,
+        10.0,
+        15.0,
+        11.0,
+        2.1335389052049197e-16,
+        1.0,
+        9.5367431640625e-10,
+        0.0,
+        1.0,
+        0.0,
+        1.0670791873173522e-17,
+        3.610134929651177e-16,
+        1.8749856079354423e-15,
+        4.0,
+        10000.0
+      ],
+      "total_iterations": 56,
+      "elapsed_seconds": 9.872482199920341,
+      "independent_kkt_passed": true,
+      "guard_status": 1,
+      "guard_stats": [
+        624.0,
+        3297.0,
+        824.0,
+        0.0,
+        -2.569397139495777e-09,
+        39.0,
+        8.0,
+        4.0
+      ],
+      "witness_t": 0.4697265625
+    },
+    {
+      "times": [
+        0.46875,
+        0.4697265625,
+        0.5,
+        1.0
+      ],
+      "status": 2,
+      "stats": [
+        0.0363114974924139,
+        3.104943595673991e-08,
+        19.0,
+        113.0,
+        22.0,
+        1.3810108021972245e-15,
+        0.00048828125,
+        9.765625e-07,
+        0.0,
+        1.0,
+        0.0,
+        4.548316002381653e-17,
+        5.285004453031021e-18,
+        2.7708076623601036e-17,
+        5.0,
+        10000000.0
+      ],
+      "total_iterations": 75,
+      "elapsed_seconds": 107.397521100007
+    }
+  ],
+  "elapsed_seconds": 138.80342729995027,
+  "total_iterations": 75
+}
