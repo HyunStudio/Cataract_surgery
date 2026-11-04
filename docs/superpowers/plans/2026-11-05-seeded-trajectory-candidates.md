@@ -94,3 +94,30 @@ not sparse factorization. A next bounded optimization can cache the same origina
 control/time/candidate hull across bodies and merit comparisons while preserving
 every full geometry query and every final gate. It must retain source-bound
 bitwise/FP/physical regressions and be measured on these exact saved states.
+
+
+## Terminal full-route observation
+
+The frozen repeat is terminal:20 of21 stages pass, and the final operative blade
+route fails. It advances from the former149 accepted physical ticks to154, then
+rejects the next incision with `blade_degenerate_face`. This is not a complete
+closed route. No product inputs changed during validation.
+
+The first rejected incision checkpoint has154 accepted steps and212 staged cut
+events. Face1810, vertices1023/1025/1021, has positive original material area
+5.7564156304933116e-11 and current binary64 physical area5.7564153427681256e-11.
+Its published binary32 display vertices are exactly collinear (area0), and the
+cutter receives that display proxy. Thus a physically positive sliver becomes a
+zero-area input to the next cut. Do not skip/drop it, widen tolerances or erase
+material to pass. Preserve the actual binary64 material geometry through cutting,
+with explicit topology/winding/area/provenance validation, then replay this exact
+state before another full route. This diagnosis does not yet implement that fix.
+
+- [Full21-stage report (qualified false)](../../assets/seeded-trajectory-full-route-2026-11-05.json)
+- [Full-route log](../../assets/seeded-trajectory-full-route-2026-11-05.txt)
+- [Exact next-incision geometry and fixture hash](../../assets/operative-motion155-cut-summary-2026-11-05.json)
+- Owned binary checkpoint: `godot/tests/fixtures/operative-motion155-cut-state.bin`.
+
+The initial numerical/bridge implementation and its green component evidence
+were committed and pushed as8bfd393. The final route result supersedes the
+in-progress wording above. Main/release/default backend remain unchanged.

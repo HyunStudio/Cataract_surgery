@@ -1,0 +1,33 @@
+{
+  "display_area": 0.0,
+  "events": 212,
+  "face": 1810,
+  "failure": "degenerate_face",
+  "indices": [
+    1023,
+    1025,
+    1021
+  ],
+  "physical_area": 5.7564153427681256e-11,
+  "physical_points": [
+    [
+      0.3183777264711941,
+      0.4552728047208582,
+      0.469767304940897
+    ],
+    [
+      0.3275560558799335,
+      0.4551676272477041,
+      0.4637006211618173
+    ],
+    [
+      0.3367343505939624,
+      0.4550624536587914,
+      0.45763394851565503
+    ]
+  ],
+  "retained_material_area": 5.7564156304933116e-11,
+  "scope": "Saved first incision rejection after154 accepted physical ticks; no full-route qualification.",
+  "steps": 154,
+  "fixture_sha256": "1717814d499cac604513e4173f99edb7925f103955875eea68f9f950fa661b8b"
+}
