@@ -18,6 +18,8 @@ extern "C" int membrane_fem_solve_contact(int,double*,const double*,int,const in
                                         int,const int*,const double*,const double*,double*,int,const int*,const double*,int,const double*,double*,double*);
 extern "C" int membrane_fem_solve_trajectory(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,double,
     int,const int*,const double*,const double*,double*,int,const int*,const double*,int,const int*,const double*,const double*,int,const double*,double*,double*);
+extern "C" int membrane_fem_solve_trajectory_seeded(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,double,
+    int,const int*,const double*,const double*,double*,int,const int*,const double*,int,const int*,const double*,const double*,int,const double*,double*,double*,const double*,const double*,double);
 extern "C" int membrane_solve_contact(int,const double*,double*,const double*,int,const int*,const int*,
     const double*,double,int,const int*,int,const double*,int,double,double,double,double*,double*);
 extern "C" int membrane_guard_motion(int,const double*,const double*,int,const int*,int,const int*,
@@ -54,11 +56,13 @@ protected:
         ClassDB::bind_method(D_METHOD("contact_fem","request"),&MembraneFEMKernel::contact_fem);
         ClassDB::bind_method(D_METHOD("solve_contact_fem","request"),&MembraneFEMKernel::solve_contact_fem);
         ClassDB::bind_method(D_METHOD("solve_trajectory_fem","request"),&MembraneFEMKernel::solve_trajectory_fem);
+        ClassDB::bind_method(D_METHOD("solve_seeded_trajectory_fem","request"),&MembraneFEMKernel::solve_seeded_trajectory_fem);
     }
 public:
     Dictionary solve_contact_fem(const Dictionary& request) {return contact_candidate(request,false);}
     Dictionary solve_trajectory_fem(const Dictionary& request) {return contact_candidate(request,true);}
-    Dictionary contact_candidate(const Dictionary& request,bool trajectory) {
+    Dictionary solve_seeded_trajectory_fem(const Dictionary& request) {return contact_candidate(request,true,true);}
+    Dictionary contact_candidate(const Dictionary& request,bool trajectory,bool seeded=false) {
         PackedFloat64Array result,reaction,dual,stats;stats.resize(16);stats.fill(0.);
         for(int k:{0,1,8,12,13}) stats.set(k,std::numeric_limits<double>::infinity());
         if(request.has("xyz") && request["xyz"].get_type()==Variant::PACKED_FLOAT64_ARRAY) result=request["xyz"];
@@ -73,20 +77,32 @@ public:
                 if(!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
             if(!request.has("kinds") || request["kinds"].get_type()!=Variant::PACKED_INT32_ARRAY) valid=false;
         } else if(!request.has("capsules") || request["capsules"].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+        if(seeded) {
+            for(const char* key:{"initial","multiplier_seed"})
+                if(!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+            if(!real(request,"penalty_seed")) valid=false;
+        }
         int status=-1;
         if(valid) {
             PackedFloat64Array inverse=request["inverse"],gradients=request["gradients"],areas=request["areas"],weights=request["grip_weights"],targets=request["targets"],face_weights=request["face_weights"],capsules,previous,times,packets;
             PackedInt32Array nodes=request["nodes"],grip_nodes=request["grip_nodes"],face_nodes=request["face_nodes"];int64_t budget=request["budget"];
-            PackedInt32Array kinds;int64_t bodies=0,layers=1;
+            PackedInt32Array kinds;PackedFloat64Array initial,multiplier_seed;int64_t bodies=0,layers=1;
             if(trajectory) {previous=request["previous"];times=request["times"];packets=request["packets"];kinds=request["kinds"];bodies=kinds.size();layers=times.size();}
             else {capsules=request["capsules"];bodies=capsules.size()/7;}
             valid=inverse.size()==result.size()/3 && targets.size()%3==0 && targets.size()<=6 && grip_nodes.size()==targets.size() && weights.size()==targets.size() &&
                 face_nodes.size()%3==0 && face_nodes.size()/3<=8192 && face_weights.size()==face_nodes.size()*3 && bodies<=64 && layers>=1 && layers<=16 &&
                 (face_nodes.size()/3)*bodies*layers<=65536 && budget>=0 && budget<=1000 &&
                 (trajectory ? previous.size()==result.size() && packets.size()==bodies*41 : capsules.size()%7==0);
+            if(seeded) {initial=request["initial"];multiplier_seed=request["multiplier_seed"];
+                valid=valid && initial.size()==result.size() && multiplier_seed.size()==(face_nodes.size()/3)*bodies*layers;}
             if(valid) {
                 PackedFloat64Array next_reaction,next_dual;next_reaction.resize(targets.size());next_dual.resize((face_nodes.size()/3)*bodies*layers);
-                if(trajectory) status=membrane_fem_solve_trajectory(static_cast<int>(inverse.size()),result.ptrw(),inverse.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
+                if(seeded) status=membrane_fem_solve_trajectory_seeded(static_cast<int>(inverse.size()),result.ptrw(),inverse.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
+                    static_cast<double>(request["mu"]),static_cast<double>(request["lambda"]),static_cast<double>(request["dt"]),static_cast<int>(budget),
+                    static_cast<double>(request["force_tolerance"]),static_cast<double>(request["gap_tolerance"]),static_cast<double>(request["complementarity_tolerance"]),
+                    static_cast<int>(targets.size()/3),grip_nodes.ptr(),weights.ptr(),targets.ptr(),next_reaction.ptrw(),static_cast<int>(face_nodes.size()/3),face_nodes.ptr(),face_weights.ptr(),
+                    static_cast<int>(bodies),kinds.ptr(),packets.ptr(),previous.ptr(),static_cast<int>(layers),times.ptr(),next_dual.ptrw(),stats.ptrw(),initial.ptr(),multiplier_seed.ptr(),static_cast<double>(request["penalty_seed"]));
+                else if(trajectory) status=membrane_fem_solve_trajectory(static_cast<int>(inverse.size()),result.ptrw(),inverse.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
                     static_cast<double>(request["mu"]),static_cast<double>(request["lambda"]),static_cast<double>(request["dt"]),static_cast<int>(budget),
                     static_cast<double>(request["force_tolerance"]),static_cast<double>(request["gap_tolerance"]),static_cast<double>(request["complementarity_tolerance"]),
                     static_cast<int>(targets.size()/3),grip_nodes.ptr(),weights.ptr(),targets.ptr(),next_reaction.ptrw(),static_cast<int>(face_nodes.size()/3),face_nodes.ptr(),face_weights.ptr(),

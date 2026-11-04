@@ -4,16 +4,24 @@ from pathlib import Path
 import numpy as np
 from test_membrane_fem import D,I
 
-def replay(request,previous,kinds,packets,times,library):
-    lib=ct.CDLL(str(Path(library).resolve()));fn=lib.membrane_fem_solve_trajectory
+def replay(request,previous,kinds,packets,times,library,initial=None,multiplier_seed=None,penalty_seed=1.):
+    seeded=initial is not None or multiplier_seed is not None
+    lib=ct.CDLL(str(Path(library).resolve()));fn=getattr(lib,'membrane_fem_solve_trajectory_seeded' if seeded else 'membrane_fem_solve_trajectory')
     fn.argtypes=[ct.c_int,D,D,ct.c_int,I,D,D,ct.c_double,ct.c_double,ct.c_double,ct.c_int,
                  ct.c_double,ct.c_double,ct.c_double,ct.c_int,I,D,D,D,ct.c_int,I,D,
                  ct.c_int,I,D,D,ct.c_int,D,D,D]
+    if seeded:fn.argtypes += [D,D,ct.c_double]
     fn.restype=ct.c_int
     fields={k:np.ascontiguousarray(v,dtype=np.int32 if k in ('nodes','grip_nodes','face_nodes') else np.float64)
             for k,v in request.items() if isinstance(v,list)}
     for k,v in [('old',previous),('packets',packets),('times',times)]:fields[k]=np.ascontiguousarray(v,dtype=np.float64)
     fields['kinds']=np.ascontiguousarray(kinds,dtype=np.int32)
+    extra=[]
+    if seeded:
+        for name,value in [('initial',initial),('multiplier_seed',multiplier_seed)]:
+            fields[name]=np.ascontiguousarray(value,dtype=np.float64) if value is not None else None
+            extra.append(fields[name].ctypes.data_as(D) if fields[name] is not None else None)
+        extra.append(penalty_seed)
     x=fields['xyz'].copy();reaction=np.full(len(fields['targets']),123.)
     dual=np.full(len(times)*(len(fields['face_nodes'])//3)*len(kinds),123.);stats=np.full(16,123.)
     d=lambda k:fields[k].ctypes.data_as(D);i=lambda k:fields[k].ctypes.data_as(I)
@@ -21,7 +29,7 @@ def replay(request,previous,kinds,packets,times,library):
             request['mu'],request['lambda'],request['dt'],request['budget'],request['force_tolerance'],request['gap_tolerance'],request['complementarity_tolerance'],
             len(fields['targets'])//3,i('grip_nodes'),d('grip_weights'),d('targets'),reaction.ctypes.data_as(D),
             len(fields['face_nodes'])//3,i('face_nodes'),d('face_weights'),len(kinds),i('kinds'),d('packets'),d('old'),len(times),d('times'),
-            dual.ctypes.data_as(D),stats.ctypes.data_as(D))
+            dual.ctypes.data_as(D),stats.ctypes.data_as(D),*extra)
     return code,x,reaction,dual,stats
 
 def publish(controls,request,triangles):

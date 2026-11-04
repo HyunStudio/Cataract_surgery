@@ -142,7 +142,8 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
                   const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
                   int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
                   int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* contact_dual,double* stats,
-                  int layers=1,const double* previous=nullptr,const double* times=nullptr) {
+                  int layers=1,const double* previous=nullptr,const double* times=nullptr,
+                  const double* initial=nullptr,const double* multiplier_seed=nullptr,double initial_penalty=1.) {
     if(!output || !inverse || !stats || grips<0 || grips>2 || (grips && (!grip_nodes || !weights || !targets || !reaction)) ||
        faces<0 || faces>8192 || bodies<0 || bodies>64 || layers<1 || layers>16 || faces*bodies*layers>65536 ||
        (faces && (!face_nodes || !face_weights)) || (bodies && !capsules) || (faces*bodies && !contact_dual) ||
@@ -164,6 +165,12 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         for(int j=0;j<6;++j) if(!std::isfinite(capsules[b*7+j]) || std::abs(capsules[b*7+j])>16.) return -1;
         const double r=capsules[b*7+6];if(!std::isfinite(r) || r<=0. || r>.3 || r*r==0.) return -1;
     }
+    if(initial) for(int node=0;node<n;++node) for(int axis=0;axis<3;++axis) {
+        const int k=node*3+axis;
+        if(!std::isfinite(initial[k]) || std::abs(initial[k])>16. || (inverse[node]==0. && initial[k]!=output[k])) return -1;
+    }
+    if(multiplier_seed) for(int p=0;p<faces*bodies*layers;++p)
+        if(!std::isfinite(multiplier_seed[p]) || multiplier_seed[p]<0.) return -1;
     if(!faces || !bodies) {stats[12]=stats[13]=0.;return solve_grasp(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,grips,grip_nodes,weights,targets,reaction,stats);}
     problem.predicted.assign(output,output+n*3);problem.mass.resize(n);
     std::vector<int> free,map(n*3,-1);
@@ -187,7 +194,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         }
     }
     Eigen::LDLT<Eigen::MatrixXd> gram_factor;
-    Vec x=problem.predicted;double projection_gap=0.;
+    Vec x=initial ? Vec(initial,initial+n*3) : problem.predicted;double projection_gap=0.;
     if(rows) {
         if(!size) return 4;
         gram_factor.compute(a*a.transpose());if(!positive(gram_factor)) return 4;
@@ -203,8 +210,9 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
     for(int p=0;p<contacts.pairs();++p) {Cell cell{};for(int j=0;j<3;++j) cell.node[j]=face_nodes[contacts.face_index(p)*3+j];pattern.push_back(cell);}
     SparseCells system(n,pattern,problem.mass,rows ? &a : nullptr);
     Vec dual(contacts.pairs(),0.),metric(n*3),trial(n*3),direction(n*3);
+    if(multiplier_seed) std::copy(multiplier_seed,multiplier_seed+contacts.pairs(),dual.begin());
     Eigen::VectorXd gf(size),balance(size),hold=Eigen::VectorXd::Zero(rows),rhs_gap(rows);
-    ContactState state,next;double rho=1.,hold_rho=1.,damping=1e-3,last_violation=std::numeric_limits<double>::infinity();
+    ContactState state,next;double rho=initial_penalty,hold_rho=1.,damping=1e-3,last_violation=std::numeric_limits<double>::infinity();
     double force=std::numeric_limits<double>::infinity(),gap=projection_gap,linear=0.,min_step=1.;
     int iterations=0,evaluations=0,factors=0,status=1,outer=0;
     for(;outer<100;++outer) {

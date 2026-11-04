@@ -58,7 +58,7 @@ if not options.bridge_only:
     if options.coupled:intended['embedded_coupled.gd'] = ROOT/'godot/tests/test_embedded_coupled_native.gd'
     if options.curved:intended['embedded_curved.gd'] = ROOT/'godot/tests/test_embedded_coupled_curved_native.gd'
     if options.trajectory:
-        for name in ['scripts/recorded_body_pose.gd','tests/test_trajectory_pose.gd','tests/test_trajectory_transaction.gd','tests/fixtures/recorded-poses.json','tests/fixtures/operative-motion146-state.bin']:
+        for name in ['scripts/recorded_body_pose.gd','scripts/trajectory_seed.gd','tests/test_trajectory_seed.gd','tests/test_trajectory_pose.gd','tests/test_trajectory_transaction.gd','tests/fixtures/recorded-poses.json','tests/fixtures/operative-motion146-state.bin']:
             intended[name]=ROOT/'godot'/name
 inputs = source_hashes([*intended.values(), Path(__file__).resolve()])
 for name, source in intended.items():
@@ -98,6 +98,7 @@ if options.trajectory:
     stages.append(('trajectory_bridge',['--script','res://trajectory_bridge.gd'],'Native trajectory FEM Godot bridge: 0 failures'))
     stages.append(('trajectory_pose',['--script','res://tests/test_trajectory_pose.gd'],'Recorded trajectory pose: 0 failures'))
     stages.append(('trajectory_transaction',['--script','res://tests/test_trajectory_transaction.gd'],'Trajectory step transaction: 0 failures'))
+    stages.append(('trajectory_seed',['--script','res://tests/test_trajectory_seed.gd'],'Trajectory numerical seed: 0 failures'))
     stages.append(('trajectory_advance',['--script','res://trajectory_advance.gd'],'Embedded trajectory advance: 0 failures'))
 if options.operative_blade:
     stages.append(('operative_contract',['--script','res://tests/test_operative_embedded.gd'],'Operative embedded contract: 0 failures'))

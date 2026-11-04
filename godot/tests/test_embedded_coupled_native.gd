@@ -8,6 +8,8 @@ class Backend extends RefCounted:
 	func solve_contact_fem(request:Dictionary)->Dictionary:return inner.solve_contact_fem(request)
 	func solve_trajectory_fem(request:Dictionary)->Dictionary:
 		trajectory_calls+=1;return inner.solve_trajectory_fem(request)
+	func solve_seeded_trajectory_fem(request:Dictionary)->Dictionary:
+		trajectory_calls+=1;return inner.solve_seeded_trajectory_fem(request)
 	func contact_fem(request:Dictionary)->Dictionary:return inner.contact_fem(request)
 class Guard extends RefCounted:
 	var inner:RefCounted

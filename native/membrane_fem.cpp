@@ -398,16 +398,18 @@ FEM_EXPORT int membrane_fem_solve_contact(int n,double* output,const double* inv
 
 // Layer-major collocation candidate only; complete motion clearance remains a
 // separate mandatory acceptance condition in the caller.
-FEM_EXPORT int membrane_fem_solve_trajectory(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
+static int solve_recorded_trajectory(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
     const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
     int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
     int faces,const int* face_nodes,const double* face_weights,int bodies,const int* kinds,const double* packets,
-    const double* previous,int layers,const double* times,double* dual,double* stats) {
+    const double* previous,int layers,const double* times,double* dual,double* stats,
+    const double* initial,const double* multiplier_seed,bool seeded,double initial_penalty=1.) {
     membrane::numeric::Scope environment;
     if(stats) {std::fill(stats,stats+16,0.);stats[0]=stats[1]=stats[8]=stats[12]=stats[13]=std::numeric_limits<double>::infinity();}
     try {
         if(!output || !inverse || !stats || !times || layers<1 || layers>16 || faces<0 || faces>8192 || bodies<0 || bodies>64 ||
            faces*bodies*layers>65536) return -1;
+        if(seeded && (!initial || (faces*bodies && !multiplier_seed) || !std::isfinite(initial_penalty) || initial_penalty<1. || initial_penalty>1e12)) return -1;
         double last=0.;
         for(int layer=0;layer<layers;++layer) {
             if(!std::isfinite(times[layer]) || !(times[layer]>last) || times[layer]>1.) return -1;
@@ -432,6 +434,22 @@ FEM_EXPORT int membrane_fem_solve_trajectory(int n,double* output,const double* 
             }
         }
         return solve_contact(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
-            grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules.data(),dual,stats,layers,layers==1 ? nullptr : previous,layers==1 ? nullptr : times);
+            grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules.data(),dual,stats,layers,layers==1 ? nullptr : previous,layers==1 ? nullptr : times,initial,multiplier_seed,initial_penalty);
     } catch(...) {return 2;}
+}
+FEM_EXPORT int membrane_fem_solve_trajectory(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
+    const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
+    int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
+    int faces,const int* face_nodes,const double* face_weights,int bodies,const int* kinds,const double* packets,
+    const double* previous,int layers,const double* times,double* dual,double* stats) {
+    return solve_recorded_trajectory(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
+        grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,kinds,packets,previous,layers,times,dual,stats,nullptr,nullptr,false);
+}
+FEM_EXPORT int membrane_fem_solve_trajectory_seeded(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
+    const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
+    int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
+    int faces,const int* face_nodes,const double* face_weights,int bodies,const int* kinds,const double* packets,
+    const double* previous,int layers,const double* times,double* dual,double* stats,const double* initial,const double* multiplier_seed,double initial_penalty) {
+    return solve_recorded_trajectory(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
+        grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,kinds,packets,previous,layers,times,dual,stats,initial,multiplier_seed,true,initial_penalty);
 }

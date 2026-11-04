@@ -19,6 +19,7 @@ func _initialize()->void:
 	if failures:quit(1);return
 	var kernel=ClassDB.instantiate("MembraneFEMKernel")
 	check(kernel.has_method("solve_trajectory_fem"),"real extension exposes original-material trajectory candidate")
+	check(kernel.has_method("solve_seeded_trajectory_fem"),"real extension keeps numerical seed separate from physical predictor")
 	if failures:quit(1);return
 	var packet:=PackedFloat64Array();packet.resize(41)
 	for off in [0,3]:packet[off]=.3;packet[off+1]=.2;packet[off+2]=.3
@@ -44,6 +45,12 @@ func _initialize()->void:
 	var maximum:=0.
 	for value in g:maximum=maxf(maximum,absf(value))
 	check(maximum<=1e-8 and request==saved,"independent original force includes time pullback and preserves request")
+	var warm:Dictionary=request.merged({"initial":result.xyz.duplicate(),"multiplier_seed":result.dual.duplicate(),"penalty_seed":1.,"budget":0},true)
+	var warm_saved:=warm.duplicate(true);var reused:Dictionary=kernel.solve_seeded_trajectory_fem(warm)
+	check(reused.status==0 and reused.stats[2]==0. and reused.stats[1]<=1e-8 and reused.xyz==result.xyz and warm==warm_saved,"typed numerical seeds reuse equilibrium without replacing predictor or mutating inputs")
+	for malformed in [warm.merged({"initial":PackedFloat64Array([0.])},true),warm.merged({"initial":[]},true),warm.merged({"multiplier_seed":PackedFloat64Array()},true),warm.merged({"multiplier_seed":PackedFloat64Array([-1.,0.])},true),warm.merged({"penalty_seed":"1"},true),warm.merged({"penalty_seed":0.},true)]:
+		var bad:Dictionary=kernel.solve_seeded_trajectory_fem(malformed)
+		check(bad.status==-1 and bad.xyz==request.xyz and bad.reaction.is_empty() and bad.dual.is_empty(),"malformed seeded request is atomic")
 	var endpoint:Dictionary=kernel.solve_trajectory_fem(request.merged({"times":PackedFloat64Array([1.])},true))
 	var static_result:Dictionary=kernel.solve_contact_fem(request)
 	check(endpoint==static_result,"endpoint-only typed candidate preserves static result bitwise")

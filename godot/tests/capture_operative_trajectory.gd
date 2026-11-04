@@ -9,6 +9,8 @@ class BackendProxy extends RefCounted:
 		var result:Dictionary=inner.solve_contact_fem(value);history.append({"kind":"static","request":value.duplicate(true),"response":result.duplicate(true)});return result
 	func solve_trajectory_fem(value:Dictionary)->Dictionary:
 		var result:Dictionary=inner.solve_trajectory_fem(value);history.append({"kind":"trajectory","request":value.duplicate(true),"response":result.duplicate(true)});return result
+	func solve_seeded_trajectory_fem(value:Dictionary)->Dictionary:
+		var result:Dictionary=inner.solve_seeded_trajectory_fem(value);history.append({"kind":"seeded","request":value.duplicate(true),"response":result.duplicate(true)});return result
 class GuardProxy extends RefCounted:
 	var inner:RefCounted
 	var history:Array=[]
