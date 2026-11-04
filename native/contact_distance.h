@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include "fp_environment.h"
 
 namespace membrane::contact {
 using Real = long double;
@@ -48,6 +49,7 @@ inline bool barycentric(V p,const std::array<V,3>& face,V normal,V& weights) {
 }
 
 inline Result distance(const double* segment,const double* triangle,double radius) {
+    numeric::Scope environment;
     Result out;
     if (!segment || !triangle || !std::isfinite(radius) || radius<=0 || radius>.3) return out;
     for (int i=0;i<6;++i) if (!std::isfinite(segment[i]) || std::abs(segment[i])>16) return out;

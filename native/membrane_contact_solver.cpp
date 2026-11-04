@@ -6,6 +6,7 @@ extern "C" __declspec(dllexport) int membrane_solve_contact(
     const int* a,const int* b,const double* rest,double alpha,int faces,const int* triangles,
     int bodies,const double* capsules,int budget,double force_tol,double gap_tol,double comp_tol,
     double* multipliers,double* stats) {
+    membrane::numeric::Scope environment;
     if (stats) {
         std::fill(stats,stats+12,0.);
         std::fill(stats,stats+4,std::numeric_limits<double>::infinity());
@@ -24,6 +25,7 @@ static int solve_trajectory_with_anatomy(
     int bodies,const int* kinds,const double* packets,const double* previous,int layers,const double* times,
     int budget,double force_tol,double gap_tol,double comp_tol,double* multipliers,double* stats,
     int anatomy_count=0,const int* anatomy_vertices=nullptr,const double* anatomy=nullptr) {
+    membrane::numeric::Scope environment;
     if (stats) {
         std::fill(stats,stats+12,0.);
         std::fill(stats,stats+4,std::numeric_limits<double>::infinity());

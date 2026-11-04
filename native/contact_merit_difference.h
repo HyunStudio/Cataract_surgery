@@ -16,6 +16,7 @@ struct Interval {
 using Vec=std::array<Quad,3>;
 using IVec=std::array<Interval,3>;
 inline double represented_coordinate(double previous,double current,double time) {
+    numeric::Scope environment;
     return time==1?current:static_cast<double>((1-contact::Real(time))*previous+contact::Real(time)*current);
 }
 inline bool finite(Quad x) { return __builtin_isfinite(x); }
@@ -65,6 +66,7 @@ inline Quad clamp(Quad x) { return std::max(Quad(0),std::min(Quad(1),x)); }
 // Newton only proposes a root. The outward squared comparisons certify both
 // endpoints, so no binary128 libm or unchecked sqrt error assumption is needed.
 inline bool root(Interval value,Interval& result) {
+    numeric::Scope environment;
     if (!finite(value) || value.hi<0) return false;
     value.lo=std::max(Quad(0),value.lo);
     if (value.hi==0) { result=Interval(0); return true; }
@@ -91,6 +93,7 @@ inline IVec point(const std::array<IVec,3>& face,Parameters q) {
                                  mul(sub(face[2],face[0]),Interval(q.u))),Interval(q.s)));
 }
 inline bool parameters(const double* axis,const double* face,const contact::Result& query,Parameters& q) {
+    numeric::Scope environment;
     Vec a=read(axis,0),b=read(axis,3),v0=read(face,0),v1=read(face,3),v2=read(face,6);
     int feature=static_cast<int>(query.values[21]);
     Quad w1=0,w2=0;
@@ -161,6 +164,7 @@ inline Interval phr_change(Quad g,Quad delta,double multiplier,double penalty) {
 // AABB lower distances certify inactivity at BOTH states. This routine is also
 // usable before the expensive helper when both full evaluations already passed.
 inline bool inactive_box(const double* before,const double* after,const double* axis,double radius,double multiplier,double penalty) {
+    numeric::Scope environment;
     using guard::Bound;
     if (!(penalty>0) || !std::isfinite(penalty) || multiplier<0 || !std::isfinite(multiplier)) return false;
     long double ratio=static_cast<long double>(multiplier)/penalty;
@@ -181,6 +185,7 @@ inline bool inactive_box(const double* before,const double* after,const double* 
 
 inline bool bounded_contact_change(const double* before,const double* after,const double* axis,
     double radius,double multiplier,double penalty,Parameters q0,Parameters q1,Interval& result) {
+    numeric::Scope environment;
     if (!before || !after || !axis || multiplier<0 || !std::isfinite(multiplier) || !(penalty>0) ||
         !std::isfinite(penalty) || !(radius*radius>0) || !std::isfinite(radius*radius)) return false;
     for (Parameters q:{q0,q1}) for (Quad value:{q.axis,q.s,q.u})
@@ -207,6 +212,7 @@ inline bool bounded_contact_change(const double* before,const double* after,cons
 
 inline bool contact_change(const double* before,const double* after,const double* axis,
                            double radius,double multiplier,double penalty,Interval& result) {
+    numeric::Scope environment;
     if (!before || !after || !axis || multiplier<0 || !std::isfinite(multiplier) || !(penalty>0) ||
         !std::isfinite(penalty) || !(radius*radius>0) || !std::isfinite(radius*radius)) return false;
     auto first=contact::distance(axis,before,radius),last=contact::distance(axis,after,radius);
@@ -224,6 +230,7 @@ inline bool contact_change(const double* before,const double* after,const double
 // error; the represented point displacement is enclosed before cancellation.
 inline bool point_contact_change(const double* before,const double* after,const double* face,
                                  double radius,double multiplier,double penalty,Interval& result) {
+    numeric::Scope environment;
     if (!before || !after || !face || multiplier<0 || !std::isfinite(multiplier) || !(penalty>0) ||
         !std::isfinite(penalty) || !(radius*radius>0) || !std::isfinite(radius*radius)) return false;
     double old_axis[6],new_axis[6];
@@ -258,6 +265,7 @@ inline bool point_contact_change(const double* before,const double* after,const 
 }
 
 inline bool edge_change(const double* before,const double* after,double rest,double stiffness,Interval& result) {
+    numeric::Scope environment;
     if (!before || !after || !(rest>0) || !(stiffness>=0) || !std::isfinite(rest) || !std::isfinite(stiffness)) return false;
     for (int k=0;k<6;++k) if (!std::isfinite(before[k]) || !std::isfinite(after[k]) || std::abs(before[k])>16 || std::abs(after[k])>16) return false;
     IVec old=sub(intervals(read(before,0)),intervals(read(before,3)));
@@ -274,10 +282,12 @@ inline bool edge_change(const double* before,const double* after,double rest,dou
     result=answer; return true;
 }
 inline double lower_double(Interval value) {
+    numeric::Scope environment;
     if (value.lo==0) return 0;
     return std::nextafter(static_cast<double>(value.lo),-std::numeric_limits<double>::infinity());
 }
 inline double upper_double(Interval value) {
+    numeric::Scope environment;
     if (value.hi==0) return 0;
     return std::nextafter(static_cast<double>(value.hi),std::numeric_limits<double>::infinity());
 }

@@ -17,6 +17,7 @@ struct Result {
 };
 
 inline Result distance(const double* segment,const double* controls,const double* shape,double radius) {
+    numeric::Scope environment;
     Result out;
     if(!segment || !controls || !shape) return out;
     for(int i=0;i<9;++i) if(!std::isfinite(controls[i]) || std::abs(controls[i])>16 ||

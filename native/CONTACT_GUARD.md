@@ -30,3 +30,9 @@ The standalone27 tests include clear-endpoint translation/rotation crossings, of
 Complete separation certificates now run before point queries, and a129-slot breadth-first ring prevents early near-contact intervals starving later collisions. Two endpoint queries leave at most126 query-funded splits/127 pending nodes; query128/depth32 limits remain unchanged. Valid complete certificates need no extra point sample. Later collisions still supply actual witness times, never inferred impact times.
 
 Moving finite-feature separation resolves the captured263outer step in frozen `u1dmbzmg`. Latest full replay `rnu0rx5o` accepts263 outer ticks, then rejects264on nonlinear force stationarity despite primal feasibility. See `native/tests/fixtures/joint_trajectory264_second.md`. The full application and complete extraction remain unqualified; whole-outer rollback preserves original material.
+
+## Scoped numerical boundary qualification — 2026-11-04
+
+The previously documented callerPC53 interval defect is addressed by native/fp_environment.h at the numerical API boundaries. It establishes x87 PC64/RN and SSE RN with gradual underflow, restoring caller controls on return, exceptions and nesting. The pinned Windows x86-64 Zig build passed189 native tests, including64 independent caller-control combinations,11 actual Godot stages and32 focused engine regressions. Reports are archived under docs/assets/fp-boundary-*-validation-2026-11-04.json. Local quoted headers are now included transitively in build provenance; the extension cache also includes the boundary header.
+
+This supersedes the earlier outstanding caller-boundary prerequisite for these tested APIs and this pinned toolchain only. Compiler flags include -fno-rounding-math; runtime and assembly checks do not prove arbitrary compiler portability. Real-time performance, jaw acquisition, controller/anatomy coupling, partial-tip cuts and complete input/GPU/Windows surgery remain unqualified.

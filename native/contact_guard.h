@@ -294,6 +294,7 @@ inline bool separated(const Motion& motion,const std::array<V,3>& old,const std:
 
 inline int check(int n,const double* previous,const double* current,int faces,const int* triangles,
                  int bodies,const int* kinds,const double* packets,int budget,double gap,double* output,double* witness=nullptr) {
+    numeric::Scope environment;
     if (!previous || !current || !output || n<1 || n>4096 || faces<0 || faces>16384 ||
         bodies<0 || bodies>64 || faces*bodies>65536 || (faces && !triangles) ||
         (bodies && (!kinds || !packets)) || budget<0 || budget>128 || !(gap>0) || !std::isfinite(gap)) return -1;

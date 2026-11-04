@@ -37,6 +37,7 @@ tracked_inputs = [ROOT/"native/membrane_kernel.cpp",ROOT/"native/membrane_sparse
                   ROOT/"native/membrane_fem.cpp",ROOT/"native/membrane_fem.h",
                   ROOT/"native/membrane_fem_contact.inc",
                   ROOT/"native/embedded_contact.h",
+                  ROOT/"native/fp_environment.h",
                   ROOT/"native/membrane_contact_solver.cpp",ROOT/"native/membrane_contact_solver.h",ROOT/"native/contact_distance.h",
                   ROOT/"native/contact_guard.cpp",ROOT/"native/contact_guard.h",ROOT/"native/contact_merit_difference.h",ROOT/"native/contact_step_model.h",
                   ROOT/"native/godot_build_profile.json",ROOT/"native/test_project.godot",ROOT/"native/membrane.gdextension",
@@ -57,6 +58,7 @@ def compile_one(source):
         key += (ROOT / "native/membrane_fem.h").read_bytes()
         key += (ROOT / "native/membrane_fem_contact.inc").read_bytes()
         key += (ROOT / "native/embedded_contact.h").read_bytes()
+        key += (ROOT / "native/fp_environment.h").read_bytes()
         key += (ROOT / "native/membrane_contact_solver.h").read_bytes()
         key += (ROOT / "native/contact_distance.h").read_bytes()
         key += (ROOT / "native/contact_guard.h").read_bytes()

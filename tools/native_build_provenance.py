@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,7 +14,23 @@ def sha256(path):
     return digest.hexdigest()
 
 def source_hashes(paths):
-    return {str(path.relative_to(ROOT)):sha256(path) for path in sorted(paths)}
+    # Local quoted headers are part of the proof even if a build script listed
+    # only their parent. Pinned third-party angle includes remain git-pinned.
+    root=ROOT.resolve();pending=list(paths);seen=set()
+    native_suffixes={'.c','.cc','.cpp','.cxx','.h','.hh','.hpp','.hxx','.inc'}
+    while pending:
+        path=Path(pending.pop()).resolve()
+        if not path.is_relative_to(root):raise ValueError('Build dependency leaves workspace: '+str(path))
+        if path in seen:continue
+        seen.add(path)
+        if path.suffix.lower() not in native_suffixes:continue
+        content=path.read_text(encoding='utf-8')
+        for name in re.findall(r'^\s*#\s*include\s*"([^"\r\n]+)"',content,re.MULTILINE):
+            dependency=(path.parent/name).resolve()
+            if not dependency.is_relative_to(root):raise ValueError('Local include leaves workspace: '+name)
+            if not dependency.is_file():raise FileNotFoundError('Missing local include: '+str(dependency))
+            pending.append(dependency)
+    return {str(path.relative_to(root)):sha256(path) for path in sorted(seen)}
 
 def verify_sources(sources):
     if any(sha256(ROOT/name) != expected for name,expected in sources.items()):

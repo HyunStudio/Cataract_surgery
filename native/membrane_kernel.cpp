@@ -4,6 +4,7 @@
 #include <limits>
 #include <vector>
 #include "membrane_sparse.h"
+#include "fp_environment.h"
 
 namespace {
 using Vec = std::vector<double>;
@@ -174,6 +175,7 @@ extern "C" __declspec(dllexport) int membrane_solve(
     int n, double* x, const double* inverse, int edges,
     const int* a, const int* b, const double* rest, double alpha,
     int budget, double tolerance, double* stats) {
+    membrane::numeric::Scope environment;
     // Keep C++ allocation exceptions behind the C ABI. No mutation until a finite iterate exists.
     if (stats) {
         std::fill(stats,stats+8,0.);

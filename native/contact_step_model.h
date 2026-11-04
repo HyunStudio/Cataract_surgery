@@ -36,6 +36,7 @@ inline Matrix selected(const Matrix& rows,const std::vector<unsigned char>& acti
 // Strict positive diagonal dominance of H_L+D makes every added rho*J'J
 // positive definite too. This does not certify the physical final Hessian.
 inline bool coercive_damping(const Matrix& hl,const Vector& scale,double current,double& damping) {
+    numeric::Scope environment;
     using merit::Interval;
     std::vector<Interval> deficit(scale.size());
     for (int col=0;col<hl.outerSize();++col)
@@ -68,6 +69,7 @@ inline bool coercive_damping(const Matrix& hl,const Vector& scale,double current
 // Outward interval of m(d)-m(0), using the frozen model coefficients.
 inline merit::Interval change(const Matrix& hl,const Matrix& rows,const Vector& force,
         const Vector& gap,const Vector& dual,double rho,const Vector& damping,const Vector& d) {
+    numeric::Scope environment;
     using merit::Interval;
     Interval value(0),half(merit::Quad(.5));
     for (int k=0;k<d.size();++k)
@@ -91,6 +93,7 @@ inline merit::Interval change(const Matrix& hl,const Matrix& rows,const Vector& 
 }
 inline Result solve(const Matrix& input_hl,const Matrix& rows,const Vector& force,
         const Vector& gap,const Vector& dual,double rho,const std::vector<int>& regular,int budget=12,bool proposal=false) {
+    numeric::Scope environment;
     Result out;
     int n=force.size(),pairs=gap.size();
     if (n<1 || n>12288 || pairs>65536 || input_hl.rows()!=n || input_hl.cols()!=n ||

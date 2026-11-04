@@ -337,6 +337,7 @@ int solve_grasp(int n,double* output,const double* inverse,int count,const int* 
 
 FEM_EXPORT int membrane_fem_evaluate(int n,const double* x,int count,const int* nodes,const double* gradients,
                                     const double* areas,double mu,double lambda,double* energy,double* gradient,double* hessian) {
+    membrane::numeric::Scope environment;
     if(!x || !energy || !gradient || !material(mu,lambda)) return -1;
     try {
         std::vector<Cell> cells;
@@ -350,12 +351,14 @@ FEM_EXPORT int membrane_fem_evaluate(int n,const double* x,int count,const int* 
 }
 FEM_EXPORT int membrane_fem_solve(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
                                  const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double* stats) {
+    membrane::numeric::Scope environment;
     if(stats) {std::fill(stats,stats+8,0.);stats[0]=stats[1]=std::numeric_limits<double>::infinity();}
     try {return solve(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,stats);}
     catch(...) {return 2;}
 }
 FEM_EXPORT int membrane_fem_difference(int n,const double* x,const double* y,int count,const int* nodes,const double* gradients,
                                       const double* areas,double mu,double lambda,double* change) {
+    membrane::numeric::Scope environment;
     if(!x || !y || !change || !material(mu,lambda)) return -1;
     try {
         std::vector<Cell> cells;
@@ -368,6 +371,7 @@ FEM_EXPORT int membrane_fem_difference(int n,const double* x,const double* y,int
 FEM_EXPORT int membrane_fem_solve_grasp(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
                                        const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,
                                        int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,double* stats) {
+    membrane::numeric::Scope environment;
     if(stats) {std::fill(stats,stats+12,0.);stats[0]=stats[1]=stats[8]=std::numeric_limits<double>::infinity();}
     try {return solve_grasp(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,
                            grips,grip_nodes,weights,targets,reaction,stats);}
@@ -378,6 +382,7 @@ FEM_EXPORT int membrane_fem_solve_contact(int n,double* output,const double* inv
     const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
     int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
     int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* dual,double* stats) {
+    membrane::numeric::Scope environment;
     if(stats) {std::fill(stats,stats+16,0.);stats[0]=stats[1]=stats[8]=stats[12]=stats[13]=std::numeric_limits<double>::infinity();}
     try {return solve_contact(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
                              grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules,dual,stats);}
