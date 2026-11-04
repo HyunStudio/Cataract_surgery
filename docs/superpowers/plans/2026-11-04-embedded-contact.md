@@ -33,7 +33,7 @@
 ## Task 2: precise contact state and bridge
 
 - [x] Preserve double material weights across cut transfers or certify remap trajectory.
-- [ ] Add typed engine contact bridge and fine support export; independently check physical force and actual retained geometry.
+- [x] Add typed engine contact bridge and fine support export; independently check physical force and actual retained geometry.
 
 ## Task 3: coupled motion and actual acquisition
 
@@ -56,3 +56,11 @@ Focused regression helper53187 terminated1 because it expected a numeric zero-fa
 Rerun51737 terminal0: fresh import plus all30focused source-frozen suites pass, no engine errors/leaks or source changes. Report: docs/assets/embedded-precision-regression-2026-11-04.json. New test is in run-godot.ps1; full -Test remains RED at the separately retained default closed-blade/fine-traction cases. All started builds/checks are terminal. No default backend switch, main integration, push or Windows release. Active goal progresses to contact bridge/coupled mechanics.
 
 Next: typed native contact bridge and retained fine support export, then original-force coupled grasp/unilateral contact and whole-interval guard. Actual jaw face acquisition, roll, partial-tip enrichment and complete input/GPU/Windows qualification remain open. Default application stays on its existing path; actual closed knife mass-resolution and legacy fine-traction failures are unchanged and still listed in run-godot.ps1.
+
+Task2 contact: old-DLL actual bridge97960 terminal1 missing contact_fem (intended RED). Typed method and embedded_contact.h build/cache provenance added; extension build52795 terminal0. State-wrapper test283081 RED1 missing API, then4c0800 GREEN0. contact_geometry exports duplicate accepted coarse/fine histories, actual fine connectivity and per-face B; contact_face reads only its three original controls, validates native packed fields/shape/finiteness/status and independently checks numerical witness reconstruction, convex closest-point KKT signs, squared gap, B-transpose witness gradient and Hessian symmetry. CHECK1e-11 is a static consistency diagnostic, not the final force/gap/CCD certificate or a replacement for coupled equilibrium.
+
+Real frozen8stage13909 terminal0, fem-extension-2ai50f2i: existing legacy/FEM/grasp bridges,35force ticks and17held ticks still pass; new typed contact finite differences and actual deformed curved refined contact pass.217controls404fine faces, chosen fine face38, measured gap.01999999918305446, continuous material point/virtual-work displayed errors0. Report: docs/assets/embedded-contact-engine-validation-2026-11-04.json. Query does not integrate time or create attachment. It returns continuous B-transpose-w material weights for subsequent true jaw acquisition; no nearest-vertex substitution. Read-only reviewer found no actionable math/type/bounds/aliasing/provenance defect. Focused31suite frozen regression99157 is running separately.
+
+Next implementation boundary: the actual same-objective implicit solve must include both exact grasp equality and unilateral retained-face contact reactions. Use actual fine maps throughout; no postprojection may replace force balance. Preserve original force1e-8, physical gap1e-9 and complementarity1e-11 and certify entire tool/tissue interval before acceptance. The new static CHECK cannot qualify that boundary. Only then connect actual jaw acquisition, tool roll and partial-tip support to full operator case.
+
+Focused frozen99157 terminal0: fresh import and all31suites pass, no source changes/errors/leaks. Report docs/assets/embedded-contact-regression-2026-11-04.json. State-contract fake backend covers wiring/rejection only; actual accuracy comes from native/real-engine tests, not fabricated Hessian. All started processes terminal. Default GS closed-blade/fine-traction failures remain; no default backend change, main integration, push or release. Previous goal turn and this turn are progress (committed precision maps, then actual bridge/export/real curved checks), not a blocker. Continue active complete-simulator goal with coupled reactions.

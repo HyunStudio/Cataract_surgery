@@ -6,6 +6,7 @@
 #include <godot_cpp/variant/packed_float64_array.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <limits>
+#include "embedded_contact.h"
 
 extern "C" int membrane_solve(int,double*,const double*,int,const int*,const int*,
                                const double*,double,int,double,double*);
@@ -46,8 +47,29 @@ protected:
         ClassDB::bind_method(D_METHOD("solve_fem","request"),&MembraneFEMKernel::solve_fem);
         ClassDB::bind_method(D_METHOD("evaluate_fem","request"),&MembraneFEMKernel::evaluate_fem);
         ClassDB::bind_method(D_METHOD("solve_grasp_fem","request"),&MembraneFEMKernel::solve_grasp_fem);
+        ClassDB::bind_method(D_METHOD("contact_fem","request"),&MembraneFEMKernel::contact_fem);
     }
 public:
+    Dictionary contact_fem(const Dictionary& request) {
+        PackedFloat64Array values,gradient,hessian;
+        int status=-1;bool valid=real(request,"radius");
+        for(const char* key:{"controls","weights","segment"})
+            if(!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+        if(valid) {
+            PackedFloat64Array controls=request["controls"],weights=request["weights"],segment=request["segment"];
+            if(controls.size()==9 && weights.size()==9 && segment.size()==6) {
+                const auto result=membrane::embedded_contact::distance(segment.ptr(),controls.ptr(),weights.ptr(),static_cast<double>(request["radius"]));
+                status=result.status;
+                if(status==0) {
+                    values.resize(22);gradient.resize(9);hessian.resize(81);
+                    for(int k=0;k<22;++k) values.set(k,result.values[k]);
+                    for(int k=0;k<9;++k) gradient.set(k,result.gradient[k]);
+                    for(int k=0;k<81;++k) hessian.set(k,result.hessian[k]);
+                }
+            }
+        }
+        Dictionary answer;answer["status"]=status;answer["values"]=values;answer["gradient"]=gradient;answer["hessian"]=hessian;return answer;
+    }
     Dictionary solve_fem(const Dictionary& request) {
         PackedFloat64Array result,stats;stats.resize(8);stats.fill(0.);
         stats.set(0,std::numeric_limits<double>::infinity());stats.set(1,std::numeric_limits<double>::infinity());

@@ -7,6 +7,7 @@ const Refinement=preload("res://scripts/membrane_refinement.gd")
 const Precision=preload("res://scripts/membrane_precision.gd")
 const Cutter=preload("res://scripts/membrane_cut.gd")
 const Energy=preload("res://scripts/membrane_energy.gd")
+const ContactQuery=preload("res://scripts/membrane_contact_query.gd")
 const FORCE_TOLERANCE:=1e-8
 const GAP_TOLERANCE:=1e-9
 var _cutter=Cutter.new()
@@ -17,6 +18,11 @@ static func invalid(reason:String)->Dictionary:
 	return {"valid":false,"changed":false,"reason":reason}
 func snapshot()->Dictionary:
 	return _state.duplicate(true)
+func contact_geometry()->Dictionary:
+	if _state.is_empty():return invalid("uninitialized")
+	return {"valid":true,"reason":"","xyz":_state.xyz.duplicate(),"previous":_state.previous.duplicate(),"nodes":_state.support.elements.duplicate(),"weights":_state.support.weights.duplicate(),"triangles":_state.indices.duplicate(),"fine":physical_positions(),"fine_previous":_publish(_state,_state.previous),"events":_state.events,"steps":_state.steps}
+func contact_face(face:int,segment:PackedFloat64Array,radius:float,backend)->Dictionary:
+	return ContactQuery.face(_state,face,segment,radius,backend)
 static func _fixed_controls(support:Dictionary,anchors:PackedByteArray)->PackedByteArray:
 	var fixed:=PackedByteArray();fixed.resize(support.controls.size())
 	# A virtual basis label can refer to a vertex outside its retained fragment.

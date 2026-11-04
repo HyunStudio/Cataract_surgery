@@ -175,3 +175,26 @@ vertices. The two-cut `test_embedded_weights.gd` reproduces former physical/hist
 errors1.92e-8/2.24e-8 and now requires2e-14 consistency. The existing held-target
 gap check remains. This local interpolation invariant does not certify continuous
 clearance, partition nonintersection, or contact equilibrium after a cut.
+
+The optional Godot `MembraneFEMKernel.contact_fem` now accepts a Dictionary of
+PackedFloat64Array `controls`(9), `weights`(9), `segment`(6), plus scalar `radius`.
+It validates types/lengths before pointer reads. Only status0 returns packed
+`values`(22), `gradient`(9) and `hessian`(81); all nonzero statuses return empty
+arrays. The new header is bound into extension source manifests and object keys.
+
+`embedded_membrane.contact_geometry` duplicates accepted coarse/fine histories,
+actual retained connectivity and per-face B. `contact_face` constructs the local
+three-control request and checks witness reconstruction, convex closest-point
+KKT signs, squared gap, B-transpose force and Hessian symmetry independently in
+GDScript. Its CHECK1e-11 is a numerical static consistency diagnostic only, not
+the coupled force/gap/complementarity acceptance or a CCD certificate. The
+returned material weights are B-transpose times the fine witness barycentrics,
+not a snapped nearest fine vertex. No query changes state/time/attachments.
+
+Run `python tools/validate_embedded_extension.py --grasp --contact` for8actual
+engine stages. This includes the existing35force/17grasp steps, direct bridge
+finite differences and refined deformed curved face contact. The current probe
+has217controls404faces; gap.01999999918305446 at an intended.02clearance, with
+reported material-point/virtual-work errors0. See
+`docs/assets/embedded-contact-engine-validation-2026-11-04.json`. This is still
+static contact, not an instrument-controlled reaction solve or full surgery.
