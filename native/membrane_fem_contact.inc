@@ -108,9 +108,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
     problem.predicted.assign(output,output+n*3);problem.mass.resize(n);
     std::vector<int> free,map(n*3,-1);
     for(int node=0;node<n;++node) {
-        if(!std::isfinite(inverse[node]) || inverse[node]<0. || inverse[node]>1e12) return -1;
-        problem.mass[node]=inverse[node]>0. ? 1./(inverse[node]*dt*dt) : 0.;
-        if(!std::isfinite(problem.mass[node])) return -1;
+        if(!inertia(inverse[node],dt,problem.mass[node])) return -1;
         for(int a=0;a<3;++a) {
             const int k=node*3+a;if(!std::isfinite(output[k]) || std::abs(output[k])>16.) return -1;
             if(inverse[node]>0.) {map[k]=static_cast<int>(free.size());free.push_back(k);}
@@ -183,7 +181,11 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
                         }
                     }
                 }
-                if(solved) break;damping=std::min(1e12,damping*10.);
+                if(solved) break;
+                // Stabilize equality-normal curvature in its own augmentation
+                // before it forces damping of the unconstrained material modes.
+                if(rows) hold_rho=std::min(1e12,hold_rho*10.);
+                damping=std::min(1e12,damping*10.);
             }
             if(!solved) {status=2;break;}
             Eigen::VectorXd step(size);for(int j=0;j<size;++j) step[j]=direction[free[j]];

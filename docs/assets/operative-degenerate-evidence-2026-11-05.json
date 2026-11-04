@@ -1,0 +1,21 @@
+{
+  "events": 55,
+  "minimum_display_area": 2.423441651736314e-14,
+  "minimum_face": 542,
+  "minimum_material_area": 2.5019874601440473e-14,
+  "minimum_support_mass": 1.0973615223424503e-15,
+  "points": 687,
+  "result": {
+    "bindings": [],
+    "changed": false,
+    "indices": [],
+    "points": "[]",
+    "reason": "degenerate_face",
+    "sources": [],
+    "valid": false,
+    "work": 0
+  },
+  "small_display_faces": 2,
+  "steps": 113,
+  "triangles": 850
+}

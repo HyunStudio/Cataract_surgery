@@ -17,6 +17,11 @@ var _energy:RefCounted
 var _native_geometry:Dictionary={}
 static func invalid(reason:String)->Dictionary:
 	return {"valid":false,"changed":false,"reason":reason}
+static func supported_mass(value:float)->bool:
+	# Retain every positive original support whose physical inverse is finite.
+	# Native factorization and independent force/contact gates still decide
+	# whether a particular implicit candidate is numerically acceptable.
+	return is_finite(value) and value>0. and is_finite(1./value) and 1./value>0.
 func snapshot()->Dictionary:
 	return _state.duplicate(true)
 func contact_geometry()->Dictionary:
@@ -45,7 +50,7 @@ func initialize(original:PackedVector3Array,indices:PackedInt32Array,anchors:Pac
 	var support:=Support.build(original,indices,original,indices,ancestors,areas,density)
 	if not support.valid:return invalid(support.reason)
 	for mass in support.mass:
-		if 1./mass>1e12:return invalid("embedded_mass_resolution")
+		if not supported_mass(mass):return invalid("embedded_mass_resolution")
 	var xyz:=PackedFloat64Array()
 	for index in support.controls:
 		for j in range(3):xyz.append(original[index][j])
@@ -130,7 +135,7 @@ func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,dam
 	var predicted:=current.duplicate();var inverse:=PackedFloat64Array();inverse.resize(_state.support.mass.size())
 	for node in range(inverse.size()):
 		var mass:float=_state.support.mass[node]
-		if not is_finite(mass) or mass<=0. or 1./mass>1e12:return invalid("embedded_mass_resolution")
+		if not supported_mass(mass):return invalid("embedded_mass_resolution")
 		if _state.fixed[node]!=0:continue
 		inverse[node]=1./mass
 		for axis in range(3):
@@ -252,7 +257,7 @@ func _incise_one(patch:PackedVector3Array)->Dictionary:
 	var support:=Support.build(_state.original,_state.original_indices,prepared.rest,cut.indices,ancestors,prepared.face_areas,_state.density,transferred.weights)
 	if not support.valid:return invalid(support.reason)
 	for mass in support.mass:
-		if 1./mass>1e12:return invalid("embedded_mass_resolution").merged({"minimum_mass":support.minimum_mass,"inverse_mass":1./support.minimum_mass,"controls":support.controls.size()})
+		if not supported_mass(mass):return invalid("embedded_mass_resolution").merged({"minimum_mass":support.minimum_mass,"inverse_mass":1./support.minimum_mass,"controls":support.controls.size()})
 	var sources:=PackedInt32Array();sources.resize(support.controls.size());sources.fill(-1)
 	for face in range(cut.sources.size()):
 		for j in range(3):

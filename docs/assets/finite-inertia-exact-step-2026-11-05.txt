@@ -1,0 +1,4 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+Operative tiny-support native evidence: {"controls":246,"force_inf":1.1692954285320603e-10,"minimum_mass":8.516809511747748e-13,"stats":[7.329172518734396e-10,1.1662532092179485e-10,4.0,9.0,5.0,2.0909184641453437e-13,1.0,3.90625e-06]}
+Operative resolution native: 0 failures

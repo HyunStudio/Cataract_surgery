@@ -86,6 +86,29 @@ class FEMContactTests(unittest.TestCase):
 
     def test_unheld_body_reaction(self):self.verify(self.run_case())
 
+    def test_finite_micro_inertia_with_active_and_inactive_contact(self):
+        for bodies in (None, [[.3,1.,.3,.3,1.,.3,.1]]):
+            with self.subTest(active=bodies is None):
+                answer=self.run_case(inverse=[1e13,0.,0.],bodies=bodies)
+                self.verify(answer)
+                if bodies is None:self.assertGreater(float(np.max(answer[3])),0.)
+
+    def test_finite_micro_inertia_with_exact_hold_and_contact(self):
+        expected=self.verify(self.run_case((0,)))
+        for inverse in [1e6,1e12,1e13]:
+            with self.subTest(inverse=inverse):
+                actual=self.verify(self.run_case((0,),inverse=[inverse,1.,1.]))
+                # A nodally fixed coordinate's inertia cannot change the
+                # minimizer of the remaining constrained material coordinates.
+                np.testing.assert_allclose(actual,expected,atol=2e-9,rtol=0.)
+
+    def test_unrepresentable_inertia_rejects_without_contact_publication(self):
+        for inverse in [-1.,float('nan'),float('inf'),1e-320]:
+            with self.subTest(inverse=inverse):
+                code,x,reaction,dual,_,data=self.run_case((0,),inverse=[inverse,1.,1.])
+                self.assertEqual(code,-1)
+                np.testing.assert_array_equal(x,data[0]);np.testing.assert_array_equal(reaction,123.);np.testing.assert_array_equal(dual,123.)
+
     def test_one_and_two_hands_with_contact(self):
         for grips in ((0,),(0,1)):self.verify(self.run_case(grips))
 

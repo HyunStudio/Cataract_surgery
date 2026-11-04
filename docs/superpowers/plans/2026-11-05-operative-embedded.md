@@ -1,5 +1,9 @@
 # Operative retained-material integration
 
+Follow-up: [finite original-material inertia](2026-11-05-finite-inertia.md)
+resolves the recorded fixed mass envelope with independent numerical evidence;
+the failure ledger below preserves the original integration result.
+
 Implement inline in feat/surgery-integration. Prior goal turn was progress408096d:
 cache196 native tests and actual11stage qualification; real-time and whole
 surgery remain unqualified. CI41854123990 and Tests41854123865 completed

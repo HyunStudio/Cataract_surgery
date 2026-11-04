@@ -5,11 +5,8 @@ func check(ok:bool,message:String)->void:
 func _initialize()->void:
 	var saved:Dictionary=FileAccess.open("res://tests/fixtures/operative-embedded-mass.bin",FileAccess.READ).get_var()
 	var model=load("res://scripts/embedded_membrane.gd").new();model._state=saved.state.duplicate(true)
-	var before:Dictionary=model.snapshot();var result:Dictionary=model.incise_patches([saved.patch])
-	check(not result.valid and result.reason=="embedded_mass_resolution","exact operative state retains the unresolved native mass-envelope rejection")
-	check(model.snapshot()==before,"rejected staged original-material incision cannot change accepted mechanics")
-	if not result.valid:
-		check(result.get("minimum_mass",0.)>0. and result.get("minimum_mass",1.)<1e-12 and result.get("inverse_mass",0.)>1e12,"failure reports a finite positive original support mass beyond the existing native envelope")
+	for mass in [0.,-1.,NAN,INF,1e-320]:check(not model.supported_mass(mass),"invalid or unrepresentable mass is rejected instead of frozen or clamped")
+	var before:Dictionary=model.snapshot()
 	var cut:Dictionary=model._cutter.slice_triangle(model.positions(),before.indices,saved.patch[0],saved.patch[1],saved.patch[2],4096,8192,true)
 	check(cut.valid,"mass failure is distinct from geometric or affine-material cut rejection")
 	if cut.valid:
@@ -31,4 +28,15 @@ func _initialize()->void:
 						if support.elements[face*3+j]==node:affected+=prepared.face_areas[face];count+=1;break
 				check(absf(total-original)<1e-12,"candidate conserves total mass without floors removal or welding")
 				print("Operative resolution evidence: ",JSON.stringify({"minimum_mass":support.minimum_mass,"inverse_mass":1./support.minimum_mass,"controls":support.controls.size(),"total_mass":total,"mass_difference":total-original,"minimum_control_faces":count,"minimum_control_material_area":affected,"accepted_ticks":before.steps,"accepted_events":before.events},"",true,true))
+	var result:Dictionary=model.incise_patches([saved.patch])
+	check(result.valid and result.changed,"exact operative cut accepts finite positive original material without the old inverse cap")
+	if result.valid:
+		var after:Dictionary=model.snapshot()
+		check(after.support.minimum_mass<1e-12 and after.support.minimum_mass>0.,"accepted original support preserves the actual tiny physical mass")
+		check(after.steps==before.steps and after.time==before.time and after.events==before.events+1,"topology preparation never invents a dynamics tick")
+		for face in range(cut.sources.size()):
+			for j in range(3):
+				var node:int=after.support.elements[face*3+j];var source:int=before.support.elements[cut.sources[face]*3+j]
+				for axis in range(3):
+					check(after.xyz[node*3+axis]==before.xyz[source*3+axis] and after.previous[node*3+axis]==before.previous[source*3+axis],"cut preserves exact original-material position and velocity history")
 	print("Operative resolution fixture: ",failures," failures");quit(1 if failures else 0)

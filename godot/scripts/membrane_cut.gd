@@ -95,7 +95,12 @@ func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fin
 	for i in range(points.size()): _bindings.append({"ids":Vector3i(i,i,i),"weights":Vector3(1,0,0)})
 	for off in range(0,indices.size(),3):
 		var face:=PackedInt32Array([indices[off],indices[off+1],indices[off+2]])
-		if _area(points[face[0]],points[face[1]],points[face[2]])<=1e-12: return _invalid("degenerate_face")
+		var area:=_area(points[face[0]],points[face[1]],points[face[2]])
+		# Original-material mechanics retains fine display slivers without
+		# making them independent elastic elements. A prior accepted positive
+		# output face cannot become invalid solely by entering the next cut.
+		# All winding, material partition and seam checks still apply below.
+		if not is_finite(area) or area<=(0. if material_partition else 1e-12): return _invalid("degenerate_face")
 		for j in range(3):
 			var a:int=face[j]; var b:int=face[(j+1)%3]; var key:=_key(a,b)
 			if not _input_edges.has(key): _input_edges[key]=[]

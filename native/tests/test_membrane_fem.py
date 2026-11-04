@@ -237,6 +237,48 @@ class MembraneFEMTests(unittest.TestCase):
         self.assertEqual(code, 0, stats)
         np.testing.assert_array_equal(result, x)
 
+    def test_positive_micro_material_preserves_nonlinear_equilibrium(self):
+        x, nodes, basis, areas = self.data()
+        x[1] += [.06, .03, 0.]
+        inverse = np.array([0., 4., 7.])
+        base_code, expected, _ = self.run_solve(x, inverse, nodes, basis, areas)
+        self.assertEqual(base_code, 0)
+        for scale in [1e-12, 1e-13, 1e-16]:
+            with self.subTest(scale=scale):
+                code, result, stats = self.run_solve(x, inverse/scale, nodes, basis, areas*scale, tol=1e-8*scale)
+                self.assertEqual(code, 0, stats)
+                # Both physical stiffness and inertia scale, so the minimizer
+                # must be unchanged. No mass floors or relaxed force target.
+                np.testing.assert_allclose(result, expected, atol=2e-9, rtol=0.)
+                gradient = self.call_evaluate(result, nodes, basis, areas)[2]
+                gradient[1:] += (result[1:]-x[1:])/(inverse[1:,None]*(1/60)**2)
+                self.assertLessEqual(np.max(np.abs(gradient[1:])), 1e-8)
+                self.assertLessEqual(stats[1], 1e-8*scale)
+                np.testing.assert_array_equal(result[0], x[0])
+
+    def test_mixed_macro_and_micro_components_keep_distinct_mass(self):
+        rest, nodes, basis, areas = self.data()
+        x = np.concatenate([rest, rest+[2., 0., 0.]])
+        x[4] += [.06, .03, 0.]
+        joined_nodes = np.concatenate([nodes, nodes+3])
+        joined_basis = np.concatenate([basis, basis])
+        scale = 1e-13
+        inverse = np.array([0., 4., 7., 0., 4./scale, 7./scale])
+        code, result, stats = self.run_solve(x, inverse, joined_nodes, joined_basis, np.array([areas[0], areas[0]*scale]), tol=1e-21)
+        self.assertEqual(code, 0, stats)
+        np.testing.assert_array_equal(result[:3], rest)
+        base_code, expected, _ = self.run_solve(x[3:]-[2.,0.,0.], [0.,4.,7.], nodes,basis,areas)
+        self.assertEqual(base_code, 0)
+        np.testing.assert_allclose(result[3:]-[2.,0.,0.], expected, atol=2e-9, rtol=0.)
+
+    def test_extreme_finite_inertia_without_elastic_scale_is_retained(self):
+        predicted=np.array([[.1,.2,.3]])
+        for inverse in [1e13,1e100,1e308]:
+            with self.subTest(inverse=inverse):
+                code,result,stats=self.run_solve(predicted,[inverse],np.empty((0,3),dtype=np.int32),np.empty((0,2,3)),np.empty(0))
+                self.assertEqual(code,0,stats)
+                np.testing.assert_array_equal(result,predicted)
+
     def test_failures_do_not_publish_unaccepted_iterates(self):
         x, nodes, basis, areas = self.data()
         x[1, 0] += .1
@@ -245,7 +287,10 @@ class MembraneFEMTests(unittest.TestCase):
         self.assertGreater(stats[1], 1e-8)
         np.testing.assert_array_equal(result, x)
         for inverse, bad_nodes, bad_basis, bad_areas in [
-            ([0., 1e13, 7.], nodes, basis, areas),
+            ([0., math.inf, 7.], nodes, basis, areas),
+            ([0., math.nan, 7.], nodes, basis, areas),
+            ([0., -1., 7.], nodes, basis, areas),
+            ([0., 1e-320, 7.], nodes, basis, areas),
             ([0., 4., 7.], [[0, 1, 9]], basis, areas),
             ([0., 4., 7.], nodes, basis * math.nan, areas),
             ([0., 4., 7.], nodes, basis + 1., areas),

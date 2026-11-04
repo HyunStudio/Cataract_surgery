@@ -18,5 +18,13 @@ func _initialize()->void:
 	if strict.valid or strict.reason!="material_subdivision_winding":failures+=1;push_error("material mode rejects inverted affine support even when display geometry is oriented")
 	var geometric:Dictionary=cutter.slice_triangle(thin.points,thin.indices,thin.patch[0],thin.patch[1],thin.patch[2])
 	if not geometric.valid or not geometric.fractions.is_empty():failures+=1;push_error("explicit material mode cannot leak into the legacy geometry contract")
+	var tiny:Dictionary=FileAccess.open("res://tests/fixtures/operative-blade-degenerate.bin",FileAccess.READ).get_var()
+	var model=load("res://scripts/embedded_membrane.gd").new();model._state=tiny.state
+	var continued:Dictionary=cutter.slice_triangle(model.positions(),tiny.state.indices,tiny.patch[0],tiny.patch[1],tiny.patch[2],4096,8192,true)
+	if not continued.valid:failures+=1;push_error("positive retained output faces remain admissible on the next material incision: "+continued.reason)
+	var material:Dictionary=model.incise_patches([tiny.patch])
+	if not material.valid:failures+=1;push_error("exact next operative incision retains its original material and history: "+material.reason)
+	var collapsed:Dictionary=cutter.slice_triangle(PackedVector3Array([Vector3.ZERO,Vector3.RIGHT,Vector3.RIGHT*2.]),PackedInt32Array([0,1,2]),tiny.patch[0],tiny.patch[1],tiny.patch[2],4096,8192,true)
+	if collapsed.valid or collapsed.reason!="degenerate_face":failures+=1;push_error("material mode still rejects truly collapsed source geometry")
 	print("Operative cut geometry: ",failures," failures")
 	quit(1 if failures else 0)

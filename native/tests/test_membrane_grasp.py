@@ -56,6 +56,14 @@ class GraspTests(unittest.TestCase):
         self.verify_kkt(x, inverse, nodes, basis, areas, grips, weights, targets, result, reaction)
         self.assertGreater(np.linalg.norm(reaction), 0.)
 
+    def test_finite_micro_inertia_keeps_exact_attachment(self):
+        x,nodes,basis,areas=self.base.data()
+        grips=np.array([[0,1,2]],dtype=np.int32);weights=np.array([[.2,.3,.5]])
+        targets=weights@x+[0.,.005,0.];inverse=[0.,1e13,7.]
+        code,result,reaction,stats=self.run_grasp(x,inverse,nodes,basis,areas,grips,weights,targets)
+        self.assertEqual(code,0,stats)
+        self.verify_kkt(x,inverse,nodes,basis,areas,grips,weights,targets,result,reaction)
+
     def test_two_distinct_grips_on_shared_cells(self):
         x = np.array([[-1., 0., -1.], [1., 0., -1.], [1., 0., 1.], [-1., 0., 1.]])
         nodes = np.array([[0, 1, 2], [3, 0, 2]], np.int32)

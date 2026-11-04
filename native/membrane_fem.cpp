@@ -18,6 +18,14 @@ using membrane_fem::Vec;
 double norm(const Vec& x) {double result=0.;for(double v:x) result=std::max(result,std::abs(v));return result;}
 double dot(const Vec& x,const Vec& y) {double result=0.;for(size_t i=0;i<x.size();++i) result+=x[i]*y[i];return result;}
 bool material(double mu,double lambda) {return std::isfinite(mu) && mu>0. && std::isfinite(lambda) && lambda>=0.;}
+bool inertia(double inverse,double dt,double& coefficient) {
+    if(!std::isfinite(inverse) || inverse<0.) return false;
+    if(inverse==0.) {coefficient=0.;return true;}
+    // Positive retained material is not bounded by an arbitrary inverse cap.
+    // Reject unrepresentable physical inertia rather than clamp or erase it.
+    coefficient=1./(inverse*dt*dt);
+    return std::isfinite(coefficient) && coefficient>0.;
+}
 
 class SparseCells {
     using Matrix=Eigen::SparseMatrix<double>;
@@ -139,9 +147,7 @@ int solve(int n,double* output,const double* inverse,int count,const int* nodes,
     if(!membrane_fem::cells(n,count,nodes,gradients,areas,problem.cells)) return -1;
     problem.predicted.assign(output,output+n*3);problem.mass.resize(n);problem.mu=mu;problem.lambda=lambda;
     for(int i=0;i<n;++i) {
-        if(!std::isfinite(inverse[i]) || inverse[i]<0. || inverse[i]>1e12) return -1;
-        problem.mass[i]=inverse[i]>0. ? 1./(inverse[i]*dt*dt) : 0.;
-        if(!std::isfinite(problem.mass[i])) return -1;
+        if(!inertia(inverse[i],dt,problem.mass[i])) return -1;
         for(int j=0;j<3;++j) if(!std::isfinite(output[i*3+j]) || std::abs(output[i*3+j])>16.) return -1;
     }
     Vec x=problem.predicted,g,blocks,direction(n*3),trial(n*3),next_g,metric(n*3);
@@ -203,9 +209,7 @@ int solve_grasp(int n,double* output,const double* inverse,int count,const int* 
     problem.predicted.assign(output,output+n*3);problem.mass.resize(n);problem.mu=mu;problem.lambda=lambda;
     std::vector<int> free,map(n*3,-1);
     for(int i=0;i<n;++i) {
-        if(!std::isfinite(inverse[i]) || inverse[i]<0. || inverse[i]>1e12) return -1;
-        problem.mass[i]=inverse[i]>0. ? 1./(inverse[i]*dt*dt) : 0.;
-        if(!std::isfinite(problem.mass[i])) return -1;
+        if(!inertia(inverse[i],dt,problem.mass[i])) return -1;
         for(int j=0;j<3;++j) {
             const int k=i*3+j;
             if(!std::isfinite(output[k]) || std::abs(output[k])>16.) return -1;

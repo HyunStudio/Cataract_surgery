@@ -46,7 +46,7 @@ if not options.bridge_only:
             intended[str(source.relative_to(ROOT/'godot'))] = source
     intended['embedded_native.gd'] = ROOT/'godot/tests/test_embedded_native.gd'
     if options.operative_blade:
-        for name in ['scripts/operative_membrane.gd','tests/test_operative_embedded.gd','tests/test_operative_blade.gd','tests/test_operative_cut_geometry.gd','tests/fixtures/operative-blade-area.bin']:
+        for name in ['scripts/operative_membrane.gd','tests/test_operative_embedded.gd','tests/test_operative_blade.gd','tests/test_operative_cut_geometry.gd','tests/test_operative_resolution_native.gd','tests/fixtures/operative-blade-area.bin']:
             intended[name]=ROOT/'godot'/name
     if options.grasp:intended['embedded_grasp.gd'] = ROOT/'godot/tests/test_embedded_grasp_native.gd'
     if options.contact:intended['embedded_contact.gd'] = ROOT/'godot/tests/test_embedded_contact_native.gd'
@@ -88,6 +88,7 @@ if options.curved:stages.append(('embedded_curved', ['--script','res://embedded_
 if options.operative_blade:
     stages.append(('operative_contract',['--script','res://tests/test_operative_embedded.gd'],'Operative embedded contract: 0 failures'))
     stages.append(('operative_cut_geometry',['--script','res://tests/test_operative_cut_geometry.gd'],'Operative cut geometry: 0 failures'))
+    stages.append(('operative_resolution_native',['--script','res://tests/test_operative_resolution_native.gd'],'Operative resolution native: 0 failures'))
     stages.append(('operative_blade',['--script','res://tests/test_operative_blade.gd'],'Closed blade result: 0 failures'))
 for name, arguments, marker in stages:
     log = probe/f'{name}.log'
