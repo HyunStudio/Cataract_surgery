@@ -9,6 +9,7 @@ out.mkdir(parents=True, exist_ok=True)
 zig = ROOT / ".tools/zig-x86_64-windows-0.17.0/zig.exe"
 compiler = compiler_identity(zig)
 sources = source_hashes([ROOT/"native/contact_distance.cpp", ROOT/"native/contact_distance.h",
+                         ROOT/"native/embedded_contact.h",
                          Path(__file__).resolve(), ROOT/"tools/native_build_provenance.py"])
 flags = ["-std=c++17", "-O3", "-Wall", "-Wextra", "-Wpedantic", "-Werror",
          "-shared", "-target", "x86_64-windows-gnu"]

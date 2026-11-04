@@ -1,0 +1,40 @@
+{
+  "qualified": true,
+  "tests": 27,
+  "build": {
+    "artifact_sha256": "ed7d7b00e2df5f777f82c64506f97c9c2e8c9e0a81fda3448cccdb07a19ed18d",
+    "sources": {
+      "native\\contact_distance.cpp": "22281a9a791b7c18c9977d429c098b59c6131c546db24d38d1cb289394187965",
+      "native\\contact_distance.h": "0a01b57de2ad27aad9f7c4b08135bf835069d8d5e3f775f819e9c6e597d8012a",
+      "native\\embedded_contact.h": "1db36468d0550d8e4ff88e4d1b9989f8675b89a539ef8ac689de4e0838780153",
+      "tools\\build_contact_distance.py": "26f3cdcd0d578e03b2d903c080a70d23bd100e95e9356a2f0ee94ed041365d3e",
+      "tools\\native_build_provenance.py": "b7d98ea1bad45dba682726b2b96cb669244b8738f76ea79ddfe4b170b2cf1d98"
+    },
+    "compiler": {
+      "version": "0.17.0",
+      "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+      "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+    },
+    "dependencies": {},
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Werror",
+      "-shared",
+      "-target",
+      "x86_64-windows-gnu"
+    ],
+    "source_revision": "fa140db45fce9b3f5e2c3a4145d2b11468c40be9",
+    "source_dirty": true
+  },
+  "test_inputs": {
+    "native\\tests\\test_contact_distance.py": "550309aee8d0e75589e248b955723688b85b26c5df0e349ca982cf02cdff0323",
+    "native\\tests\\test_embedded_contact.py": "8efe455c51acac6514c0574680e908b915b48c88829d69323d482e14220e5a35",
+    "tools\\validate_embedded_contact.py": "48fba37187c58ad47ea2236be422689c8ee710b01acea190219239dcb0071ae8"
+  },
+  "test_output": "test_ambiguity_does_not_disappear_at_small_gradient_scale (test_contact_distance.ContactDistanceTests.test_ambiguity_does_not_disappear_at_small_gradient_scale) ... ok\ntest_axis_reversal_and_triangle_permutations (test_contact_distance.ContactDistanceTests.test_axis_reversal_and_triangle_permutations) ... ok\ntest_axis_triangle_crossing_is_not_edge_only_distance (test_contact_distance.ContactDistanceTests.test_axis_triangle_crossing_is_not_edge_only_distance) ... ok\ntest_coplanar_axis_crosses_triangle (test_contact_distance.ContactDistanceTests.test_coplanar_axis_crosses_triangle) ... ok\ntest_degenerate_face_is_not_regular_clearance (test_contact_distance.ContactDistanceTests.test_degenerate_face_is_not_regular_clearance) ... ok\ntest_finite_endpoint_not_infinite_axis (test_contact_distance.ContactDistanceTests.test_finite_endpoint_not_infinite_axis) ... ok\ntest_gradient_matches_finite_differences (test_contact_distance.ContactDistanceTests.test_gradient_matches_finite_differences) ... ok\ntest_invalid_query_does_not_publish_output (test_contact_distance.ContactDistanceTests.test_invalid_query_does_not_publish_output) ... ok\ntest_parallel_minimizers_are_explicitly_ambiguous (test_contact_distance.ContactDistanceTests.test_parallel_minimizers_are_explicitly_ambiguous) ... ok\ntest_plane_cancellation_cannot_be_definite_intersection (test_contact_distance.ContactDistanceTests.test_plane_cancellation_cannot_be_definite_intersection) ... ok\ntest_shared_finite_endpoint_is_one_witness (test_contact_distance.ContactDistanceTests.test_shared_finite_endpoint_is_one_witness) ... ok\ntest_skew_edge_interior_feature (test_contact_distance.ContactDistanceTests.test_skew_edge_interior_feature) ... ok\ntest_skinny_nondegenerate_face (test_contact_distance.ContactDistanceTests.test_skinny_nondegenerate_face) ... ok\ntest_sphere_face_analytic_distance_and_derivative (test_contact_distance.ContactDistanceTests.test_sphere_face_analytic_distance_and_derivative) ... ok\ntest_translated_small_geometry_retains_distance_and_gradient (test_contact_distance.ContactDistanceTests.test_translated_small_geometry_retains_distance_and_gradient) ... ok\ntest_unsigned_distance_does_not_hide_side_change (test_contact_distance.ContactDistanceTests.test_unsigned_distance_does_not_hide_side_change) ... ok\ntest_vertex_feature (test_contact_distance.ContactDistanceTests.test_vertex_feature) ... ok\n\n----------------------------------------------------------------------\nRan 17 tests in 0.005s\n\nOK\ntest_absent_parent_material_does_not_collide (test_embedded_contact.EmbeddedContactTests.test_absent_parent_material_does_not_collide) ... ok\ntest_c1_feature_switch_and_parallel_tie_are_not_c2 (test_embedded_contact.EmbeddedContactTests.test_c1_feature_switch_and_parallel_tie_are_not_c2) ... ok\ntest_finite_capsule_endpoint_and_interior_edge (test_embedded_contact.EmbeddedContactTests.test_finite_capsule_endpoint_and_interior_edge) ... ok\ntest_invalid_or_undefined_is_atomic (test_embedded_contact.EmbeddedContactTests.test_invalid_or_undefined_is_atomic) ... ok\ntest_nonfinite_coordinates_and_null_outputs (test_embedded_contact.EmbeddedContactTests.test_nonfinite_coordinates_and_null_outputs) ... ok\ntest_permutations_and_axis_reversal (test_embedded_contact.EmbeddedContactTests.test_permutations_and_axis_reversal) ... ok\ntest_sphere_edge_curvature (test_embedded_contact.EmbeddedContactTests.test_sphere_edge_curvature) ... ok\ntest_sphere_face_with_affine_control_map (test_embedded_contact.EmbeddedContactTests.test_sphere_face_with_affine_control_map) ... ok\ntest_sphere_vertex_curvature (test_embedded_contact.EmbeddedContactTests.test_sphere_vertex_curvature) ... ok\ntest_tiny_retained_face_and_deformed_controls (test_embedded_contact.EmbeddedContactTests.test_tiny_retained_face_and_deformed_controls) ... ok\n\n----------------------------------------------------------------------\nRan 10 tests in 0.435s\n\nOK\n",
+  "scope": "Static retained fine-face squared distance, smooth-feature exact Hessian and affine control pullback only. No coupled equilibrium, continuous guard, cut-remap certificate, actual input, active GPU FPS or clinical calibration."
+}
