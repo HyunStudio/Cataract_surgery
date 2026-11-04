@@ -47,14 +47,14 @@ static func segments(id:String,tip_radius:float,grip:bool=false)->Array[Dictiona
 	return result
 
 ## Shared render/contact orientation: local +X is opposite the insertion axis.
-static func frame(axis:Vector3)->Basis:
+static func frame(axis:Vector3,roll:float=0.)->Basis:
 	if not axis.is_finite() or not is_finite(axis.length_squared()) or axis.length_squared()<1.e-12:
 		return Basis.IDENTITY
 	var toward:Vector3=-axis.normalized()
 	var side:=toward.cross(Vector3.UP).normalized()
 	if side.length_squared()<.01:
 		side=Vector3.FORWARD
-	return Basis(toward,side.cross(toward).normalized(),side)
+	return Basis(toward,side.cross(toward).normalized(),side)*Basis(Vector3.RIGHT,roll)
 
 ## CylinderMesh uses local Y as its longitudinal axis.
 static func rod_transform(a:Vector3,b:Vector3)->Transform3D:

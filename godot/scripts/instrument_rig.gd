@@ -1,13 +1,18 @@
 extends RefCounted
 func capture_state()->Dictionary:
-	return {"allow_withdrawal":allow_withdrawal,"portal":portal,"insertion":insertion,"axis":axis}
+	return {"allow_withdrawal":allow_withdrawal,"portal":portal,"insertion":insertion,"axis":axis,"roll":roll}
 func restore_state(state:Dictionary)->void:
 	allow_withdrawal=state.allow_withdrawal; portal=state.portal; insertion=state.insertion; axis=state.axis
+	roll=state.get("roll",0.)
 ## Incision-pivot constraint. Research model units, not calibrated instrument dimensions.
 var allow_withdrawal:=false
 var portal := Vector3(1.44,.86,0)
 var insertion := 1.28
 var axis := Vector3(-1,-.03,0).normalized()
+var roll:=0.
+
+func adjust_roll(delta:float)->void:
+	if is_finite(delta):roll=wrapf(roll+delta,-PI,PI)
 var tip: Vector3:
 	get: return portal+axis*insertion
 

@@ -70,6 +70,7 @@ var metrics := {"path_length":0.,"energy_exposure":0.,"iris_contacts":0.,"poster
 var targets := [Vector3.ZERO,Vector3.ZERO]
 var target_valid := [false,false]
 var _command_axes := [Vector3.ZERO,Vector3.ZERO]
+var _command_rolls:Array=[null,null]
 var previous_tips := [Vector3.ZERO,Vector3.ZERO]
 var target_planes := [.82,.68]
 var display
@@ -120,6 +121,7 @@ func new_case(id: String) -> void:
 	anatomy.cornea=injury.surfaces.cornea; anatomy.posterior=injury.surfaces.posterior
 	_contact_records=[[],[]]
 	_command_axes=[Vector3.ZERO,Vector3.ZERO]
+	_command_rolls=[null,null]
 	_resolved_grips=[false,false]
 	lens.layered=true
 	lens.hardness=.8 if case_id=="dense" else .4
@@ -128,9 +130,10 @@ func new_case(id: String) -> void:
 	rigs[0].portal=incision.portals[0]; rigs[1].portal=incision.portals[1]
 	for hand in range(2):
 		rigs[hand].allow_withdrawal=geometry!=null
+		rigs[hand].roll=0.
 		rigs[hand].aim_at(Vector3(0,.65 if geometry else .8,0)); rigs[hand].set_insertion(-.2 if geometry else .12)
 		targets[hand]=rigs[hand].tip; previous_tips[hand]=rigs[hand].tip; target_valid[hand]=false
-		_body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"grip":false}
+		_body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"roll":rigs[hand].roll,"grip":false}
 	pupil_radius=geometry.pupil_radius(case_id=="small_pupil") if geometry else (.74 if case_id=="small_pupil" else .98)
 	anatomy.set_pupil(pupil_radius); last_contacts=[[],[]]
 	_flap_boundary=FlapBoundary.new() if geometry else null; _flap_revision=-1
@@ -183,6 +186,7 @@ func choose_tool(id: String) -> void:
 	_disarm_actions(); latched[selected]=false; capsule.release_hand(selected)
 	hand_tools[selected]=id; target_planes[selected]=_plane(id); target_valid[selected]=false
 	_command_axes[selected]=Vector3.ZERO
+	_command_rolls[selected]=null
 	status="%s 기구: %s" % ["왼손" if selected==0 else "오른손",id]
 	update_geometry()
 
@@ -193,12 +197,14 @@ func release_controls() -> void:
 	_disarm_actions(); latched=[false,false]; capsule.release()
 	target_valid=[false,false]
 	_command_axes=[Vector3.ZERO,Vector3.ZERO]
+	_command_rolls=[null,null]
 	for hand in range(2): incision.cut(hand,rigs[hand].tip,false)
 
 func switch_hand() -> void:
 	_disarm_actions()
 	target_valid=[false,false]
 	_command_axes=[Vector3.ZERO,Vector3.ZERO]
+	_command_rolls=[null,null]
 	if not latched[selected]: capsule.release_hand(selected)
 	selected=1-selected
 	status="%s 조작. G로 접촉한 집게의 파지를 유지할 수 있습니다." % ("왼손" if selected==0 else "오른손")
@@ -237,6 +243,7 @@ func toggle_pause() -> void:
 	else:
 		# A failed physical tick may pause while preserving a held attachment.
 		_disarm_actions(); target_valid=[false,false]; _command_axes=[Vector3.ZERO,Vector3.ZERO]
+		_command_rolls=[null,null]
 	paused=not paused; refresh_ui()
 func set_assisted(value: bool) -> void:
 	release_controls(); assisted=value; target_valid=[false,false]; refresh_ui()
@@ -300,6 +307,7 @@ func _command_rig():
 	command.portal=rigs[selected].portal
 	command.allow_withdrawal=rigs[selected].allow_withdrawal
 	command.axis=rigs[selected].axis; command.insertion=rigs[selected].insertion
+	command.roll=rigs[selected].roll if _command_rolls[selected]==null else _command_rolls[selected]
 	if target_valid[selected]:
 		var delta:Vector3=targets[selected]-command.portal
 		var inward:=Vector3(-signf(command.portal.x),0,0)
@@ -312,6 +320,7 @@ func _command_rig():
 func _queue_command(command)->void:
 	targets[selected]=command.tip; target_valid[selected]=true
 	_command_axes[selected]=command.axis
+	_command_rolls[selected]=command.roll
 	target_planes[selected]=command.tip.y
 
 func _input(event: InputEvent) -> void:
@@ -357,7 +366,7 @@ func _input(event: InputEvent) -> void:
 			handle_pedal(event.pressed,event.echo,_pointer_inside(get_global_mouse_position()),stage)
 			get_viewport().set_input_as_handled()
 		if event.pressed and not event.echo:
-			if event.keycode in [KEY_TAB,KEY_G,KEY_R,KEY_ESCAPE,KEY_F2,KEY_S,KEY_Q,KEY_E,KEY_A,KEY_X,KEY_V,KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7]: get_viewport().set_input_as_handled()
+			if event.keycode in [KEY_TAB,KEY_G,KEY_R,KEY_ESCAPE,KEY_F2,KEY_S,KEY_Q,KEY_E,KEY_Z,KEY_C,KEY_A,KEY_X,KEY_V,KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7]: get_viewport().set_input_as_handled()
 			match event.keycode:
 				KEY_TAB: switch_hand()
 				KEY_G: toggle_latch()
@@ -372,6 +381,10 @@ func _input(event: InputEvent) -> void:
 					if _can_operate():
 						var command=_command_rig()
 						command.adjust_pitch(-.02 if event.keycode==KEY_Q else .02); _queue_command(command)
+				KEY_Z,KEY_C:
+					if _can_operate():
+						var command=_command_rig()
+						command.adjust_roll(-.04 if event.keycode==KEY_Z else .04);_queue_command(command)
 				KEY_1,KEY_2,KEY_3,KEY_4,KEY_5,KEY_6,KEY_7: choose_tool(IDS[event.keycode-KEY_1])
 
 func _pointer_inside(point: Vector2) -> bool:
@@ -388,6 +401,8 @@ func _advance_motion(dt: float) -> float:
 	_contact_records=[[],[]]
 	for hand in range(2):
 		if target_valid[hand]: rigs[hand].advance_toward(targets[hand],dt*1.5)
+		if _command_rolls[hand]!=null:
+			rigs[hand].roll=rotate_toward(rigs[hand].roll,_command_rolls[hand],dt*1.2)
 		# Finish retraction before rotating at the pivot. This creates a
 		# separate zero-to-zero rotation interval for body certification.
 		if target_valid[hand] and targets[hand]==rigs[hand].portal and previous_tips[hand]==rigs[hand].portal and rigs[hand].insertion==0. and _command_axes[hand]!=Vector3.ZERO:
@@ -401,17 +416,17 @@ func _advance_motion(dt: float) -> float:
 			var prior:Dictionary=_body_poses[hand]
 			var requested_grip:bool=hand_tools[hand]=="forceps" and (latched[hand] or (hand==selected and grip_down))
 			var surfaces:={"iris":anatomy.iris,"posterior":anatomy.posterior}
-			var body:Dictionary=_rigid_body.resolve(rigs[hand].portal,previous_tips[hand],prior.axis,rigs[hand].tip,rigs[hand].axis,hand_tools[hand],_radius(hand),prior.grip,surfaces,prior.grip)
+			var body:Dictionary=_rigid_body.resolve(rigs[hand].portal,previous_tips[hand],prior.axis,rigs[hand].tip,rigs[hand].axis,hand_tools[hand],_radius(hand),prior.grip,surfaces,prior.grip,prior.get("roll",0.),rigs[hand].roll)
 			_resolved_grips[hand]=prior.grip
 			if not body.valid:
-				rigs[hand].axis=prior.axis; _set_tip(hand,previous_tips[hand])
+				rigs[hand].axis=prior.axis;rigs[hand].roll=prior.get("roll",0.); _set_tip(hand,previous_tips[hand])
 				contact.contacts=[]; contact.records=[]
 				status="기구 몸통 경로를 확인할 수 없습니다: "+body.reason
 			else:
-				rigs[hand].axis=body.axis; _set_tip(hand,body.tip)
+				rigs[hand].axis=body.axis;rigs[hand].roll=body.roll; _set_tip(hand,body.tip)
 				if body.fraction<1.: contact.contacts=[]; contact.records=[]
 				if requested_grip!=prior.grip:
-					var transition:Dictionary=_rigid_body.resolve(rigs[hand].portal,rigs[hand].tip,rigs[hand].axis,rigs[hand].tip,rigs[hand].axis,hand_tools[hand],_radius(hand),requested_grip,surfaces,prior.grip)
+					var transition:Dictionary=_rigid_body.resolve(rigs[hand].portal,rigs[hand].tip,rigs[hand].axis,rigs[hand].tip,rigs[hand].axis,hand_tools[hand],_radius(hand),requested_grip,surfaces,prior.grip,rigs[hand].roll,rigs[hand].roll)
 					if transition.valid and transition.fraction==1. and transition.contacts.is_empty(): _resolved_grips[hand]=requested_grip
 					else:
 						for candidate in transition.contacts:
@@ -447,7 +462,7 @@ func _physics_process(dt: float) -> void:
 	incision.update(dt,[rigs[0].insertion,rigs[1].insertion])
 	if geometric_blade:
 		var prior:Dictionary=_body_poses[selected]
-		var sweep:Dictionary=BladeSweep.build("knife",prior.tip,prior.axis,rigs[selected].tip,rigs[selected].axis,true)
+		var sweep:Dictionary=BladeSweep.build("knife",prior.tip,prior.axis,rigs[selected].tip,rigs[selected].axis,true,prior.get("roll",0.),rigs[selected].roll)
 		if not sweep.valid:
 			_reject_physics_tick(saved,{"reason":"blade_"+sweep.reason,"status":-1});return
 		if not sweep.patches.is_empty():
@@ -473,7 +488,7 @@ func _physics_process(dt: float) -> void:
 		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":_radius(hand),"grip":hand_tools[hand]=="forceps" and _actual_grip(hand) and (latched[hand] or (hand==selected and grip_down)),"cut":cutting and geometry==null})
 		if geometry:
 			var prior:Dictionary=_body_poses[hand]
-			tools[-1]["body"]=ToolPath.build(hand_tools[hand],_radius(hand),prior.tip,prior.axis,prior.grip,rigs[hand].tip,rigs[hand].axis,_actual_grip(hand),cutting)
+			tools[-1]["body"]=ToolPath.build(hand_tools[hand],_radius(hand),prior.tip,prior.axis,prior.grip,rigs[hand].tip,rigs[hand].axis,_actual_grip(hand),cutting,prior.get("roll",0.),rigs[hand].roll)
 	if _flap_boundary:
 		_flap_boundary.wounds=_open_wounds()
 		if anatomy.cornea.revision!=_flap_revision:
@@ -483,7 +498,7 @@ func _physics_process(dt: float) -> void:
 		var failure:Dictionary=capsule.native_failure.duplicate(true)
 		_reject_physics_tick(saved,failure)
 		return
-	for hand in range(2): _body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"grip":hand_tools[hand]=="forceps" and _actual_grip(hand)}
+	for hand in range(2): _body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"roll":rigs[hand].roll,"grip":hand_tools[hand]=="forceps" and _actual_grip(hand)}
 	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
 	if injecting and implant_hand==-1: implant_hand=selected
 	if implant_hand>=0 and hand_tools[implant_hand]=="injector": implant_nozzle=rigs[implant_hand].tip
@@ -506,6 +521,7 @@ func _reject_physics_tick(saved:Dictionary,failure:Dictionary)->void:
 	capsule.native_failure=failure
 	# Disarm input without releasing restored physical grasps or cut history.
 	_disarm_actions();target_valid=[false,false];_command_axes=[Vector3.ZERO,Vector3.ZERO]
+	_command_rolls=[null,null]
 	paused=true
 	status="조직 계산을 완료하지 못했습니다. 조작을 멈추고 상태를 확인하세요: "+str(failure.get("reason","native_failure"))
 	refresh_ui()

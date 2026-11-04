@@ -2,8 +2,9 @@ extends RefCounted
 ## Generic tool pose paths. Quaternion rotation preserves shaft length; each
 ## sampled interval is enclosed by a capsule with an explicit arc error bound.
 const Profile=preload("res://scripts/instrument_profile.gd")
-static func build(id:String,radius:float,tip0:Vector3,axis0:Vector3,grip0:bool,tip1:Vector3,axis1:Vector3,grip1:bool,cutting:bool)->Array:
+static func build(id:String,radius:float,tip0:Vector3,axis0:Vector3,grip0:bool,tip1:Vector3,axis1:Vector3,grip1:bool,cutting:bool,roll0:float=0.,roll1:float=0.)->Array:
 	var out:Array=[]
+	if not is_finite(roll0) or not is_finite(roll1):return out
 	for axis in [axis0,axis1]:
 		if not axis.is_finite() or not is_finite(axis.length_squared()) or axis.length_squared()<1e-12: return out
 	if not tip0.is_finite() or not tip1.is_finite(): return out
@@ -11,7 +12,7 @@ static func build(id:String,radius:float,tip0:Vector3,axis0:Vector3,grip0:bool,t
 	for i in range(current.size()):
 		var part:Dictionary=current[i]
 		if part.cutting and cutting: continue
-		var route:={"tip0":tip0,"tip1":tip1,"rotation0":Profile.frame(axis0).get_rotation_quaternion(),"rotation1":Profile.frame(axis1).get_rotation_quaternion(),"a0":old[i].a,"b0":old[i].b,"a1":part.a,"b1":part.b}
+		var route:={"tip0":tip0,"tip1":tip1,"rotation0":Profile.frame(axis0,roll0).get_rotation_quaternion(),"rotation1":Profile.frame(axis1,roll1).get_rotation_quaternion(),"a0":old[i].a,"b0":old[i].b,"a1":part.a,"b1":part.b}
 		for endpoint in ["a","b"]:
 			route["physical_"+endpoint+"0"]=old[i]["physical_"+endpoint]
 			route["physical_"+endpoint+"1"]=part["physical_"+endpoint]

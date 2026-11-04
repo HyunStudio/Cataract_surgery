@@ -156,7 +156,7 @@ func apply(capsule,lens,iol,rigs:Array,hand_tools:Array,selected:int,actions:Arr
 		if not options.get("anatomy",{}).has("iris"): _iris.mesh=Shapes.mesh(Shapes.iris(radius))
 	_set_view(bool(options.get("room",false)))
 	var rig_data:Array=[]
-	for rig in rigs: rig_data.append({"tip":rig.tip,"axis":rig.axis,"portal":rig.portal,"insertion":rig.insertion})
+	for rig in rigs: rig_data.append({"tip":rig.tip,"axis":rig.axis,"portal":rig.portal,"insertion":rig.insertion,"roll":_rig_roll(rig)})
 	var lens_state:Dictionary=lens.visual_state() if lens is Object and lens.has_method("visual_state") else {"particles":lens.particles.duplicate(true),"bonds":lens.bonds.duplicate(true)}
 	var cap_state:Dictionary=capsule.visual_state() if capsule is Object and capsule.has_method("visual_state") else {"positions":capsule.positions.duplicate(),"triangles":capsule.triangles.duplicate(),"edges":capsule.edges.duplicate(true)}
 	_last_frame={"capsule":cap_state,"lens":lens_state,"iol":{"positions":iol.positions.duplicate(),"optic_count":int(iol.optic_count),"metrics":iol_metrics.duplicate(true)},"rigs":rig_data,"hand_tools":hand_tools.duplicate(true),"selected":selected,"actions":actions.duplicate(true),"options":options.duplicate(true)}
@@ -277,13 +277,16 @@ func _render_iol(positions:PackedVector3Array,optic_count:int,metrics:Dictionary
 		arrays[Mesh.ARRAY_INDEX]=indices
 		_haptic_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
 
+static func _rig_roll(rig)->float:
+	return float(rig.get("roll",0.)) if rig is Dictionary else rig.roll
+
 func _render_tools(rigs:Array,hand_tools:Array,selected:int,actions:Array)->void:
 	for hand in range(2):
 		for id in tool_models[hand]:
 			var model:Node3D=tool_models[hand][id]
 			model.visible=hand<rigs.size() and hand<hand_tools.size() and id==hand_tools[hand]
 			if not model.visible: continue
-			var frame:=InstrumentProfile.frame(rigs[hand].axis)
+			var frame:=InstrumentProfile.frame(rigs[hand].axis,_rig_roll(rigs[hand]))
 			var local_axis:Vector3=model.get_meta("shaft_axis",Vector3(1.55,.52,.20).normalized())
 			model.basis=frame*Basis(Quaternion(local_axis,Vector3.RIGHT))
 			model.position=rigs[hand].tip

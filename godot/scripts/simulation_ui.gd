@@ -102,7 +102,7 @@ func build(app: Object) -> void:
 		tool_buttons[id]=button; left.add_child(button)
 	left.add_child(_button("기구 인출",func(): _call("withdraw_tools")))
 	left.add_child(HSeparator.new())
-	left.add_child(_label("마우스  조준 · 휠  삽입 깊이\nQ / E  각도 · Tab  손 전환\nG  집게 고정 · Space  페달",12,DIM))
+	left.add_child(_label("마우스  조준 · 휠  삽입 깊이\nQ / E  각도 · Z / C  축 회전\nTab  손 전환 · G  집게 고정\nSpace  페달",12,DIM))
 	left.add_child(_button("수치 진단  F2",func(): _call("toggle_debug")))
 	var center:=_column(body); center.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	var view_header:=HBoxContainer.new(); center.add_child(view_header)
@@ -205,7 +205,7 @@ func _build_briefing() -> void:
 
 func _build_help() -> void:
 	var parts:=_overlay("조작과 접근성  /  CONTROLS"); _help=parts[0]; var content: VBoxContainer=parts[1]
-	var copy:=_label("마우스  기구 조준\n휠  삽입 깊이    Q / E  기구 각도\nTab  선택 손 전환    G  집게 고정 / 해제\nSpace  유화 페달    Ctrl+Space  관류    Shift+Space  흡인\nF2  상세 수치    Esc  일시정지\n\n집게를 고정한 뒤 다른 손의 기구를 조작할 수 있습니다.\n최종 검사는 실제 잔여물, IOL 상태와 상처 관찰을 확인합니다.\n기구를 인출한 뒤 최종 상처 상태를 확인하세요.",15); copy.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; content.add_child(copy)
+	var copy:=_label("마우스  기구 조준\n휠  삽입 깊이    Q / E  기구 각도\nZ / C  축 회전 · 집게 턱과 칼날 방향 조절\nTab  선택 손 전환    G  집게 고정 / 해제\nSpace  유화 페달    Ctrl+Space  관류    Shift+Space  흡인\nF2  상세 수치    Esc  일시정지\n\n집게를 고정한 뒤 다른 손의 기구를 조작할 수 있습니다.\n최종 검사는 실제 잔여물, IOL 상태와 상처 관찰을 확인합니다.\n기구를 인출한 뒤 최종 상처 상태를 확인하세요.",15); copy.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; content.add_child(copy)
 	for pair in [["assisted","마우스 깊이 보조","set_assisted"],["high_contrast","높은 대비","set_high_contrast"],["reduced_motion","움직임 감소","set_reduced_motion"],["sound","장비 소리","set_sound"]]:
 		var method: String=pair[2]; var check:=CheckButton.new(); check.text=pair[1]; check.toggled.connect(func(value): _call(method,[value])); content.add_child(check); _settings[pair[0]]=check
 		if pair[0]=="sound": sound_toggle=check

@@ -13,15 +13,16 @@ static func _triangle(a:Vector3,b:Vector3,c:Vector3)->PackedVector3Array:
 	var length:=a.distance_to(b)
 	if length<=RESOLUTION or (b-a).cross(c-a).length()/length<=RESOLUTION:return PackedVector3Array()
 	return PackedVector3Array([a,b,c])
-static func build(id:String,tip0:Vector3,axis0:Vector3,tip1:Vector3,axis1:Vector3,active:bool)->Dictionary:
+static func build(id:String,tip0:Vector3,axis0:Vector3,tip1:Vector3,axis1:Vector3,active:bool,roll0:float=0.,roll1:float=0.)->Dictionary:
 	var patches:Array[PackedVector3Array]=[];var edges:Array=Profile.cutting_edges(id)
 	if not active or edges.is_empty():return {"valid":true,"reason":"","patches":patches,"steps":0}
+	if not is_finite(roll0) or not is_finite(roll1):return invalid("roll")
 	for point in [tip0,tip1]:
 		if not point.is_finite() or point.length_squared()>256.:return invalid("pose")
 	for axis in [axis0,axis1]:
 		if not axis.is_finite() or not is_finite(axis.length_squared()) or axis.length_squared()<1e-12:return invalid("axis")
 	if tip0.distance_to(tip1)>MAX_TRANSLATION:return invalid("sweep_distance")
-	var first:Quaternion=Profile.frame(axis0).get_rotation_quaternion();var last:Quaternion=Profile.frame(axis1).get_rotation_quaternion()
+	var first:Quaternion=Profile.frame(axis0,roll0).get_rotation_quaternion();var last:Quaternion=Profile.frame(axis1,roll1).get_rotation_quaternion()
 	var steps:int=maxi(1,ceili(first.angle_to(last)/ANGULAR_STEP))
 	if steps>MAX_STEPS:return invalid("sweep_budget")
 	for edge in edges:

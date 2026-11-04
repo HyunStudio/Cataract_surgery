@@ -1,0 +1,11 @@
+{
+  "qualified": true,
+  "scope": "Frozen axial rotation operator GPU and rejected-step rollback only; not complete surgery, OS keyboard injection, active FPS, or Windows export qualification.",
+  "engine_sha256": "c8f0a6bc45a19b33541501e57f6f7cd972ab18453743266339d495cbbe846643",
+  "base_report_sha256": "383cd100873c6cb1494b4dac6d6bab1c716e4708720b4ec10499dc793149e0d4",
+  "transaction_script_sha256": "eabe6de4f31111ab4f27fb985c68e66aee1b891909c5a5b59a6686f02810ac13",
+  "transaction_log": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org\n\nRoll transaction: 0 failures\n",
+  "transaction_log_sha256": "ffd3257da62adf532544315d82ff73fca09af60a2ea6c352d21fab4e06edb7e7",
+  "gpu_log": "Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org\nOpenGL API 3.3.0 NVIDIA 566.14 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 3070 Laptop GPU\n\nRoll operator: 0 failures\n",
+  "gpu_log_sha256": "da707a671f868a317f1ee7a96e28ef2b69219b0d4db2b2f172cf9280fe9ada64"
+}
