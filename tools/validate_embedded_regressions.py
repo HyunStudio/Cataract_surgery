@@ -18,10 +18,11 @@ SUITES = ['test_trajectory_pose','test_trajectory_transaction','test_material_ed
           'test_body_app','test_rigid_body_app','test_presentation_clock','test_capsule_solver',
           'test_capsule_surface','test_membrane_normal','test_flap_boundary','test_capsule_extraction']
 SUITES.insert(0,'test_trajectory_seed')
+SUITES.insert(0,'test_binary64_incision')
 probe = Path(tempfile.mkdtemp(prefix='embedded-regressions-', dir=ROOT/'.tools'))
 sources = [ROOT/name for name in subprocess.check_output(['git','ls-files','--','godot'], cwd=ROOT, text=True).splitlines()]
 sources = sorted({p for p in sources if p.is_file()} | {ROOT/'godot/tests'/f'{name}.gd' for name in SUITES} |
-                 {ROOT/'godot/scripts/recorded_body_pose.gd',ROOT/'godot/scripts/trajectory_seed.gd',ROOT/'godot/tests/fixtures/recorded-poses.json'})
+                 {ROOT/'godot/scripts/cut_geometry.gd',ROOT/'godot/scripts/recorded_body_pose.gd',ROOT/'godot/scripts/trajectory_seed.gd',ROOT/'godot/tests/fixtures/recorded-poses.json'})
 inputs = source_hashes([*sources, Path(__file__).resolve()])
 for source in sources:
     target = probe/source.relative_to(ROOT/'godot');target.parent.mkdir(parents=True, exist_ok=True)

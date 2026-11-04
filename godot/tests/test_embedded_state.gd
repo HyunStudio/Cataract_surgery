@@ -14,10 +14,10 @@ func momentum(state:Dictionary,dt:float)->PackedFloat64Array:
 class FailLater extends RefCounted:
 	var inner=load("res://scripts/membrane_cut.gd").new()
 	var calls:=0
-	func slice_triangle(points,indices,a,b,c,max_vertices=4096,max_triangles=8192,material_partition=false)->Dictionary:
+	func slice_triangle64(points,indices,a,b,c,max_vertices=4096,max_triangles=8192)->Dictionary:
 		calls+=1
 		if calls==2:return {"valid":false,"changed":false,"reason":"injected_later_failure"}
-		return inner.slice_triangle(points,indices,a,b,c,max_vertices,max_triangles,material_partition)
+		return inner.slice_triangle64(points,indices,a,b,c,max_vertices,max_triangles)
 func _initialize()->void:
 	check(ResourceLoader.exists("res://scripts/embedded_membrane.gd"),"embedded mechanical state module exists")
 	if failures:quit(1);return

@@ -2,8 +2,8 @@ extends SceneTree
 var failures:=0
 class RecordingCutter extends RefCounted:
 	var inner=load("res://scripts/membrane_cut.gd").new()
-	func slice_triangle(points,indices,a,b,c,max_vertices=4096,max_triangles=8192,material_partition=false)->Dictionary:
-		var result:Dictionary=inner.slice_triangle(points,indices,a,b,c,max_vertices,max_triangles,material_partition)
+	func slice_triangle64(points,indices,a,b,c,max_vertices=4096,max_triangles=8192)->Dictionary:
+		var result:Dictionary=inner.slice_triangle64(points,indices,a,b,c,max_vertices,max_triangles)
 		if not result.valid:
 			DirAccess.make_dir_recursive_absolute("res://reports")
 			var file:=FileAccess.open("res://reports/embedded-curved-cut-failure.bin",FileAccess.WRITE)

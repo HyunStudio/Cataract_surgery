@@ -15,6 +15,17 @@ class RecordingCutter extends RefCounted:
 			var file:=FileAccess.open("res://reports/blade-cut-failure.bin",FileAccess.WRITE)
 			if file:file.store_var({"points":points,"indices":indices,"patch":PackedVector3Array([a,b,c]),"reason":result.reason})
 		return result
+	func slice_triangle64(points,indices,a,b,c,max_vertices=4096,max_triangles=8192)->Dictionary:
+		last_state={}
+		for key in ["positions","rest_positions","_previous","anchored","_removed","_outside","triangles","_triangle_area","surface_density","_material_rest","_material_indices","_material_ids"]:
+			last_state[key]=model.get(key)
+		var result:Dictionary=inner.slice_triangle64(points,indices,a,b,c,max_vertices,max_triangles)
+		last_cut=result
+		if not result.valid:
+			DirAccess.make_dir_recursive_absolute("res://reports")
+			var file:=FileAccess.open("res://reports/blade-cut-failure.bin",FileAccess.WRITE)
+			if file:file.store_var({"points":points,"indices":indices,"patch":PackedVector3Array([a,b,c]),"reason":result.reason})
+		return result
 func configure_capsule(_app)->bool:return true
 func run()->void:
 	var app=load("res://scripts/simulator.gd").new();root.add_child(app);app.set_physics_process(false);app.set_process(false);await process_frame
@@ -26,6 +37,10 @@ func run()->void:
 		place(app,target)
 		if failures:break
 	var area:float=app.capsule.metrics().retained_area
+	var central_vertex:=-1;var closest:=INF
+	for vertex in range(app.capsule.rest_positions.size()):
+		var point:Vector3=app.capsule.rest_positions[vertex];var radius_sq:float=float(point.x)*point.x+float(point.z)*point.z
+		if radius_sq<closest:closest=radius_sq;central_vertex=vertex
 	app.grip_down=true
 	for i in range(145):
 		if failures:break
@@ -37,7 +52,10 @@ func run()->void:
 		DirAccess.make_dir_recursive_absolute("res://reports")
 		var file:=FileAccess.open("res://reports/blade-transfer-failure.bin",FileAccess.WRITE)
 		if file:file.store_var({"state":app.capsule._cutter.last_state,"cut":app.capsule._cutter.last_cut})
-	check(not pieces.is_empty(),"continuous closed sharp-edge route retains a genuinely detached anterior flap")
+	var central_detached:=false
+	for piece in pieces:
+		if central_vertex in piece.vertices:central_detached=true
+	check(central_vertex>=0 and central_detached,"closed sharp-edge route detaches the intended central material, not just peripheral chips")
 	check(absf(app.capsule.metrics().retained_area-area)<1e-9,"closed blade route preserves the entire membrane material")
 	print("Closed blade result: ",failures," failures; components=",pieces.size(),"; failure=",app.capsule.native_failure)
 	app.capsule._cutter.model=null

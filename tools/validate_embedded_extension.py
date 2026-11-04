@@ -45,20 +45,21 @@ if options.trajectory:
     intended['trajectory_bridge.gd']=ROOT/'native/tests/test_fem_trajectory_godot.gd'
     intended['trajectory_advance.gd']=ROOT/'native/tests/test_trajectory_advance_godot.gd'
 if not options.bridge_only:
+    intended['scripts/cut_geometry.gd']=ROOT/'godot/scripts/cut_geometry.gd'
     for name in subprocess.check_output(['git', 'ls-files', '--', 'godot'], cwd=ROOT, text=True).splitlines():
         source = ROOT/name
         if source.is_file() and name != 'godot/project.godot':
             intended[str(source.relative_to(ROOT/'godot'))] = source
     intended['embedded_native.gd'] = ROOT/'godot/tests/test_embedded_native.gd'
     if options.operative_blade:
-        for name in ['scripts/operative_membrane.gd','tests/test_operative_embedded.gd','tests/test_operative_blade.gd','tests/test_operative_cut_geometry.gd','tests/test_material_edge_insertion.gd','tests/test_operative_resolution_native.gd','tests/fixtures/operative-blade-area.bin']:
+        for name in ['scripts/cut_geometry.gd','tests/test_binary64_incision.gd','scripts/operative_membrane.gd','tests/test_operative_embedded.gd','tests/test_operative_blade.gd','tests/test_operative_cut_geometry.gd','tests/test_material_edge_insertion.gd','tests/test_operative_resolution_native.gd','tests/fixtures/operative-blade-area.bin']:
             intended[name]=ROOT/'godot'/name
     if options.grasp:intended['embedded_grasp.gd'] = ROOT/'godot/tests/test_embedded_grasp_native.gd'
     if options.contact:intended['embedded_contact.gd'] = ROOT/'godot/tests/test_embedded_contact_native.gd'
     if options.coupled:intended['embedded_coupled.gd'] = ROOT/'godot/tests/test_embedded_coupled_native.gd'
     if options.curved:intended['embedded_curved.gd'] = ROOT/'godot/tests/test_embedded_coupled_curved_native.gd'
     if options.trajectory:
-        for name in ['scripts/recorded_body_pose.gd','scripts/trajectory_seed.gd','tests/test_trajectory_seed.gd','tests/test_trajectory_pose.gd','tests/test_trajectory_transaction.gd','tests/fixtures/recorded-poses.json','tests/fixtures/operative-motion146-state.bin']:
+        for name in ['scripts/cut_geometry.gd','tests/test_binary64_incision.gd','scripts/recorded_body_pose.gd','scripts/trajectory_seed.gd','tests/test_trajectory_seed.gd','tests/test_trajectory_pose.gd','tests/test_trajectory_transaction.gd','tests/fixtures/recorded-poses.json','tests/fixtures/operative-motion146-state.bin']:
             intended[name]=ROOT/'godot'/name
 inputs = source_hashes([*intended.values(), Path(__file__).resolve()])
 for name, source in intended.items():
@@ -101,6 +102,7 @@ if options.trajectory:
     stages.append(('trajectory_seed',['--script','res://tests/test_trajectory_seed.gd'],'Trajectory numerical seed: 0 failures'))
     stages.append(('trajectory_advance',['--script','res://trajectory_advance.gd'],'Embedded trajectory advance: 0 failures'))
 if options.operative_blade:
+    stages.append(('binary64_incision',['--script','res://tests/test_binary64_incision.gd'],'Binary64 incision geometry: 0 failures'))
     stages.append(('operative_contract',['--script','res://tests/test_operative_embedded.gd'],'Operative embedded contract: 0 failures'))
     stages.append(('operative_cut_geometry',['--script','res://tests/test_operative_cut_geometry.gd'],'Operative cut geometry: 0 failures'))
     stages.append(('material_edge_insertion',['--script','res://tests/test_material_edge_insertion.gd'],'Material edge insertion: 0 failures'))

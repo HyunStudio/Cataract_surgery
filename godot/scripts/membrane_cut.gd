@@ -1,12 +1,14 @@
 extends RefCounted
+const G=preload("res://scripts/cut_geometry.gd")
+var _physical:=false
 const Precision=preload("res://scripts/membrane_precision.gd")
 ## Finite curtain incision of an oriented triangle membrane. No material is removed.
 ## Source-edge identity preserves shared nodes without welding coincident old seams.
 ## This geometric engineering model is not calibrated tissue fracture mechanics.
 const EPS:=0.0000001
 const MAX_WORK:=2000000
-var _points:=PackedVector3Array()
-var _original:=PackedVector3Array()
+var _points=PackedVector3Array()
+var _original=PackedVector3Array()
 var _bindings:Array[Dictionary]=[]
 var _edge_nodes:Dictionary={}
 var _input_edges:Dictionary={}
@@ -15,13 +17,13 @@ var _failure:=""
 var _work:=0
 var _vertex_limit:=0
 var _triangle_limit:=0
-var _start:=Vector3.ZERO
-var _tangent:=Vector3.ZERO
-var _depth:=Vector3.ZERO
-var _normal:=Vector3.ZERO
+var _start=Vector3.ZERO
+var _tangent=Vector3.ZERO
+var _depth=Vector3.ZERO
+var _normal=Vector3.ZERO
 var _length:=0.
 var _half_depth:=0.
-var _clip_polygon:=PackedVector2Array()
+var _clip_polygon=[]
 
 func _invalid(reason:String)->Dictionary:
 	return {"valid":false,"changed":false,"reason":reason,"points":PackedVector3Array(),"indices":PackedInt32Array(),"sources":PackedInt32Array(),"bindings":[],"work":_work}
@@ -29,32 +31,35 @@ func _tick()->bool:
 	_work+=1
 	if _work>MAX_WORK: _failure="work_budget"; return false
 	return true
-static func _dot(a:Vector3,b:Vector3)->float:
-	return float(a.x)*b.x+float(a.y)*b.y+float(a.z)*b.z
+static func _dot(a,b)->float:
+	return float(a[0])*b[0]+float(a[1])*b[1]+float(a[2])*b[2]
 static func _key(a:int,b:int)->Vector2i:
 	return Vector2i(mini(a,b),maxi(a,b))
-static func _area(a:Vector3,b:Vector3,c:Vector3)->float:
-	var ux:float=float(b.x)-a.x;var uy:float=float(b.y)-a.y;var uz:float=float(b.z)-a.z
-	var vx:float=float(c.x)-a.x;var vy:float=float(c.y)-a.y;var vz:float=float(c.z)-a.z
+static func _area(a,b,c)->float:
+	var ux:float=float(b[0])-a[0];var uy:float=float(b[1])-a[1];var uz:float=float(b[2])-a[2]
+	var vx:float=float(c[0])-a[0];var vy:float=float(c[1])-a[1];var vz:float=float(c[2])-a[2]
 	var nx:=uy*vz-uz*vy;var ny:=uz*vx-ux*vz;var nz:=ux*vy-uy*vx
 	return sqrt(nx*nx+ny*ny+nz*nz)*.5
-static func _project(p:Vector3,axis:int)->Vector2:
-	return Vector2(p.y,p.z) if axis==0 else (Vector2(p.x,p.z) if axis==1 else Vector2(p.x,p.y))
-static func _cross(a:Vector2,b:Vector2)->float:
-	return float(a.x)*b.y-float(a.y)*b.x
-func _bary(p:Vector3,a:Vector3,b:Vector3,c:Vector3)->Vector3:
-	var axis:=(b-a).cross(c-a).abs().max_axis_index()
-	var pa:=_project(a,axis); var pb:=_project(b,axis); var pc:=_project(c,axis); var pp:=_project(p,axis)
-	var ux:float=float(pb.x)-pa.x; var uy:float=float(pb.y)-pa.y
-	var vx:float=float(pc.x)-pa.x; var vy:float=float(pc.y)-pa.y
-	var qx:float=float(pp.x)-pa.x; var qy:float=float(pp.y)-pa.y
+func _project(p,axis:int):
+	return G.make2(p[1],p[2],_physical) if axis==0 else (G.make2(p[0],p[2],_physical) if axis==1 else G.make2(p[0],p[1],_physical))
+static func _cross(a,b)->float:return float(a[0])*b[1]-float(a[1])*b[0]
+func _bary(p,a,b,c):
+	var normal=G.cross(G.sub(b,a),G.sub(c,a));var axis:int=normal.abs().max_axis_index() if normal is Vector3 else 0
+	if _physical:
+		for j in range(1,3):
+			if absf(normal[j])>absf(normal[axis]):axis=j
+	var pa=_project(a,axis);var pb=_project(b,axis);var pc=_project(c,axis);var pp=_project(p,axis)
+	var ux:float=float(pb[0])-pa[0];var uy:float=float(pb[1])-pa[1]
+	var vx:float=float(pc[0])-pa[0];var vy:float=float(pc[1])-pa[1]
+	var qx:float=float(pp[0])-pa[0];var qy:float=float(pp[1])-pa[1]
 	var determinant:=ux*vy-uy*vx
-	if absf(determinant)<1e-20: return Vector3(-INF,-INF,-INF)
-	var second:=(qx*vy-qy*vx)/determinant; var third:=(ux*qy-uy*qx)/determinant
-	return Vector3(1.-second-third,second,third)
+	if absf(determinant)<1e-20:return G.make3(-INF,-INF,-INF,_physical)
+	var second:float=(qx*vy-qy*vx)/determinant;var third:float=(ux*qy-uy*qx)/determinant
+	return G.make3(1.-second-third,second,third,_physical)
 
 func slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float,max_vertices:int=4096,max_triangles:int=8192)->Dictionary:
-	return _slice(points,indices,start,finish,depth_axis,half_depth,max_vertices,max_triangles,PackedVector2Array())
+	_physical=false
+	return _slice(points,indices,start,finish,depth_axis,half_depth,max_vertices,max_triangles,[])
 
 ## A finite, planar sharp-edge sweep patch. Coplanar sliding has no unique
 ## transverse incision, so it leaves those faces intact rather than guessing.
@@ -62,36 +67,47 @@ func slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fini
 ## and returns their source fractions. Legacy display geometry is a separate
 ## contract: rounded orientation alone does not qualify original-material FEM.
 func slice_triangle(points:PackedVector3Array,indices:PackedInt32Array,a:Vector3,b:Vector3,c:Vector3,max_vertices:int=4096,max_triangles:int=8192,material_partition:bool=false)->Dictionary:
+	_physical=false
+	return _triangle(points,indices,a,b,c,max_vertices,max_triangles,material_partition)
+
+func slice_triangle64(values:PackedFloat64Array,indices:PackedInt32Array,a:Vector3,b:Vector3,c:Vector3,max_vertices:int=4096,max_triangles:int=8192)->Dictionary:
+	_physical=true;_work=0
+	if values.is_empty() or values.size()%3!=0 or values.size()/3>max_vertices:return _invalid("physical_shape")
+	var points:Array=[]
+	for i in range(0,values.size(),3):points.append(PackedFloat64Array([values[i],values[i+1],values[i+2]]))
+	return _triangle(points,indices,G.make3(a.x,a.y,a.z,true),G.make3(b.x,b.y,b.z,true),G.make3(c.x,c.y,c.z,true),max_vertices,max_triangles,true)
+
+func _triangle(points,indices:PackedInt32Array,a,b,c,max_vertices:int,max_triangles:int,material_partition:bool)->Dictionary:
 	_work=0
 	for point in [a,b,c]:
-		if not point.is_finite() or point.length_squared()>256.:return _invalid("patch")
-	var edge:=b-a;var length:=edge.length()
+		if not G.finite(point) or G.norm2(point)>256.:return _invalid("patch")
+	var edge=G.sub(b,a);var length:=G.length(edge)
 	if length<=EPS:return _invalid("patch_resolution")
-	var tangent:=edge/length
-	var depth:=c-a-tangent*_dot(c-a,tangent);var height:=depth.length()
+	var tangent=G.divide(edge,length)
+	var depth=G.sub(G.sub(c,a),G.mul(tangent,_dot(G.sub(c,a),tangent)));var height:=G.length(depth)
 	if height<=EPS:return _invalid("patch_resolution")
-	depth/=height
-	var polygon:=PackedVector2Array([Vector2.ZERO,Vector2(length,0.),Vector2(_dot(c-a,tangent),height)])
+	depth=G.divide(depth,height)
+	var polygon:Array=[G.make2(0.,0.,_physical),G.make2(length,0.,_physical),G.make2(_dot(G.sub(c,a),tangent),height,_physical)]
 	return _slice(points,indices,a,b,depth,height,max_vertices,max_triangles,polygon,material_partition)
 
-func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float,max_vertices:int,max_triangles:int,polygon:PackedVector2Array,material_partition:bool=false)->Dictionary:
+func _slice(points,indices:PackedInt32Array,start,finish,depth_axis,half_depth:float,max_vertices:int,max_triangles:int,polygon:Array,material_partition:bool=false)->Dictionary:
 	_failure=""; _work=0; _edge_nodes={}; _input_edges={}; _cut_faces={}; _bindings=[]
 	_clip_polygon=polygon.duplicate()
 	_vertex_limit=max_vertices; _triangle_limit=max_triangles
 	if points.is_empty() or points.size()>max_vertices or max_vertices<3 or max_vertices>8192 or indices.is_empty() or indices.size()%3!=0 or indices.size()/3>max_triangles or max_triangles<1 or max_triangles>16384: return _invalid("input_budget")
 	for p in points:
-		if not p.is_finite() or p.length_squared()>256.: return _invalid("point")
+		if not G.finite(p) or G.norm2(p)>256.: return _invalid("point")
 	for v in indices:
 		if v<0 or v>=points.size(): return _invalid("index")
 	for p in [start,finish,depth_axis]:
-		if not p.is_finite() or p.length_squared()>256.: return _invalid("curtain")
+		if not G.finite(p) or G.norm2(p)>256.: return _invalid("curtain")
 	if not is_finite(half_depth) or half_depth<=EPS or half_depth>(1. if polygon.is_empty() else 4.): return _invalid("depth")
-	_length=start.distance_to(finish)
+	_length=G.distance(start,finish)
 	if _length<=EPS or _length>4.: return _invalid("stroke")
-	_start=start; _half_depth=half_depth; _tangent=(finish-start)/_length
-	_depth=depth_axis-_tangent*_dot(depth_axis,_tangent)
-	if _depth.length_squared()<1e-12: return _invalid("curtain_axis")
-	_depth=_depth.normalized(); _normal=_tangent.cross(_depth).normalized()
+	_start=start; _half_depth=half_depth; _tangent=G.divide(G.sub(finish,start),_length)
+	_depth=G.sub(depth_axis,G.mul(_tangent,_dot(depth_axis,_tangent)))
+	if G.norm2(_depth)<1e-12: return _invalid("curtain_axis")
+	_depth=G.normalized(_depth);_normal=G.normalized(G.cross(_tangent,_depth))
 	_points=points.duplicate(); _original=points.duplicate()
 	for i in range(points.size()): _bindings.append({"ids":Vector3i(i,i,i),"weights":Vector3(1,0,0)})
 	for off in range(0,indices.size(),3):
@@ -128,10 +144,10 @@ func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fin
 			local=_insert(local,v,required)
 			if _failure!="": return _invalid(_failure)
 		var retained:=0.; var local_seams:={}
-		var original_normal:=(points[face.y]-points[face.x]).cross(points[face.z]-points[face.x])
+		var original_normal=G.cross(G.sub(points[face.y],points[face.x]),G.sub(points[face.z],points[face.x]))
 		for triangle in local:
 			if not _tick(): return _invalid(_failure)
-			var normal:=(_points[triangle[1]]-_points[triangle[0]]).cross(_points[triangle[2]]-_points[triangle[0]])
+			var normal=G.cross(G.sub(_points[triangle[1]],_points[triangle[0]]),G.sub(_points[triangle[2]],_points[triangle[0]]))
 			if _dot(normal,original_normal)<=0.: return _invalid("subdivision_winding")
 			if material_partition:
 				var fraction:=_material_fraction(triangle,face)
@@ -158,7 +174,11 @@ func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fin
 	if _failure!="": return _invalid(_failure)
 	var packed:=PackedInt32Array()
 	for triangle in output: packed.append_array(triangle)
-	return {"valid":true,"changed":not _cut_faces.is_empty(),"reason":"","points":_points,"indices":packed,"sources":sources,"bindings":_bindings,"fractions":fractions,"work":_work}
+	var published=PackedVector3Array();var points64:=PackedFloat64Array()
+	if _physical:
+		for point in _points:points64.append_array(point);published.append(Vector3(point[0],point[1],point[2]))
+	else:published=_points
+	return {"valid":true,"changed":not _cut_faces.is_empty(),"reason":"","points":published,"points64":points64,"indices":packed,"sources":sources,"bindings":_bindings,"fractions":fractions,"work":_work}
 
 func _source_weights(index:int,face:Vector3i)->PackedFloat64Array:
 	var binding:Dictionary=_bindings[index];var result:=PackedFloat64Array([0.,0.,0.])
@@ -220,9 +240,9 @@ func _complete_seam(nodes:PackedInt32Array,seams:Dictionary)->bool:
 	return true
 
 func _plan(face:Vector3i,id:int)->void:
-	var distance:=PackedFloat64Array(); var hit:=PackedVector3Array()
+	var distance:=PackedFloat64Array();var hit:Array=[]
 	for v in [face.x,face.y,face.z]:
-		var signed:=_dot(_original[v]-_start,_normal)
+		var signed:=_dot(G.sub(_original[v],_start),_normal)
 		distance.append(0. if absf(signed)<EPS else signed)
 	if maxf(absf(distance[0]),maxf(absf(distance[1]),absf(distance[2])))<EPS:
 		if not _clip_polygon.is_empty():return
@@ -236,18 +256,18 @@ func _plan(face:Vector3i,id:int)->void:
 		if absf(distance[j])<EPS: _unique(hit,_original[face[j]])
 		if (distance[j]<0. and distance[k]>0.) or (distance[j]>0. and distance[k]<0.):
 			var a:=mini(face[j],face[k]); var b:=maxi(face[j],face[k])
-			var da:=_dot(_original[a]-_start,_normal); var db:=_dot(_original[b]-_start,_normal)
-			_unique(hit,_original[a].lerp(_original[b],da/(da-db)))
+			var da:=_dot(G.sub(_original[a],_start),_normal); var db:=_dot(G.sub(_original[b],_start),_normal)
+			_unique(hit,G.lerp(_original[a],_original[b],da/(da-db)))
 	if hit.size()<2: return
 	if hit.size()>2: _failure="ambiguous_intersection"; return
-	var clipped:=_clip(hit[0],hit[1])
+	var clipped=_clip(hit[0],hit[1])
 	if clipped.is_empty(): return
-	var a:Vector3=clipped[0]; var b:Vector3=clipped[1]
-	if a.distance_to(b)<=EPS*4.: return
+	var a=clipped[0];var b=clipped[1]
+	if G.distance(a,b)<=EPS*4.: return
 	# An incision along an already-open edge must not refine or heal its banks.
 	for j in range(3):
-		var u:Vector3=_original[face[j]]; var v:Vector3=_original[face[(j+1)%3]]
-		if a.distance_to(Geometry3D.get_closest_point_to_segment(a,u,v))<=EPS*2. and b.distance_to(Geometry3D.get_closest_point_to_segment(b,u,v))<=EPS*2. and _input_edges[_key(face[j],face[(j+1)%3])].size()==1: return
+		var u=_original[face[j]];var v=_original[face[(j+1)%3]]
+		if G.distance(a,G.closest(a,u,v))<=EPS*2. and G.distance(b,G.closest(b,u,v))<=EPS*2. and _input_edges[_key(face[j],face[(j+1)%3])].size()==1: return
 	var first:=_node(a,face); var last:=_node(b,face)
 	if _failure!="": return
 	if first==last: _failure="collapsed_cut"; return
@@ -255,37 +275,37 @@ func _plan(face:Vector3i,id:int)->void:
 	if _failure!="":return
 	_cut_faces[id]={"a":a,"b":b,"nodes":PackedInt32Array([first,last,middle])}
 
-func _unique(points:PackedVector3Array,p:Vector3)->void:
+func _unique(points:Array,p)->void:
 	for prior in points:
-		if prior.distance_to(p)<=EPS: return
+		if G.distance(prior,p)<=EPS: return
 	points.append(p)
-func _clip(a:Vector3,b:Vector3)->PackedVector3Array:
+func _clip(a,b)->Array:
 	var lo:=0.; var hi:=1.
 	if not _clip_polygon.is_empty():
-		var point:=Vector2(_dot(a-_start,_tangent),_dot(a-_start,_depth))
-		var motion:=Vector2(_dot(b-a,_tangent),_dot(b-a,_depth))
+		var point=G.make2(_dot(G.sub(a,_start),_tangent),_dot(G.sub(a,_start),_depth),_physical)
+		var motion=G.make2(_dot(G.sub(b,a),_tangent),_dot(G.sub(b,a),_depth),_physical)
 		for i in range(_clip_polygon.size()):
-			var first:Vector2=_clip_polygon[i];var side:Vector2=_clip_polygon[(i+1)%_clip_polygon.size()]-first
-			var value:=_cross(side,point-first);var delta:=_cross(side,motion)
+			var first=_clip_polygon[i];var side=G.sub(_clip_polygon[(i+1)%_clip_polygon.size()],first)
+			var value:=_cross(side,G.sub(point,first));var delta:=_cross(side,motion)
 			if absf(delta)<1e-15:
-				if value<-EPS*side.length():return PackedVector3Array()
+				if value<-EPS*G.length(side):return []
 			else:
 				var crossing:float=-value/delta
 				if delta>0.:lo=maxf(lo,crossing)
 				else:hi=minf(hi,crossing)
-				if hi<=lo:return PackedVector3Array()
-		return PackedVector3Array([a.lerp(b,lo),a.lerp(b,hi)])
+				if hi<=lo:return []
+		return [G.lerp(a,b,lo),G.lerp(a,b,hi)]
 	for axis in [0,1]:
-		var direction:Vector3=_tangent if axis==0 else _depth
-		var value:=_dot(a-_start,direction); var delta:=_dot(b-a,direction)
+		var direction=_tangent if axis==0 else _depth
+		var value:=_dot(G.sub(a,_start),direction); var delta:=_dot(G.sub(b,a),direction)
 		var lower:=0. if axis==0 else -_half_depth; var upper:=_length if axis==0 else _half_depth
 		if absf(delta)<1e-15:
-			if value<lower or value>upper: return PackedVector3Array()
+			if value<lower or value>upper: return []
 		else:
 			var u:=(lower-value)/delta; var v:=(upper-value)/delta
 			lo=maxf(lo,minf(u,v)); hi=minf(hi,maxf(u,v))
-			if hi<=lo: return PackedVector3Array()
-	return PackedVector3Array([a.lerp(b,lo),a.lerp(b,hi)])
+			if hi<=lo: return []
+	return [G.lerp(a,b,lo),G.lerp(a,b,hi)]
 func _material_on_edge(index:int,edge:Vector2i)->bool:
 	var binding:Dictionary=_bindings[index]
 	var weights:=Precision.binding_weights(binding)
@@ -300,7 +320,7 @@ func _midpoint(first:int,last:int,face:Vector3i)->int:
 	var a:=_source_weights(first,face);var b:=_source_weights(last,face);var weights:=PackedFloat64Array()
 	for j in range(3):weights.append(.5*(a[j]+b[j]))
 	if _failure!="":return -1
-	var point:=Vector3.ZERO;var total:float=weights[0]+weights[1]+weights[2]
+	var point=G.make3(0.,0.,0.,_physical);var total:float=weights[0]+weights[1]+weights[2]
 	for axis in range(3):
 		var base:float=_original[face[0]][axis]
 		point[axis]=base+((float(_original[face[1]][axis])-base)*weights[1]+(float(_original[face[2]][axis])-base)*weights[2])/total
@@ -311,25 +331,25 @@ func _midpoint(first:int,last:int,face:Vector3i)->int:
 		for old in _edge_nodes.get(edge,PackedInt32Array()):
 			if old==first or old==last:continue
 			var t:=_edge_fraction(old,edge);var lo:=_edge_fraction(first,edge);var hi:=_edge_fraction(last,edge)
-			if t>minf(lo,hi) and t<maxf(lo,hi) and _points[old].distance_to(point)<=EPS*2.:return old
+			if t>minf(lo,hi) and t<maxf(lo,hi) and G.distance(_points[old],point)<=EPS*2.:return old
 	if _points.size()>=_vertex_limit:_failure="vertex_budget";return -1
-	var index:=_points.size();_points.append(point)
+	var index:int=_points.size();_points.append(point)
 	_bindings.append({"ids":face,"weights":Vector3(weights[0],weights[1],weights[2]),"weights64":weights})
 	if edge.x>=0:
 		if not _edge_nodes.has(edge):_edge_nodes[edge]=PackedInt32Array()
 		_edge_nodes[edge].append(index)
 	return index
 
-func _node(p:Vector3,face:Vector3i,snap_edges:=true)->int:
+func _node(p,face:Vector3i,snap_edges:=true)->int:
 	for v in [face.x,face.y,face.z]:
-		if p.distance_to(_original[v])<=EPS: return v
-	var weights:=_bary(p,_original[face.x],_original[face.y],_original[face.z])
+		if G.distance(p,_original[v])<=EPS: return v
+	var weights=_bary(p,_original[face.x],_original[face.y],_original[face.z])
 	var edge:=Vector2i(-1,-1)
 	var nearest:=EPS*2. if snap_edges else 0.
 	for j in range(3):
-		var a:Vector3=_original[face[(j+1)%3]]; var b:Vector3=_original[face[(j+2)%3]]
-		var closest:=Geometry3D.get_closest_point_to_segment(p,a,b)
-		var distance:=p.distance_to(closest)
+		var a=_original[face[(j+1)%3]];var b=_original[face[(j+2)%3]]
+		var closest=G.closest(p,a,b)
+		var distance:=G.distance(p,closest)
 		if distance<nearest:
 			nearest=distance; edge=_key(face[(j+1)%3],face[(j+2)%3])
 	var edge_first:=-1;var edge_last:=-1
@@ -337,33 +357,33 @@ func _node(p:Vector3,face:Vector3i,snap_edges:=true)->int:
 		# Both incident faces must use the same source-edge arithmetic order.
 		# Reversed closest-point interpolation and three-term reconstruction
 		# can otherwise create distinct rounded copies of one shared crossing.
-		var a:Vector3=_original[edge.x];var b:Vector3=_original[edge.y]
-		var t:=clampf(_dot(p-a,b-a)/_dot(b-a,b-a),0.,1.)
-		weights=Vector3.ZERO
+		var a=_original[edge.x];var b=_original[edge.y]
+		var t:=clampf(_dot(G.sub(p,a),G.sub(b,a))/_dot(G.sub(b,a),G.sub(b,a)),0.,1.)
+		weights=G.make3(0.,0.,0.,_physical)
 		for j in range(3):
 			if face[j]==edge.x:edge_first=j;weights[j]=1.-t
 			if face[j]==edge.y:edge_last=j;weights[j]=t
-	if not weights.is_finite() or minf(weights.x,minf(weights.y,weights.z))<0.: _failure="outside_binding"; return -1
-	if edge.x>=0:p=_affine(_original[edge.x],_original[edge.y],_original[edge.y],Vector3(weights[edge_first],weights[edge_last],0.))
+	if not G.finite(weights) or minf(weights[0],minf(weights[1],weights[2]))<0.: _failure="outside_binding"; return -1
+	if edge.x>=0:p=_affine(_original[edge.x],_original[edge.y],_original[edge.y],G.make3(weights[edge_first],weights[edge_last],0.,_physical))
 	else:p=_affine(_original[face.x],_original[face.y],_original[face.z],weights)
 	if edge.x>=0:
 		for v in _edge_nodes.get(edge,PackedInt32Array()):
-			if _points[v].distance_to(p)<=EPS*2.: return v
+			if G.distance(_points[v],p)<=EPS*2.: return v
 	if _points.size()>=_vertex_limit: _failure="vertex_budget"; return -1
-	var index:=_points.size(); _points.append(p); _bindings.append({"ids":face,"weights":weights})
+	var index:int=_points.size(); _points.append(p); _bindings.append({"ids":face,"weights":Vector3(weights[0],weights[1],weights[2]),"weights64":weights} if _physical else {"ids":face,"weights":weights})
 	if edge.x>=0:
 		if not _edge_nodes.has(edge): _edge_nodes[edge]=PackedInt32Array()
 		_edge_nodes[edge].append(index)
 	return index
 
-static func _affine(a:Vector3,b:Vector3,c:Vector3,weights:Vector3)->Vector3:
+static func _affine(a,b,c,weights):
 	# Normalize in scalar double arithmetic. Rounded Vector3 weights need not
 	# sum to exactly one; a direct weighted sum then drifts off the source plane.
-	var total:float=float(weights.x)+weights.y+weights.z
-	var result:=Vector3.ZERO
+	var total:float=float(weights[0])+weights[1]+weights[2]
+	var result=G.make3(0.,0.,0.,a is PackedFloat64Array)
 	for axis in range(3):
 		var base:float=a[axis]
-		result[axis]=base+((float(b[axis])-base)*weights.y+(float(c[axis])-base)*weights.z)/total
+		result[axis]=base+((float(b[axis])-base)*weights[1]+(float(c[axis])-base)*weights[2])/total
 	return result
 
 func _edge_fraction(index:int,edge:Vector2i)->float:
@@ -422,8 +442,8 @@ func _insert(triangles:Array[PackedInt32Array],v:int,required:Vector2i=Vector2i(
 			for component in range(3):
 				if first[component]==0. and last[component]==0.:boundary=true;break
 			if boundary:continue
-			var a:Vector3=_points[key.x];var b:Vector3=_points[key.y]
-			var distance:=_points[v].distance_to(Geometry3D.get_closest_point_to_segment(_points[v],a,b))
+			var a=_points[key.x];var b=_points[key.y]
+			var distance:=G.distance(_points[v],G.closest(_points[v],a,b))
 			if distance<nearest:nearest=distance;chosen=key
 	if source.x>=0 and chosen.x<0:_failure="material_edge_insertion";return []
 	var container:=-1;var best:=-INF
@@ -431,9 +451,9 @@ func _insert(triangles:Array[PackedInt32Array],v:int,required:Vector2i=Vector2i(
 		for i in range(triangles.size()):
 			if not _tick():return []
 			var triangle:PackedInt32Array=triangles[i]
-			var weights:=_bary(_points[v],_points[triangle[0]],_points[triangle[1]],_points[triangle[2]])
-			if not weights.is_finite():continue
-			var inside:=minf(weights.x,minf(weights.y,weights.z))
+			var weights=_bary(_points[v],_points[triangle[0]],_points[triangle[1]],_points[triangle[2]])
+			if not G.finite(weights):continue
+			var inside:=minf(weights[0],minf(weights[1],weights[2]))
 			if inside>=-.0000002 and inside>best:best=inside;container=i
 		if container<0:_failure="point_insertion";return []
 	var output:Array[PackedInt32Array]=[]
@@ -453,12 +473,12 @@ func _insert(triangles:Array[PackedInt32Array],v:int,required:Vector2i=Vector2i(
 		else:output.append(triangle)
 		if output.size()>_triangle_limit:_failure="triangle_budget";return []
 	return output
-func _on_segment(p:Vector3,a:Vector3,b:Vector3)->bool:
-	var delta:=b-a; var length_sq:=_dot(delta,delta)
-	var t:=_dot(p-a,delta)/length_sq
+func _on_segment(p,a,b)->bool:
+	var delta=G.sub(b,a);var length_sq:=_dot(delta,delta)
+	var t:=_dot(G.sub(p,a),delta)/length_sq
 	# Endpoint tolerance is a scene distance. A fixed fractional tolerance
 	# shrinks incorrectly on short segments and leaves uncut bridges.
-	return p.distance_to(a+delta*clampf(t,0.,1.))<=EPS*4.
+	return G.distance(p,G.add(a,G.mul(delta,clampf(t,0.,1.))))<=EPS*4.
 
 func _split_fans(triangles:Array[PackedInt32Array],seams:Dictionary)->void:
 	var incident:={}; var edges:={}; var seam_vertices:={}; var assignment:={}

@@ -1,0 +1,13 @@
+{
+  "cases": 8,
+  "qualified": true,
+  "scope": "Exact legacy output dictionaries on six finite patches (geometric/material) and two curtains; no whole-route or clinical claim.",
+  "baseline_commit": "6303680",
+  "inputs": {
+    ".tools\\incision-legacy-compare\\compare.gd": "f8320f5872890713b9ce467e1e81a4333b842c43173c29e709834f307c2de813",
+    ".tools\\incision-legacy-compare\\old_cut.gd": "4f7c34cb3f9b093247b7bd8df3dcb719e99f6b84f67b86069c50c2ca4fc7e5df",
+    ".tools\\incision-legacy-compare\\scripts\\cut_geometry.gd": "448143d3635f70d6a8da21f741500080d6fc8d2a74fb435031c69046d9b9ec78",
+    ".tools\\incision-legacy-compare\\scripts\\membrane_cut.gd": "85a76aa194215ddb80359453470ad69b4778225c2d50ff5a6d67856cbb0a8695",
+    ".tools\\incision-legacy-compare\\scripts\\membrane_precision.gd": "04c468256222c5bea5ae837f364adedcdae6cff7b56853c90b067d527fb22951"
+  }
+}

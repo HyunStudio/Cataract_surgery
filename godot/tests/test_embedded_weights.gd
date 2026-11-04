@@ -5,8 +5,8 @@ func check(ok:bool,message:String)->void:
 class Capture extends RefCounted:
 	var inner=load("res://scripts/membrane_cut.gd").new()
 	var last:Dictionary={}
-	func slice_triangle(points,indices,a,b,c,max_vertices=4096,max_triangles=8192,material_partition=false)->Dictionary:
-		last=inner.slice_triangle(points,indices,a,b,c,max_vertices,max_triangles,material_partition)
+	func slice_triangle64(points,indices,a,b,c,max_vertices=4096,max_triangles=8192)->Dictionary:
+		last=inner.slice_triangle64(points,indices,a,b,c,max_vertices,max_triangles)
 		return last
 func transferred(values:PackedFloat64Array,binding:Dictionary,axis:int)->float:
 	var ids:Vector3i=binding.ids

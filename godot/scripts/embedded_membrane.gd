@@ -285,8 +285,8 @@ func incise_patches(patches:Array)->Dictionary:
 	if changed:_state=staged._state;_energy=null;_native_geometry={}
 	return {"valid":true,"changed":changed,"reason":"","work":work}
 func _incise_one(patch:PackedVector3Array)->Dictionary:
-	var fine:=positions()
-	var cut:Dictionary=_cutter.slice_triangle(fine,_state.indices,patch[0],patch[1],patch[2],4096,8192,true)
+	var fine:=physical_positions()
+	var cut:Dictionary=_cutter.slice_triangle64(fine,_state.indices,patch[0],patch[1],patch[2],4096,8192)
 	if not cut.valid or not cut.changed:return cut
 	var prepared:=Refinement.prepare({"rest":_state.rest,"previous":Precision.publish(_publish(_state,_state.previous)),"anchored":_state.anchored,"removed":_state.removed,"outside":_state.outside,"indices":_state.indices,"face_areas":_state.areas},cut)
 	if not prepared.valid:return invalid(prepared.reason)
@@ -315,7 +315,7 @@ func _incise_one(patch:PackedVector3Array)->Dictionary:
 	next.fallback=cut.points;next.support=support;next.xyz=xyz;next.previous=previous;next.events+=1
 	var published:=_publish(next,xyz);var error:=0.
 	for point in range(cut.points.size()):
-		for j in range(3):error=maxf(error,absf(published[point*3+j]-cut.points[point][j]))
+		for j in range(3):error=maxf(error,absf(published[point*3+j]-cut.points64[point*3+j]))
 	if error>Support.EMBEDDING_DISTANCE*4.:return invalid("embedding_publication")
 	var grasps:Dictionary={}
 	for hand in _state.grasps:
