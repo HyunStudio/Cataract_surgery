@@ -1,4 +1,5 @@
 extends Node3D
+const OcularAppearance=preload("res://scripts/ocular_appearance.gd")
 ## Original, procedural teaching-scene assets. Rendering never changes procedure state.
 var microscope: Camera3D
 var room_camera: Camera3D
@@ -83,20 +84,20 @@ func _rod(label: String, a: Vector3, b: Vector3, radius: float, mat: Material, p
 	if side.length_squared() < 0.01: side = Vector3.RIGHT
 	node.basis = Basis(side,axis,side.cross(axis).normalized())
 	return node
-func _ring(label: String, inner: float, outer: float, y: float, mat: Material, parent: Node3D = self, bulge: float = 0.0) -> MeshInstance3D:
+func _ring(label: String, inner: float, outer: float, y: float, mat: Material, parent: Node3D = self, bulge: float = 0.0, rows: int = 6) -> MeshInstance3D:
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uv := PackedVector2Array()
 	var indices := PackedInt32Array()
 	var segments := 160
-	var rows := 6
 	for j in range(rows+1):
 		var f := float(j)/rows
 		var radius := lerpf(inner,outer,f)
 		for k in range(segments+1):
 			var theta := float(k)/segments*TAU
 			vertices.append(Vector3(cos(theta)*radius,y+sin(f*PI)*bulge,sin(theta)*radius))
-			normals.append(Vector3.UP)
+			var slope:float=bulge*PI*cos(f*PI)/(outer-inner)
+			normals.append(Vector3(-slope*cos(theta),1.,-slope*sin(theta)).normalized())
 			uv.append(Vector2(cos(theta),sin(theta))*radius/outer*0.5+Vector2(0.5,0.5))
 	for j in range(rows):
 		for k in range(segments):
@@ -204,7 +205,7 @@ func _lens_sector(index: int, parent: Node3D) -> MeshInstance3D:
 
 func _build_eye() -> void:
 	var eye := _group("Eye")
-	_ring("Sclera",1.43,1.92,0.71,_material(Color("e2d4ca"),0.3),eye,0.075)
+	_ring("Sclera",OcularAppearance.INNER,OcularAppearance.OUTER,OcularAppearance.HEIGHT,_material(Color("e2d4ca"),0.3),eye,OcularAppearance.BULGE,24)
 	_ring("Limbus",1.38,1.47,0.79,_material(Color("9baaa8"),0.25),eye)
 	var iris_mat := ShaderMaterial.new()
 	iris_mat.shader = load("res://assets/iris.gdshader")
@@ -225,15 +226,8 @@ func _build_eye() -> void:
 		var cortical := _ball("Cortex_%d"%i,0.24,Vector3(0.7,0.11,1.35),_material(Color("e5dcca"),0.35),Vector3(cos(angle)*0.78,0.701,sin(angle)*0.78),cortex_root)
 		cortical.rotation.y = -angle+PI/2
 		cortex_regions.append(cortical)
-	# Fine branching conjunctival vessels are confined to the visible scleral annulus.
-	var vein_mat := _material(Color("bc8381"),0.5)
-	for i in range(25):
-		var theta := i*2.399963
-		var start := Vector3(cos(theta)*1.91,0.728,sin(theta)*1.91)
-		var mid := Vector3(cos(theta+0.024)*1.72,0.773,sin(theta+0.024)*1.72)
-		var tip := Vector3(cos(theta-0.035)*1.52,0.765,sin(theta-0.035)*1.52)
-		_rod("ConjunctivalVessel",start,mid,0.006,vein_mat,eye)
-		_rod("VesselBranch",mid,tip,0.003,vein_mat,eye)
+	# Vessels share the same curved surface as the scleral mesh and one draw surface.
+	_mesh("ScleralVasculature",OcularAppearance.vessel_mesh(),_material(Color("a64d48"),.58),Vector3.ZERO,eye)
 	# Transparent corneal envelope plus explicit microscope reflections.
 	var cornea_mat := _material(Color(0.68,0.9,0.97,0.045),0.08)
 	_ball("Cornea",1.42,Vector3(1,0.10,1),cornea_mat,Vector3(0,0.79,0),eye)

@@ -1,5 +1,12 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
+**Source update (2026-11-04):** Curved ocular lighting and a batched branching
+vascular mesh are implemented, with focused11-suite checks and actual GPU static
+view comparisons. This source update is not yet included in a newly qualified
+Windows release. Complete surgery and interactive mechanics remain unfinished;
+[current progress](docs/REALISM_COMPLETION_KO.md) includes the GPU capture and
+remaining completion criteria.
+
 **Development checkpoint (2026-10-29):** The professional surgical simulator is
 still in development. The optional precise tissue path now restores a rejected
 application tick atomically and pauses safely;143native regressions and scoped

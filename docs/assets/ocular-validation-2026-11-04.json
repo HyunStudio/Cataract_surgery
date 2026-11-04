@@ -1,0 +1,170 @@
+{
+  "scope": "Ocular display geometry, focused regressions and static GPU rendering; not complete surgery, active performance or Windows release qualification",
+  "baseline_commit": "c3d3ba0",
+  "before": {
+    "adapter": "NVIDIA GeForce RTX 3070 Laptop GPU",
+    "clock": 0.0,
+    "cpu_render_median": 1.7869999408721924,
+    "display_server": "Windows",
+    "draw_calls": 271,
+    "gpu_render_median": 1.4600000381469727,
+    "gpu_render_p95": 2.4719998836517334,
+    "msaa_3d": 0,
+    "node_count": 1066,
+    "samples": 120,
+    "scope": "Static actual GPU operative viewport rendering only; physics paused; no complete surgery/active FPS/endurance qualification",
+    "viewport": "(1600, 1000)"
+  },
+  "after": {
+    "adapter": "NVIDIA GeForce RTX 3070 Laptop GPU",
+    "clock": 0.0,
+    "cpu_render_median": 1.722000002861023,
+    "display_server": "Windows",
+    "draw_calls": 222,
+    "gpu_render_median": 1.6649999618530273,
+    "gpu_render_p95": 2.2130000591278076,
+    "msaa_3d": 2,
+    "node_count": 1017,
+    "samples": 120,
+    "scope": "Static actual GPU operative viewport rendering only; physics paused; no complete surgery/active FPS/endurance qualification",
+    "viewport": "(1600, 1000)"
+  },
+  "regression_scope": "Ocular geometry and related app/display regressions, not complete simulator qualification",
+  "regressions": [
+    {
+      "name": "test_ocular_appearance",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "90844c67dd6030d0f1e0569cbf08b92a6dbe76b0dbd545ccea0d3fc2eecfac29"
+    },
+    {
+      "name": "test_world",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "18c72504a3c5785c43a276b0d13616959106b862008d153e70798904b148edcc"
+    },
+    {
+      "name": "test_surgical_display",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "ab98ff3f71716e10d551cebc6222cb45b4657deb46f35850f52d72751deb1c53"
+    },
+    {
+      "name": "test_simulation_ui",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "e4d0d32b8ce88e8571d10a4141ca497adacee07de6de23e6d6ee3ea7f1dbe9cc"
+    },
+    {
+      "name": "test_visual_snapshot",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "107b3548b4b9423795c221d4a0915112e8cd4b0f4050099f050fc373045285e5"
+    },
+    {
+      "name": "test_anatomical_app",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "b62fd1efaf46b930b76d6355cc378eaf163a299cad8f33331163fa0f2a1dd9c1"
+    },
+    {
+      "name": "test_anterior_segment",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "2a1a2ed8b949dae7090039aa358933b0425b50e272fcec5984a3c01398902954"
+    },
+    {
+      "name": "test_instrument_profile",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "4cb0d3ea9ca22b70c79f186e0206432a9fc56e0a6d70162e5eb26203f6c83e17"
+    },
+    {
+      "name": "test_precise_step_transaction",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "e0efe567bddaabdb41801c41b0367155b68791e23769d350f38b80b73990ac95"
+    },
+    {
+      "name": "test_body_app",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "24f5a8105971645c43cb811f678d7d0c836fdf89fff0acde4f7c3d5ab20da5ac"
+    },
+    {
+      "name": "test_operating_app",
+      "returncode": 0,
+      "qualified": true,
+      "log_sha256": "ea56e391e852cb4f423dfeb7178aa46f0299329785117b36ee3f417d1eff05ec"
+    }
+  ],
+  "static_review": "No actionable correctness findings; reviewer ran no tests",
+  "inputs": {
+    "godot\\scripts\\anatomical_contact.gd": "902fbbfe511b66f6ca73942fda12c8e8737e0835105bd9a251519d5ddf8dfabf",
+    "godot\\scripts\\anatomy_contact.gd": "81526e74e1f0393fd43a6a9b1a85ed61bceb7ca060a50ef7d395c5c03c45d83d",
+    "godot\\scripts\\anatomy_surfaces.gd": "732e5214231c33eb10dd31d31a67c5ff858972f8e52906d41a97061eedc83af5",
+    "godot\\scripts\\anterior_segment.gd": "a0d691d5edca728236356db9b609275f3b0f90da927f29bb41dc135962de46a7",
+    "godot\\scripts\\capsule_solver.gd": "293c2ae0144e0c73a29c38104687b320bd911d7b0ab621ebb08dc85a9e9c5f19",
+    "godot\\scripts\\capsule_surface.gd": "61e048b5877a79f64c7dce620a88fe32018b88ae7d43d3b43e0657509bb854b8",
+    "godot\\scripts\\case_director.gd": "ab76d81fcdb988faef82df4c73e2c26c073b34ceba0fd6c9a1d2c55ee026a92d",
+    "godot\\scripts\\case_recording.gd": "df19e60ae0727a00308cdd02ef491b56db323117711f4e7915baa5465ba3e1d3",
+    "godot\\scripts\\flap_boundary.gd": "0d5799fed6954aaca0c34d35a5fef2f0efc17ed4979e5f0f8fcf31a526cd90af",
+    "godot\\scripts\\incision_model.gd": "fb6acc8fcc3712b033476f0f967bc6603311fcca4a69b761c2d7210fb52d20cb",
+    "godot\\scripts\\incision_window.gd": "590abfd1054ba5869e69f2048a93f0c3965aaa988c8c7c74d4f008daa49bb196",
+    "godot\\scripts\\instrument_body_contact.gd": "d92fc5a5bfb5d870c9de033411d4fbcadad990bdcfe411351d473c3c4ad31e51",
+    "godot\\scripts\\instrument_path.gd": "76db7e032a1e0b9b0b18f09ac43c19c406a977db9daf09995529414a6b0c91cc",
+    "godot\\scripts\\instrument_profile.gd": "6aaaf8cd3556e10c4c63badef318ee5828e93afc9a59b1f0faa4f51837bd127f",
+    "godot\\scripts\\instrument_rig.gd": "81856114a4b54fc805807448112214e91ae51476e6e988a480fdb4df9498d2b9",
+    "godot\\scripts\\iol_dynamics.gd": "c8d1c68a9650c81c036b0add281207bf7eca763a0782b89f2114932a8d529a6b",
+    "godot\\scripts\\lens_fluid_solver.gd": "d20fefea84dc3c64b10e125a1969622cf4445a83e813a340df771b7eb583466f",
+    "godot\\scripts\\lens_material.gd": "e29762284007cf1253fd8b924ba618b9fef371e7c3ebbaa95538de962cd7baed",
+    "godot\\scripts\\lens_surface.gd": "06e7f8fc7e4fa5b7afca0dc9afe133e0dc6d7c14eafe398ad2720aeba6d9ce60",
+    "godot\\scripts\\main.gd": "a63855fa9a629838270ee82ebfb8647cfbc637da5178939fcf5b0539176fa104",
+    "godot\\scripts\\membrane_contact.gd": "3f46c63b130d51d61c648ce5a6d0f9156c79919b153b2ed76d38701f9ee4a4fb",
+    "godot\\scripts\\membrane_cut.gd": "a51e412593649baf506d4d5ab91802d18a376647017cff88022219de95a16b16",
+    "godot\\scripts\\membrane_precision.gd": "477ed6eb2b625e3336a9a52394d176ee22bc33fbcf0e5dd0ce709ac5c6533310",
+    "godot\\scripts\\membrane_refinement.gd": "f7ddd7c46e19609728a5263363587dba20df58313e5e4068ce5889d24f74f910",
+    "godot\\scripts\\model_checkpoint.gd": "7e4d14eb8ae81cec76bf297cae0755db7e92514cc7741970b4acbd3269e586d1",
+    "godot\\scripts\\monitor.gd": "4dccf8bdea532add571520d0c1b0b6c0d0193354a0b38bf1da310db234d4dd4e",
+    "godot\\scripts\\native_membrane_backend.gd": "abb931afc6c323f22230f46b7f47e98521f79614d8100cc2089efce498216548",
+    "godot\\scripts\\ocular_appearance.gd": "af7491dc120e0ee0d53999da8974dd76bb8cd5b139fd1ed7616be2e67ac15f8b",
+    "godot\\scripts\\operative_input.gd": "743ba75bc35577e8d64381f100f047bfc3aa5fd043ca5b26ceaa52396c747632",
+    "godot\\scripts\\pivot_body_contact.gd": "70c6675086c132281e6c7a1a9fa4c1102345968120f3b80db24d5682b7a38397",
+    "godot\\scripts\\procedure_session.gd": "88f0d0022e6462b2ce63c5acbca7016a5b79ff4e003db6ce39e36ae10c602bfa",
+    "godot\\scripts\\simulation_ui.gd": "0a51e6307146d9bccee8d8a5bdb3d3a6c65518d50e5010d93cc837e6e2094e2b",
+    "godot\\scripts\\simulator.gd": "50e33bc3c78e2babc23786810d2ddbf38cad51442336c745f909e6977f384c8c",
+    "godot\\scripts\\surface_contact.gd": "5410e79165db6062726f2312a5a0fe7ad2b942780b8e713ce0b5c382855f2221",
+    "godot\\scripts\\surgical_display.gd": "cd38dd4408703273da74f7c47138111bae80b2639e0ecadac2315a86d13298a3",
+    "godot\\scripts\\surgical_instrument.gd": "3ddaed0efa8476e1682642d07acc1680f305f83df9a25e55b8d8717ce0d436ee",
+    "godot\\scripts\\surgical_transaction.gd": "1461cd4c9e973bf96d3bcf7851a65b136f359781bd2a156b0d53cb04a832c607",
+    "godot\\scripts\\surgical_world.gd": "e73c2018084e6e8f8669a2ce9797fb6826d63123fe50031f3d69f6653e62b410",
+    "godot\\scripts\\tissue_injury.gd": "cb1d32cffe4daf18d1a00a5e01250cf230f34ceceddbe32669cf79f25c254eeb",
+    "godot\\scripts\\tunnel_surface.gd": "210889873da01a0359071bd496405cbcb8266ecf082e37be2335b2f36ae0eca7",
+    "godot\\scripts\\visual_snapshot.gd": "61a7feea935a103200f3f4a3d5be3106a884e5ceb79ac8e165b925b923b73f6a",
+    "godot\\assets\\floor.gdshader": "3c24bad60ac26dcaee157f7c8bc532ca1d3a80781d4c6d72c1dce769acdcbc09",
+    "godot\\assets\\iris.gdshader": "9a69b078a6ee4bc2cc3747a633e988049f924f737cb42d70e98bfdf32c32a4d7",
+    "godot\\assets\\lens.gdshader": "b4d8f20bcbd9eaa019189c346bd4d4605d2738fe00e1b4f32880a65570f29027",
+    "godot\\assets\\lens_surface.gdshader": "2ae19dab17e069f11b96eeba7ecff3f4d7c725861d8b80ebe18053dcbab91239",
+    "godot\\assets\\microscope.gdshader": "c6d09ed48a58c3737e1a01e642ec50104473d4e96e4c5ca51284f00cfc56e718",
+    "godot\\tests\\test_ocular_appearance.gd": "e65b6b71025d75711ab4f0309fbaf42a5dc25406fa585fdfe3fcd7c34a58e5cc",
+    "godot\\tests\\test_world.gd": "ec66bce2413a49806bc56f775c1a0a84497609773e724f134662cf12f0182896",
+    "godot\\tests\\test_surgical_display.gd": "b1acc17232d5bb7425bf2475fc143a131f771c528127ba9340c97bf1f6c0cdeb",
+    "godot\\tests\\test_simulation_ui.gd": "6b200b7bf658137e7874b635030887db4e1915bd2c0fa1ab7e2138fadd9dba33",
+    "godot\\tests\\test_visual_snapshot.gd": "5b6ee64e8104a986076503b91362bfd0a8b0422e9a4497fec8010449a86d55c8",
+    "godot\\tests\\test_anatomical_app.gd": "d1d5b6f6ee009a97b8c11efcf35da14e2fcad197738d175c51deb929d65e2d30",
+    "godot\\tests\\test_anterior_segment.gd": "5ca87e0a88b96d25dae0e1de6efac327b02a057399dbb49f11c6accaccb91f74",
+    "godot\\tests\\test_instrument_profile.gd": "39aee4dd138897873075428759f76b512a59bceaaa832fb7ba02439b73398d1d",
+    "godot\\tests\\test_precise_step_transaction.gd": "ac16fb13da00d304f860658a1647d8b0ad752dd841259d399c2766b97154d61a",
+    "godot\\tests\\test_body_app.gd": "8b51f3808d5653fd7b5d4b7456f9f567c9e1617edafdd0f0a9c214ec8c3881ff",
+    "godot\\tests\\test_operating_app.gd": "4ebac9a3e0b5b0615aed5f6905c495e405c7f5429a19b3024835f04fe534ee78"
+  },
+  "evidence_sha256": {
+    ".tools\\ocular-validation-7uj2si7v\\proof.json": "9a9c2c8b510a35fdcad410f1bfaa17ae1af1f500b5f129fa017a0022ad175a0b",
+    ".tools\\ocular-render-before.json": "56af2b4edc7bbb7a54867a7544eff9db78098f6d9419979d257043f61378671f",
+    ".tools\\ocular-render-after.json": "29896a6080e585ea56a01e87e3b7b7339fc5c1cca71674439bfcc9efe3ad869a",
+    ".tools\\capture_ocular_gpu.gd": "364965c34582cfebce166e3bdaf77284298448d164af057010b10163b4741f69",
+    ".tools\\measure_ocular_gpu.gd": "6bf834f627d76f7b54c8bd1fd33bf9e3bdf31ff022b23ed5239d1ffeebf426f2",
+    ".tools\\godot\\Godot_v4.7.2-stable_win64_console.exe": "c8f0a6bc45a19b33541501e57f6f7cd972ab18453743266339d495cbbe846643"
+  },
+  "image_sha256": "751b3acab2fcb042ee53a7c5e5e6865c8f5d2c116e76b1de4772dc17f2dc1d2a"
+}

@@ -112,6 +112,7 @@ func build(app: Object) -> void:
 	viewport_box.size_flags_horizontal=Control.SIZE_EXPAND_FILL; viewport_box.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	viewport_box.custom_minimum_size=Vector2(380,300); center.add_child(viewport_box)
 	viewport_3d=SubViewport.new(); viewport_3d.size=Vector2i(960,720); viewport_3d.render_target_update_mode=SubViewport.UPDATE_ALWAYS
+	viewport_3d.msaa_3d=Viewport.MSAA_4X
 	viewport_box.add_child(viewport_3d)
 	explanation=_label("기구를 선택하고 조직 상태를 관찰하세요.",14); explanation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; center.add_child(explanation)
 	_telemetry=_label("DEPTH  —     PEDAL  OFF     RECORD  0",12,MINT); center.add_child(_telemetry)
