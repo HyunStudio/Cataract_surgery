@@ -11,6 +11,7 @@ from native_build_provenance import sha256, source_hashes, verify_sources
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--bridge-only', action='store_true')
+parser.add_argument('--grasp', action='store_true', help='Include exact material attachment contracts')
 options = parser.parse_args()
 build = ROOT/'.tools/native-godot/bin'
 manifest = json.loads((build/'membrane.build.json').read_text())
@@ -24,12 +25,15 @@ intended = {'project.godot':ROOT/'native/test_project.godot',
             'fem_bridge.gd':ROOT/'native/tests/test_fem_godot.gd',
             'refined_flap.json':ROOT/'native/tests/fixtures/refined_flap.json',
             'local_jaw_contact.json':ROOT/'native/tests/fixtures/local_jaw_contact.json'}
+if options.grasp:
+    intended['grasp_bridge.gd'] = ROOT/'native/tests/test_grasp_godot.gd'
 if not options.bridge_only:
     for name in subprocess.check_output(['git', 'ls-files', '--', 'godot'], cwd=ROOT, text=True).splitlines():
         source = ROOT/name
         if source.is_file() and name != 'godot/project.godot':
             intended[str(source.relative_to(ROOT/'godot'))] = source
     intended['embedded_native.gd'] = ROOT/'godot/tests/test_embedded_native.gd'
+    if options.grasp:intended['embedded_grasp.gd'] = ROOT/'godot/tests/test_embedded_grasp_native.gd'
 inputs = source_hashes([*intended.values(), Path(__file__).resolve()])
 for name, source in intended.items():
     destination = probe/name
@@ -42,13 +46,16 @@ engine = ROOT/'.tools/godot/Godot_v4.7.2-stable_win64_console.exe'
 report = {'scope':'Isolated real Godot FEM bridge and optional embedded state; no app/contact/full operation qualification.',
           'qualified':False, 'probe':str(probe), 'inputs':inputs, 'frozen_inputs':expected,
           'build':manifest, 'engine_sha256':sha256(engine), 'stages':[]}
-destination = ROOT/'godot/reports'/('fem-bridge-validation.json' if options.bridge_only else 'embedded-native-validation.json')
+destination = ROOT/'godot/reports'/('grasp-bridge-validation.json' if options.bridge_only and options.grasp else 'fem-bridge-validation.json' if options.bridge_only else 'embedded-grasp-validation.json' if options.grasp else 'embedded-native-validation.json')
 destination.parent.mkdir(parents=True, exist_ok=True)
 stages = [('fresh_import', ['--editor','--import','--quit-after','35','--frame-delay','1000'], None),
           ('legacy_bridge', ['--script','res://legacy_bridge.gd'], 'Native Godot bridge: 0 failures'),
           ('fem_bridge', ['--script','res://fem_bridge.gd'], 'Native FEM Godot bridge: 0 failures')]
 if not options.bridge_only:
     stages.append(('embedded_native', ['--script','res://embedded_native.gd'], 'Embedded native dynamics: 0 failures'))
+if options.grasp:
+    stages.append(('grasp_bridge', ['--script','res://grasp_bridge.gd'], 'Native grasp Godot bridge: 0 failures'))
+    if not options.bridge_only:stages.append(('embedded_grasp', ['--script','res://embedded_grasp.gd'], 'Embedded native grasp: 0 failures'))
 for name, arguments, marker in stages:
     log = probe/f'{name}.log'
     print(f'FEM extension {name}: {probe}', flush=True)
@@ -75,6 +82,10 @@ if report['qualified'] and not options.bridge_only:
     metrics = probe/'reports/embedded-native-metrics.json'
     report['metrics'] = json.loads(metrics.read_text())
     report['metrics_sha256'] = sha256(metrics)
+    if options.grasp:
+        grasp_metrics = probe/'reports/embedded-grasp-metrics.json'
+        report['grasp_metrics'] = json.loads(grasp_metrics.read_text())
+        report['grasp_metrics_sha256'] = sha256(grasp_metrics)
 destination.write_text(json.dumps(report, indent=2), encoding='utf-8')
 print(json.dumps({'qualified':report['qualified'], 'report':str(destination), 'stages':report['stages']}, indent=2))
 raise SystemExit(0 if report['qualified'] else 1)

@@ -65,3 +65,53 @@ controlled support refinement before claiming a real puncture can open/tear.
 Final work remains the full mouse/keyboard preparation-to-review case, coupled
 fluid/material/IOL/wound behavior, professional3D view, active GPU throughput and
 Windows delivery. None is waived by a local constrained-core test passing.
+
+## Execution ledger
+
+- Previous turn progress:59613f1 connected actual native implicit histories and
+ 28engine suites/35real force ticks. Same complete goal active, no blocker.
+- Added bounded native exact attachments via sparse primal+smallSchur system,
+ actual mass projection and independent Gram KKT reactions. Missing CABI RED.
+ Build55059 terminal0: original8tests pass, first6grasp tests have1failure.
+- Failure is normal-roundoff work, not a force-tolerance defect: R∞3.8349e-8,
+ g·delta=+1.2463e-17 vs tangentR·delta=-4.9258e-18, withAδ≈2.04e-18 andreaction
+8.53. Fixed-dual Lagrangian line comparison removes normal-work roundoff while
+ retaining original objective on feasible motion and unchanged final force,
+ gap and constrained-curvature gates. Second build64046 terminal0;6grasp tests
+ pass. Added unheld-negative-tangent case; total15native tests pass, old
+ unconstrained zero-grip results/statistics bitwise unchanged.
+- New typed solve_grasp_fem bridge missing-method RED, extensionbuild78424 ends0.
+ Fresh bridge-only probe72683 passes4stages. Material/source-face acquisition,
+ accepted target/reaction commit and cut/release/remap contract initially1RED
+ then0. All additions remain optional; no default simulator backend promotion.
+- Real frozen6stage probe6676 (fem-extension-5d6a8xbt) terminates0: all existing
+ bridge checks, old35step dynamics, new grasp bridge and17step actual attachments.
+ Uses fine point217 of free flap, weights[.5985469049067181,.40145309509328186].
+ One-hand10*.005 motion, release without velocity reset, two-hand5*.005 motion,
+ recut while uniquely held and continuation. Mass5.319326346740127,events129,
+ force8.0332485973e-9/gap1.1102230246e-16. No actual tool-body/anatomy contact.
+- Latest source-bound native qualification91c620 passes15tests.29source-frozen
+ Godot suites13170 terminate0 with no changes/errors/leaks. Reports preserved
+ under docs/assets: fem-grasp-core-validation-2026-11-04.json,
+ embedded-grasp-validation-2026-11-04.json, embedded-grasp-regression-2026-11-04.json.
+- Read-only reviewer independently reran15native tests and found no actionable
+ issue in math, type/pointer bounds, staged targets/reactions or cut face identity.
+ All started jobs terminal. No main integration, default change, push or release.
+
+Next: transform exact fine-face/body distance derivatives through the actual
+original-material map, then couple grasp reactions and unilateral contact in
+one original-force solve with full continuous guards. Do not use the virtual
+coarse triangle as a collider over absent cut material. Certify all inequalities
+and retain force1e-8/gap1e-9/complementarity1e-11; do not fix contact rank issues
+by widening tools or changing acceptance. Inspect actual geometry/constraints.
+Preserve precise bindings or verify cut-remap motion, address partial-tip support,
+connect real instrument/controller acquisition and only then qualify the full
+mouse/keyboard surgical sequence, active GPU and Windows delivery.
+
+Actual acquisition must use a certified jaw/fine-face contact point and material
+barycentric identity, not just the legacy nearest-vertex sphere. The present
+vertex+source-face API proves a kinematic primitive; extend it to a continuous
+face point or a conservative inserted material marker before controller use.
+Preserve unique bank identity through cuts and release genuinely severed holds.
+Account for real jaw/blade orientation (including required tool roll) throughout
+renderer, pose interpolation and collision; do not rotate only the visual mesh.

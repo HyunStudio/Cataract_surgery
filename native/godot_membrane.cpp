@@ -11,6 +11,8 @@ extern "C" int membrane_solve(int,double*,const double*,int,const int*,const int
                                const double*,double,int,double,double*);
 extern "C" int membrane_fem_solve(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double*);
 extern "C" int membrane_fem_evaluate(int,const double*,int,const int*,const double*,const double*,double,double,double*,double*,double*);
+extern "C" int membrane_fem_solve_grasp(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,
+                                      int,const int*,const double*,const double*,double*,double*);
 extern "C" int membrane_solve_contact(int,const double*,double*,const double*,int,const int*,const int*,
     const double*,double,int,const int*,int,const double*,int,double,double,double,double*,double*);
 extern "C" int membrane_guard_motion(int,const double*,const double*,int,const int*,int,const int*,
@@ -43,6 +45,7 @@ protected:
     static void _bind_methods() {
         ClassDB::bind_method(D_METHOD("solve_fem","request"),&MembraneFEMKernel::solve_fem);
         ClassDB::bind_method(D_METHOD("evaluate_fem","request"),&MembraneFEMKernel::evaluate_fem);
+        ClassDB::bind_method(D_METHOD("solve_grasp_fem","request"),&MembraneFEMKernel::solve_grasp_fem);
     }
 public:
     Dictionary solve_fem(const Dictionary& request) {
@@ -70,6 +73,30 @@ public:
                 static_cast<double>(request["mu"]),static_cast<double>(request["lambda"]),&energy,gradient.ptrw(),nullptr);
         }
         Dictionary answer;answer["status"]=status;answer["energy"]=energy;answer["gradient"]=gradient;return answer;
+    }
+    Dictionary solve_grasp_fem(const Dictionary& request) {
+        PackedFloat64Array result,reaction,stats;stats.resize(12);stats.fill(0.);
+        for(int index:{0,1,8}) stats.set(index,std::numeric_limits<double>::infinity());
+        if(request.has("xyz") && request["xyz"].get_type()==Variant::PACKED_FLOAT64_ARRAY) result=request["xyz"];
+        bool valid=geometry(request) && real(request,"dt") && real(request,"force_tolerance") && real(request,"gap_tolerance") &&
+            request.has("budget") && request["budget"].get_type()==Variant::INT;
+        for(const char* key:{"inverse","grip_weights","targets"})
+            if(!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+        if(!request.has("grip_nodes") || request["grip_nodes"].get_type()!=Variant::PACKED_INT32_ARRAY) valid=false;
+        int status=-1;
+        if(valid) {
+            PackedFloat64Array inverse=request["inverse"],gradients=request["gradients"],areas=request["areas"],weights=request["grip_weights"],targets=request["targets"];
+            PackedInt32Array nodes=request["nodes"],grip_nodes=request["grip_nodes"];int64_t budget=request["budget"];
+            valid=inverse.size()==result.size()/3 && targets.size()%3==0 && targets.size()<=6 &&
+                weights.size()==targets.size() && grip_nodes.size()==targets.size() && budget>=0 && budget<=1000;
+            if(valid) {
+                reaction.resize(targets.size());reaction.fill(0.);
+                status=membrane_fem_solve_grasp(static_cast<int>(inverse.size()),result.ptrw(),inverse.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
+                    static_cast<double>(request["mu"]),static_cast<double>(request["lambda"]),static_cast<double>(request["dt"]),static_cast<int>(budget),
+                    static_cast<double>(request["force_tolerance"]),static_cast<double>(request["gap_tolerance"]),static_cast<int>(targets.size()/3),grip_nodes.ptr(),weights.ptr(),targets.ptr(),reaction.ptrw(),stats.ptrw());
+            }
+        }
+        Dictionary answer;answer["status"]=status;answer["xyz"]=result;answer["reaction"]=reaction;answer["stats"]=stats;return answer;
     }
 };
 class MembraneKernel : public RefCounted {

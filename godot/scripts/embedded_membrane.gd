@@ -8,6 +8,7 @@ const Precision=preload("res://scripts/membrane_precision.gd")
 const Cutter=preload("res://scripts/membrane_cut.gd")
 const Energy=preload("res://scripts/membrane_energy.gd")
 const FORCE_TOLERANCE:=1e-8
+const GAP_TOLERANCE:=1e-9
 var _cutter=Cutter.new()
 var _state:Dictionary={}
 var _energy:RefCounted
@@ -42,7 +43,7 @@ func initialize(original:PackedVector3Array,indices:PackedInt32Array,anchors:Pac
 	for index in support.controls:
 		for j in range(3):xyz.append(original[index][j])
 	var flags:=PackedByteArray();flags.resize(original.size())
-	_state={"original":original.duplicate(),"original_indices":indices.duplicate(),"original_anchors":anchors.duplicate(),"rest":original.duplicate(),"indices":indices.duplicate(),"ancestors":ancestors,"areas":areas,"anchored":anchors.duplicate(),"fixed":_fixed_controls(support,anchors),"removed":flags,"outside":flags.duplicate(),"fallback":original.duplicate(),"support":support,"density":density,"xyz":xyz,"previous":xyz.duplicate(),"events":0,"steps":0,"time":0.}
+	_state={"original":original.duplicate(),"original_indices":indices.duplicate(),"original_anchors":anchors.duplicate(),"rest":original.duplicate(),"indices":indices.duplicate(),"ancestors":ancestors,"areas":areas,"anchored":anchors.duplicate(),"fixed":_fixed_controls(support,anchors),"removed":flags,"outside":flags.duplicate(),"fallback":original.duplicate(),"support":support,"density":density,"xyz":xyz,"previous":xyz.duplicate(),"events":0,"steps":0,"time":0.,"grasps":{}}
 	_energy=null;_native_geometry={}
 	return {"valid":true,"changed":true,"reason":""}
 func set_motion(xyz:PackedFloat64Array,previous:PackedFloat64Array)->Dictionary:
@@ -67,14 +68,49 @@ func _prepare_energy()->bool:
 		gradients.append_array(cell.gx);gradients.append_array(cell.gy);areas.append(cell.area)
 	_native_geometry={"nodes":nodes,"gradients":gradients,"areas":areas};_energy=prepared
 	return true
-func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,damping:float=1.,budget:int=100)->Dictionary:
+func grasp(hand:int,vertex:int)->Dictionary:
+	if _state.is_empty() or hand<0 or hand>1 or vertex<0 or vertex>=_state.rest.size():return invalid("grasp_input")
+	if _state.grasps.has(hand):return {"valid":_state.grasps[hand].vertex==vertex,"changed":false,"reason":"grasp_occupied"}
+	for held in _state.grasps.values():
+		if held.vertex==vertex:return invalid("grasp_occupied")
+	if _state.anchored[vertex]!=0 or _state.removed[vertex]!=0 or _state.support.point_nodes[vertex].is_empty():return invalid("grasp_unsupported")
+	var face:=-1
+	for i in range(_state.indices.size()/3):
+		if vertex in [_state.indices[i*3],_state.indices[i*3+1],_state.indices[i*3+2]]:face=i;break
+	if face<0:return invalid("grasp_unsupported")
+	var xyz:=physical_positions();var target:=PackedFloat64Array([xyz[vertex*3],xyz[vertex*3+1],xyz[vertex*3+2]])
+	_state.grasps[hand]={"vertex":vertex,"face":face,"target":target,"reaction":PackedFloat64Array([0.,0.,0.])}
+	return {"valid":true,"changed":true,"reason":""}
+func release_hand(hand:int)->void:
+	if not _state.is_empty():_state.grasps.erase(hand)
+func _attachments(targets:Dictionary)->Dictionary:
+	for hand in targets:
+		if not hand is int or not _state.grasps.has(hand):return invalid("grasp_targets")
+	var hands:Array=_state.grasps.keys();hands.sort()
+	var nodes:=PackedInt32Array();var weights:=PackedFloat64Array();var positions:=PackedFloat64Array()
+	var next:Dictionary=_state.grasps.duplicate(true)
+	for hand in hands:
+		var held:Dictionary=_state.grasps[hand];var target=targets.get(hand,held.target)
+		if not target is PackedFloat64Array or target.size()!=3:return invalid("grasp_target_shape")
+		for value in target:
+			if not is_finite(value) or absf(value)>16.:return invalid("grasp_target_coordinate")
+		var local_nodes:PackedInt32Array=_state.support.point_nodes[held.vertex];var local_weights:PackedFloat64Array=_state.support.point_weights[held.vertex]
+		if local_nodes.is_empty() or local_nodes.size()>3:return invalid("grasp_support")
+		for j in range(3):
+			nodes.append(local_nodes[j] if j<local_nodes.size() else local_nodes[0]);weights.append(local_weights[j] if j<local_weights.size() else 0.)
+		positions.append_array(target);next[hand].target=target.duplicate()
+	return {"valid":true,"reason":"","hands":hands,"nodes":nodes,"weights":weights,"targets":positions,"next":next}
+func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,damping:float=1.,budget:int=100,targets:Dictionary={})->Dictionary:
 	if _state.is_empty():return invalid("uninitialized")
 	if not is_finite(dt) or dt<1e-6 or dt>.1 or not is_finite(damping) or damping<0. or damping>1. or budget<0 or budget>1000:return invalid("step_input")
 	if not is_finite(mu) or mu<=0. or not is_finite(lambda) or lambda<0.:return invalid("step_material")
 	if force.size()!=_state.xyz.size() or _state.support.controls.size()>4096:return invalid("step_shape")
 	for value in force:
 		if not is_finite(value):return invalid("step_force")
-	if backend==null or not backend.has_method("solve_fem"):return invalid("native_fem_unavailable")
+	var attachments:=_attachments(targets)
+	if not attachments.valid:return attachments
+	var gripping:bool=not attachments.hands.is_empty()
+	if backend==null or not backend.has_method("solve_grasp_fem" if gripping else "solve_fem"):return invalid("native_fem_unavailable")
 	if not _prepare_energy():return invalid("step_geometry")
 	var current:PackedFloat64Array=_state.xyz
 	var predicted:=current.duplicate();var inverse:=PackedFloat64Array();inverse.resize(_state.support.mass.size())
@@ -88,13 +124,19 @@ func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,dam
 			predicted[k]+=(current[k]-_state.previous[k])*damping+dt*dt*force[k]/mass
 			if not is_finite(predicted[k]) or absf(predicted[k])>16.:return invalid("prediction_coordinate")
 	var request:=_native_geometry.merged({"xyz":predicted,"inverse":inverse,"mu":mu,"lambda":lambda,"dt":dt,"budget":budget,"force_tolerance":FORCE_TOLERANCE},true)
-	var result=backend.solve_fem(request)
+	if gripping:request.merge({"grip_nodes":attachments.nodes,"grip_weights":attachments.weights,"targets":attachments.targets,"gap_tolerance":GAP_TOLERANCE},true)
+	var result=backend.solve_grasp_fem(request) if gripping else backend.solve_fem(request)
 	if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array:return invalid("native_fem_shape")
 	if result.status!=0:return {"valid":false,"changed":false,"reason":"native_fem_solve","status":result.status,"stats":result.stats}
-	if result.xyz.size()!=current.size() or result.stats.size()!=8:return invalid("native_fem_shape")
+	if result.xyz.size()!=current.size() or result.stats.size()!=(12 if gripping else 8):return invalid("native_fem_shape")
+	if gripping and (not result.get("reaction") is PackedFloat64Array or result.reaction.size()!=attachments.targets.size()):return invalid("native_grasp_shape")
 	for value in result.stats:
 		if not is_finite(value):return invalid("native_fem_stats")
 	if result.stats[1]<0. or result.stats[1]>FORCE_TOLERANCE:return invalid("native_fem_force")
+	if gripping:
+		if result.stats[8]<0. or result.stats[8]>GAP_TOLERANCE:return invalid("native_grasp_gap")
+		for value in result.reaction:
+			if not is_finite(value):return invalid("native_grasp_reaction")
 	for node in range(inverse.size()):
 		for axis in range(3):
 			var k:=node*3+axis
@@ -104,19 +146,32 @@ func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,dam
 	# a success flag and a fabricated residual cannot advance accepted histories.
 	var evaluated:Dictionary=_energy.evaluate(result.xyz,mu,lambda)
 	if not evaluated.valid:return invalid("independent_fem_energy")
+	var grip_force:=PackedFloat64Array();grip_force.resize(current.size());var gap:=0.
+	if gripping:
+		for grip in range(attachments.hands.size()):
+			for axis in range(3):
+				var point:=0.
+				for j in range(3):
+					var node:int=attachments.nodes[grip*3+j];var weight:float=attachments.weights[grip*3+j]
+					point+=weight*result.xyz[node*3+axis];grip_force[node*3+axis]+=weight*result.reaction[grip*3+axis]
+				gap=maxf(gap,absf(point-attachments.targets[grip*3+axis]))
+		if gap>GAP_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_grasp_gap","gap":gap}
 	var residual:=0.
 	for node in range(inverse.size()):
 		if inverse[node]==0.:continue
 		for axis in range(3):
 			var k:=node*3+axis
-			var value:float=evaluated.gradient[k]+(result.xyz[k]-predicted[k])/(inverse[node]*dt*dt)
+			var value:float=evaluated.gradient[k]+(result.xyz[k]-predicted[k])/(inverse[node]*dt*dt)+grip_force[k]
 			if not is_finite(value):return invalid("independent_fem_force")
 			residual=maxf(residual,absf(value))
 	if residual>FORCE_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_fem_force","force_inf":residual}
 	var accepted:=set_motion(result.xyz,current)
 	if not accepted.valid:return accepted
+	if gripping:
+		for grip in range(attachments.hands.size()):attachments.next[attachments.hands[grip]].reaction=result.reaction.slice(grip*3,grip*3+3)
+	_state.grasps=attachments.next
 	_state.steps+=1;_state.time+=dt
-	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"stats":result.stats}
+	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"gap":gap,"stats":result.stats}
 static func _publish(state:Dictionary,xyz:PackedFloat64Array)->PackedFloat64Array:
 	var result:=PackedFloat64Array();result.resize(state.rest.size()*3)
 	for point in range(state.rest.size()):
@@ -188,5 +243,19 @@ func _incise_one(patch:PackedVector3Array)->Dictionary:
 	for point in range(cut.points.size()):
 		for j in range(3):error=maxf(error,absf(published[point*3+j]-cut.points[point][j]))
 	if error>Support.EMBEDDING_DISTANCE*4.:return invalid("embedding_publication")
+	var grasps:Dictionary={}
+	for hand in _state.grasps:
+		var held:Dictionary=_state.grasps[hand];var candidates:Dictionary={}
+		for face in range(cut.sources.size()):
+			if cut.sources[face]!=held.face:continue
+			for j in range(3):
+				var vertex:int=cut.indices[face*3+j]
+				if cut.bindings[vertex].ids==Vector3i(held.vertex,held.vertex,held.vertex) and not candidates.has(vertex):candidates[vertex]=face
+		if candidates.size()!=1:continue
+		var vertex:int=candidates.keys()[0];var remapped:Dictionary=held.duplicate(true)
+		for axis in range(3):
+			if absf(published[vertex*3+axis]-held.target[axis])>GAP_TOLERANCE:return invalid("grasp_remap_gap")
+		remapped.vertex=vertex;remapped.face=candidates[vertex];grasps[hand]=remapped
+	next.grasps=grasps
 	_state=next
 	return {"valid":true,"changed":true,"reason":"","work":cut.get("work",0),"publication_error":error}

@@ -16,7 +16,7 @@ if ($Test) {
 	if ($LASTEXITCODE -ne 0) { throw "Godot test failed: test_precise_step_transaction" }
 	& $engineExe --headless --path $projectDir --script "res://tests/test_ocular_appearance.gd"
 	if ($LASTEXITCODE -ne 0) { throw "Godot test failed: test_ocular_appearance" }
-	foreach ($suite in @('test_embedded_dynamics','test_fem_reference','test_material_affine','test_membrane_support','test_embedded_failure','test_membrane_energy','test_embedded_state','test_embedded_cut_route','test_membrane_cut_patch','test_blade_sweep','test_blade_incisions','test_blade_operator','test_blade_actual','test_blade_closed')) {
+	foreach ($suite in @('test_embedded_grasp','test_embedded_dynamics','test_fem_reference','test_material_affine','test_membrane_support','test_embedded_failure','test_membrane_energy','test_embedded_state','test_embedded_cut_route','test_membrane_cut_patch','test_blade_sweep','test_blade_incisions','test_blade_operator','test_blade_actual','test_blade_closed')) {
 		& $engineExe --headless --path $projectDir --script "res://tests/$suite.gd"
 		if ($LASTEXITCODE -ne 0) { throw "Godot test failed: $suite" }
 	}
