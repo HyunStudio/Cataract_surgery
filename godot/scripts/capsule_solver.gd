@@ -21,6 +21,13 @@ const ToolPath=preload("res://scripts/instrument_path.gd")
 const Cutter=preload("res://scripts/membrane_cut.gd")
 const Refinement=preload("res://scripts/membrane_refinement.gd")
 const Precision=preload("res://scripts/membrane_precision.gd")
+const MaterialSupport=preload("res://scripts/membrane_support.gd")
+## Immutable original basis and live-face ancestry for embedded cut mechanics.
+## The existing physical backend remains authoritative until qualified otherwise.
+var _material_rest:=PackedVector3Array()
+var _material_indices:=PackedInt32Array()
+var _face_material:=PackedInt32Array()
+var _material_ids:=PackedInt32Array()
 var _cutter=Cutter.new()
 var _incision_events:=0
 var _retired_breaks:=0
@@ -119,6 +126,7 @@ func reset() -> void:
 	positions = PackedVector3Array([Vector3(0, .82, 0)])
 	anchored = PackedByteArray([0])
 	edges = []; _faces = []; _face_edges = []; _edge_map = {}
+	_face_material=PackedInt32Array();_material_ids=PackedInt32Array()
 	_grasps = {}; _integration_steps = 0; _peak_strain = 0.0; _dirty = false
 	_grasp_faces={}; _grasp_offsets={}; _incision_events=0; _retired_breaks=0; _face_rest_area=PackedFloat64Array(); _triangle_faces=PackedInt32Array(); _triangle_area=PackedFloat64Array()
 	_edge_a = PackedInt32Array(); _edge_b = PackedInt32Array(); _edge_rest = PackedFloat64Array(); _edge_active = PackedByteArray(); _lambdas = PackedFloat64Array()
@@ -153,6 +161,7 @@ func reset() -> void:
 			_add_face(a, b, c)
 			_add_face(b, d, c)
 	_rebuild_triangles(); _initial_area=_retained_area
+	_material_rest=rest_positions.duplicate();_material_indices=triangles.duplicate()
 	_rest_area = PackedFloat64Array()
 	_rest_area.resize(positions.size())
 	for face in _faces:
@@ -169,7 +178,8 @@ func reset() -> void:
 func _vertex(ring: int, sector: int) -> int:
 	return 1 + (ring - 1) * SECTORS + posmod(sector, SECTORS)
 
-func _add_face(a: int, b: int, c: int,material_area:float=-1.) -> void:
+func _add_face(a: int, b: int, c: int,material_area:float=-1.,material_id:int=-1) -> void:
+	_face_material.append(material_id if material_id>=0 else _faces.size())
 	_faces.append([a, b, c])
 	_face_edges.append([_edge(a, b), _edge(b, c), _edge(c, a)])
 	_face_rest_area.append(material_area if material_area>=0. else (rest_positions[b]-rest_positions[a]).cross(rest_positions[c]-rest_positions[a]).length()*.5)
@@ -187,6 +197,7 @@ func _edge(a: int, b: int) -> int:
 
 func _rebuild_triangles() -> void:
 	triangles.clear(); _retained_area=0.; _triangle_faces.clear(); _triangle_area.clear()
+	_material_ids.clear()
 	var support:=PackedInt32Array(); support.resize(_edge_a.size()); support.fill(0)
 	for i in range(_faces.size()):
 		var intact:=true
@@ -196,6 +207,7 @@ func _rebuild_triangles() -> void:
 			if _edge_active[edge_id]==0: intact=false
 		if not intact: continue
 		_triangle_faces.append(i); _triangle_area.append(_face_rest_area[i])
+		_material_ids.append(_face_material[i])
 		for vertex_id in _faces[i]: triangles.append(vertex_id)
 		for edge_id in _face_edges[i]: support[edge_id]+=1
 		_retained_area+=_face_rest_area[i]
@@ -271,6 +283,8 @@ func _apply_incised_surface(cut:Dictionary)->Dictionary:
 			if live>=0: grasp_faces[hand]=live
 	var prepared:Dictionary=Refinement.transfer({"rest":rest_positions,"previous":_previous,"anchored":anchored,"removed":_removed,"outside":_outside,"indices":triangles,"face_areas":_triangle_area,"grasps":_grasps,"grasp_faces":grasp_faces},cut,surface_density)
 	if not prepared.valid: return {"valid":false,"changed":false,"reason":prepared.reason}
+	var material_ids:=PackedInt32Array()
+	for source in cut.sources:material_ids.append(_material_ids[source])
 	var next_xyz:=PackedFloat64Array(); var next_previous:=PackedFloat64Array(); var next_rest:=PackedFloat64Array()
 	if contact_backend:
 		next_xyz=Precision.transfer(_physical_xyz,cut.bindings)
@@ -288,10 +302,11 @@ func _apply_incised_surface(cut:Dictionary)->Dictionary:
 	for hand in _grasp_offsets.keys():
 		if not _grasps.has(hand): _grasp_offsets.erase(hand)
 	edges=[]; _faces=[]; _face_edges=[]; _edge_map={}; _face_rest_area=PackedFloat64Array()
+	_face_material=PackedInt32Array()
 	_edge_a=PackedInt32Array(); _edge_b=PackedInt32Array(); _edge_rest=PackedFloat64Array(); _edge_active=PackedByteArray(); _lambdas=PackedFloat64Array()
 	_incident=[]
 	for i in range(positions.size()): _incident.append([])
-	for off in range(0,cut.indices.size(),3): _add_face(cut.indices[off],cut.indices[off+1],cut.indices[off+2],prepared.face_areas[off/3])
+	for off in range(0,cut.indices.size(),3): _add_face(cut.indices[off],cut.indices[off+1],cut.indices[off+2],prepared.face_areas[off/3],material_ids[off/3])
 	if contact_backend:
 		for e in range(_edge_a.size()):
 			_edge_rest[e]=Precision.distance(_physical_rest,_edge_a[e],_edge_b[e]); edges[e].rest=_edge_rest[e]
@@ -299,6 +314,9 @@ func _apply_incised_surface(cut:Dictionary)->Dictionary:
 	for v in _grasps.values(): _pinned[v]=1
 	_rebuild_triangles(); _incision_events+=1
 	return {"valid":true,"changed":true,"reason":""}
+
+func material_support()->Dictionary:
+	return MaterialSupport.build(_material_rest,_material_indices,rest_positions,triangles,_material_ids,_triangle_area,surface_density)
 
 func _grasp_face(vertex:int)->int:
 	for off in range(0,triangles.size(),3):

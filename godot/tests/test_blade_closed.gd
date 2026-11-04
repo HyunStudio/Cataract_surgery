@@ -6,7 +6,7 @@ class RecordingCutter extends RefCounted:
 	var last_cut:Dictionary
 	func slice_triangle(points,indices,a,b,c)->Dictionary:
 		last_state={}
-		for key in ["positions","rest_positions","_previous","anchored","_removed","_outside","triangles","_triangle_area","surface_density"]:
+		for key in ["positions","rest_positions","_previous","anchored","_removed","_outside","triangles","_triangle_area","surface_density","_material_rest","_material_indices","_material_ids"]:
 			last_state[key]=model.get(key)
 		var result:Dictionary=inner.slice_triangle(points,indices,a,b,c)
 		last_cut=result

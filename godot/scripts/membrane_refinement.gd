@@ -10,8 +10,11 @@ static func flag(values:PackedByteArray,binding:Dictionary)->int:
 	for j in range(3):
 		if binding.weights[j]>0. and values[binding.ids[j]]==0: return 0
 	return 1
-static func transfer(state:Dictionary,cut:Dictionary,density:float)->Dictionary:
-	if not cut.get("valid",false) or not is_finite(density) or density<.01 or density>100.: return invalid("transfer_input")
+## Geometry/material preparation has no mechanical support policy. Both the
+## existing fine-node backend and an embedded backend can consume identical
+## retained rest areas and histories without bypassing their own mass guards.
+static func prepare(state:Dictionary,cut:Dictionary)->Dictionary:
+	if not cut.get("valid",false):return invalid("transfer_input")
 	var size:int=cut.points.size(); var faces:int=cut.indices.size()/3
 	var rest:=PackedVector3Array(); var previous:=PackedVector3Array()
 	var anchored:=PackedByteArray(); var removed:=PackedByteArray(); var outside:=PackedByteArray()
@@ -39,6 +42,15 @@ static func transfer(state:Dictionary,cut:Dictionary,density:float)->Dictionary:
 		# than assigning new material or accumulating remeshing area drift.
 		var area:float=state.face_areas[parent]*(raw[i]/totals[parent]); areas.append(area)
 		for j in range(3): lumped[cut.indices[i*3+j]]+=area/3.
+	return {"valid":true,"reason":"","rest":rest,"previous":previous,"anchored":anchored,"removed":removed,"outside":outside,"face_areas":areas,"lumped":lumped}
+
+static func transfer(state:Dictionary,cut:Dictionary,density:float)->Dictionary:
+	if not is_finite(density) or density<.01 or density>100.:return invalid("transfer_input")
+	var prepared:=prepare(state,cut)
+	if not prepared.valid:return prepared
+	var size:int=cut.points.size();var faces:int=cut.indices.size()/3
+	var lumped:PackedFloat64Array=prepared.lumped
+	var anchored:PackedByteArray=prepared.anchored;var removed:PackedByteArray=prepared.removed
 	var inverse:=PackedFloat64Array(); inverse.resize(size)
 	for i in range(size):
 		if lumped[i]<=0.: continue
@@ -59,4 +71,5 @@ static func transfer(state:Dictionary,cut:Dictionary,density:float)->Dictionary:
 		if candidates.size()!=1: continue
 		var v:int=candidates.keys()[0]
 		grasps[hand]=v; grasp_faces[hand]=candidates[v]; inverse[v]=0.
-	return {"valid":true,"reason":"","rest":rest,"previous":previous,"anchored":anchored,"removed":removed,"outside":outside,"face_areas":areas,"lumped":lumped,"inverse":inverse,"grasps":grasps,"grasp_faces":grasp_faces}
+	prepared["inverse"]=inverse;prepared["grasps"]=grasps;prepared["grasp_faces"]=grasp_faces
+	return prepared
