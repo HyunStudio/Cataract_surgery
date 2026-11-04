@@ -11,6 +11,7 @@ const ContactQuery=preload("res://scripts/membrane_contact_query.gd")
 const ContactStep=preload("res://scripts/embedded_contact_step.gd")
 const NumericalSeed=preload("res://scripts/trajectory_seed.gd")
 const MaterialReduce=preload("res://scripts/embedded_material_reduce.gd")
+const MaterialAttachment=preload("res://scripts/material_attachment.gd")
 const FORCE_TOLERANCE:=1e-8
 const GAP_TOLERANCE:=1e-9
 var _cutter=Cutter.new()
@@ -84,9 +85,10 @@ func _prepare_energy()->bool:
 	return true
 func grasp(hand:int,vertex:int)->Dictionary:
 	if _state.is_empty() or hand<0 or hand>1 or vertex<0 or vertex>=_state.rest.size():return invalid("grasp_input")
-	if _state.grasps.has(hand):return {"valid":_state.grasps[hand].vertex==vertex,"changed":false,"reason":"grasp_occupied"}
+	if _state.grasps.has(hand):return {"valid":_state.grasps[hand].get("vertex",-1)==vertex,"changed":false,"reason":"grasp_occupied"}
 	for held in _state.grasps.values():
-		if held.vertex==vertex:return invalid("grasp_occupied")
+		if held.get("vertex",-1)==vertex:return invalid("grasp_occupied")
+		if held.get("kind","")=="material" and MaterialAttachment.same_vertex(_state,held,vertex):return invalid("grasp_occupied")
 	if _state.anchored[vertex]!=0 or _state.removed[vertex]!=0 or _state.support.point_nodes[vertex].is_empty():return invalid("grasp_unsupported")
 	var face:=-1
 	for i in range(_state.indices.size()/3):
@@ -95,6 +97,10 @@ func grasp(hand:int,vertex:int)->Dictionary:
 	var xyz:=physical_positions();var target:=PackedFloat64Array([xyz[vertex*3],xyz[vertex*3+1],xyz[vertex*3+2]])
 	_state.grasps[hand]={"vertex":vertex,"face":face,"target":target,"reaction":PackedFloat64Array([0.,0.,0.])}
 	return {"valid":true,"changed":true,"reason":""}
+func grasp_material(hand:int,face:int,barycentric:PackedFloat64Array)->Dictionary:
+	var result:=MaterialAttachment.create(_state,hand,face,barycentric)
+	if result.valid and result.changed:_state.grasps[hand]=result.held
+	result.erase("held");return result
 func release_hand(hand:int)->void:
 	if not _state.is_empty():_state.grasps.erase(hand)
 func _attachments(targets:Dictionary)->Dictionary:
@@ -108,7 +114,12 @@ func _attachments(targets:Dictionary)->Dictionary:
 		if not target is PackedFloat64Array or target.size()!=3:return invalid("grasp_target_shape")
 		for value in target:
 			if not is_finite(value) or absf(value)>16.:return invalid("grasp_target_coordinate")
-		var local_nodes:PackedInt32Array=_state.support.point_nodes[held.vertex];var local_weights:PackedFloat64Array=_state.support.point_weights[held.vertex]
+		var local_nodes:=PackedInt32Array();var local_weights:=PackedFloat64Array()
+		if held.get("kind","")=="material":
+			var material:=MaterialAttachment.constraint(_state,held)
+			if not material.valid:return material
+			local_nodes=material.nodes;local_weights=material.weights
+		else:local_nodes=_state.support.point_nodes[held.vertex];local_weights=_state.support.point_weights[held.vertex]
 		if local_nodes.is_empty() or local_nodes.size()>3:return invalid("grasp_support")
 		for j in range(3):
 			nodes.append(local_nodes[j] if j<local_nodes.size() else local_nodes[0]);weights.append(local_weights[j] if j<local_weights.size() else 0.)
@@ -336,6 +347,11 @@ func _incise_prepared(patch:PackedVector3Array)->Dictionary:
 	var grasps:Dictionary={}
 	for hand in _state.grasps:
 		var held:Dictionary=_state.grasps[hand];var candidates:Dictionary={}
+		if held.get("kind","")=="material":
+			var mapped:=MaterialAttachment.remap_cut(_state,cut,next,held)
+			if not mapped.valid:return mapped
+			if mapped.retained:grasps[hand]=mapped.held
+			continue
 		for face in range(cut.sources.size()):
 			if cut.sources[face]!=held.face:continue
 			for j in range(3):

@@ -147,8 +147,11 @@ static func _pass(s:Dictionary,limit:int)->Dictionary:
 		for j in range(3):
 			next.indices.append(remap[face.ids[j]]);support.elements.append(face.chart[j]);support.weights.append_array(face.rows[j])
 	for held in next.grasps.values():
-		if remap[held.vertex]<0 or not face_map.has(held.face):return invalid("held_remap")
-		held.vertex=remap[held.vertex];held.face=face_map[held.face]
+		if not face_map.has(held.face):return invalid("held_remap")
+		if held.has("vertex"):
+			if remap[held.vertex]<0:return invalid("held_remap")
+			held.vertex=remap[held.vertex]
+		held.face=face_map[held.face]
 	return {"valid":true,"changed":true,"state":next,"keep":keep,"certificates":selected}
 static func simplify(state:Dictionary,max_removals:int=128)->Dictionary:
 	if max_removals<1 or max_removals>256:return invalid("budget")

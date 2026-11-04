@@ -92,6 +92,7 @@ if not options.bridge_only:
 if options.grasp:
     stages.append(('grasp_bridge', ['--script','res://grasp_bridge.gd'], 'Native grasp Godot bridge: 0 failures'))
     if not options.bridge_only:stages.append(('embedded_grasp', ['--script','res://embedded_grasp.gd'], 'Embedded native grasp: 0 failures'))
+    if not options.bridge_only:stages.append(('material_attachment_native', ['--script','res://tests/test_material_attachment_native.gd'], 'Native material attachment: 0 failures'))
 if options.contact:
     stages.append(('contact_bridge', ['--script','res://contact_bridge.gd'], 'Native embedded contact Godot bridge: 0 failures'))
     if not options.bridge_only:stages.append(('embedded_contact', ['--script','res://embedded_contact.gd'], 'Embedded native contact: 0 failures'))

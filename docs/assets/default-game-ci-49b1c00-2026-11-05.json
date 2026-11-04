@@ -1,0 +1,22 @@
+{
+  "qualified": false,
+  "scope": "Observed remote default Godot game CI failure only, not local material attachment regression or whole surgery qualification.",
+  "run_id": 41927854044,
+  "job_id": 126916877708,
+  "commit": "49b1c00",
+  "job": "game-tests",
+  "conclusion": "failure",
+  "failed_step": "Domain, assets and input tests",
+  "source": "https://github.com/HyunStudio/Cataract_surgery/actions/runs/41927854044",
+  "observed_errors": [
+    "continuous instrument target blocked: (0.567831, 0.450628, 0.049679) -> (0.569457, 0.450628, 0.024863)",
+    "cut retains a real detached anterior flap"
+  ],
+  "locations": [
+    "res://tests/test_volumetric_encounter.gd:19",
+    "res://tests/test_volumetric_encounter.gd:136",
+    "res://tests/test_volumetric_encounter.gd:143"
+  ],
+  "rendered_integration": "skipped after earlier failure",
+  "next": "Keep existing full-route and intended central-flap gates; diagnose correct tool/tissue path and complete new backend integration before default/release qualification."
+}
