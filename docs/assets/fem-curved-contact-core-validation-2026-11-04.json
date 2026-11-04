@@ -1,0 +1,139 @@
+{
+  "scope": "Standalone retained curved energy/implicit candidates, exact linear attachments and static coupled fine-face contact candidates. Contact KKT uses an independent NumPy active-simplex/finite-axis oracle. No CCD, engine coupled time step, operator case, active FPS or clinical calibration.",
+  "qualified": true,
+  "controls": 217,
+  "cells": 396,
+  "tests": 28,
+  "test_output": "test_curved_godot_reference_and_implicit_step (test_membrane_fem.MembraneFEMTests.test_curved_godot_reference_and_implicit_step) ... ok\ntest_failures_do_not_publish_unaccepted_iterates (test_membrane_fem.MembraneFEMTests.test_failures_do_not_publish_unaccepted_iterates) ... ok\ntest_implicit_equilibrium_and_exact_pin (test_membrane_fem.MembraneFEMTests.test_implicit_equilibrium_and_exact_pin) ... ok\ntest_rest_objectivity_and_exact_hessian (test_membrane_fem.MembraneFEMTests.test_rest_objectivity_and_exact_hessian) ... ok\ntest_rigid_prediction_has_no_internal_impulse (test_membrane_fem.MembraneFEMTests.test_rigid_prediction_has_no_internal_impulse) ... ok\ntest_shared_nodes_and_permuted_cells (test_membrane_fem.MembraneFEMTests.test_shared_nodes_and_permuted_cells) ... ok\ntest_small_energy_change_matches_high_precision_subtraction (test_membrane_fem.MembraneFEMTests.test_small_energy_change_matches_high_precision_subtraction) ... ok\ntest_stationary_compressed_saddle_is_not_convergence (test_membrane_fem.MembraneFEMTests.test_stationary_compressed_saddle_is_not_convergence) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 8.679s\n\nOK\ntest_constraints_stabilize_only_the_constrained_curvature (test_membrane_grasp.GraspTests.test_constraints_stabilize_only_the_constrained_curvature) ... ok\ntest_interior_material_point_and_reaction (test_membrane_grasp.GraspTests.test_interior_material_point_and_reaction) ... ok\ntest_invalid_rank_and_exhaustion_are_atomic (test_membrane_grasp.GraspTests.test_invalid_rank_and_exhaustion_are_atomic) ... ok\ntest_nodal_hold_with_repeated_zero_weight_slots (test_membrane_grasp.GraspTests.test_nodal_hold_with_repeated_zero_weight_slots) ... ok\ntest_two_distinct_grips_on_shared_cells (test_membrane_grasp.GraspTests.test_two_distinct_grips_on_shared_cells) ... ok\ntest_unheld_negative_tangent_cannot_be_hidden_by_augmentation (test_membrane_grasp.GraspTests.test_unheld_negative_tangent_cannot_be_hidden_by_augmentation) ... ok\ntest_zero_grips_preserve_existing_unconstrained_contract (test_membrane_grasp.GraspTests.test_zero_grips_preserve_existing_unconstrained_contract) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 4.872s\n\nOK\ntest_actual_curved_retained_two_hands_two_bodies (test_fem_contact.FEMContactTests.test_actual_curved_retained_two_hands_two_bodies) ... ok\ntest_actual_curved_under_extended_x87 (test_fem_contact.FEMContactTests.test_actual_curved_under_extended_x87) ... ok\ntest_budget_and_impossible_targets_are_atomic (test_fem_contact.FEMContactTests.test_budget_and_impossible_targets_are_atomic) ... ok\ntest_empty_parent_material_is_not_constrained (test_fem_contact.FEMContactTests.test_empty_parent_material_is_not_constrained) ... ok\ntest_finite_capsule_endpoint (test_fem_contact.FEMContactTests.test_finite_capsule_endpoint) ... ok\ntest_inactive_contact_cannot_hide_negative_free_tangent (test_fem_contact.FEMContactTests.test_inactive_contact_cannot_hide_negative_free_tangent) ... ok\ntest_interior_material_hold_with_partially_fixed_controls (test_fem_contact.FEMContactTests.test_interior_material_hold_with_partially_fixed_controls) ... ok\ntest_invalid_geometry_is_atomic (test_fem_contact.FEMContactTests.test_invalid_geometry_is_atomic) ... ok\ntest_no_body_preserves_old_grasp_result (test_fem_contact.FEMContactTests.test_no_body_preserves_old_grasp_result) ... ok\ntest_one_and_two_hands_with_contact (test_fem_contact.FEMContactTests.test_one_and_two_hands_with_contact) ... ok\ntest_redundant_contact_rows_remain_nonnegative_and_balanced (test_fem_contact.FEMContactTests.test_redundant_contact_rows_remain_nonnegative_and_balanced) ... ok\ntest_two_bodies_and_held_corner (test_fem_contact.FEMContactTests.test_two_bodies_and_held_corner) ... ok\ntest_unheld_body_reaction (test_fem_contact.FEMContactTests.test_unheld_body_reaction) ... ok\n\n----------------------------------------------------------------------\nRan 13 tests in 13.482s\n\nOK\n",
+  "build": {
+    "artifact_sha256": "081e9b7de593ef5f145b31d5b773b8ad3db45e685e3f4f767db1e9e5f6fea9b9",
+    "sources": {
+      "native\\contact_distance.h": "0a01b57de2ad27aad9f7c4b08135bf835069d8d5e3f775f819e9c6e597d8012a",
+      "native\\contact_guard.h": "3ba7e8b36ff39124592d52b40810ffaed4a7cda34f6cd885b129fb7865e1ce62",
+      "native\\contact_merit_difference.h": "2c09fd9d413ade6f640c721d69c7ba26de144d8cf8ae8fea916924b0b6fa71d5",
+      "native\\embedded_contact.h": "1db36468d0550d8e4ff88e4d1b9989f8675b89a539ef8ac689de4e0838780153",
+      "native\\membrane_fem.cpp": "d50a70931307240cdbb3a8a0394c8217fe08591f9fe90e85c844eb0b456febd9",
+      "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+      "native\\membrane_fem_contact.inc": "ffa7fa1ed6d16ab1cc6935ca9228b4333067e42c9118f13c0f9ff3653f08027f",
+      "tools\\build_membrane_fem.py": "85201d97c864304727b9e46ebcc689690735613e9c4c244b1100248846ca110f",
+      "tools\\native_build_provenance.py": "b7d98ea1bad45dba682726b2b96cb669244b8738f76ea79ddfe4b170b2cf1d98"
+    },
+    "compiler": {
+      "version": "0.17.0",
+      "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+      "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+    },
+    "dependencies": {
+      ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+    },
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Werror",
+      "-DEIGEN_MPL2_ONLY",
+      "-isystem",
+      "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+      "-shared",
+      "-target",
+      "x86_64-windows-gnu"
+    ],
+    "source_revision": "d9c98d5bb8348a53aa225965515cd9da84dfd50e",
+    "source_dirty": true
+  },
+  "test_inputs": {
+    "native\\tests\\fixtures\\curved_coupled_two_hands.json": "8964a98838d381270384a635c78052f16371cdd3da0e2b90379996689cc7a9cb",
+    "native\\tests\\fixtures\\embedded_membrane_reference.json": "5cfdf064bf00ae4ef762569f057c6ae8c9e6c06e97d380c630fa3daecefe3bcc",
+    "native\\tests\\replay_fem_contact.py": "187683d3136def5871b260a0ed34951e0edb625d29f53f495ab31a2a1b600b52",
+    "native\\tests\\test_fem_contact.py": "e638f7d794c78448de31c1a7f45b63fb23449043c9a21bc4d3bb2afb22dfee53",
+    "native\\tests\\test_membrane_fem.py": "f6409026eacbb1a372ecf8317f31231a7421cc390239d01705349a5e013c4a9a",
+    "native\\tests\\test_membrane_grasp.py": "6e04c652d19b5986bfc11282b6d0bfb5a0fb49f4712f3da4d0f2f107c5d96032",
+    "tools\\validate_membrane_fem.py": "672252f0fb2eb1d1389872886567b0c1129bf5e3b1528c290247fa7aa67c0d5d"
+  },
+  "floating_environment_probe": {
+    "artifact_sha256": "d55d5a23b15af74896e050256a1845045e40c43ab8881dede36bbbd1539bcce6",
+    "sources": {
+      "native\\tests\\fp_environment_probe.cpp": "5f1b26e0b96929d48a8306c6990bd71c1b63df5fafdc5f8b933e77c53bbf0b18",
+      "tools\\build_fp_environment_probe.py": "82fd9b47fa6d8deb6cd37781e4a203ade2101a75ebcc90182413789f708dae52",
+      "tools\\native_build_provenance.py": "b7d98ea1bad45dba682726b2b96cb669244b8738f76ea79ddfe4b170b2cf1d98"
+    },
+    "compiler": {
+      "version": "0.17.0",
+      "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+      "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+    },
+    "dependencies": {},
+    "flags": [
+      "-std=c++17",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-shared",
+      "-target",
+      "x86_64-windows-gnu"
+    ],
+    "source_revision": "d9c98d5bb8348a53aa225965515cd9da84dfd50e",
+    "source_dirty": true
+  },
+  "godot_reference_sources": {
+    "res://scripts/anterior_segment.gd": "a0d691d5edca728236356db9b609275f3b0f90da927f29bb41dc135962de46a7",
+    "res://scripts/capsule_solver.gd": "13ee61a4cc1c038306b81492402e012580db39680db7cc3269332e6428fcff66",
+    "res://scripts/membrane_cut.gd": "6cf152a8974d534aa99407a37681ddcf37309b8ace2377e32bdc71aedc050871",
+    "res://scripts/membrane_energy.gd": "df8519edeae45c5ca926667fe3138092211078e869c115d58d2e627a5708bea3",
+    "res://scripts/membrane_precision.gd": "477ed6eb2b625e3336a9a52394d176ee22bc33fbcf0e5dd0ce709ac5c6533310",
+    "res://scripts/membrane_refinement.gd": "bb3797132d5eed590a941f4dac4124447867f430635dfc4c8bb7390c9cd17db2",
+    "res://scripts/membrane_support.gd": "97cc1b693eb80592ff024ddd9a2234be73b2a5b56fdc4df4a81936fc7ee49741",
+    "res://tests/test_fem_reference.gd": "6e697dab3701eb80ad4a87f1f0e7c8afa9aa62b865c3e8be677246585bb321d8"
+  },
+  "measurements": [
+    {
+      "mu": 2.0,
+      "lambda": 3.0,
+      "samples_ms": [
+        39.63229991495609,
+        33.15820009447634,
+        29.095999896526337,
+        6.934800185263157,
+        7.775699952617288,
+        8.023699978366494
+      ],
+      "median_ms": 18.559849937446415,
+      "max_ms": 39.63229991495609,
+      "independent_force_inf": 1.8550623703979512e-11,
+      "iterations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "mu": 10000.0,
+      "lambda": 15000.0,
+      "samples_ms": [
+        46.50439997203648,
+        10.737800039350986,
+        11.297799879685044,
+        9.982899995520711,
+        11.730700032785535,
+        10.9612001106143
+      ],
+      "median_ms": 11.129499995149672,
+      "max_ms": 46.50439997203648,
+      "independent_force_inf": 6.582387163545783e-11,
+      "iterations": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    }
+  ]
+}

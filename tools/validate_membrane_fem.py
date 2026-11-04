@@ -18,12 +18,20 @@ artifact_hash = sha256(artifact)
 if artifact_hash != manifest['artifact_sha256']:
     raise SystemExit('Native FEM artifact differs from its build manifest')
 verify_sources(manifest['sources'])
+probe_path = ROOT/'.tools/native/fp_environment_probe.dll'
+probe_manifest_path = probe_path.with_suffix('.build.json')
+if not probe_path.exists() or not probe_manifest_path.exists():
+    raise SystemExit('Build isolated calling-thread diagnostics first: python tools/build_fp_environment_probe.py')
+probe_manifest = json.loads(probe_manifest_path.read_text())
+probe_hash = sha256(probe_path)
+if probe_hash != probe_manifest['artifact_sha256']:raise SystemExit('Floating environment diagnostics differ from build manifest')
+verify_sources(probe_manifest['sources'])
 fixture_path = ROOT/'native/tests/fixtures/embedded_membrane_reference.json'
 fixture = json.loads(fixture_path.read_text())
 for ref, expected in fixture['sources'].items():
     if sha256(ROOT/'godot'/ref.removeprefix('res://')) != expected:
         raise SystemExit(f'Regenerate Godot FEM reference: source changed: {ref}')
-test_inputs = source_hashes([ROOT/'native/tests/test_membrane_fem.py', ROOT/'native/tests/test_membrane_grasp.py', ROOT/'native/tests/test_fem_contact.py', fixture_path, Path(__file__).resolve()])
+test_inputs = source_hashes([ROOT/'native/tests/test_membrane_fem.py', ROOT/'native/tests/test_membrane_grasp.py', ROOT/'native/tests/test_fem_contact.py', ROOT/'native/tests/replay_fem_contact.py', ROOT/'native/tests/fixtures/curved_coupled_two_hands.json', fixture_path, Path(__file__).resolve()])
 test_output = '';test_count = 0
 for pattern in ['test_membrane_fem.py', 'test_membrane_grasp.py', 'test_fem_contact.py']:
     tested = subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'native/tests',
@@ -71,11 +79,14 @@ for mu in [2., 1e4]:
                          'median_ms':statistics.median(samples), 'max_ms':max(samples),
                          'independent_force_inf':max(residuals), 'iterations':iterations})
 verify_sources(manifest['sources']);verify_sources(test_inputs)
+verify_sources(probe_manifest['sources'])
+if sha256(probe_path) != probe_hash or json.loads(probe_manifest_path.read_text()) != probe_manifest:
+    raise SystemExit('Floating environment diagnostics changed during qualification')
 if sha256(artifact) != artifact_hash or json.loads(manifest_path.read_text()) != manifest:
     raise SystemExit('Native FEM artifact/manifest changed during qualification')
 report = {'scope':'Standalone retained curved energy/implicit candidates, exact linear attachments and static coupled fine-face contact candidates. Contact KKT uses an independent NumPy active-simplex/finite-axis oracle. No CCD, engine coupled time step, operator case, active FPS or clinical calibration.',
           'qualified':True, 'controls':len(predicted), 'cells':len(areas), 'tests':test_count,
-          'test_output':test_output, 'build':manifest, 'test_inputs':test_inputs,
+          'test_output':test_output, 'build':manifest, 'test_inputs':test_inputs, 'floating_environment_probe':probe_manifest,
           'godot_reference_sources':fixture['sources'], 'measurements':measurements}
 destination = ROOT/'godot/reports/fem-core-validation.json'
 destination.parent.mkdir(parents=True, exist_ok=True)

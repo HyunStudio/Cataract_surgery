@@ -1,10 +1,12 @@
 """Independent original KKT for simultaneous retained contact and exact grasps."""
 import ctypes as ct
 import itertools
+import json
 import unittest
 import numpy as np
 import test_membrane_fem as fem
 import test_membrane_grasp as grasp
+from replay_fem_contact import replay
 
 
 class FEMContactTests(unittest.TestCase):
@@ -112,6 +114,48 @@ class FEMContactTests(unittest.TestCase):
 
     def test_interior_material_hold_with_partially_fixed_controls(self):
         self.verify(self.run_case(inverse=[0.,1.,2.],grasp_nodes=[[0,1,2]],grasp_weights=[[.7,.2,.1]]))
+
+    def test_actual_curved_retained_two_hands_two_bodies(self):
+        request = json.loads((fem.ROOT/'native/tests/fixtures/curved_coupled_two_hands.json').read_text(encoding='utf-8'))['request']
+        self.verify_curved_request(request,replay(request,fem.ROOT/'.tools/native/membrane_fem.dll'))
+
+    def verify_curved_request(self,request,result):
+        status,x,reaction,dual,stats = result
+        self.assertEqual(status,0,msg=str(stats))
+        q = x.reshape(-1,3);predicted = np.array(request['xyz']).reshape(-1,3)
+        inverse = np.array(request['inverse']);free = inverse>0.
+        np.testing.assert_array_equal(q[~free],predicted[~free])
+        force = np.zeros_like(q)
+        for ids,basis,area in zip(np.array(request['nodes']).reshape(-1,3),np.array(request['gradients']).reshape(-1,2,3),request['areas']):
+            f = q[ids].T@basis.T;c = f.T@f;log_j = .5*np.linalg.slogdet(c)[1]
+            p = request['mu']*f+(request['lambda']*log_j-request['mu'])*f@np.linalg.inv(c)
+            force[ids] += (area*p@basis).T
+        force[free] += (q[free]-predicted[free])/(inverse[free,None]*request['dt']**2)
+        for ids,w,target,r in zip(np.array(request['grip_nodes']).reshape(-1,3),np.array(request['grip_weights']).reshape(-1,3),np.array(request['targets']).reshape(-1,3),reaction.reshape(-1,3)):
+            w = w/sum(w);np.testing.assert_allclose(w@q[ids],target,atol=1e-9,rtol=0.)
+            for node,weight in zip(ids,w):force[node] += weight*r
+        bodies = np.array(request['capsules']).reshape(-1,7)
+        for ids,shape,multipliers in zip(np.array(request['face_nodes']).reshape(-1,3),np.array(request['face_weights']).reshape(-1,3,3),dual.reshape(-1,len(bodies))):
+            shape = shape/shape.sum(axis=1)[:,None]
+            for body,u in zip(bodies,multipliers):
+                self.assertGreaterEqual(u,0.)
+                sq,w,delta = self.closest(body,shape@q[ids])
+                self.assertGreaterEqual(np.sqrt(sq)-body[6],-1e-9)
+                self.assertLessEqual(abs(u*(sq/body[6]**2-1.)),1e-11)
+                force[ids] -= u*(shape.T@(2*w[:,None]*delta))/body[6]**2
+        self.assertLessEqual(np.max(np.abs(force[free])),1e-8)
+
+    def test_actual_curved_under_extended_x87(self):
+        probe = ct.CDLL(str(fem.ROOT/'.tools/native/fp_environment_probe.dll'))
+        probe.fem_probe_x87.restype = ct.c_uint;probe.fem_probe_set_x87.argtypes = [ct.c_uint]
+        saved = probe.fem_probe_x87()
+        request = json.loads((fem.ROOT/'native/tests/fixtures/curved_coupled_two_hands.json').read_text(encoding='utf-8'))['request']
+        try:
+            probe.fem_probe_set_x87((saved&~0xf00)|0x300)
+            result = replay(request,fem.ROOT/'.tools/native/membrane_fem.dll')
+        finally:probe.fem_probe_set_x87(saved)
+        self.assertEqual(probe.fem_probe_x87(),saved)
+        self.verify_curved_request(request,result)
 
     def test_redundant_contact_rows_remain_nonnegative_and_balanced(self):
         body = [.3,.05,.3,.3,.05,.3,.1]

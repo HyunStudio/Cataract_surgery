@@ -139,7 +139,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         ++evaluations;if(!contacts.evaluate(problem,x,dual,rho,state)) {status=2;break;}
         // Early infeasible AL models need only inexact minimization. This is
         // not acceptance: the original final force tolerance is checked below.
-        const double inner_tolerance=(state.penetration>gap_tolerance || state.complementarity>10.*comp_tolerance) ? std::max(tolerance,1e-6) : tolerance;
+        const double inner_tolerance=(state.penetration>gap_tolerance || state.complementarity>comp_tolerance) ? std::max(tolerance,1e-6) : tolerance;
         bool inner_done=false;
         for(;;) {
             for(int j=0;j<size;++j) {q[j]=x[free[j]];gf[j]=state.gradient[free[j]];}
@@ -182,8 +182,12 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
                 for(int j=0;j<size;++j) {q[j]=trial[free[j]];step[j]=trial[free[j]]-x[free[j]];}
                 if(rows && (a*q-target).lpNorm<Eigen::Infinity>()>gap_tolerance) continue;
                 ++evaluations;double change=0.;
-                if(contacts.evaluate(problem,trial,dual,rho,next) && contacts.difference(problem,x,trial,dual,rho,change) &&
-                   change+(rows ? hold.dot(a*step) : 0.)<=1e-4*fraction*slope) {accepted=true;break;}
+                const bool compared=contacts.evaluate(problem,trial,dual,rho,next) && contacts.difference(problem,x,trial,dual,rho,change);
+                const double normal_work=rows ? hold.dot(a*step) : 0.;
+#ifdef FEM_CONTACT_TRACE
+                trace_contact_line(x,trial,dual,rho,iterations,fraction,slope,change,normal_work,compared);
+#endif
+                if(compared && change+normal_work<=1e-4*fraction*slope) {accepted=true;break;}
             }
             if(!accepted) {status=2;break;}
             x.swap(trial);std::swap(state,next);++iterations;min_step=std::min(min_step,fraction);

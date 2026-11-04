@@ -10,6 +10,7 @@ Build and qualify with the pinned Zig0.17.0 / Eigen5.0.1 dependencies:
 
 ```powershell
 python tools/build_membrane_fem.py
+python tools/build_fp_environment_probe.py
 python tools/validate_membrane_fem.py
 ```
 
@@ -281,3 +282,44 @@ pose authority, surrounding anatomy and cut-remap motion still need combined
 qualification. Jaw acquisition, roll and partial-tip mechanics remain open.
 This optional component has not been promoted to the default surgical app;
 the old default continuous-blade/fine-traction failures remain visible.
+
+## Retained curved coupled regression and caller precision
+
+`--curved` adds the actual217control/404fine-face retained capsule to the real
+engine probe, with nonidentity B and one/two hands/pressure bodies. Its exact
+two-hand/two-body failed request is stored in
+`native/tests/fixtures/curved_coupled_two_hands.json` with a standalone replay
+helper. It is synthetic direct setup, not jaw/controller acquisition or a full
+capsulotomy. Independent NumPy original KKT checks use every real fine face and
+both face-major/body-minor multiplier columns.
+
+The original250step engine failure reproduces bitwise under caller x87PC64,
+while the exact DLL/request passes under Python's PC53. FTZ/DAZ toggles have no
+effect on this fixture. The inexact AL inner switch had activated strict force
+minimization at comp<=10tol even when complementarity still failedtol, preventing
+outer multiplier/rho progress. It now uses ANY remaining comp>tol. FINAL original
+force1e-8/gap1e-9/comp1e-11 and undamped curvature remain unchanged. Both caller
+precision modes now have independent original KKT regression checks.
+
+The isolated `fp_environment_probe.dll` is qualification-only, never linked to
+the app, and restores caller control exactly. Its compiler/source/artifact
+manifest and replay/fixture hashes are part of source-bound native qualification.
+The optional `build_fem_contact_trace.py` late-line observer is a separate DLL;
+the product has no trace I/O. Do not lower engine precision to obtain convergence.
+
+Separate pre-existing release prerequisite: long-double outward Bound arithmetic
+assumes64bit significand precision. Under callerPC53, computing1+2^-54 then
+expanding by one80bit ULP can exclude the exact result. Current actual GodotPC64
+qualification does not prove caller-independent interval safety. A scoped64bit/
+round-nearest numerical boundary with exact restoration, or precision-aware
+enclosures, is still required before a whole release. See the fixture notes and
+coupled implementation plan; this condition is not hidden by passing solver KKT.
+
+The fresh actual11stage `--grasp --contact --coupled --curved` probe now passes
+all three curved cases, including the original two-hand/two-body failure.
+Independent original force<=1.799e-11, comp<=4.311e-12, physical penetration
+<=7.406e-13; every body has a positive active contact through nonidentity B.
+See fem-curved-contact-engine-validation-2026-11-04.json and the28test core
+report. Diagnostic wall times441/181/2994ms are NOT real-time qualification.
+The confirmed numerical boundary issue above and inactive contact/merit cost
+must be addressed before actual operator/GPU/Windows completion.
