@@ -1,4 +1,4 @@
-"""Source-bound standalone FEM qualification; no app/contact/FPS claim."""
+"""Source-bound FEM/grasp/static contact candidates; no CCD/app/FPS claim."""
 import importlib.util
 import json
 from pathlib import Path
@@ -23,9 +23,9 @@ fixture = json.loads(fixture_path.read_text())
 for ref, expected in fixture['sources'].items():
     if sha256(ROOT/'godot'/ref.removeprefix('res://')) != expected:
         raise SystemExit(f'Regenerate Godot FEM reference: source changed: {ref}')
-test_inputs = source_hashes([ROOT/'native/tests/test_membrane_fem.py', ROOT/'native/tests/test_membrane_grasp.py', fixture_path, Path(__file__).resolve()])
+test_inputs = source_hashes([ROOT/'native/tests/test_membrane_fem.py', ROOT/'native/tests/test_membrane_grasp.py', ROOT/'native/tests/test_fem_contact.py', fixture_path, Path(__file__).resolve()])
 test_output = '';test_count = 0
-for pattern in ['test_membrane_fem.py', 'test_membrane_grasp.py']:
+for pattern in ['test_membrane_fem.py', 'test_membrane_grasp.py', 'test_fem_contact.py']:
     tested = subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'native/tests',
                              '-p', pattern, '-v'], cwd=ROOT, text=True, capture_output=True)
     output = tested.stdout+tested.stderr
@@ -73,7 +73,7 @@ for mu in [2., 1e4]:
 verify_sources(manifest['sources']);verify_sources(test_inputs)
 if sha256(artifact) != artifact_hash or json.loads(manifest_path.read_text()) != manifest:
     raise SystemExit('Native FEM artifact/manifest changed during qualification')
-report = {'scope':'Standalone retained curved energy/implicit candidates and exact linear attachments; no contact, CCD, operator case, active FPS or clinical calibration.',
+report = {'scope':'Standalone retained curved energy/implicit candidates, exact linear attachments and static coupled fine-face contact candidates. Contact KKT uses an independent NumPy active-simplex/finite-axis oracle. No CCD, engine coupled time step, operator case, active FPS or clinical calibration.',
           'qualified':True, 'controls':len(predicted), 'cells':len(areas), 'tests':test_count,
           'test_output':test_output, 'build':manifest, 'test_inputs':test_inputs,
           'godot_reference_sources':fixture['sources'], 'measurements':measurements}

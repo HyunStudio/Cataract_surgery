@@ -4,6 +4,8 @@
 #include <Eigen/SparseCholesky>
 #include <Eigen/Cholesky>
 #include <algorithm>
+#include "embedded_contact.h"
+#include "contact_merit_difference.h"
 
 #if defined(_WIN32)
 #define FEM_EXPORT extern "C" __declspec(dllexport)
@@ -330,6 +332,7 @@ int solve_grasp(int n,double* output,const double* inverse,int count,const int* 
     if(status==0) {std::copy(x.begin(),x.end(),output);std::copy(dual.data(),dual.data()+rows,reaction);}
     return status;
 }
+#include "membrane_fem_contact.inc"
 } // namespace
 
 FEM_EXPORT int membrane_fem_evaluate(int n,const double* x,int count,const int* nodes,const double* gradients,
@@ -368,5 +371,15 @@ FEM_EXPORT int membrane_fem_solve_grasp(int n,double* output,const double* inver
     if(stats) {std::fill(stats,stats+12,0.);stats[0]=stats[1]=stats[8]=std::numeric_limits<double>::infinity();}
     try {return solve_grasp(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,
                            grips,grip_nodes,weights,targets,reaction,stats);}
+    catch(...) {return 2;}
+}
+
+FEM_EXPORT int membrane_fem_solve_contact(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
+    const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
+    int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
+    int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* dual,double* stats) {
+    if(stats) {std::fill(stats,stats+16,0.);stats[0]=stats[1]=stats[8]=stats[12]=stats[13]=std::numeric_limits<double>::infinity();}
+    try {return solve_contact(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
+                             grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules,dual,stats);}
     catch(...) {return 2;}
 }

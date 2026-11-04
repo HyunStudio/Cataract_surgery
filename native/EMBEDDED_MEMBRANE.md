@@ -198,3 +198,45 @@ has217controls404faces; gap.01999999918305446 at an intended.02clearance, with
 reported material-point/virtual-work errors0. See
 `docs/assets/embedded-contact-engine-validation-2026-11-04.json`. This is still
 static contact, not an instrument-controlled reaction solve or full surgery.
+
+## Coupled static implicit candidates
+
+New standalone C ABI `membrane_fem_solve_contact` shares the original Problem,
+Neo-Hookean energy/inertia and SparseCells factors with existing solvers through
+the private `membrane_fem_contact.inc`. It accepts the old material data and
+up-to2exact linear held points, then retained fine faces (3control IDs+9shape
+weights each), rigid capsules (7doubles each) and output nonnegative contact
+multipliers in face-major/body-minor order. Bounds:4096controls8192cells/faces,
+64capsules and65536pairs. Invalid/nonregular/inconclusive/budget cases leave
+positions AND both reaction arrays unchanged. No body dispatches the original
+grasp solve bitwise, including the first12statistics.
+
+For each true fine triangle Bq, the constraint is `g=d²/r²-1>=0`. Bounded PHR
+outer minimization uses exact smooth distance gradients/Hessians; original
+elastic stable differences and conservative contact merit difference bounds
+drive line acceptance. Equalities retain their actual inertia and use the old
+primal/Schur projection. Early infeasible inner minimization can stop at1e-6;
+this is only an intermediate optimizer tolerance. Final original force<=1e-8,
+held/physical gap<=1e-9, nonnegative duals and `abs(dual*g)<=1e-11` are mandatory.
+Rho progress includes both penetration and complementarity. Final curvature
+factor has zero damping; the PHR and equality normal augmentations vanish on
+the simultaneous active tangent. No damped objective is accepted as physics.
+
+Statistics16: first12retain the grasp meanings (slot11currently0), then maximum
+physical penetration, complementarity, zero-based outer index and contact rho.
+There are at most100outer models,1000totalNewtonsteps,12factor attempts and32line
+trials per step. Inactive ambiguous witnesses need no Hessian; active nonregular
+geometry fails without a fabricated derivative or approximate accepted fallback.
+
+`test_fem_contact.py` now has11tests and an independent NumPy enumeration of all
+triangle simplex/finite-axis active sets. It recomputes actual original energy
+gradient, inertia, held material point/reaction and contact reaction without
+calling the native distance query. Cases include nodal/nonnodal holds, partially
+fixed controls, one/two hands and bodies, redundant rows, finite endpoints,
+empty parent material, bitwise zero-body old-grasp regression, invalid/budget/
+impossible target atomicity and negative free-tangent rejection. All26native
+tests pass; see fem-coupled-core-validation-2026-11-04.json. Existing actual8stage
+engine checks also pass with the new linked core (separate build regression
+report). A coupled Godot method/time step, whole-interval/anatomy guards and
+actual instrument/controller behavior are still missing; none is implied by
+these static synthetic candidate tests.
