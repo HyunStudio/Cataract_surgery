@@ -14,3 +14,10 @@ flags are explicit JSON integers (36rim controls), not a Godot PackedByteArray
 string. The implicit candidate tests start from original rest plus a0.0005center
 prediction, with the rim fixed. No surgical instrument, contact, fluid or actual
 operator time sequence is included.
+
+2026-11-04 precise-cut-map change: regenerated with pinned engine after the
+optional supplied-weight support API was added. The entire numerical payload,
+including energy, gradients, cells and masses, compares exactly equal to the
+previous fixture after excluding source hashes. Only the Support source hash
+changed. Native15test qualification reran successfully against the refreshed
+source-bound fixture; see fem-precision-core-validation-2026-11-04.json.

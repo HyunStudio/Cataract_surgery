@@ -220,7 +220,9 @@ func _incise_one(patch:PackedVector3Array)->Dictionary:
 	if not prepared.valid:return invalid(prepared.reason)
 	var ancestors:=PackedInt32Array()
 	for source in cut.sources:ancestors.append(_state.ancestors[source])
-	var support:=Support.build(_state.original,_state.original_indices,prepared.rest,cut.indices,ancestors,prepared.face_areas,_state.density)
+	var transferred:=_cut_material_weights(cut)
+	if not transferred.valid:return transferred
+	var support:=Support.build(_state.original,_state.original_indices,prepared.rest,cut.indices,ancestors,prepared.face_areas,_state.density,transferred.weights)
 	if not support.valid:return invalid(support.reason)
 	for mass in support.mass:
 		if 1./mass>1e12:return invalid("embedded_mass_resolution")
@@ -259,3 +261,24 @@ func _incise_one(patch:PackedVector3Array)->Dictionary:
 	next.grasps=grasps
 	_state=next
 	return {"valid":true,"changed":true,"reason":"","work":cut.get("work",0),"publication_error":error}
+
+func _cut_material_weights(cut:Dictionary)->Dictionary:
+	# Compose the cutter's normalized interpolation with the accepted double B.
+	# Fitting B anew to rounded rest vertices changes live material trajectories.
+	var result:=PackedFloat64Array();result.resize(cut.sources.size()*9)
+	for face in range(cut.sources.size()):
+		var source:int=cut.sources[face]
+		for corner in range(3):
+			var binding:Dictionary=cut.bindings[cut.indices[face*3+corner]]
+			var weights:Vector3=binding.weights;var ids:Vector3i=binding.ids
+			var sum:=float(weights.x)+weights.y+weights.z
+			if not is_finite(sum) or sum<=0.:return invalid("material_binding")
+			for k in range(3):
+				if weights[k]==0.:continue
+				if not is_finite(weights[k]) or weights[k]<0.:return invalid("material_binding")
+				var old_corner:=-1
+				for j in range(3):
+					if _state.indices[source*3+j]==ids[k]:old_corner=j;break
+				if old_corner<0:return invalid("material_binding_source")
+				for j in range(3):result[face*9+corner*3+j]+=weights[k]*_state.support.weights[source*9+old_corner*3+j]/sum
+	return {"valid":true,"reason":"","weights":result}

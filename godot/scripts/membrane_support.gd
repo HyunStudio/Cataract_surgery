@@ -56,12 +56,24 @@ static func _feature_weights(p:Vector3,original:PackedVector3Array,triangle:Pack
 	if reconstructed.distance_to(p)>EMBEDDING_DISTANCE:return PackedFloat64Array()
 	return result
 
-static func build(original:PackedVector3Array,original_indices:PackedInt32Array,points:PackedVector3Array,indices:PackedInt32Array,ancestors:PackedInt32Array,areas:PackedFloat64Array,density:float)->Dictionary:
+static func _material_weights(values:PackedFloat64Array,offset:int,p:Vector3,original:PackedVector3Array,triangle:PackedInt32Array,feature:PackedInt32Array)->PackedFloat64Array:
+	var shape:=values.slice(offset,offset+3);var sum:=0.
+	for j in range(3):
+		if not is_finite(shape[j]) or shape[j]<0. or shape[j]>1. or (not feature.has(triangle[j]) and shape[j]!=0.):return PackedFloat64Array()
+		sum+=shape[j]
+	if absf(sum-1.)>64.*2.220446049250313e-16:return PackedFloat64Array()
+	var reconstructed:=Vector3.ZERO
+	for j in range(3):reconstructed+=original[triangle[j]]*shape[j]
+	if reconstructed.distance_to(p)>EMBEDDING_DISTANCE:return PackedFloat64Array()
+	return shape
+
+static func build(original:PackedVector3Array,original_indices:PackedInt32Array,points:PackedVector3Array,indices:PackedInt32Array,ancestors:PackedInt32Array,areas:PackedFloat64Array,density:float,material_weights:PackedFloat64Array=PackedFloat64Array())->Dictionary:
 	if not is_finite(density) or density<.01 or density>100.:return invalid("density")
 	if original.size()<3 or original.size()>MAX_POINTS or points.size()<3 or points.size()>MAX_POINTS:return invalid("point_budget")
 	if original_indices.is_empty() or original_indices.size()%3!=0 or original_indices.size()>MAX_FACES*3 or indices.is_empty() or indices.size()%3!=0 or indices.size()>MAX_FACES*3:return invalid("face_budget")
 	var faces:int=indices.size()/3;var original_faces:int=original_indices.size()/3
 	if ancestors.size()!=faces or areas.size()!=faces:return invalid("face_count")
+	if not material_weights.is_empty() and material_weights.size()!=faces*9:return invalid("material_weights_count")
 	for values in [original,points]:
 		for p in values:
 			if not p.is_finite() or p.length_squared()>256.:return invalid("coordinate")
@@ -108,7 +120,7 @@ static func build(original:PackedVector3Array,original_indices:PackedInt32Array,
 		for corner in range(3):
 			var triangle:=PackedInt32Array([original_indices[ancestor*3],original_indices[ancestor*3+1],original_indices[ancestor*3+2]])
 			var vertex:int=indices[face*3+corner]
-			var shape:=_feature_weights(points[vertex],original,triangle,features[vertex])
+			var shape:=_feature_weights(points[vertex],original,triangle,features[vertex]) if material_weights.is_empty() else _material_weights(material_weights,face*9+corner*3,points[vertex],original,triangle,features[vertex])
 			if shape.is_empty():return invalid("embedding")
 			for j in range(3):weights[face*9+corner*3+j]=shape[j]
 			var first:int=indices[face*3+corner];var last:int=indices[face*3+(corner+1)%3];var edge:=_key(first,last)

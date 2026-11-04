@@ -1,0 +1,105 @@
+{
+  "scope": "Standalone retained curved energy/implicit candidates and exact linear attachments; no contact, CCD, operator case, active FPS or clinical calibration.",
+  "qualified": true,
+  "controls": 217,
+  "cells": 396,
+  "tests": 15,
+  "test_output": "test_curved_godot_reference_and_implicit_step (test_membrane_fem.MembraneFEMTests.test_curved_godot_reference_and_implicit_step) ... ok\ntest_failures_do_not_publish_unaccepted_iterates (test_membrane_fem.MembraneFEMTests.test_failures_do_not_publish_unaccepted_iterates) ... ok\ntest_implicit_equilibrium_and_exact_pin (test_membrane_fem.MembraneFEMTests.test_implicit_equilibrium_and_exact_pin) ... ok\ntest_rest_objectivity_and_exact_hessian (test_membrane_fem.MembraneFEMTests.test_rest_objectivity_and_exact_hessian) ... ok\ntest_rigid_prediction_has_no_internal_impulse (test_membrane_fem.MembraneFEMTests.test_rigid_prediction_has_no_internal_impulse) ... ok\ntest_shared_nodes_and_permuted_cells (test_membrane_fem.MembraneFEMTests.test_shared_nodes_and_permuted_cells) ... ok\ntest_small_energy_change_matches_high_precision_subtraction (test_membrane_fem.MembraneFEMTests.test_small_energy_change_matches_high_precision_subtraction) ... ok\ntest_stationary_compressed_saddle_is_not_convergence (test_membrane_fem.MembraneFEMTests.test_stationary_compressed_saddle_is_not_convergence) ... ok\n\n----------------------------------------------------------------------\nRan 8 tests in 0.591s\n\nOK\ntest_constraints_stabilize_only_the_constrained_curvature (test_membrane_grasp.GraspTests.test_constraints_stabilize_only_the_constrained_curvature) ... ok\ntest_interior_material_point_and_reaction (test_membrane_grasp.GraspTests.test_interior_material_point_and_reaction) ... ok\ntest_invalid_rank_and_exhaustion_are_atomic (test_membrane_grasp.GraspTests.test_invalid_rank_and_exhaustion_are_atomic) ... ok\ntest_nodal_hold_with_repeated_zero_weight_slots (test_membrane_grasp.GraspTests.test_nodal_hold_with_repeated_zero_weight_slots) ... ok\ntest_two_distinct_grips_on_shared_cells (test_membrane_grasp.GraspTests.test_two_distinct_grips_on_shared_cells) ... ok\ntest_unheld_negative_tangent_cannot_be_hidden_by_augmentation (test_membrane_grasp.GraspTests.test_unheld_negative_tangent_cannot_be_hidden_by_augmentation) ... ok\ntest_zero_grips_preserve_existing_unconstrained_contract (test_membrane_grasp.GraspTests.test_zero_grips_preserve_existing_unconstrained_contract) ... ok\n\n----------------------------------------------------------------------\nRan 7 tests in 0.179s\n\nOK\n",
+  "build": {
+    "artifact_sha256": "fbf405ae4aeaa80ff906dacf7557a475b61a82cc55f5a7b57ffe8f5cc864b04b",
+    "sources": {
+      "native\\membrane_fem.cpp": "9111370479511eff75225c150d24bbe1f43fb1fbe49fac2121c5735687e1ab84",
+      "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+      "tools\\build_membrane_fem.py": "fea0f26e142047d28ca8ca78bc294141443a95916b707de68289ddfc280a11dc",
+      "tools\\native_build_provenance.py": "b7d98ea1bad45dba682726b2b96cb669244b8738f76ea79ddfe4b170b2cf1d98"
+    },
+    "compiler": {
+      "version": "0.17.0",
+      "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+      "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+    },
+    "dependencies": {
+      ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+    },
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Werror",
+      "-DEIGEN_MPL2_ONLY",
+      "-isystem",
+      "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+      "-shared",
+      "-target",
+      "x86_64-windows-gnu"
+    ],
+    "source_revision": "59613f1563d35b23167ed9c02a24d8150af6f193",
+    "source_dirty": true
+  },
+  "test_inputs": {
+    "native\\tests\\fixtures\\embedded_membrane_reference.json": "5cfdf064bf00ae4ef762569f057c6ae8c9e6c06e97d380c630fa3daecefe3bcc",
+    "native\\tests\\test_membrane_fem.py": "f6409026eacbb1a372ecf8317f31231a7421cc390239d01705349a5e013c4a9a",
+    "native\\tests\\test_membrane_grasp.py": "6e04c652d19b5986bfc11282b6d0bfb5a0fb49f4712f3da4d0f2f107c5d96032",
+    "tools\\validate_membrane_fem.py": "cb7d8c07566d6998d8c1aa4b436ff3b3041648fe0b5c634d1fa8bf825d80ed06"
+  },
+  "godot_reference_sources": {
+    "res://scripts/anterior_segment.gd": "a0d691d5edca728236356db9b609275f3b0f90da927f29bb41dc135962de46a7",
+    "res://scripts/capsule_solver.gd": "13ee61a4cc1c038306b81492402e012580db39680db7cc3269332e6428fcff66",
+    "res://scripts/membrane_cut.gd": "6cf152a8974d534aa99407a37681ddcf37309b8ace2377e32bdc71aedc050871",
+    "res://scripts/membrane_energy.gd": "df8519edeae45c5ca926667fe3138092211078e869c115d58d2e627a5708bea3",
+    "res://scripts/membrane_precision.gd": "477ed6eb2b625e3336a9a52394d176ee22bc33fbcf0e5dd0ce709ac5c6533310",
+    "res://scripts/membrane_refinement.gd": "bb3797132d5eed590a941f4dac4124447867f430635dfc4c8bb7390c9cd17db2",
+    "res://scripts/membrane_support.gd": "97cc1b693eb80592ff024ddd9a2234be73b2a5b56fdc4df4a81936fc7ee49741",
+    "res://tests/test_fem_reference.gd": "6e697dab3701eb80ad4a87f1f0e7c8afa9aa62b865c3e8be677246585bb321d8"
+  },
+  "measurements": [
+    {
+      "mu": 2.0,
+      "lambda": 3.0,
+      "samples_ms": [
+        5.697200074791908,
+        4.350699950009584,
+        4.164599813520908,
+        4.635300021618605,
+        4.533600062131882,
+        4.254499915987253
+      ],
+      "median_ms": 4.442150006070733,
+      "max_ms": 5.697200074791908,
+      "independent_force_inf": 1.8550623703979512e-11,
+      "iterations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "mu": 10000.0,
+      "lambda": 15000.0,
+      "samples_ms": [
+        7.555900141596794,
+        7.307399995625019,
+        9.156899992376566,
+        9.030699962750077,
+        6.304000038653612,
+        9.063000092282891
+      ],
+      "median_ms": 8.293300052173436,
+      "max_ms": 9.156899992376566,
+      "independent_force_inf": 6.582387163545783e-11,
+      "iterations": [
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    }
+  ]
+}

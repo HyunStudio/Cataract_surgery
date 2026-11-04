@@ -32,7 +32,7 @@
 
 ## Task 2: precise contact state and bridge
 
-- [ ] Preserve double material weights across cut transfers or certify remap trajectory.
+- [x] Preserve double material weights across cut transfers or certify remap trajectory.
 - [ ] Add typed engine contact bridge and fine support export; independently check physical force and actual retained geometry.
 
 ## Task 3: coupled motion and actual acquisition
@@ -46,3 +46,13 @@
 The previously qualified grasp core is an optional primitive, not the default application. Whole simulator is unfinished. Task1 starts with a missing ABI test, not a release claim.
 
 Task1: initial missing local DLL was built to establish the intended missing-ABI RED (4f52f2). Implemented minimizer Schur Hessian, including mixed r*dw terms, and B-transpose pullback. Build4aa6ea terminal0, qualification968c03 terminal0:17 old+10 new tests pass. Includes exact feature switches, ties, tiny retained face, deformed controls, map/input/null-output atomicity, axis/control/fine permutations and absent parent material. Read-only core reviewer independently reran27tests, no actionable findings. Source-bound report: docs/assets/embedded-contact-core-validation-2026-11-04.json. This is a static primitive; no coupled contact, continuous clearance, engine integration or app completion claim.
+
+Task2 precision: new actual finite two-cut test b5118f RED2, double physical/history interpolation errors1.916924e-8 and2.239164e-8. Compose accepted per-source-fine-face B with normalized cut bindings; validate optional precise maps in Support.build instead of refitting float rest coordinates. bcf3f4 and expanded malformed-map test57f4a9 GREEN0, requiring errors<2e-14. Existing support continuity, support mass, accepted holds and whole-patch staging remain. This map consistency alone does not certify material partition geometry or continuous clearance.
+
+Actual native engine6stage probe62198 terminal0 (fem-extension-zcb0u3ia): old35step force/recut and17step one/two-hand/release/recut pass, mass5.319326346740127, force8.0340765354e-9/gap1.1102230246e-16. Report: docs/assets/embedded-precision-native-validation-2026-11-04.json. Fresh independent Godot FEM reference numerical payload is unchanged exactly; only Support source hash refreshed. Native qualification1b5dfb terminal0,15tests pass; docs/assets/fem-precision-core-validation-2026-11-04.json. Read-only review of map composition/validation/transaction found no actionable issue.
+
+Focused regression helper53187 terminated1 because it expected a numeric zero-failures marker from test_surgical_display, which correctly printed SURGICAL DISPLAY: PASS and exit0. This was a harness completion-marker defect, not a product failure. Fixed exact completion alternatives for numeric and PASS tests; fresh full frozen rerun51737, no killed/restarted live process.
+
+Rerun51737 terminal0: fresh import plus all30focused source-frozen suites pass, no engine errors/leaks or source changes. Report: docs/assets/embedded-precision-regression-2026-11-04.json. New test is in run-godot.ps1; full -Test remains RED at the separately retained default closed-blade/fine-traction cases. All started builds/checks are terminal. No default backend switch, main integration, push or Windows release. Active goal progresses to contact bridge/coupled mechanics.
+
+Next: typed native contact bridge and retained fine support export, then original-force coupled grasp/unilateral contact and whole-interval guard. Actual jaw face acquisition, roll, partial-tip enrichment and complete input/GPU/Windows qualification remain open. Default application stays on its existing path; actual closed knife mass-resolution and legacy fine-traction failures are unchanged and still listed in run-godot.ps1.

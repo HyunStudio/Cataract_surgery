@@ -149,3 +149,29 @@ of an unheld unstable tangent even when the held region is augmented. Reports:
 `docs/assets/fem-grasp-core-validation-2026-11-04.json`,
 `embedded-grasp-validation-2026-11-04.json` and
 `embedded-grasp-regression-2026-11-04.json` (29focused engine suites).
+
+## Retained fine contact and precise cut maps
+
+`embedded_contact.h` queries the actual retained fine triangle `Bq`, never its
+uncut parent. `membrane_embedded_contact_distance` in the standalone distance DLL
+returns the existing22value witness,9control gradient and81control Hessian entries
+of squared distance. Shapes are9row-major nonnegative unit barycentric weights;
+controls are9doubles. All outputs remain untouched on nonzero status. Status4
+additionally rejects a feature switch or singular local minimizer system where
+the ordinary smooth Hessian cannot be established. Other statuses match the old
+distance query. The radius affects reported gap, not squared-distance derivatives.
+
+The smooth branch eliminates free triangle/finite-axis minimizer parameters:
+`H=2(W^T W-M(D^T D)^-1 M^T)`, including the `r*dw` mixed term. Gradient/Hessian
+are pulled back through the retained affine map, with no finite-difference model
+substitution. Run `python tools/validate_embedded_contact.py`:27tests include10new
+chain-rule/feature/atomicity cases and17unchanged distance cases. This static
+primitive is not yet a coupled contact solve, bridge, CCD or application feature.
+
+Optional `Support.build(...,material_weights)` validates and retains supplied
+double B. Embedded cuts now compose the accepted source-fine-face B with the
+cutter's normalized barycentric binding, rather than refitting rounded rest
+vertices. The two-cut `test_embedded_weights.gd` reproduces former physical/history
+errors1.92e-8/2.24e-8 and now requires2e-14 consistency. The existing held-target
+gap check remains. This local interpolation invariant does not certify continuous
+clearance, partition nonintersection, or contact equilibrium after a cut.
