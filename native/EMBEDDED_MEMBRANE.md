@@ -1,5 +1,18 @@
 # Experimental embedded membrane core
 
+2026-11-05: line merit calculations now reuse fully evaluated inactive states
+under the same multiplier/penalty and original interval certificate. Every
+distance, rounded activation, active curvature and final gate remains intact.
+The isolated counted probe includes tiny-radius overflow and rounded-touch
+positive-dual regressions; it is never linked into the application. Native196
+tests and fresh actual Godot11stages pass. The saved curved two-hand request is
+bitwise identical to the old DLL; seven interleaved samples measured median
+0.6031s versus0.4216s (1.43x). This is NOT real-time qualification. Archived
+reports: docs/assets/inactive-cache-*-2026-11-05.json. Build the new probe with
+`python tools/build_contact_activity_probe.py` after the existing native builds;
+`python tools/validate_fp_environment.py` includes it. Windows CI now also builds
+and qualifies the actual Godot extension, rather than just standalone DLLs.
+
 This standalone DLL evaluates retained original-material cells and computes
 implicit position candidates. It does not replace the product backend yet.
 There is no contact/CCD, bending, crack propagation/enrichment, operator case or

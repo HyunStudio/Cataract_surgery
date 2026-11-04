@@ -9,12 +9,12 @@ from native_build_provenance import sha256,source_hashes,verify_sources
 
 ROOT=Path(__file__).resolve().parents[1]
 ARTIFACTS=['membrane_kernel','contact_distance','contact_guard','contact_merit_probe',
-           'contact_step_probe','membrane_contact','membrane_fem','fp_environment_probe']
+           'contact_step_probe','membrane_contact','membrane_fem','fp_environment_probe','contact_activity_probe']
 PATTERNS=['test_membrane_kernel.py','test_contact_distance.py','test_embedded_contact.py',
           'test_contact_guard.py','test_contact_merit_difference.py','test_point_merit_difference.py',
           'test_contact_step_model.py','test_coupled_contact.py','test_trajectory_contact.py',
           'test_anatomical_contact.py','test_membrane_fem.py','test_membrane_grasp.py',
-          'test_fem_contact.py','test_fp_environment.py','test_native_provenance.py']
+          'test_fem_contact.py','test_fp_environment.py','test_native_provenance.py','test_contact_activity.py']
 builds={}
 for name in ARTIFACTS:
     artifact=ROOT/'.tools/native'/f'{name}.dll';manifest_path=artifact.with_suffix('.build.json')

@@ -1,9 +1,9 @@
 name: Native numerical contracts
 on:
   push:
-    paths: ['native/**', 'tools/**', 'pytest.ini', '.github/workflows/native.yml']
+    paths: ['native/**', 'tools/**', 'godot/**', 'pytest.ini', '.github/workflows/native.yml']
   pull_request:
-    paths: ['native/**', 'tools/**', 'pytest.ini', '.github/workflows/native.yml']
+    paths: ['native/**', 'tools/**', 'godot/**', 'pytest.ini', '.github/workflows/native.yml']
   workflow_dispatch:
 jobs:
   windows-native:
@@ -29,20 +29,40 @@ jobs:
           Expand-Archive -LiteralPath $archive -DestinationPath .tools
       - name: Fetch pinned unmodified dependencies
         run: python tools/setup_native_dependencies.py
-      - name: Build all eight numerical artifacts
+      - name: Build all nine numerical artifacts
         shell: pwsh
         run: |
-          foreach ($script in @('build_membrane_kernel', 'build_contact_distance', 'build_contact_guard', 'build_contact_merit_probe', 'build_contact_step_probe', 'build_coupled_contact', 'build_membrane_fem', 'build_fp_environment_probe')) {
+          foreach ($script in @('build_membrane_kernel', 'build_contact_distance', 'build_contact_guard', 'build_contact_merit_probe', 'build_contact_step_probe', 'build_coupled_contact', 'build_membrane_fem', 'build_fp_environment_probe', 'build_contact_activity_probe')) {
             python "tools/$script.py"
             if ($LASTEXITCODE -ne 0) { throw "Native build failed: $script" }
           }
       - name: Qualify original force, gap, contact and calling-environment contracts
         run: python tools/validate_fp_environment.py
+      - name: Install pinned Windows Godot for actual native bridge tests
+        shell: pwsh
+        run: |
+          $archive = Join-Path $PWD '.tools/godot-4.7.2.zip'
+          Invoke-WebRequest -Uri 'https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win64.exe.zip' -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath .tools/godot
+          $engine = Join-Path $PWD '.tools/godot/Godot_v4.7.2-stable_win64_console.exe'
+          if ((Get-FileHash -LiteralPath $engine -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'c8f0a6bc45a19b33541501e57f6f7cd972ab18453743266339d495cbbe846643') {
+            throw 'Pinned Godot console binary checksum mismatch'
+          }
+      - name: Build isolated extension and qualify actual coupled engine
+        shell: pwsh
+        run: |
+          python tools/build_membrane_extension.py
+          if ($LASTEXITCODE -ne 0) { throw 'Native Godot extension build failed' }
+          python tools/validate_embedded_extension.py --grasp --contact --coupled --curved
+          if ($LASTEXITCODE -ne 0) { throw 'Native Godot extension qualification failed' }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: windows-native-contract-evidence
           path: |
             godot/reports/fp-environment-validation.json
+            godot/reports/curved-coupled-contact-embedded-grasp-validation.json
             .tools/native/*.build.json
+            .tools/native-godot/bin/membrane.build.json
+            .tools/fem-extension-*/*.log
           if-no-files-found: ignore

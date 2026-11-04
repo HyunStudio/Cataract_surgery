@@ -3,7 +3,7 @@
 // only: a separate whole-interval guard is mandatory before engine acceptance.
 struct ContactState {
     double energy=0.,penetration=0.,complementarity=0.;
-    Vec gradient,blocks,updated,constraint;
+    Vec gradient,blocks,updated;
 };
 struct FineContacts {
     int faces,bodies;
@@ -24,15 +24,18 @@ struct FineContacts {
         out.penetration=out.complementarity=0.;
         if(!problem.evaluate(x,out.energy,out.gradient,&out.blocks)) return false;
         const size_t offset=out.blocks.size();out.blocks.resize(offset+size_t(pairs())*81,0.);
-        out.updated.resize(pairs());out.constraint.resize(pairs());
+        out.updated.resize(pairs());
         for(int p=0;p<pairs();++p) {
             double controls[9],triangle[9];local(x,p,controls,triangle);
             const double* body=capsules+7*(p%bodies);const double r2=body[6]*body[6];
+#ifdef FEM_CONTACT_OBSERVER
+            observe_contact_query(false);
+#endif
             const auto query=membrane::contact::distance(body,triangle,body[6]);
             if(query.status!=0 && query.status!=3) return false;
             const double g=query.values[0]/r2-1.,u=std::max(0.,dual[p]-rho*g);
             if(!std::isfinite(g) || !std::isfinite(u)) return false;
-            out.constraint[p]=g;out.updated[p]=u;
+            out.updated[p]=u;
             out.penetration=std::max(out.penetration,-query.values[1]);
             out.complementarity=std::max(out.complementarity,std::abs(u*g));
             if(u==0.) continue; // inactive ties need no ordinary Hessian
@@ -51,12 +54,23 @@ struct FineContacts {
         for(double value:out.blocks) if(!std::isfinite(value)) return false;
         return true;
     }
-    bool difference(const Problem& problem,const Vec& x,const Vec& y,const Vec& dual,double rho,double& upper) const {
+    bool difference(const Problem& problem,const Vec& x,const Vec& y,const Vec& dual,double rho,
+                    const ContactState& current,const ContactState& candidate,double& upper) const {
         double original=0.;if(!problem.difference(x,y,original)) return false;
         membrane::merit::Interval value(original);
         for(int p=0;p<pairs();++p) {
             double controls[9],before[9],after[9];local(x,p,controls,before);local(y,p,controls,after);
             const double* body=capsules+7*(p%bodies);membrane::merit::Interval term;
+            if(current.updated[p]==0. && candidate.updated[p]==0. &&
+               membrane::merit::inactive_box(before,after,body,body[6],dual[p],rho)) {
+                // Both full distance evaluations already passed at this same
+                // dual/rho. Preserve rounded activation AND the old interval
+                // certificate; do not infer inactive Hessians from the box.
+                value=value+membrane::merit::Interval(0);continue;
+            }
+#ifdef FEM_CONTACT_OBSERVER
+            observe_contact_query(true);
+#endif
             if(!membrane::merit::contact_change(before,after,body,body[6],dual[p],rho,term)) return false;
             value=value+term;
         }
@@ -182,7 +196,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
                 for(int j=0;j<size;++j) {q[j]=trial[free[j]];step[j]=trial[free[j]]-x[free[j]];}
                 if(rows && (a*q-target).lpNorm<Eigen::Infinity>()>gap_tolerance) continue;
                 ++evaluations;double change=0.;
-                const bool compared=contacts.evaluate(problem,trial,dual,rho,next) && contacts.difference(problem,x,trial,dual,rho,change);
+                const bool compared=contacts.evaluate(problem,trial,dual,rho,next) && contacts.difference(problem,x,trial,dual,rho,state,next,change);
                 const double normal_work=rows ? hold.dot(a*step) : 0.;
 #ifdef FEM_CONTACT_TRACE
                 trace_contact_line(x,trial,dual,rho,iterations,fraction,slope,change,normal_work,compared);

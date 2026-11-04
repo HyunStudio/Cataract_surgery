@@ -1,0 +1,40 @@
+{
+  "scope": "Identical saved curved two-hand contact request; not operative input, active GPU throughput or full surgery. Interleaved single-host wall time diagnostic only.",
+  "strategy": "Reuse only fully evaluated inactive state pairs under the same multiplier/penalty and original interval certificate. No early distance rejection.",
+  "qualified": true,
+  "status": [
+    0,
+    0
+  ],
+  "bitwise_outputs_equal": true,
+  "baseline_seconds": [
+    0.6093545001931489,
+    0.6030513001605868,
+    0.9028239999897778,
+    0.5898037001024932,
+    0.5916668998543173,
+    0.5753550999797881,
+    0.6728077000007033
+  ],
+  "candidate_seconds": [
+    0.4173445999622345,
+    0.4255233998410404,
+    0.38228180003352463,
+    0.44553319993428886,
+    0.42164069996215403,
+    0.46833339985460043,
+    0.39409560011699796
+  ],
+  "median_speedup": 1.430249262499365,
+  "fixture_sha256": "8964a98838d381270384a635c78052f16371cdd3da0e2b90379996689cc7a9cb",
+  "artifacts": [
+    {
+      "name": "membrane_fem-pre-inactive-20261104.dll",
+      "sha256": "01b2cd0bf0df6719e2b39c9890510ca5296ebd6a419615556e6208d0dc055949"
+    },
+    {
+      "name": "membrane_fem.dll",
+      "sha256": "584ef78edb47dc45d728537b843bfedfff5ea3265c73bf04993b6c5c04ea8b2a"
+    }
+  ]
+}
