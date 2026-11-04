@@ -20,6 +20,7 @@ var _depth:=Vector3.ZERO
 var _normal:=Vector3.ZERO
 var _length:=0.
 var _half_depth:=0.
+var _clip_polygon:=PackedVector2Array()
 
 func _invalid(reason:String)->Dictionary:
 	return {"valid":false,"changed":false,"reason":reason,"points":PackedVector3Array(),"indices":PackedInt32Array(),"sources":PackedInt32Array(),"bindings":[],"work":_work}
@@ -49,7 +50,26 @@ func _bary(p:Vector3,a:Vector3,b:Vector3,c:Vector3)->Vector3:
 	return Vector3(1.-second-third,second,third)
 
 func slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float,max_vertices:int=4096,max_triangles:int=8192)->Dictionary:
+	return _slice(points,indices,start,finish,depth_axis,half_depth,max_vertices,max_triangles,PackedVector2Array())
+
+## A finite, planar sharp-edge sweep patch. Coplanar sliding has no unique
+## transverse incision, so it leaves those faces intact rather than guessing.
+func slice_triangle(points:PackedVector3Array,indices:PackedInt32Array,a:Vector3,b:Vector3,c:Vector3,max_vertices:int=4096,max_triangles:int=8192)->Dictionary:
+	_work=0
+	for point in [a,b,c]:
+		if not point.is_finite() or point.length_squared()>256.:return _invalid("patch")
+	var edge:=b-a;var length:=edge.length()
+	if length<=EPS:return _invalid("patch_resolution")
+	var tangent:=edge/length
+	var depth:=c-a-tangent*_dot(c-a,tangent);var height:=depth.length()
+	if height<=EPS:return _invalid("patch_resolution")
+	depth/=height
+	var polygon:=PackedVector2Array([Vector2.ZERO,Vector2(length,0.),Vector2(_dot(c-a,tangent),height)])
+	return _slice(points,indices,a,b,depth,height,max_vertices,max_triangles,polygon)
+
+func _slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float,max_vertices:int,max_triangles:int,polygon:PackedVector2Array)->Dictionary:
 	_failure=""; _work=0; _edge_nodes={}; _input_edges={}; _cut_faces={}; _bindings=[]
+	_clip_polygon=polygon.duplicate()
 	_vertex_limit=max_vertices; _triangle_limit=max_triangles
 	if points.is_empty() or points.size()>max_vertices or max_vertices<3 or max_vertices>8192 or indices.is_empty() or indices.size()%3!=0 or indices.size()/3>max_triangles or max_triangles<1 or max_triangles>16384: return _invalid("input_budget")
 	for p in points:
@@ -58,7 +78,7 @@ func slice(points:PackedVector3Array,indices:PackedInt32Array,start:Vector3,fini
 		if v<0 or v>=points.size(): return _invalid("index")
 	for p in [start,finish,depth_axis]:
 		if not p.is_finite() or p.length_squared()>256.: return _invalid("curtain")
-	if not is_finite(half_depth) or half_depth<=EPS or half_depth>1.: return _invalid("depth")
+	if not is_finite(half_depth) or half_depth<=EPS or half_depth>(1. if polygon.is_empty() else 4.): return _invalid("depth")
 	_length=start.distance_to(finish)
 	if _length<=EPS or _length>4.: return _invalid("stroke")
 	_start=start; _half_depth=half_depth; _tangent=(finish-start)/_length
@@ -161,6 +181,7 @@ func _plan(face:Vector3i,id:int)->void:
 		var signed:=_dot(_original[v]-_start,_normal)
 		distance.append(0. if absf(signed)<EPS else signed)
 	if maxf(absf(distance[0]),maxf(absf(distance[1]),absf(distance[2])))<EPS:
+		if not _clip_polygon.is_empty():return
 		var lo:=Vector2(INF,INF); var hi:=Vector2(-INF,-INF)
 		for v in [face.x,face.y,face.z]:
 			var q:=Vector2(_dot(_original[v]-_start,_tangent),_dot(_original[v]-_start,_depth)); lo=lo.min(q); hi=hi.max(q)
@@ -183,7 +204,16 @@ func _plan(face:Vector3i,id:int)->void:
 	for j in range(3):
 		var u:Vector3=_original[face[j]]; var v:Vector3=_original[face[(j+1)%3]]
 		if a.distance_to(Geometry3D.get_closest_point_to_segment(a,u,v))<=EPS*2. and b.distance_to(Geometry3D.get_closest_point_to_segment(b,u,v))<=EPS*2. and _input_edges[_key(face[j],face[(j+1)%3])].size()==1: return
-	var first:=_node(a,face); var last:=_node(b,face); var middle:=_node((a+b)*.5,face)
+	var first:=_node(a,face); var last:=_node(b,face)
+	if _failure!="": return
+	# A transverse segment's interior midpoint must not snap onto a nearby
+	# source edge in a thin wedge. Only a material segment actually lying on
+	# that edge shares its midpoint with the adjacent source face.
+	var edge_midpoint:=false
+	for j in range(3):
+		var edge:=_key(face[j],face[(j+1)%3])
+		if _material_on_edge(first,edge) and _material_on_edge(last,edge):edge_midpoint=true
+	var middle:=_node((a+b)*.5,face,edge_midpoint)
 	if _failure!="": return
 	if first==last: _failure="collapsed_cut"; return
 	_cut_faces[id]={"a":a,"b":b,"nodes":PackedInt32Array([first,last,middle])}
@@ -194,6 +224,20 @@ func _unique(points:PackedVector3Array,p:Vector3)->void:
 	points.append(p)
 func _clip(a:Vector3,b:Vector3)->PackedVector3Array:
 	var lo:=0.; var hi:=1.
+	if not _clip_polygon.is_empty():
+		var point:=Vector2(_dot(a-_start,_tangent),_dot(a-_start,_depth))
+		var motion:=Vector2(_dot(b-a,_tangent),_dot(b-a,_depth))
+		for i in range(_clip_polygon.size()):
+			var first:Vector2=_clip_polygon[i];var side:Vector2=_clip_polygon[(i+1)%_clip_polygon.size()]-first
+			var value:=_cross(side,point-first);var delta:=_cross(side,motion)
+			if absf(delta)<1e-15:
+				if value<-EPS*side.length():return PackedVector3Array()
+			else:
+				var crossing:float=-value/delta
+				if delta>0.:lo=maxf(lo,crossing)
+				else:hi=minf(hi,crossing)
+				if hi<=lo:return PackedVector3Array()
+		return PackedVector3Array([a.lerp(b,lo),a.lerp(b,hi)])
 	for axis in [0,1]:
 		var direction:Vector3=_tangent if axis==0 else _depth
 		var value:=_dot(a-_start,direction); var delta:=_dot(b-a,direction)
@@ -205,12 +249,18 @@ func _clip(a:Vector3,b:Vector3)->PackedVector3Array:
 			lo=maxf(lo,minf(u,v)); hi=minf(hi,maxf(u,v))
 			if hi<=lo: return PackedVector3Array()
 	return PackedVector3Array([a.lerp(b,lo),a.lerp(b,hi)])
-func _node(p:Vector3,face:Vector3i)->int:
+func _material_on_edge(index:int,edge:Vector2i)->bool:
+	var binding:Dictionary=_bindings[index]
+	for j in range(3):
+		if binding.weights[j]>0. and binding.ids[j]!=edge.x and binding.ids[j]!=edge.y:return false
+	return true
+
+func _node(p:Vector3,face:Vector3i,snap_edges:=true)->int:
 	for v in [face.x,face.y,face.z]:
 		if p.distance_to(_original[v])<=EPS: return v
 	var weights:=_bary(p,_original[face.x],_original[face.y],_original[face.z])
 	var edge:=Vector2i(-1,-1)
-	var nearest:=EPS*2.
+	var nearest:=EPS*2. if snap_edges else 0.
 	for j in range(3):
 		var a:Vector3=_original[face[(j+1)%3]]; var b:Vector3=_original[face[(j+2)%3]]
 		var closest:=Geometry3D.get_closest_point_to_segment(p,a,b)

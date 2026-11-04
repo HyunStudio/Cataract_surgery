@@ -1,9 +1,20 @@
 extends RefCounted
 ## Generic engineering contact envelopes in scene units, not manufacturer geometry
 ## or full mesh collision. Local +X runs from the working tip toward the handle.
-## Rods use their rendered dimensions; the knife prism is conservatively bounded
+## Rods use their rendered dimensions; the pointed blade is conservatively bounded
 ## by a capsule. The decorative lumen is inside the working-tip envelope. External
 ## handles beyond x=3.05 are intentionally omitted from the inserted-body profile.
+
+## Shared generic pointed blade. Leading edges lie in the midplane; upper and
+## lower ridges form visible bevels. Conservative collision envelope is unchanged.
+const BLADE_TIP:=Vector3.ZERO
+const BLADE_LEFT:=Vector3(.18,0.,-.06)
+const BLADE_RIGHT:=Vector3(.18,0.,.06)
+static func blade_geometry()->Dictionary:
+	return {"positions":PackedVector3Array([BLADE_TIP,BLADE_LEFT,BLADE_RIGHT,Vector3(.12,.0075,0),Vector3(.12,-.0075,0)]),"triangles":PackedInt32Array([0,1,3,1,2,3,2,0,3,0,4,1,1,4,2,2,4,0])}
+static func cutting_edges(id:String)->Array[Dictionary]:
+	if id!="knife":return []
+	return [{"a":BLADE_TIP,"b":BLADE_LEFT},{"a":BLADE_TIP,"b":BLADE_RIGHT}]
 
 static func segments(id:String,tip_radius:float,grip:bool=false)->Array[Dictionary]:
 	var result:Array[Dictionary]=[]
@@ -13,7 +24,7 @@ static func segments(id:String,tip_radius:float,grip:bool=false)->Array[Dictiona
 		return result
 	match id:
 		"knife":
-			# Prism size (.18,.015,.12), centered at (.09,0,0):
+			# Blade envelope retains size (.18,.015,.12), centered at (.09,0,0):
 			# radius includes its entire YZ cross section.
 			result.append(_segment([0.,0.,0.],[.18,0.,0.],sqrt(.06*.06+.0075*.0075),"blade",true))
 		"forceps":

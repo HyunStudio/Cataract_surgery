@@ -221,7 +221,48 @@ func release_hand(hand: int) -> void:
 func incise(start:Vector3,finish:Vector3,depth_axis:Vector3,half_depth:float)->Dictionary:
 	# Prepare geometry, material state and attachment identities before any
 	# mutation. Failure keeps the accepted specimen and numerical history.
-	var cut:Dictionary=_cutter.slice(positions,triangles,start,finish,depth_axis,half_depth)
+	return _apply_incised_surface(_cutter.slice(positions,triangles,start,finish,depth_axis,half_depth))
+
+## Geometric cutting is one transaction even when a swept edge requires several
+## finite patches. Failure never publishes an earlier partial blade incision.
+func incise_patches(patches:Array)->Dictionary:
+	if patches.size()>256:return {"valid":false,"changed":false,"reason":"patch_budget"}
+	for patch in patches:
+		if not patch is PackedVector3Array or patch.size()!=3:return {"valid":false,"changed":false,"reason":"patch_shape"}
+		for point in patch:
+			if not point.is_finite() or point.length_squared()>256.:return {"valid":false,"changed":false,"reason":"patch_coordinate"}
+		var edge:Vector3=patch[1]-patch[0];var length:=edge.length()
+		if length<=Cutter.EPS:return {"valid":false,"changed":false,"reason":"patch_resolution"}
+		var height:=edge.cross(patch[2]-patch[0]).length()/length
+		if height<=Cutter.EPS:return {"valid":false,"changed":false,"reason":"patch_resolution"}
+		if length>4. or height>4.:return {"valid":false,"changed":false,"reason":"patch_extent"}
+	if patches.is_empty() or triangles.is_empty():return {"valid":true,"changed":false,"reason":"","work":0}
+	if positions.is_empty() or positions.size()>4096 or triangles.size()>8192*3:return {"valid":false,"changed":false,"reason":"source_budget"}
+	var low:Vector3=positions[0];var high:=low
+	for point in positions:
+		if not point.is_finite() or point.length_squared()>256.:return {"valid":false,"changed":false,"reason":"source_coordinate"}
+		low=low.min(point);high=high.max(point)
+	# Incision only creates convexly bound points. Float32 roundoff padding
+	# keeps this cheap whole-surface rejection conservative through the batch.
+	var scale:float=maxf(1.,maxf(low.abs().length(),high.abs().length()))
+	var margin:float=Cutter.EPS+64.*1.1920928955078125e-7*scale
+	low-=Vector3.ONE*margin;high+=Vector3.ONE*margin
+	var saved:Dictionary={};var changed:=false;var work:=0
+	for patch in patches:
+		var patch_low:Vector3=patch[0].min(patch[1]).min(patch[2]);var patch_high:Vector3=patch[0].max(patch[1]).max(patch[2])
+		if patch_high.x<low.x or patch_low.x>high.x or patch_high.y<low.y or patch_low.y>high.y or patch_high.z<low.z or patch_low.z>high.z:continue
+		var cut:Dictionary=_cutter.slice_triangle(positions,triangles,patch[0],patch[1],patch[2])
+		work+=int(cut.get("work",0))
+		if work>Cutter.MAX_WORK:cut={"valid":false,"changed":false,"reason":"patch_work_budget"}
+		if cut.valid and cut.changed and saved.is_empty():saved=_checkpoint()
+		var result:=_apply_incised_surface(cut)
+		if not result.valid:
+			for key in saved:set(key,saved[key])
+			return {"valid":false,"changed":false,"reason":result.reason,"work":work}
+		changed=changed or result.changed
+	return {"valid":true,"changed":changed,"reason":"","work":work}
+
+func _apply_incised_surface(cut:Dictionary)->Dictionary:
 	if not cut.valid or not cut.changed: return {"valid":cut.valid,"changed":false,"reason":cut.reason}
 	var grasp_faces:={}
 	for hand in _grasps:

@@ -14,6 +14,7 @@ const Director = preload("res://scripts/case_director.gd")
 const Injury=preload("res://scripts/tissue_injury.gd")
 const Contact = preload("res://scripts/anatomy_contact.gd")
 const ToolPath=preload("res://scripts/instrument_path.gd")
+const BladeSweep=preload("res://scripts/blade_sweep.gd")
 const RigidBody=preload("res://scripts/pivot_body_contact.gd")
 var _rigid_body=RigidBody.new()
 var _body_poses:Array=[{},{}]
@@ -435,7 +436,8 @@ func _advance_motion(dt: float) -> float:
 func _physics_process(dt: float) -> void:
 	if not display or not _can_operate(): return
 	if not is_finite(dt) or dt<=0 or dt>.05: return
-	var saved:Dictionary=PhysicsTransaction.capture(self) if capsule.requires_physics_transaction() else {}
+	var geometric_blade:bool=geometry!=null and hand_tools[selected]=="knife" and grip_down
+	var saved:Dictionary=PhysicsTransaction.capture(self) if capsule.requires_physics_transaction() or geometric_blade else {}
 	var movement:=_advance_motion(dt)
 	metrics.path_length+=movement
 	_update_injury(dt)
@@ -443,6 +445,15 @@ func _physics_process(dt: float) -> void:
 	var tool: String=hand_tools[selected]
 	for hand in range(2): incision.cut(hand,rigs[hand].tip,hand==selected and grip_down and hand_tools[hand]=="knife")
 	incision.update(dt,[rigs[0].insertion,rigs[1].insertion])
+	if geometric_blade:
+		var prior:Dictionary=_body_poses[selected]
+		var sweep:Dictionary=BladeSweep.build("knife",prior.tip,prior.axis,rigs[selected].tip,rigs[selected].axis,true)
+		if not sweep.valid:
+			_reject_physics_tick(saved,{"reason":"blade_"+sweep.reason,"status":-1});return
+		if not sweep.patches.is_empty():
+			var incision_result:Dictionary=capsule.incise_patches(sweep.patches)
+			if not incision_result.valid:
+				_reject_physics_tick(saved,{"reason":"blade_"+incision_result.reason,"status":-1});return
 	var flow_active:=pedal_down and tool in ["phaco","ia","cannula"]
 	var aspirating:=flow_active and pedal_stage>=2 and tool in ["phaco","ia"]
 	var powered:=flow_active and pedal_stage==3 and tool=="phaco"
@@ -458,10 +469,11 @@ func _physics_process(dt: float) -> void:
 	capsule.pressure_load=.3*(float(_last_lens.pressure)-1.)
 	var tools: Array[Dictionary]=[]
 	for hand in range(2):
-		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":_radius(hand),"grip":hand_tools[hand]=="forceps" and _actual_grip(hand) and (latched[hand] or (hand==selected and grip_down)),"cut":hand_tools[hand]=="knife" and hand==selected and grip_down})
+		var cutting:bool=hand_tools[hand]=="knife" and hand==selected and grip_down
+		tools.append({"hand":hand,"tip":rigs[hand].tip,"radius":.065,"contact_radius":_radius(hand),"grip":hand_tools[hand]=="forceps" and _actual_grip(hand) and (latched[hand] or (hand==selected and grip_down)),"cut":cutting and geometry==null})
 		if geometry:
 			var prior:Dictionary=_body_poses[hand]
-			tools[-1]["body"]=ToolPath.build(hand_tools[hand],_radius(hand),prior.tip,prior.axis,prior.grip,rigs[hand].tip,rigs[hand].axis,_actual_grip(hand),tools[-1].cut)
+			tools[-1]["body"]=ToolPath.build(hand_tools[hand],_radius(hand),prior.tip,prior.axis,prior.grip,rigs[hand].tip,rigs[hand].axis,_actual_grip(hand),cutting)
 	if _flap_boundary:
 		_flap_boundary.wounds=_open_wounds()
 		if anatomy.cornea.revision!=_flap_revision:
@@ -469,13 +481,7 @@ func _physics_process(dt: float) -> void:
 	capsule.step_tools(dt,tools)
 	if not capsule.native_failure.is_empty():
 		var failure:Dictionary=capsule.native_failure.duplicate(true)
-		if not saved.is_empty(): PhysicsTransaction.restore(self,saved)
-		capsule.native_failure=failure
-		# Disarm input without releasing restored physical grasps or cut history.
-		_disarm_actions(); target_valid=[false,false]; _command_axes=[Vector3.ZERO,Vector3.ZERO]
-		paused=true
-		status="조직 계산을 완료하지 못했습니다. 조작을 멈추고 상태를 확인하세요: "+str(failure.get("reason","native_failure"))
-		refresh_ui()
+		_reject_physics_tick(saved,failure)
 		return
 	for hand in range(2): _body_poses[hand]={"tip":rigs[hand].tip,"axis":rigs[hand].axis,"grip":hand_tools[hand]=="forceps" and _actual_grip(hand)}
 	var injecting: bool=tool=="injector" and grip_down and incision.opened[selected] and (implant_hand==-1 or implant_hand==selected)
@@ -494,6 +500,15 @@ func _physics_process(dt: float) -> void:
 	if not is_physics_processing(): _present_frame()
 	_audio_clock+=dt
 	if _sound and _audio_clock>.81: _audio_clock=0.; _audio.play()
+
+func _reject_physics_tick(saved:Dictionary,failure:Dictionary)->void:
+	if not saved.is_empty():PhysicsTransaction.restore(self,saved)
+	capsule.native_failure=failure
+	# Disarm input without releasing restored physical grasps or cut history.
+	_disarm_actions();target_valid=[false,false];_command_axes=[Vector3.ZERO,Vector3.ZERO]
+	paused=true
+	status="조직 계산을 완료하지 못했습니다. 조작을 멈추고 상태를 확인하세요: "+str(failure.get("reason","native_failure"))
+	refresh_ui()
 
 func _process(_dt:float)->void:
 	if _presentation_pending: _present_frame()

@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-04",
+  "scope": "Unmerged development branch. Synthetic bounded target input, not literal pointer/full-case qualification.",
+  "base_commit": "2c9b990",
+  "focused_pass": [
+    "test_membrane_cut_patch",
+    "test_blade_sweep",
+    "test_blade_incisions",
+    "test_blade_operator",
+    "test_membrane_cut",
+    "test_instrument_profile",
+    "test_instrument_path",
+    "test_surgical_display",
+    "test_precise_step_transaction",
+    "test_control_context",
+    "test_physical_instrument_path",
+    "test_body_app",
+    "test_rigid_body_app",
+    "test_presentation_clock"
+  ],
+  "gpu": {
+    "image": "geometric-blade-development-2026-11-04.png",
+    "integration_steps": 100,
+    "dimensions": [
+      1440,
+      900
+    ],
+    "cut_loss_area": 0,
+    "device": "NVIDIA GeForce RTX 3070 Laptop GPU",
+    "incision_events": 2,
+    "vertices": 245,
+    "renderer": "OpenGL Compatibility",
+    "exit_code": 0,
+    "triangles": 426,
+    "visually_inspected": true,
+    "test": "test_blade_actual",
+    "active_throughput_qualified": false,
+    "retained_area": 5.319326346740127,
+    "clock": 1.6666666666666656
+  },
+  "known_failure": {
+    "object_leaks": 0,
+    "script_errors": 0,
+    "reason": "blade_mass_resolution",
+    "exit_code": 1,
+    "assertions_failed": 2,
+    "detached_flaps": 0,
+    "test": "test_blade_closed"
+  },
+  "review": "Read-only reviewer found no additional proven high/medium defect; continuous route rejection blocks qualification.",
+  "source_hashes_after_checks": {
+    "godot/scripts/blade_sweep.gd": "6A55A5913DAFBBA08CD7D4DCC7715AF918F1855F383C7E22F1DC9547CA13CFF0",
+    "godot/scripts/membrane_cut.gd": "05469C3396E5E7ED4FF1D69CDAA1B512FD20B867A7E8ACA7CECFEDDDF7895986",
+    "godot/scripts/membrane_refinement.gd": "F7DDD7C46E19609728A5263363587DBA20DF58313E5E4068CE5889D24F74F910",
+    "godot/scripts/capsule_solver.gd": "31E87683C1186A12C98F1153B3C07981FC12F5F3BD181DDA3FCB397FD49C80DF",
+    "godot/scripts/instrument_profile.gd": "82C7B886BE23D613CC2DFD44DC2B35B98721C197813CDC501990A4C6AC1E728F",
+    "godot/scripts/surgical_instrument.gd": "6F8C98FB93C60C823C1FCF710BC2CF06C7EA5D12E664771B2E20D365A62DE77B",
+    "godot/scripts/simulator.gd": "4AC2033F746B8356A0C90C9A7412E57402A0C93CA6277ECC107946F8BB20DB1A",
+    "godot/tests/test_membrane_cut_patch.gd": "641C1B3ED3A6CDC2D8B84721FA93318C75267D29A8DBD71A1B7FD92ABB50C163",
+    "godot/tests/test_blade_sweep.gd": "446E582FE589F9E58595D4A664735CD4AC707AC9BD2B2A6DFE2495CBA3524F9D",
+    "godot/tests/test_blade_incisions.gd": "578BC23EEBFE793BFE366093D89A25E855F2AD05828159821231F9122750A3FC",
+    "godot/tests/test_blade_operator.gd": "16A417C96CD4B48CF7DD9031898C679D605F1249E0285B7017835699BA485B13",
+    "godot/tests/test_blade_actual.gd": "67DAF6B716ED1E1E46CABA9201B0360B240DF55D4932C3B456AD75B416549F59",
+    "godot/tests/test_blade_closed.gd": "3C4186A8E23A2D7563F36185EFF3B694523C301B6D875E2319353DD2F29923B6"
+  }
+}

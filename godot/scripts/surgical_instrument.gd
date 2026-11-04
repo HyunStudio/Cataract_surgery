@@ -12,9 +12,9 @@ static func build(id:String,radius:float)->Node3D:
 	var gold:=_material(Color(.63,.49,.25),.25,.7)
 	var body:Array[Dictionary]=Profile.segments(id,radius)
 	if id=="knife":
-		var mesh:=PrismMesh.new(); mesh.size=Vector3(.18,.015,.12)
+		var mesh:=_blade_mesh()
 		var blade:=MeshInstance3D.new(); blade.name="Blade"; blade.mesh=mesh; blade.material_override=metal
-		blade.position=Vector3(.09,0,0); root.add_child(blade)
+		root.add_child(blade)
 	elif id in ["phaco","ia","injector"]:
 		_rod(root,"Lumen",Vector3(-.001,0,0),Vector3(.003,0,0),radius*.65,dark)
 	var labels:Dictionary={"jaw":"Jaw","bent_tip":"BentTip","hook":"Hook","working_tip":"WorkingTip","shaft":"Shaft","sleeve":"Sleeve"}
@@ -26,6 +26,7 @@ static func build(id:String,radius:float)->Node3D:
 			label+=str(jaw_index)
 			jaw_index+=1
 		_rod(root,label,segment.a,segment.b,segment.radius,white if segment.part=="sleeve" else metal)
+	if id=="knife": _rod(root,"BladeNeck",Vector3(.16,0,0),Vector3(.22,0,0),.012,metal)
 	if id in ["phaco","ia"]:
 		_rod(root,"Handpiece",Vector3(3.05,0,0),Vector3(5.1,0,0),.32,blue if id=="phaco" else white)
 		for i in range(5): _rod(root,"GripBand",Vector3(3.3+i*.22,0,0),Vector3(3.34+i*.22,0,0),.335,metal)
@@ -45,3 +46,13 @@ static func _rod(parent:Node3D,label:String,a:Vector3,b:Vector3,radius:float,mat
 	var mesh:=CylinderMesh.new(); mesh.height=a.distance_to(b); mesh.top_radius=radius; mesh.bottom_radius=radius; mesh.radial_segments=16
 	var node:=MeshInstance3D.new(); node.name=label; node.mesh=mesh; node.material_override=material
 	node.transform=Profile.rod_transform(a,b); parent.add_child(node)
+
+static func _blade_mesh()->ArrayMesh:
+	var shape:Dictionary=Profile.blade_geometry();var points:PackedVector3Array=shape.positions;var ids:PackedInt32Array=shape.triangles
+	var vertices:=PackedVector3Array();var normals:=PackedVector3Array()
+	for i in range(0,ids.size(),3):
+		var a:Vector3=points[ids[i]];var b:Vector3=points[ids[i+1]];var c:Vector3=points[ids[i+2]]
+		var normal:Vector3=-(b-a).cross(c-a).normalized()
+		for point in [a,b,c]:vertices.append(point);normals.append(normal)
+	var arrays:=[];arrays.resize(Mesh.ARRAY_MAX);arrays[Mesh.ARRAY_VERTEX]=vertices;arrays[Mesh.ARRAY_NORMAL]=normals
+	var mesh:=ArrayMesh.new();mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays);return mesh
