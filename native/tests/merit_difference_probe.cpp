@@ -1,5 +1,6 @@
 // Test-only ABI. The product extension does not export these diagnostics.
 #include "../contact_merit_difference.h"
+#include "../fem_trajectory_merit.h"
 
 extern "C" __declspec(dllexport) void merit_interpolate(
     const double* previous,const double* current,double time,double* result) {
@@ -45,4 +46,17 @@ extern "C" __declspec(dllexport) int merit_contact_witness_change(
     result[0]=membrane::merit::lower_double(change);
     result[1]=membrane::merit::upper_double(change);
     return 0;
+}
+
+// Test-only comparison against the unchanged original literal certificate.
+extern "C" __declspec(dllexport) int merit_temporal_hull_compare(
+    const double* previous,const double* before,const double* after,double time,
+    const double* axis,double radius,double dual,double rho,double* output) {
+    membrane::numeric::Scope environment;
+    namespace field=membrane::fem_trajectory_merit;
+    const auto a=field::hull(previous,before,time),b=field::hull(previous,after,time);
+    for(int j=0;j<3;++j) {output[j*2]=static_cast<double>(a[j].lo);output[j*2+1]=static_cast<double>(a[j].hi);output[6+j*2]=static_cast<double>(b[j].lo);output[7+j*2]=static_cast<double>(b[j].hi);}
+    const bool original=field::inactive(previous,before,after,time,axis,radius,dual,rho);
+    const bool cached=field::inactive_hulls(a,b,axis,radius,dual,rho);
+    return int(original)+2*int(cached);
 }

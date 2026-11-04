@@ -1,0 +1,16 @@
+{
+  "scope": "Independent NumPy/SciPy contact-cone hypothesis on traced represented x; not a native candidate or certificate.",
+  "near_contacts": 1,
+  "positive": [
+    {
+      "time": 0.4697265625,
+      "face": 824,
+      "body": 0,
+      "gap": -7.979727989493313e-17,
+      "dual": 0.05181125030905406
+    }
+  ],
+  "force_inf": 1.0164150771041491e-11,
+  "force_without_contact_inf": 1.2592026653130501,
+  "baseline_dual_positive": 1
+}

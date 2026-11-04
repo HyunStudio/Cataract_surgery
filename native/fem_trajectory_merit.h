@@ -116,6 +116,38 @@ inline bool contact_change(const double* previous,const double* before,const dou
     const m::Interval answer(low.lo,high.hi);if(!m::finite(answer)) return false;result=answer;return true;
 }
 
+// Immutable enclosure of one original control triple at a recorded time.
+// Constructed with exactly the same outward operations as inactive() below.
+using Hull=std::array<membrane::guard::Bound,3>;
+inline Hull hull(const double* previous,const double* end,double time) {
+    using membrane::guard::Bound;Hull result{};
+    for(int axis=0;axis<3;++axis) {
+        long double lo=std::numeric_limits<long double>::infinity(),hi=-lo;
+        for(int j=0;j<3;++j) {
+            const Bound value=Bound(previous[j*3+axis])+Bound(time)*(Bound(end[j*3+axis])-Bound(previous[j*3+axis]));
+            lo=std::min(lo,value.lo);hi=std::max(hi,value.hi);
+        }
+        result[axis]=Bound(lo,hi);
+    }
+    return result;
+}
+inline bool inactive_hulls(const Hull& before,const Hull& after,const double* axis,double radius,double dual,double rho) {
+    using membrane::guard::Bound;
+    if(!std::isfinite(dual) || dual<0. || !std::isfinite(rho) || rho<=0.) return false;
+    const long double ratio=static_cast<long double>(dual)/rho;
+    const Bound threshold=Bound(radius*radius)*(Bound(1)+Bound(membrane::guard::down(ratio),membrane::guard::up(ratio)));
+    for(const Hull* field:{&before,&after}) {
+        Bound lower(0);
+        for(int j=0;j<3;++j) {
+            const long double body_lo=std::min(axis[j],axis[j+3]),body_hi=std::max(axis[j],axis[j+3]);
+            const Bound a=Bound((*field)[j].lo)-Bound(body_hi),b=Bound(body_lo)-Bound((*field)[j].hi);
+            const long double distance=std::max({0.L,a.lo,b.lo});lower=lower+Bound(distance)*Bound(distance);
+        }
+        if(!(lower.lo>threshold.hi)) return false;
+    }
+    return true;
+}
+
 // Fine convex shape rows lie in this coarse original-control hull. This is
 // only a merit cache certificate AFTER both full distance evaluations pass.
 inline bool inactive(const double* previous,const double* before,const double* after,double time,const double* axis,double radius,double dual,double rho) {

@@ -46,8 +46,11 @@ assert inc.count(signature)==1;inc=inc.replace(signature,signature+'ProfileScope
 for old,index in [('membrane::contact::distance(capsule,triangle,capsule[6])',2),('membrane::embedded_contact::distance(capsule,controls,weights+face*9,capsule[6])',4),('membrane::embedded_contact::distance(body,controls,face_weights+face*9,body[6])',4)]:
  assert inc.count(old)==1
  inc=inc.replace(old,'[&](){ProfileScope timing('+str(index)+');return '+old+';}()')
-old='if(previous) {\n                double old[9],end[9];'
-assert inc.count(old)==1;inc=inc.replace(old,'if(previous) {ProfileScope field_timing(3);\n                double old[9],end[9];')
+old='if(previous) {\n                // The full query above'
+assert inc.count(old)==1;inc=inc.replace(old,'if(previous) {ProfileScope field_timing(3);\n                // The full query above')
+header=(probe/'fem_trajectory_merit.h').read_text();signature='inline Hull hull(const double* previous,const double* end,double time) {'
+assert header.count(signature)==1;header=header.replace(signature,signature+'ProfileScope hull_timing(3);')
+(probe/'fem_trajectory_merit.h').write_text(header)
 (probe/'membrane_fem_contact.inc').write_text(inc)
 library=probe/'profile.dll'
 subprocess.run([str(root/'.tools/zig-x86_64-windows-0.17.0/zig.exe'),'c++','-std=c++17','-O3','-Wall','-Wextra','-Werror','-DEIGEN_MPL2_ONLY','-isystem',str(root/'.tools/eigen-5.0.1'),'-shared','-target','x86_64-windows-gnu',str(probe/'membrane_fem.cpp'),'-o',str(library)],check=True)

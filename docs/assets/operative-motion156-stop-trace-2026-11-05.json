@@ -1,0 +1,172 @@
+{
+  "scope": "Isolated source-bound motion156 stop/line/polish diagnosis; no product change or qualification.",
+  "probe": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-trace156-_4aq0knh",
+  "compiler": {
+    "version": "0.17.0",
+    "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+    "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+  },
+  "original_sources": {
+    "native\\contact_distance.cpp": "22281a9a791b7c18c9977d429c098b59c6131c546db24d38d1cb289394187965",
+    "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+    "native\\contact_guard.cpp": "457bd0127da0f25c2125da32d52a60437adebdd307a918ed2d581f16b6c63a61",
+    "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+    "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+    "native\\contact_step_model.h": "ba3eaaa8fe87cd7e36263d9a214bf1c37c5bc8a1254b5c414408c247574c3569",
+    "native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+    "native\\fem_trajectory_merit.h": "d8b2fba64b699351ea72d115dcd2b7bfb3b21393370871147b7698489e37d050",
+    "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+    "native\\godot_membrane.cpp": "4d91edbaefd348dc6ffa84cd55a33f2d50226bc8ee141faa980a778306fdb753",
+    "native\\membrane_contact_solver.cpp": "52f2edbe533c1f0d4d5c8b0357cf0a32a2eb988fe7114fa56d78080462cde4ad",
+    "native\\membrane_contact_solver.h": "d355bd9a9f99d6cdb1c3e18c8dbc34e09a432f31ad1a78efd360cd416d8e1c70",
+    "native\\membrane_fem.cpp": "8cfd2c9775c50d0e0e222cdef883b6becf807c8c8dc9654e9b5dd6a02d748a95",
+    "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+    "native\\membrane_fem_contact.inc": "9086b154b7aeb07d0ca910a6221cdd7057d96aa051c51305b47b25902017c4ea",
+    "native\\membrane_kernel.cpp": "f4f21d3aab8dadc62da3f7600bcf42efda072c4f0a1a09590e1930608cad2518",
+    "native\\membrane_sparse.h": "8ab3fcbfdc2dc942b251093c0fe1658c20866356d15ba28f07ded423b0bf5439"
+  },
+  "instrumented_sources": {
+    "contact_distance.cpp": "22281a9a791b7c18c9977d429c098b59c6131c546db24d38d1cb289394187965",
+    "contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+    "contact_guard.cpp": "457bd0127da0f25c2125da32d52a60437adebdd307a918ed2d581f16b6c63a61",
+    "contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+    "contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+    "contact_step_model.h": "ba3eaaa8fe87cd7e36263d9a214bf1c37c5bc8a1254b5c414408c247574c3569",
+    "embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+    "fem_trajectory_merit.h": "d8b2fba64b699351ea72d115dcd2b7bfb3b21393370871147b7698489e37d050",
+    "fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+    "godot_membrane.cpp": "4d91edbaefd348dc6ffa84cd55a33f2d50226bc8ee141faa980a778306fdb753",
+    "membrane_contact_solver.cpp": "52f2edbe533c1f0d4d5c8b0357cf0a32a2eb988fe7114fa56d78080462cde4ad",
+    "membrane_contact_solver.h": "d355bd9a9f99d6cdb1c3e18c8dbc34e09a432f31ad1a78efd360cd416d8e1c70",
+    "membrane_fem.cpp": "8cfd2c9775c50d0e0e222cdef883b6becf807c8c8dc9654e9b5dd6a02d748a95",
+    "membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+    "membrane_fem_contact.inc": "c5d9d155100352f0176935bcb53fc610469c8c20fdd108b2d34a89a02d0dde29",
+    "membrane_kernel.cpp": "f4f21d3aab8dadc62da3f7600bcf42efda072c4f0a1a09590e1930608cad2518",
+    "membrane_sparse.h": "8ab3fcbfdc2dc942b251093c0fe1658c20866356d15ba28f07ded423b0bf5439",
+    "trace.cpp": "8075335f7c3278b895b18fe81547f761dd1bbb7c984db29fb8a8904afe1230ac"
+  },
+  "fixture_sha256": "3d905fa7e8741f2de0cf7fd565e3aba3945836c910175f5779f13fc56274032d",
+  "baseline_sha256": "87b80a787c945da7473d085a7ca267a236c53a11f4e14525f9e914c7449ff0e2",
+  "trace_sha256": "17b49c90f776c8efb50bdd115daed5777e8ad7befbafb5680ecbc28b4f8af242",
+  "prefix": [
+    {
+      "times": [
+        0.5,
+        1.0
+      ],
+      "stats": [
+        0.03630045583449109,
+        1.0196650453670384e-11,
+        24.0,
+        35.0,
+        26.0,
+        3.7787267770516125e-16,
+        0.25,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        7.336141891832416e-18,
+        0.0,
+        4.170879784468064e-12,
+        8.0,
+        100.0
+      ],
+      "witness": 0.46875
+    },
+    {
+      "times": [
+        0.46875,
+        0.5,
+        1.0
+      ],
+      "stats": [
+        0.03631148466730552,
+        5.60203101811428e-11,
+        10.0,
+        15.0,
+        11.0,
+        2.1335389052049197e-16,
+        1.0,
+        9.5367431640625e-10,
+        0.0,
+        1.0,
+        0.0,
+        1.0670791873173522e-17,
+        3.610134929651177e-16,
+        1.8749856079354423e-15,
+        4.0,
+        10000.0
+      ],
+      "witness": 0.4697265625
+    }
+  ],
+  "seed_sha256": "5f90c11a478dc2b57fc9ab1dd68c08705eac6cf8fcff87fe3d07182d9ebb1393",
+  "status": 2,
+  "stats": [
+    0.0363114974924139,
+    3.104943595673991e-08,
+    19.0,
+    113.0,
+    22.0,
+    1.3810108021972245e-15,
+    0.00048828125,
+    9.765625e-07,
+    0.0,
+    1.0,
+    0.0,
+    4.548316002381653e-17,
+    5.285004453031021e-18,
+    2.7708076623601036e-17,
+    5.0,
+    10000000.0
+  ],
+  "line_sha256": "17c8c64feeb7612af82f56196ac24528dc8a5bd837e2003044bc0971b1667721",
+  "decisions": [
+    {
+      "kind": 1,
+      "iteration": 10,
+      "outer": 4,
+      "force": 1.6221960470679372e-07,
+      "proposed_force": 0,
+      "active": 0,
+      "valid": true
+    },
+    {
+      "kind": 2,
+      "iteration": 10,
+      "outer": 4,
+      "force": 1.6221960470679372e-07,
+      "proposed_force": 3.019822564231944e-08,
+      "active": 1,
+      "valid": true
+    },
+    {
+      "kind": 1,
+      "iteration": 10,
+      "outer": 5,
+      "force": 3.1447172601441004e-08,
+      "proposed_force": 0,
+      "active": 0,
+      "valid": true
+    },
+    {
+      "kind": 2,
+      "iteration": 10,
+      "outer": 5,
+      "force": 3.1447172601441004e-08,
+      "proposed_force": 3.019822561456387e-08,
+      "active": 1,
+      "valid": true
+    },
+    {
+      "kind": 5,
+      "iteration": 19,
+      "outer": 5,
+      "force": 3.104943595673991e-08,
+      "proposed_force": 0,
+      "active": 0,
+      "valid": true
+    }
+  ]
+}

@@ -4,6 +4,7 @@
 struct ContactState {
     double energy=0.,penetration=0.,complementarity=0.,force_error=0.;
     Vec gradient,blocks,updated;
+    std::vector<membrane::fem_trajectory_merit::Hull> hulls;
 };
 struct FineContacts {
     int faces,bodies;
@@ -31,6 +32,19 @@ struct FineContacts {
     bool evaluate(const Problem& problem,const Vec& x,const Vec& dual,double rho,ContactState& out,bool physical_dual=false) const {
         out.penetration=out.complementarity=out.force_error=0.;
         if(!problem.evaluate(x,out.energy,out.gradient,&out.blocks)) return false;
+        // Hulls belong to this exact x evaluation, never to a body, dual or rho.
+        // A fresh candidate rebuilds them; accepted state/next swaps carry them.
+        out.hulls.clear();
+        if(previous) {
+            out.hulls.resize(faces*layers);
+            for(int layer=0;layer<layers;++layer) for(int face=0;face<faces;++face) {
+                double old[9],end[9];
+                for(int j=0;j<3;++j) for(int axis=0;axis<3;++axis) {
+                    const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=previous[k];end[j*3+axis]=x[k];
+                }
+                out.hulls[layer*faces+face]=membrane::fem_trajectory_merit::hull(old,end,times[layer]);
+            }
+        }
         const size_t offset=out.blocks.size();out.blocks.resize(offset+size_t(pairs())*81,0.);
         out.updated.resize(pairs());
         Vec uncertainty(previous ? x.size() : 0,0.);
@@ -45,15 +59,15 @@ struct FineContacts {
             double g=query.values[0]/r2-1.,u=std::max(0.,dual[p]-rho*g),u_error=0.;
             if(!std::isfinite(g) || !std::isfinite(u)) return false;
             if(previous) {
+                // The full query above is mandatory. Only its known-zero PHR
+                // refinement may reuse this unrounded original-control hull.
+                const auto& box=out.hulls[p/bodies];
+                if(!physical_dual && u==0. && membrane::fem_trajectory_merit::inactive_hulls(box,box,capsule,capsule[6],dual[p],rho)) {
+                    out.updated[p]=0.;continue;
+                }
                 double old[9],end[9];const int face=face_index(p);
                 for(int j=0;j<3;++j) for(int axis=0;axis<3;++axis) {
                     const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=previous[k];end[j*3+axis]=x[k];
-                }
-                // The full geometry query above remains mandatory. This strict
-                // unrounded hull certificate only avoids refining a known-zero
-                // PHR multiplier; it never clears the complete physical path.
-                if(!physical_dual && u==0. && membrane::fem_trajectory_merit::inactive(old,end,end,time(p),capsule,capsule[6],dual[p],rho)) {
-                    out.updated[p]=0.;continue;
                 }
                 membrane::merit::Interval bounded_gap,separation;
                 if(!membrane::fem_trajectory_merit::gap(old,end,weights+face*9,time(p),capsule,capsule[6],query,bounded_gap,separation)) return false;
@@ -106,13 +120,13 @@ struct FineContacts {
             double controls[9],before[9],after[9];local(x,p,controls,before);local(y,p,controls,after);
             const double* capsule=body(p);membrane::merit::Interval term;
             if(previous) {
+                if(current.updated[p]==0. && candidate.updated[p]==0. &&
+                   membrane::fem_trajectory_merit::inactive_hulls(current.hulls[p/bodies],candidate.hulls[p/bodies],capsule,capsule[6],dual[p],rho)) {
+                    value=value+membrane::merit::Interval(0);continue;
+                }
                 double old[9],first[9],last[9];const int face=face_index(p);
                 for(int j=0;j<3;++j) for(int a=0;a<3;++a) {
                     const int k=nodes[face*3+j]*3+a;old[j*3+a]=previous[k];first[j*3+a]=x[k];last[j*3+a]=y[k];
-                }
-                if(current.updated[p]==0. && candidate.updated[p]==0. &&
-                   membrane::fem_trajectory_merit::inactive(old,first,last,time(p),capsule,capsule[6],dual[p],rho)) {
-                    value=value+membrane::merit::Interval(0);continue;
                 }
 #ifdef FEM_CONTACT_OBSERVER
                 observe_contact_query(true);

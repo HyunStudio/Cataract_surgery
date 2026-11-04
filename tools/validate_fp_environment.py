@@ -14,7 +14,7 @@ PATTERNS=['test_membrane_kernel.py','test_contact_distance.py','test_embedded_co
           'test_contact_guard.py','test_contact_merit_difference.py','test_point_merit_difference.py',
           'test_contact_step_model.py','test_coupled_contact.py','test_trajectory_contact.py',
           'test_anatomical_contact.py','test_membrane_fem.py','test_membrane_grasp.py',
-          'test_fem_contact.py','test_fem_trajectory.py','test_fem_warm_trajectory.py','test_fp_environment.py','test_native_provenance.py','test_contact_activity.py']
+          'test_fem_contact.py','test_fem_trajectory.py','test_fem_warm_trajectory.py','test_fp_environment.py','test_native_provenance.py','test_contact_activity.py','test_temporal_hull_cache.py']
 builds={}
 for name in ARTIFACTS:
     artifact=ROOT/'.tools/native'/f'{name}.dll';manifest_path=artifact.with_suffix('.build.json')

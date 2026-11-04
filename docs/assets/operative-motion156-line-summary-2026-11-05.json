@@ -1,0 +1,28 @@
+{
+  "baseline_manifest_verified": true,
+  "trace_stats_bitwise_match": true,
+  "final_line_trials": 32,
+  "all_comparisons_valid": true,
+  "samples": [
+    {
+      "iteration": 19,
+      "rho": 10000000,
+      "fraction": 1,
+      "slope": -1.829296774920474e-25,
+      "change": 8.13314710542786e-25,
+      "work": 0,
+      "valid": true,
+      "movement_inf": 4.6407322429331543e-14
+    },
+    {
+      "iteration": 19,
+      "rho": 10000000,
+      "fraction": 4.656612873077393e-10,
+      "slope": -1.829296774920474e-25,
+      "change": 1.6626529047372977e-40,
+      "work": 0,
+      "valid": true,
+      "movement_inf": 8.271806125530277e-25
+    }
+  ]
+}
