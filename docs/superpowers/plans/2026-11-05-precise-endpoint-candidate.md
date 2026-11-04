@@ -95,3 +95,31 @@ a duplicate expensive full prefix while the old full route is still active.
 Whole surgery, actual OS-input cases, finite-jaw acquisition, independent material
 crack-tip opening, anatomy calibration, real-time/GPU and Windows delivery remain
 unqualified. The full simulator goal remains active; no main merge or release.
+
+
+## Superseding terminal full-route result
+
+Exec78911 completed after the component commit: child exit1, route_passed=false,
+all frozen bytes intact. The old fd3ecb5 route crossed167but stops on
+`blade_vertex_budget`. Exact before-failed-incision checkpoint has177accepted
+physics steps,289cut events,346mechanical controls,4405triangles and4086vertices;
+all4086vertices are referenced. No unused-vertex purge can resolve this alone.
+The intended central flap remains attached (only19peripheral components).
+This full route is FAILED, not running or qualified. Do not poll/restart78911.
+
+Owned evidence:
+- `docs/assets/certified-zero-full-route-2026-11-05.json` and matching txt log.
+- `docs/assets/operative-vertex-budget-2026-11-05.json` small diagnostic.
+- `godot/tests/fixtures/operative-vertex-budget-state.bin`: exact typed
+  before-failed-incision state, physical patch and failure result, byte-verified
+  against the frozen probe's capture. No expensive prefix repeat needed to
+  diagnose this topology failure.
+
+Next: replay this owned incision checkpoint under existing4096/8192limits and
+inspect subdivision/edge reuse plus connected material fans. Any conservative
+mesh reduction must retain original material maps/area, crack separation and
+all positive supports. Do not simply increase limits or delete tiny tissue.
+RED the actual checkpoint and preserve legacy8cut output contracts before
+changing tessellation. Requalify native/engine components and full route after
+fixing the actual saved case. Accurate-endpoint167sample-layer inefficiency is
+also open. No new full prefix is launched before this concrete failure is fixed.

@@ -1,0 +1,42 @@
+{
+  "controls": 346,
+  "events": 289,
+  "patch": "[(-0.556489, 0.450628, -0.123371), (-0.376118, 0.483314, -0.172339), (-0.369632, 0.483382, -0.194281)]",
+  "result": {
+    "bindings": [],
+    "changed": false,
+    "indices": [],
+    "points": "[]",
+    "reason": "vertex_budget",
+    "sources": [],
+    "valid": false,
+    "work": 15390
+  },
+  "state_keys": [
+    "original",
+    "original_indices",
+    "original_anchors",
+    "rest",
+    "indices",
+    "ancestors",
+    "areas",
+    "anchored",
+    "fixed",
+    "removed",
+    "outside",
+    "fallback",
+    "support",
+    "density",
+    "xyz",
+    "previous",
+    "events",
+    "steps",
+    "time",
+    "grasps",
+    "contacts"
+  ],
+  "steps": 177,
+  "triangles": 4405,
+  "used_vertices": 4086,
+  "vertices": 4086
+}
