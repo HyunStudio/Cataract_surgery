@@ -1,0 +1,80 @@
+{
+  "qualified": false,
+  "scope": "Offline exact150 active-time exchange after dense budget failure. Retire only whole layers with every multiplier exactly0; retain endpoint. Same original predictor/old controls/dt and250 total Newton iterations, strict independent KKT and complete guard. Not engine or full-route qualification.",
+  "source_sha256": "d703f1df9b8ef77f457887d9981972e9dc3987201a1aef4b8114b592752f4f67",
+  "accepted_steps": 149,
+  "retained_active_times_before_retry": [
+    0.0078125,
+    1.0
+  ],
+  "history": [
+    {
+      "times": [
+        0.00390625,
+        0.0078125,
+        1.0
+      ],
+      "status": 0,
+      "stats": [
+        0.01191038159970977,
+        5.408002775655829e-11,
+        40.0,
+        54.0,
+        41.0,
+        1.89515454514163e-16,
+        0.5,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        6.50263447545182e-17,
+        2.2314370563168046e-18,
+        1.3781499954634995e-15,
+        12.0,
+        100000000.0
+      ],
+      "total_iterations": 215,
+      "guard_status": 1,
+      "guard_stats": [
+        358.0,
+        1597.0,
+        399.0,
+        0.0,
+        -3.475749698472752e-09,
+        9.0,
+        7.0,
+        4.0
+      ],
+      "witness_t": 0.001953125
+    },
+    {
+      "times": [
+        0.001953125,
+        0.00390625,
+        0.0078125,
+        1.0
+      ],
+      "status": 1,
+      "stats": [
+        0.01190429628034799,
+        8.07138822557096e-12,
+        35.0,
+        46.0,
+        35.0,
+        1.094551078846212e-15,
+        0.5,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        3.78747955392711e-17,
+        1.013490761363758e-08,
+        2.4002012528203093e-06,
+        9.0,
+        1000000.0
+      ],
+      "total_iterations": 250
+    }
+  ],
+  "elapsed_seconds": 71.89537630020641
+}

@@ -53,7 +53,7 @@ jobs:
         run: |
           python tools/build_membrane_extension.py
           if ($LASTEXITCODE -ne 0) { throw 'Native Godot extension build failed' }
-          python tools/validate_embedded_extension.py --grasp --contact --coupled --curved
+          python tools/validate_embedded_extension.py --grasp --contact --coupled --curved --trajectory
           if ($LASTEXITCODE -ne 0) { throw 'Native Godot extension qualification failed' }
       - name: Focused retained-material geometry and state regressions
         run: python tools/validate_embedded_regressions.py
@@ -64,6 +64,7 @@ jobs:
           path: |
             godot/reports/fp-environment-validation.json
             godot/reports/curved-coupled-contact-embedded-grasp-validation.json
+            godot/reports/trajectory-curved-coupled-contact-embedded-grasp-validation.json
             godot/reports/embedded-precision-regression.json
             .tools/native/*.build.json
             .tools/native-godot/bin/membrane.build.json

@@ -1,0 +1,83 @@
+{
+  "scope": "Diagnostic instrumented source copy only; independent captured KKT and full guard checked; concurrent local CPU work, no real-time qualification.",
+  "source_inputs": {
+    "native\\contact_distance.cpp": "22281a9a791b7c18c9977d429c098b59c6131c546db24d38d1cb289394187965",
+    "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+    "native\\contact_guard.cpp": "457bd0127da0f25c2125da32d52a60437adebdd307a918ed2d581f16b6c63a61",
+    "native\\contact_guard.h": "1e31ac5a28a175d15c758e8cc239d063bcd2ee6d22bb15c1c4ac5ebb66bf4826",
+    "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+    "native\\contact_step_model.h": "ba3eaaa8fe87cd7e36263d9a214bf1c37c5bc8a1254b5c414408c247574c3569",
+    "native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+    "native\\fem_trajectory_merit.h": "d8b2fba64b699351ea72d115dcd2b7bfb3b21393370871147b7698489e37d050",
+    "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+    "native\\godot_membrane.cpp": "e41bcf83ea2aad620d9ef0350a6137cc379e9514938c0b06c5468d66bc12cab0",
+    "native\\membrane_contact_solver.cpp": "52f2edbe533c1f0d4d5c8b0357cf0a32a2eb988fe7114fa56d78080462cde4ad",
+    "native\\membrane_contact_solver.h": "d355bd9a9f99d6cdb1c3e18c8dbc34e09a432f31ad1a78efd360cd416d8e1c70",
+    "native\\membrane_fem.cpp": "5dde964b02248936bc8969fba86815e02909ded04e0f0c6857c48770efa53c34",
+    "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+    "native\\membrane_fem_contact.inc": "b6f7a171482ded4a86e8c2d1c04a842d66dc41e3150b88483a71924ac5f4cfdf",
+    "native\\membrane_kernel.cpp": "f4f21d3aab8dadc62da3f7600bcf42efda072c4f0a1a09590e1930608cad2518",
+    "native\\membrane_sparse.h": "8ab3fcbfdc2dc942b251093c0fe1658c20866356d15ba28f07ded423b0bf5439"
+  },
+  "probe": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-profile-eajudipy",
+  "status": 0,
+  "native_stats": [
+    0.001900107752716524,
+    9.95536080143217e-09,
+    35.0,
+    67.0,
+    38.0,
+    8.817102167733564e-16,
+    3.0517578125e-05,
+    1e-12,
+    0.0,
+    1.0,
+    0.0,
+    4.344719352175592e-17,
+    1.369716889484508e-17,
+    4.938787517374295e-17,
+    14.0,
+    10000000.0
+  ],
+  "guard_stats": [
+    542.0,
+    8364.0,
+    -1.0,
+    -1.0,
+    -6.099362681588616e-11,
+    216.0,
+    8.0,
+    0.0
+  ],
+  "wall_seconds": 44.21291220001876,
+  "timings": {
+    "evaluate_inclusive": {
+      "seconds": 25.403008800000006,
+      "calls": 67.0
+    },
+    "merit_difference_inclusive": {
+      "seconds": 18.0252542,
+      "calls": 50.0
+    },
+    "full_geometry_queries": {
+      "seconds": 3.9676035000727383,
+      "calls": 2241552.0
+    },
+    "temporal_gap_field_inclusive": {
+      "seconds": 20.585802600050663,
+      "calls": 2241552.0
+    },
+    "embedded_derivatives": {
+      "seconds": 0.0016115999999999995,
+      "calls": 258.0
+    },
+    "sparse_factor": {
+      "seconds": 0.20246869999999997,
+      "calls": 36.0
+    },
+    "sparse_linear_solve": {
+      "seconds": 0.0029417,
+      "calls": 35.0
+    }
+  }
+}

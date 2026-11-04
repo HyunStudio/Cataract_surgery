@@ -1,6 +1,7 @@
 extends RefCounted
 ## Coupled candidate checks and full physical body interval guard; no projection.
 const Query=preload("res://scripts/membrane_contact_query.gd")
+const Pose=preload("res://scripts/recorded_body_pose.gd")
 const GAP:=1e-9
 const COMP:=1e-11
 static func invalid(reason:String)->Dictionary:
@@ -24,21 +25,34 @@ static func prepare(state:Dictionary,motion:Dictionary)->Dictionary:
 	return {"valid":true,"reason":"","kinds":kinds.duplicate(),"packets":packets.duplicate(),"capsules":capsules,"bodies":kinds.size(),"guard":guard}
 static func force(state:Dictionary,xyz:PackedFloat64Array,dual:PackedFloat64Array,context:Dictionary,backend)->Dictionary:
 	var faces:int=state.indices.size()/3
-	if dual.size()!=faces*context.bodies:return invalid("native_contact_dual_shape")
-	var view:=state.duplicate(false);view.xyz=xyz
+	var times:PackedFloat64Array=context.get("times",PackedFloat64Array([1.]))
+	if dual.size()!=faces*context.bodies*times.size():return invalid("native_contact_dual_shape")
+	var views:Array=[];var layers:Array=[]
+	for t in times:
+		var view:=state.duplicate(false);var posed:=xyz.duplicate()
+		if t!=1.:
+			if not context.get("previous") is PackedFloat64Array or context.previous.size()!=xyz.size():return invalid("contact_previous_shape")
+			for k in range(posed.size()):posed[k]=context.previous[k]+t*(xyz[k]-context.previous[k])
+		view.xyz=posed;views.append(view)
+		if times.size()==1:layers.append(context.capsules)
+		else:
+			var sampled:=Pose.sample(context.kinds,context.packets,t)
+			if not sampled.valid:return invalid("independent_contact_pose")
+			layers.append(sampled.capsules)
 	var distributed:=PackedFloat64Array();distributed.resize(xyz.size());var complementarity:=0.
 	for pair in range(dual.size()):
 		var u:float=dual[pair]
 		if not is_finite(u) or u<0.:return invalid("native_contact_dual")
 		if u==0.:continue
-		var face:int=pair/context.bodies;var body:int=pair%context.bodies;var off:=body*7;var radius:float=context.capsules[off+6]
-		var witness:=Query.face(view,face,context.capsules.slice(off,off+6),radius,backend)
+		var layer:int=pair/(faces*context.bodies);var t:float=times[layer]
+		var face:int=(pair/context.bodies)%faces;var body:int=pair%context.bodies;var off:=body*7;var radius:float=layers[layer][off+6]
+		var witness:=Query.face(views[layer],face,layers[layer].slice(off,off+6),radius,backend)
 		if not witness.valid:return invalid("independent_contact_witness")
 		if witness.values[1] < -GAP:return invalid("independent_contact_gap")
 		complementarity=maxf(complementarity,absf(u*(witness.values[0]/(radius*radius)-1.)))
 		if complementarity>COMP:return invalid("independent_contact_complementarity")
 		for node in range(3):
-			for axis in range(3):distributed[witness.nodes[node]*3+axis]-=u*witness.gradient[node*3+axis]/(radius*radius)
+			for axis in range(3):distributed[witness.nodes[node]*3+axis]-=u*t*witness.gradient[node*3+axis]/(radius*radius)
 	return {"valid":true,"reason":"","force":distributed,"complementarity":complementarity}
 static func guard(previous:PackedFloat64Array,current:PackedFloat64Array,triangles:PackedInt32Array,context:Dictionary)->Dictionary:
 	var answer=context.guard.guard_motion({"previous":previous,"current":current,"triangles":triangles,"kinds":context.kinds,"packets":context.packets,"budget":128,"gap_tolerance":GAP})

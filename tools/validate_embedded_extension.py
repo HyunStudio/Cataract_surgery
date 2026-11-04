@@ -15,12 +15,14 @@ parser.add_argument('--grasp', action='store_true', help='Include exact material
 parser.add_argument('--contact', action='store_true', help='Include retained fine-face static contact contracts')
 parser.add_argument('--coupled', action='store_true', help='Include simultaneous FEM/grasp/contact candidate bridge')
 parser.add_argument('--curved', action='store_true', help='Include retained curved coupled dynamics and multi-body maps')
+parser.add_argument('--trajectory', action='store_true', help='Include original-material trajectory bridge, scalar poses and exact captured core step')
 parser.add_argument('--operative-blade', action='store_true', help='Run the same application closed-blade route with original-material dynamics')
 options = parser.parse_args()
 if options.operative_blade and options.bridge_only:parser.error('--operative-blade requires the application probe')
 if options.curved:
     if options.bridge_only:parser.error('--curved requires the full state probe')
     options.coupled=True
+if options.trajectory and options.bridge_only:parser.error('--trajectory requires the full state probe')
 build = ROOT/'.tools/native-godot/bin'
 manifest = json.loads((build/'membrane.build.json').read_text())
 if sha256(build/'membrane.dll') != manifest['artifact_sha256']:
@@ -39,6 +41,9 @@ if options.contact:
     intended['contact_bridge.gd'] = ROOT/'native/tests/test_embedded_contact_godot.gd'
 if options.coupled:
     intended['coupled_bridge.gd'] = ROOT/'native/tests/test_fem_contact_godot.gd'
+if options.trajectory:
+    intended['trajectory_bridge.gd']=ROOT/'native/tests/test_fem_trajectory_godot.gd'
+    intended['trajectory_advance.gd']=ROOT/'native/tests/test_trajectory_advance_godot.gd'
 if not options.bridge_only:
     for name in subprocess.check_output(['git', 'ls-files', '--', 'godot'], cwd=ROOT, text=True).splitlines():
         source = ROOT/name
@@ -52,6 +57,9 @@ if not options.bridge_only:
     if options.contact:intended['embedded_contact.gd'] = ROOT/'godot/tests/test_embedded_contact_native.gd'
     if options.coupled:intended['embedded_coupled.gd'] = ROOT/'godot/tests/test_embedded_coupled_native.gd'
     if options.curved:intended['embedded_curved.gd'] = ROOT/'godot/tests/test_embedded_coupled_curved_native.gd'
+    if options.trajectory:
+        for name in ['scripts/recorded_body_pose.gd','tests/test_trajectory_pose.gd','tests/test_trajectory_transaction.gd','tests/fixtures/recorded-poses.json','tests/fixtures/operative-motion146-state.bin']:
+            intended[name]=ROOT/'godot'/name
 inputs = source_hashes([*intended.values(), Path(__file__).resolve()])
 for name, source in intended.items():
     destination = probe/name
@@ -68,6 +76,7 @@ destination = ROOT/'godot/reports'/('grasp-bridge-validation.json' if options.br
 if options.contact:destination = destination.with_name('contact-'+destination.name)
 if options.coupled:destination = destination.with_name('coupled-'+destination.name)
 if options.curved:destination = destination.with_name('curved-'+destination.name)
+if options.trajectory:destination = destination.with_name('trajectory-'+destination.name)
 if options.operative_blade:destination = destination.with_name('operative-blade-'+destination.name)
 destination.parent.mkdir(parents=True, exist_ok=True)
 stages = [('fresh_import', ['--editor','--import','--quit-after','35','--frame-delay','1000'], None),
@@ -85,6 +94,11 @@ if options.coupled:
     stages.append(('coupled_bridge', ['--script','res://coupled_bridge.gd'], 'Native coupled FEM Godot bridge: 0 failures'))
     if not options.bridge_only:stages.append(('embedded_coupled', ['--script','res://embedded_coupled.gd'], 'Embedded native coupled step: 0 failures'))
 if options.curved:stages.append(('embedded_curved', ['--script','res://embedded_curved.gd'], 'Embedded native curved coupled step: 0 failures'))
+if options.trajectory:
+    stages.append(('trajectory_bridge',['--script','res://trajectory_bridge.gd'],'Native trajectory FEM Godot bridge: 0 failures'))
+    stages.append(('trajectory_pose',['--script','res://tests/test_trajectory_pose.gd'],'Recorded trajectory pose: 0 failures'))
+    stages.append(('trajectory_transaction',['--script','res://tests/test_trajectory_transaction.gd'],'Trajectory step transaction: 0 failures'))
+    stages.append(('trajectory_advance',['--script','res://trajectory_advance.gd'],'Embedded trajectory advance: 0 failures'))
 if options.operative_blade:
     stages.append(('operative_contract',['--script','res://tests/test_operative_embedded.gd'],'Operative embedded contract: 0 failures'))
     stages.append(('operative_cut_geometry',['--script','res://tests/test_operative_cut_geometry.gd'],'Operative cut geometry: 0 failures'))
@@ -133,6 +147,10 @@ if report['qualified'] and not options.bridge_only:
         curved_metrics = probe/'reports/embedded-coupled-curved-metrics.json'
         report['curved_metrics'] = json.loads(curved_metrics.read_text())
         report['curved_metrics_sha256'] = sha256(curved_metrics)
+    if options.trajectory:
+        metrics=probe/'reports/trajectory-advance-metrics.json'
+        report['trajectory_metrics']=json.loads(metrics.read_text())
+        report['trajectory_metrics_sha256']=sha256(metrics)
 destination.write_text(json.dumps(report, indent=2), encoding='utf-8')
 print(json.dumps({'qualified':report['qualified'], 'report':str(destination), 'stages':report['stages']}, indent=2))
 raise SystemExit(0 if report['qualified'] else 1)
