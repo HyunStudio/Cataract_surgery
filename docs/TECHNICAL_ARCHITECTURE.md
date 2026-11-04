@@ -118,3 +118,30 @@ The shader's **visual-overlay draw pass** intentionally ignores depth occlusion 
 `gl_surgery.run()` now calls `visual_feedback(Game)` and `probe_surface(controller, feedback)` once per frame and hands the same read-only probe to `GPUEyePreview.render(surface_probe=...)` and `SurgeryHUD.set_frame_proximity()`. HUD painting never traverses the triangle BVH; it reads the prepared probe and validates active phase, live stylus position, camera yaw/pitch and safety status before displaying unitless model gap. This avoids the former second HUD-time proximity lookup and prevents stale marker text after game transitions.
 
 Regression spies prove two expected triangle-mesh lookups at probe preparation and zero further lookups during five HUD repaints. The visual result cannot drive procedural actions, replay, simulated complications or clinical interpretation. GPU marker draw remains a separate purely visual pass. This is an architectural optimization, **not measured wall-clock FPS or hardware 4K readiness**.
+
+
+## Frame-time measurement (2026-10-24)
+
+`frametime.FrameProfiler` keeps fixed-capacity deques for three closed sections: `frame` (interval between consecutive `render()` returns, i.e. buffer swaps), `probe` (`visual_feedback` + `probe_surface` + `SurgeryHUD.set_frame_proximity`) and `render` (`GPUEyePreview.render`, including HUD texture upload and `display.flip`). Statistics are computed only on demand; the benchmark loop keeps a running mean for its on-screen FPS so that sorting never perturbs the measured frames.
+
+`gl_benchmark.run_benchmark` reuses the interactive game's real pipeline (`Surgery3DController.inspect` → one `probe_surface` → shared `SurfaceProbe` for GPU marker and HUD) under a deterministic camera/hover script. `gl08_assessment` gates its verdict on renderer string, window size and duration and can only emit candidate statuses. All values are CPU-observed wall clock with uncontrolled vsync; they are not GPU timer queries.
+
+## HUD texture upload path (2026-10-24)
+
+`GPUEyePreview.draw_hud` paints into one cached `SRCALPHA` surface (reallocated only on window resize) and uploads it with `Texture.write(surface.get_view("1"))`. `hud_swizzle(bitsize, pitch, width, masks, byteorder)` maps each RGBA channel to its byte position in surface memory and sets `texture.swizzle` accordingly; it returns None for padded rows, non-32-bit surfaces or non-byte masks, which selects the explicit `tobytes(..., "RGBA", False)` copy. Because surface rows are top-first, the HUD quad's v coordinate is 1 at the bottom of the screen and 0 at the top. Both paths are required to produce identical framebuffers in the Mesa smoke test.
+
+## Logical-resolution HUD (2026-10-24)
+
+`draw_hud(view, fps, w, h)` receives window pixels, computes `scale = hud_scale(w, h)` and paints everything (veil, labels, `SurgeryHUD.draw`, selection marker) on a `(w // scale, h // scale)` surface. The HUD texture has that logical size; its sampling is LINEAR at scale 1 (unchanged output) and NEAREST when magnified. Overlays that hold window-pixel state implement `set_ui_scale(scale)`; `SurgeryHUD` divides its cursor position by it. 3D-projected HUD markers use `eye_to_pixel` with the logical width/height, which preserves aspect within one window pixel per scale step.
+
+## v2 architecture (2026-10-24)
+
+`engine.Game` is still the only authority. Everything else reads its state or sends it semantic actions:
+
+- `Rules` (difficulty) sets tolerances, the IOL threshold, the alert timeout, guides and automatic instrument choice.
+- `HAZARDS` maps scenarios to the phase whose entry triggers them (the leak hold fires on checklist completion).
+- `score_breakdown()` and `metrics()` are pure reads.
+- `ReplayGame` (schema v2) journals verify, tool and positional commands plus timed-hold ticks, so replays reproduce vetoes exactly.
+- `report.py` derives all user-facing explanations, timelines and CSV files from engine events, so screens and exports cannot disagree.
+- `autosave.py` reuses the verified replay as the recovery point.
+- `app.py` (2.5D) and `gl_surgery.py` (3D) share `i18n.py` strings and the same engine rules. 3D picking for IOL re-centring uses the IOL stage depth, gated by the engine's `_decentered` state.

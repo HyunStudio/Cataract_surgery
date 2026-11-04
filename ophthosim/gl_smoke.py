@@ -46,7 +46,7 @@ def main() -> int:
                 raise AssertionError("Triangle BVH did not pick the intended lens")
             if not all(-1e-9 <= b <= 1.+1e-9 for b in center.barycentric):
                 raise AssertionError("Invalid lens triangle barycentric coordinates")
-            frame = atlas.render(view, 60., capture=True)
+            frame = atlas.render(view, None, capture=True)
             if not frame or len(frame) != 800 * 600 * 3:
                 raise AssertionError("OpenGL framebuffer readback invalid")
             # Nonblank image check: a gradient/colored scene should span
@@ -109,14 +109,18 @@ def main() -> int:
         for i in range(20):
             view.yaw = -.5 + i/20
             start = time.perf_counter()
-            atlas.render(view, 60.)
+            atlas.render(view, None)
             durations.append((time.perf_counter()-start)*1000)
-        print(json.dumps({"status":"software-opengl-smoke-passed",
-                          "renderer":atlas.ctx.info.get("GL_RENDERER","unknown"),
+        from .frametime import is_software_renderer
+        renderer = atlas.ctx.info.get("GL_RENDERER","unknown")
+        kind = "software" if is_software_renderer(renderer) else "hardware"
+        print(json.dumps({"status":f"{kind}-opengl-smoke-passed",
+                          "renderer":renderer,
+                          "renderer_kind":kind,
                           "version":atlas.ctx.version_code,
                           "frames":records,
                           "mean_frame_ms":round(statistics.mean(durations),2),
-                          "claim_windows_gpu_tested":False},
+                          "claim_windows_gpu_tested":sys.platform == "win32" and kind == "hardware"},
                          sort_keys=True))
         return 0
     except Exception as exc:

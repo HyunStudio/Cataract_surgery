@@ -95,7 +95,8 @@ def build_preview(phase: str, opacity: float, alignment: float,
     if not 0 <= opacity <= 1 or not 0 <= alignment <= 1:
         raise ValueError("Normalized state required")
     if phase not in {"PREOP", "ANESTHESIA", "ENTRY", "CAPSULE",
-                     "PHACO", "CORTEX", "IOL", "CLOSE", "RECOVERY", "ABORTED"}:
+                     "PHACO", "CORTEX", "IOL", "CLOSE", "RECOVERY", "ABORTED",
+                     "FAILED"}:
         raise ValueError("Unknown phase")
     meshes = preview_meshes()
     iol = phase in {"IOL", "CLOSE", "RECOVERY"}

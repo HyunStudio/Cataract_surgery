@@ -61,6 +61,7 @@ def test_waveform_does_not_depend_on_global_random_state():
 def test_alert_synthetic_patient_state_maps_to_display():
     from ophthosim.engine import Game, Phase
     g = Game("motion")
+    for _check in ("identity", "site", "iol_plan"): g.action("verify", _check)
     g.action("confirm")
     g.action("prepare")
     for x,y in g._entry_target:

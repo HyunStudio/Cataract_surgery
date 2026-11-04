@@ -5,10 +5,12 @@ import random
 
 import pytest
 
+from surgeon_helpers import use
 from ophthosim.engine import Game, Phase
 
 
 def enter_capsule(game):
+    for _check in ('identity', 'site', 'iol_plan'): game.action('verify', _check)
     assert game.action('confirm')
     assert game.action('prepare')
     assert game.phase == Phase.ENTRY
@@ -27,12 +29,18 @@ def trace_capsule(game):
 def finish(game):
     enter_capsule(game)
     trace_capsule(game)
-    for _ in range(40):
+    use(game, 'hydro_cannula')
+    for _ in range(600):
+        if game.phase != Phase.PHACO:
+            break
         game.action('remove', .5, .5)
     assert game.phase == Phase.CORTEX
-    for _ in range(40):
+    for _ in range(600):
+        if game.phase != Phase.CORTEX:
+            break
         game.action('remove', .5, .5)
     assert game.phase == Phase.IOL
+    use(game, 'ovd_cannula')
     assert game.action('place',.51,.51)
     assert game.phase == Phase.CLOSE
     for name in ('alignment','wound','handoff'):
@@ -105,6 +113,7 @@ def test_safe_abort_is_available():
     assert game.action('abort')
     assert game.ending=='SAFELY ABORTED'
     assert game.phase==Phase.ABORTED
+    for _check in ('identity', 'site', 'iol_plan'): game.action('verify', _check)
     assert not game.action('confirm')
 
 
@@ -138,6 +147,9 @@ def test_capsule_event_recommends_abort():
     game.tick(.016)
     assert game.patient.alert=='CAPSULE INTEGRITY'
     assert game.action('assess')
+    # Recognised; the surgeon now decides: call senior help or stop safely.
+    assert game.pending==['CAPSULE INTEGRITY']
+    assert game.action('abort')
     assert game.phase==Phase.ABORTED
     assert game.ending=='SAFELY ABORTED'
 
@@ -162,7 +174,7 @@ def test_export_json_lines_valid_and_consistent():
     game=Game();finish(game)
     events=[json.loads(line) for line in game.export_jsonl().splitlines()]
     assert len(events)==game.event_count()
-    assert all(event['schema_version']==1 and event['seed']==7 for event in events)
+    assert all(event['schema_version']==Game.VERSION==3 and event['seed']==7 for event in events)
     assert events[-1]['kind']=='ending'
     assert events[-1]['phase']=='RECOVERY'
 
@@ -230,6 +242,7 @@ def test_case_boundary_invariants_and_extreme_invalid_actions():
 def test_score_starts_at_zero_and_requires_completion():
     game=Game()
     assert game.score()==0
+    for _check in ('identity', 'site', 'iol_plan'): game.action('verify', _check)
     game.action('confirm')
     assert game.score() < 20
     completed=Game()

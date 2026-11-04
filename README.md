@@ -1,6 +1,6 @@
 # Cataract Surgery Simulator — OphthoSim-AI
 
-**Source update (2026-11-04):** Curved ocular lighting and a batched branching
+**Source update (2026-11-04):** Guarded axial instrument rotation (Z/C), recorded roll,189 native numerical-boundary checks and35 focused engine regressions are now implemented. These component checks do not establish a complete operation or a new Godot Windows release. Curved ocular lighting and a batched branching
 vascular mesh are implemented, with focused11-suite checks and actual GPU static
 view comparisons. This source update is not yet included in a newly qualified
 Windows release. Complete surgery and interactive mechanics remain unfinished;
@@ -33,291 +33,268 @@ powershell -ExecutionPolicy Bypass -File tools/run-godot.ps1 -Game
 
 The Python/ModernGL edition and its historical progress follow below. Godot has its own independent tests and replay format. This is a playable stylized educational game; physically accurate tissue mechanics, photorealism and clinical training validation are not claimed.
 
+
 ---
 
-**Status:** Playable 2.5D prototype + experimental *interactive* ModernGL 3D synthetic surgery mode (2026-10-13). The full 32-work-package product, medical realism and Windows GPU QA are **not complete**.
+## Python educational edition
 
-An open-source, educational **2.5D-to-3D cataract microsurgery simulator** built around Python, Pygame for UI/input, and an optional hardware-accelerated 3D renderer. The project models a complete *abstracted* cataract surgery encounter: patient preparation, topical anesthesia and monitoring, microscope navigation, corneal entry, capsular task, cataract removal, residual material cleanup, intraocular lens (IOL) placement, wound assessment, recovery, and result scoring.
+An open-source, **educational and research** cataract microsurgery game written in
+Python. You play a complete *abstracted* encounter from pre-operative verification to
+the explained results screen, in a 2.5D microscope view or an experimental
+hardware-accelerated 3D view, with a synthetic patient chart and monitor, fifteen
+instruments chosen for the situation, bleeding, thirteen deterministic scenarios, three
+difficulty levels, Korean/English UI and replayable research logs.
 
-## Documentation
-- [Product and gameplay specification (Korean)](docs/PRODUCT_SPEC_KO.md)
-- [Visual and interaction design (Korean)](docs/VISUAL_DESIGN_KO.md)
-- [3D rendering and technical architecture](docs/TECHNICAL_ARCHITECTURE.md)
-- [32-work-package roadmap](docs/ROADMAP.md)
-- [Research and evaluation plan](docs/RESEARCH_PLAN.md)
-- [Safety, realism and limitations](docs/SAFETY.md)
-- [Windows ModernGL GPU validation checklist](docs/GPU_VALIDATION_CHECKLIST.md)
-- [Interactive 3D surgical prototype setup and controls (Korean)](docs/INTERACTIVE_3D_USAGE_KO.md)
+> **Not a medical device and not surgical training.** Every value, waveform,
+> complication and score is synthetic game feedback. The procedure order and the
+> instrument for each situation follow real cataract surgery, but there are no drug
+> doses or device energy/vacuum/flow settings. See [Safety](docs/SAFETY.md).
 
-## Quick start (Windows / Python 3.12+)
+![3D operating room gallery rendered on an RTX 3070](docs/evidence/2026-10-24-windows-rtx3070/or_gallery_ko.jpg)
+
+Screenshots of every screen are produced by CI (`build/screenshots/` artifacts of the
+*Tests* and *Software OpenGL Smoke* workflows).
+
+## Quick start (Windows, Python 3.12+)
 
 ```powershell
 python -m pip install -r requirements.txt
-python main.py
-# optional: python main.py --case motion --seed 42 --scale 1.5
+python main.py                                   # 2.5D game
+python main.py --case motion --difficulty hard --lang ko
+python main.py --resume                          # continue the autosaved case
+
+python -m pip install -r requirements-3d.txt
+python -m ophthosim.gl_surgery --case decenter   # experimental 3D game (OpenGL 3.3)
 ```
 
-Keys: **1–4** select a synthetic case on the first screen; **Space** confirms pre-op/anesthesia screens; **left-click** marked approach targets; **left-drag** the guide ring for capsular task; **hold left mouse** in the lens field for removal/cleanup; **left-click** central marker for IOL alignment; **left-click** final safety checks. **A** assesses a monitor alert, **X** safe-aborts, **Esc** pauses, **R** restarts, and **E** exports synthetic JSONL data after an ending.
+Korean step-by-step guide: [사용자 가이드](docs/USER_GUIDE_KO.md).
+Submission-readiness review: [출품 준비 검수](docs/SUBMISSION_REVIEW_KO.md).
+Windows folder-build instructions and current limits:
+[Windows 실행본](docs/WINDOWS_DESKTOP_KO.md). The new shared entry point is
+`python desktop.py` (Korean 3D by default; `--mode 2d` selects 2D).
 
-The game contains a procedural illustrated 2.5D eye and synthetic HR/BP/SpO2 displays. **It is not yet a real 3D surgical trainer**. For test commands and caveats see [test report](docs/TEST_REPORT.md) and [implementation progress](docs/PROGRESS.md).
+## The encounter
 
-## Visual direction
-A **microscope-first** interface with a visually realistic iris/cornea/lens, coupled to a synchronized cross-sectional depth view. Patient vital signs and a small anesthesia status panel occupy the periphery, not the operative field. A 2.5D vertical slice comes first; optional 3D meshes, camera orbit and shader-based effects are introduced behind a stable renderer interface. See the visual design document for layout, typography, accessibility and feedback specifications.
+1. **Pre-op review** — read the synthetic patient chart (age, conditions, drug classes,
+   baseline vitals) and tick identity, operative site and planned IOL.
+2. **Anesthesia & preparation** — confirm readiness (no medication actions).
+3. **Entry** — main incision with the keratome, two side ports with the side-port knife,
+   then viscoelastic (OVD, `V`) to deepen the chamber.
+4. **Capsulorhexis** — cystotome/forceps along the circular guide. Without OVD the safe
+   band narrows; pulling outwards makes the rhexis run out (**rhexis tear**).
+5. **Hydrodissection** (`D`) and **phaco**, then 6. **I/A cortex cleanup** — work inside
+   the working field; skipping hydrodissection or working at the edge builds *tissue
+   stress* that can tear the posterior capsule.
+7. **IOL** — viscoelastic in the bag, then the injector near the optical centre.
+8. **Final checks** — alignment, wound, handoff.
+9. **Results** — explained score, ending and event timeline.
 
-## Intended gameplay sequence
-1. Preoperative verification and scenario selection
-2. Anesthesia and patient preparation (abstracted)
-3. Microscope alignment and surgical entry
-4. Capsular access and circular precision challenge
-5. Simulated lens fragmentation and removal
-6. Residual lens material cleanup
-7. Foldable IOL insertion, unfolding and alignment
-8. Wound integrity checks and handoff
-9. Recovery and performance report
+### Instruments
 
-Events may include patient motion/anxiety, unstable view, capsular damage, posterior capsule rupture, corneal haze, IOL decentration, wound leak and vital sign alerts. **Recognizing and safely stopping** may be the successful response; the game will not reward proceeding through unsafe situations.
+Nine procedure instruments (keratome, side-port knife, OVD cannula, cystotome, forceps,
+hydrodissection cannula, phaco, I/A, IOL injector) and six situation instruments (IOL
+hook, iris hooks, capsular tension ring, cautery, irrigation, suture). In tutorial and
+standard the scrub nurse hands you the stage instrument; situation instruments are
+always your choice (tray or `T` / `Shift+T`). Using an instrument that does not fit
+the situation is rejected and costs safety points.
 
-## Implemented stack and proposed extensions
-- Python 3.12; Pygame (application/UI, desktop inputs)
-- NumPy for deterministic geometry and synthetic signals
-- Pygame 2.5D interactive surgery and CPU 3D anatomy preview (implemented)
-- Separate **experimental** ModernGL GPU atlas demo (code implemented, real Windows GPU execution **unverified**)
-- Blender-authored original assets or appropriately licensed models
-- pytest, typed models, deterministic scenario seeds, CSV/JSONL logs
-- Windows target, 1080p native UI with scalable 4K support
+### Complications and how they are managed
 
-## Research goals
-Investigate simulated interaction metrics and accessibility adaptation: track cursor/tool path efficiency, near-miss events, task time, visibility interventions and complication recognition time. Evaluate against simple baseline strategies and distinguish internal synthetic results from validated clinical claims. See [research plan](docs/RESEARCH_PLAN.md).
+A complication first raises a **safety hold** (`A` assess or `X` stop safely). After
+assessing it stays *pending* until you manage it with the right instrument at the
+right place. Only the tutorial names that instrument. Continuing the task through a
+**major** complication is a failure.
 
-> **Educational and research prototype only.** No clinical procedural instructions, drug dosing, tool power settings or real-patient treatment recommendations. Not a medical device, surgical training certification tool or validated physiologic model. All numbers in the simulation are synthetic until independently validated.
+| # | Case | Synthetic event | Manage with |
+|---|---|---|---|
+| 1 | normal | none | — |
+| 2 | motion | patient moves during the rhexis | assess (vitals settle) |
+| 3 | vitals | monitor alarm during phaco | assess |
+| 4 | capsule | posterior capsule rupture (**major**) | `B` call senior (sulcus IOL) or `X` |
+| 5 | pupil | pupil constriction (diabetes) | iris hooks at the pupil margin |
+| 6 | haze | corneal haze (Fuchs) | assess |
+| 7 | decenter | IOL decentration | IOL hook at the centre |
+| 8 | leak | wound leak at the final check | suture at the main incision |
+| 9 | iris | iris prolapse (alpha-blocker) | iris hooks; ignored → iris trauma → hyphema |
+| N | zonules | zonular weakness (pseudoexfoliation) | CTR; ignored → dialysis → capsule rupture |
+| N | bleed | incision bleeding (anticoagulant) | cautery at the incision |
+| N | hyphema | blood layering in the chamber, grows while ignored | irrigation |
+| N | sch | suprachoroidal haemorrhage (**major**): red reflex lost | suture the wound; the case stops safely |
+| N | random | one of the above, drawn from the seed and logged | — |
 
-## Review v1.2 — development guardrails
-The reviewed specifications now define a 2.5D playable MVP before 3D polish, explicit stage guards and safe-abort branches, seeded exceptions, deterministic session replay, acceptance tests, input/camera collision handling, and predeclared research metrics. **True 3D remains conditional on a Windows ModernGL interoperability/performance spike (WP04), not an implemented or guaranteed capability.**
+Technique can also cause complications: a run-out rhexis (**rhexis tear**, managed
+with OVD) that extends into a capsule rupture if you carry on. Anticoagulated patients
+bleed more. Vital signs drift towards each patient's baseline.
 
-## Deterministic test replay (implemented, educational only)
+### Difficulty (`D` on the pre-op screen)
 
-When an interactive case ends, press `E`. The game saves two synthetic JSONL files in `session_logs/`: `case_<scenario>_seed_<seed>.jsonl` (state/event trace) and `case_<scenario>_seed_<seed>.replay.jsonl` (accepted and state-changing rejected semantic input commands with run-length-compressed simulation ticks). Replay is an analysis tool, not an animated playback UI.
+| | tutorial | standard | hard |
+|---|---|---|---|
+| Target tolerances | wide | baseline | narrow |
+| Guides (ghost rings) | yes | yes | no |
+| Stage instrument | handed over | handed over | choose (`T`) |
+| Managing instrument named | yes | no | no |
+| IOL acceptance | ≥ 55 % | ≥ 65 % | ≥ 75 % |
+| Unattended alert limit | none | 30 s | 15 s |
 
-A replay can be independently checked using:
+### Endings and score
 
-```python
-from pathlib import Path
-from ophthosim.replay import ReplayGame
+Five endings: **Simulation complete**, **Complication managed**, **Complication
+unresolved** (the case finished with a complication left unmanaged), **Safely aborted**
+(a positive outcome, not a failure) and **Critical failure** (an unattended safety hold
+past the limit, or carrying on through a major complication).
 
-raw = Path("session_logs/case_normal_seed_7.replay.jsonl").read_text(encoding="utf-8")
-session = ReplayGame.replay_jsonl(raw)
-print(session.phase.value, session.score(), session.ending)
-```
+The 100-point score is explained on the results screen. Each category is earned only
+once that part has been evaluated:
 
-Integrity includes command-journal and resulting event/snapshot SHA-256 digests. These catch accidental or unsanctioned edits **but do not authenticate authorship** without digital signatures. Raw mouse trajectories, clinician assessments and real patient data are not captured. Unrepresentable replay captures fail closed rather than silently export incomplete traces.
+| Category | Max | Basis |
+|---|---|---|
+| Stage completion | 20 | stages completed of 7 |
+| Tissue protection | 25 | capsule integrity minus near-miss penalty |
+| IOL position | 20 | final alignment |
+| Complication response | 20 | recognition latency per alert (full credit ≤ 3 s), halved if left unmanaged |
+| Patient safety | 15 | 0 on failure or an unresolved complication; deductions for technique (no OVD / hydrodissection), wrong instruments and stress warnings |
 
-## Next milestone
-**WP04:** Execute the now-playable experimental 3D synthetic surgery viewport on an actual Windows desktop, check shader compilation and HUD/depth accuracy, and benchmark rendering before treating the 3D backend as production-ready. CI validates source/CPU geometry and SDL dummy rendering but does not GPU-benchmark it.
+The weights are game-design hypotheses, not a validated skill measure.
 
-## License
-See repository [LICENSE](LICENSE); external assets must have their own documented provenance and compatible redistribution permissions.
+## Controls
 
-## 3D geometry prototype (not yet rendered)
-The dependency-free `ophthosim/geometry.py` now generates bounded procedural **sclera, iris, crystalline lens, IOL and cornea** meshes with vertex normals and triangle indices. It also implements ray/sphere intersection for future depth-aware tool picking. This is normalized graphical geometry — **not** validated ocular anatomy, a surgical instrument simulator, or real-time 3D rendering. See the technical architecture and test suite for the GPU renderer gate.
+| 2.5D (`python main.py`) | |
+|---|---|
+| Mouse | stage task, or use the held situation instrument / checklists / instrument tray |
+| Space | next pre-op item → start → prepare |
+| 1–9, N, D | case, next case, difficulty (pre-op only) |
+| T / Shift+T | next / previous instrument |
+| V, D, B | viscoelastic, hydrodissection (phaco), call senior help |
+| A / X / Esc | assess alert / safe abort / pause |
+| Wheel or + −, [ ], , . | microscope zoom (locked while dragging), focus, illumination |
+| L, H, C, M, S, F1 | language, high contrast, colour-safe palette, reduced motion, sound, help |
+| G | CPU 3D mesh preview (read-only) |
+| E, R | export logs, restart |
 
-## Standalone replay verification
-After exporting a session, check it without launching Pygame:
+The 3D game (`python -m ophthosim.gl_surgery`) uses the same engine and keys for the
+procedure, plus arrows to orbit, Q/E for tool depth, F3 for frame time and S to export.
+Complications, bleeding and the devices used to manage them are drawn in both views.
+`C` cycles from the operating microscope to a 3D **operating room**: the view through
+the eyepieces, the whole theatre, the surgeon's view and the video monitor. The room has
+the draped patient, a floor-stand microscope, a surgeon whose gloved hands hold the
+current instrument, a scrub nurse, an instrument tray with all 15 instruments, and live
+vital-signs, phaco and video displays. Mouse surgery stays in the microscope view.
+`python -m ophthosim.or_gallery` renders all ten panels of the
+[room concept](docs/V4_OPERATING_ROOM_3D_PLAN_KO.md) to `build/or_gallery/`.
+Licensed OBJ models in `assets/models/` can replace the procedural eye
+([format](assets/models/README.md)).
+
+## Research and data
+
+Every session is deterministic for a given case, seed and difficulty. **E** (2.5D) or
+**S** (3D) writes these files to `session_logs/`:
+
+- `*.jsonl` — the event trace
+- `*.replay.jsonl` — the command journal with SHA-256 integrity
+- `*.events.csv` and `*.metrics.csv`
+- `*.report.json` — the explained score and timeline in the chosen language
 
 ```bash
-python -m ophthosim.verify_replay session_logs/case_normal_seed_7.replay.jsonl
+python -m ophthosim.verify_replay session_logs/case_normal_standard_seed_7.replay.jsonl
+python -m ophthosim.experiments examples/experiment_demo.json --out build/experiments/demo
 ```
 
-A verified replay reports its synthetic ending, score and simulation step count. Invalid, tampered or missing files return a nonzero status.
+The experiment runner plays scripted synthetic agents (ideal, careless, slow,
+unresponsive) over case × difficulty × seed grids. It writes a metrics CSV, a JSONL
+file of runs and a summary, and verifies every replay. The demo config runs 192
+sessions in about a second. The metrics are:
 
-## Interactive 3D anatomy preview (implemented, CPU-rendered)
+- phase times
+- near misses
+- rejected inputs and wrong-tool uses
+- action path length
+- IOL attempts and pauses
+- alert-recognition latency
 
-Press **G** during gameplay to switch between the interactive 2.5D surgical scene and a **non-interactive 3D mesh anatomy preview**. In preview mode press **J/L** to yaw left/right and **I/K** to tilt; press **G** again to resume 2.5D interaction. Preview mode deliberately blocks surgical mouse actions to avoid mapping 3D projection pixels into the 2D task coordinates.
+Agents validate the instrument only; they say nothing about human performance. See the
+[research plan](docs/RESEARCH_PLAN.md).
 
-This uses cached normalized 3D iris, lens/IOL and corneal dome meshes, real 3D rotation and perspective projection, back-face selection and painter sorting. **Triangles are rasterized by Pygame on the CPU. It is not a ModernGL/GPU renderer, does not provide 3D tool picking, and must not be described as completed 3D surgery.** Model state drives which synthetic lens is visible. Run `python -m pytest -q` to validate projection and mode isolation.
+Autosave: both apps keep `session_logs/autosave.replay.jsonl` up to date on every
+phase change and on quit, and `--resume` rebuilds the exact state from the verified
+journal. Tampered autosaves are rejected.
 
-CI evidence for the increment: [GitHub Actions run 38272300713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38272300713) — Python 3.12/3.13 jobs green; 116 tests on Python 3.12. Hardware GPU/Windows validation still outstanding.
+## Accessibility
 
-## Experimental hardware-accelerated atlas (new, not a 3D surgical game)
+- Korean and English UI. On Windows the Korean UI uses Malgun Gothic.
+- High-contrast and Okabe-Ito colour-safe palettes. No state is conveyed by colour
+  alone.
+- Reduced motion freezes animations without hiding alerts.
+- Alerts are non-flashing, with an optional gentle tone and a text equivalent.
+- Microscope zoom.
+- The 3D HUD scales by an integer factor at 1440p and 4K.
+- Alert timers are disabled in tutorial mode.
 
-An opt-in ModernGL shader renderer is now available as a separate feasibility demo:
+## Performance tools (3D)
 
 ```powershell
-python -m pip install -r requirements-3d.txt
-python -m ophthosim.gl_preview --check   # CPU mesh validation, **not** a GPU check
-python -m ophthosim.gl_preview           # attempts real OpenGL 3.3 context
+python -m ophthosim.gl_benchmark --seconds 60 --size 1920x1080             # GL08 frame time
+python -m ophthosim.gl_benchmark --seconds 300 --scene-switch-every 120    # GL07 memory
 ```
 
-Orbit with arrow keys, zoom with +/- and switch between cloudy lens / simulated IOL with Space. The Pygame 2.5D surgical game remains under `python main.py`. The GPU atlas cannot perform surgery, tool picking, tissue deformation, or provide clinically valid optical realism. Follow the [GPU validation checklist](docs/GPU_VALIDATION_CHECKLIST.md) on a real Windows machine before claiming hardware rendering support.
+Reports record mean, P50, P95 and P99 frame times, the cost of the proximity query
+and of the render call, and the host-memory trend with a late-half slope. They also
+record the OpenGL renderer strings. Software renderers are never counted as hardware
+evidence. The HUD texture is uploaded zero-copy. See the
+[GPU validation checklist](docs/GPU_VALIDATION_CHECKLIST.md).
 
-## Shared synthetic ECG and pulse monitor (new)
+## Status
 
-The game's synthetic ECG and pulse waveform shapes now change with the same in-game heart-rate state displayed in the monitor. No vital signs are measured and the schematic curves have **no diagnostic or clinical physiological interpretation**. Automated GUI tests check that two simulated heart rates produce different rendered waveforms.
+| Area | State |
+|---|---|
+| Full 2.5D game: 13 scenarios, 15 instruments, bleeding, patient profiles, 3 difficulties, 5 endings, explained score, KO/EN, accessibility, autosave | **Implemented and tested** (876 automated tests on Windows) |
+| 3D game with the same engine, complication/bleeding signs, 3D operating room (5 views, gallery) | Implemented; GPU smoke and gallery passed on Windows 11 / RTX 3070 |
+| Windows GPU (GL01–GL10) | NVIDIA RTX 3070: automated checks pass; AMD Radeon target and human sign-off **open** ([checklist](docs/GPU_VALIDATION_CHECKLIST.md)) |
+| Clinical plausibility and educational value | **Open** — needs subject-matter-expert review |
+| Vitreous event, deformable tissue physics | Out of scope for v1.x (spec "advanced") |
 
-[Latest tested CI run](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38318581035): Python 3.12/3.13 jobs success; **167 tests** passed on 3.12. GitHub CI runs without a physical monitor, GPU, or clinical evaluation.
+See the [32-work-package status](docs/ROADMAP.md#implementation-status-2026-10-24) and the
+[development log](docs/CHANGELOG.md).
 
-## Linux software OpenGL smoke: verified (2026-10-13)
+## Project layout
 
-An isolated GitHub Actions workflow [Software OpenGL Smoke, run 38319493162](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319493162) successfully created an OpenGL context using **Mesa llvmpipe**, compiled the ModernGL scene/HUD shaders, performed read-only 3D iris ray picking, rendered synthetic cataract and IOL states, read back the framebuffer and generated distinct PNG screenshots. Reported software renderer: `llvmpipe (LLVM 20.1.2, 256 bits)`, OpenGL version 4.5. Two [PNG screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38319493162/artifacts/11779035082) are attached to the run.
-
-**What it does not prove:** performance on the author's Windows AMD GPU, clinical fidelity, a finished 3D surgery game, GPU-based tissue simulation or actual operating-room training value.
-
-In the standalone 3D atlas `python -m ophthosim.gl_preview`, left-click the iris or lens/IOL to inspect its synthetic surface label and ray depth; arrow keys orbit, +/- zoom, Space switches lens/IOL. This is read-only; normal surgical tasks remain in `python main.py`. The 3D depth picking coordinates are tested against the same projection/rotation mathematics used in GLSL.
-
-## Experimental interactive 3D surgery (implemented, still non-clinical)
-
-The **separate** ModernGL game now shares the proven 2.5D surgery state machine, deterministic replay, synthetic patient monitor and safety gates. It uses camera-correct 3D ray/plane mapping, stage-specific synthetic tool depth, visual guide targets, educational cataract lens color changes and IOL offset feedback. **This is an interactive 3D educational prototype, NOT accurate tissue collision, physical optics or a validated surgery trainer.**
-
-```powershell
-python -m pip install -r requirements-3d.txt
-python -m ophthosim.gl_surgery --case normal --seed 7
+```
+ophthosim/
+  engine.py           phase machine, rules, hazards, endings, score breakdown, metrics
+  replay.py           deterministic command journal + integrity-checked replay (schema v3)
+  report.py           explained report, timeline, CSV/JSON export
+  experiments.py      scripted synthetic agents and batch runs
+  autosave.py         verified recovery points
+  i18n.py             Korean/English strings
+  app.py              2.5D Pygame game
+  gl_surgery.py       experimental ModernGL 3D game (+ input3d, contact3d, tool3d,
+                      iol3d, capsule3d, complication3d, vision3d, surface_probe3d …)
+  assets.py           optional licensed OBJ models (licence manifest required)
+  room3d.py           procedural operating room, instruments, people, cameras
+  screens3d.py        in-room displays (vitals, phaco, video, eye texture)
+  gl_room.py          room renderer (lit shader, MSAA); or_gallery.py panel renders
+  gl_preview.py       3D anatomy atlas and renderer
+  gl_benchmark.py     frame-time / memory benchmark; frametime.py statistics
+tests/                876 headless, SDL-dummy and GUI tests
+docs/                 specs (KO), architecture, roadmap, safety, research, GPU checklist
 ```
 
-Controls: **Space** next preop/anesthesia stage, **mouse** entry/capsular tracing/lens clearing, **a fresh click** for IOL placement, **1–3** final safety checks, **arrows** orbit, **+/-** zoom, **Q/E** tool depth, **A** acknowledge synthetic patient warning, **X** safe abort, **Esc** pause, **R** restart, **S** export results/replay after the end. The standard 2.5D game is still launched with `python main.py`. See [complete Korean guide](docs/INTERACTIVE_3D_USAGE_KO.md).
+## Documentation
 
-**Verified in CI:** [Python tests run 38334178228](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334178228), **245 tests passed on Python 3.12 and successful Python 3.13 matrix**. [Mesa OpenGL run 38334142433](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433) exercised two synthetic cases, a complete end-to-end surgical game replay, safe abort and eight distinct rendered frames including mid-phaco visual change. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38334142433/artifacts/11783937737). Windows physical GPU/4K performance is still unverified.
+- [사용자 가이드 (한국어)](docs/USER_GUIDE_KO.md)
+- [3D 실행·조작 안내](docs/INTERACTIVE_3D_USAGE_KO.md)
+- [Product spec (KO)](docs/PRODUCT_SPEC_KO.md)
+- [Visual design (KO)](docs/VISUAL_DESIGN_KO.md)
+- [Technical architecture](docs/TECHNICAL_ARCHITECTURE.md)
+- [Roadmap & WP status](docs/ROADMAP.md)
+- [Test report](docs/TEST_REPORT.md)
+- [Progress](docs/PROGRESS.md)
+- [Safety](docs/SAFETY.md)
+- [Research plan](docs/RESEARCH_PLAN.md)
+- [GPU validation checklist](docs/GPU_VALIDATION_CHECKLIST.md)
+- [Development log](docs/CHANGELOG.md)
 
+## License
 
-## 3D synthetic instrument visualization (2026-10-13)
-
-The interactive GPU 3D surgery prototype now draws a **cached tapered synthetic stylus mesh** in the world coordinates of the most recent validated procedure input. The 3D mesh follows the controller's normalized tool position and educational depth plane; it is **not** a real surgical instrument model, physical collision object, or source of state changes. The tool is hidden when there is no valid pose, during safety hold/pause, after an ending, or when the pose no longer matches the active depth.
-
-The stylus is drawn as a clear **visual overlay** to avoid misleadingly disappearing behind transparent display anatomy; its occlusion therefore does not model optical or tissue physics. The existing strict ReplayGame drives tasks and records replay deterministically.
-
-[Verified 274-test CI](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940393) (Python 3.12/3.13 jobs succeeded); [Mesa OpenGL integration run](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38335940404) confirms real framebuffer pixel change when the 3D stylus appears, nine synthetic screenshots, normal completion, motion-alert safe stop and replay consistency. This is Linux software rasterization only. Windows GPU/4K and clinical assessments are **not** validated.
-
-
-## Synthetic foldable IOL visual sequence (2026-10-13)
-
-The **interactive 3D synthetic cataract game** now uses `ophthosim/iol3d.py` to construct a cached optic with two stylized curved haptics. A vertex-shader-only deformation compresses the model during the IOL stage; after a successful simulated placement, it smoothly unfolds over **1.5 seconds of simulation time**, not wall-clock time. Pausing the game freezes the animation; finishing Recovery displays the final deployment. Scoring, safety holds, patient state and the deterministic replay format are unaffected.
-
-**Visual accuracy warning:** The model and unfolding timeline are artistic educational abstractions, not validated IOL mechanical/material behavior or clinical insertion guidance. The ophthalmic eye geometry is not a medical model.
-
-A stricter Linux Mesa software-OpenGL test now hashes a **center-of-eye crop excluding the HUD** so changing deployment text alone cannot pass for visible unfolding. This revealed an existing bug: an opaque closed scleral globe was covering the iris and lens. The sclera now renders as a **depth-test-free background**, while iris and lens use normal scene depth testing. The repaired renders visibly show iris, pupil and simulated IOL; they are not physiologically accurate corneal optics.
-
-[Verified Python 3.12/3.13 CI (289 tests each)](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153815) and [Mesa OpenGL screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38337153811/artifacts/11785108404). **Actual Windows Radeon GPU performance, detailed mesh realism, force interaction and clinical validation remain open.**
-
-
-## Synthetic capsule integrity visualization (2026-10-13)
-
-The interactive 3D game now displays a stylized pupil-centered **intact green/teal ring** or a **discontinuous red damaged ring**, driven exclusively by the existing `Game.eye.capsule_integrity` and appropriate stage visibility. The meshes are cached per OpenGL context; the display cannot affect progression, replay or complication decisions. In the deterministic `capsule` case, the capsule integrity event pauses surgery; assessing the warning causes a safe abort, with the damage indicator retained.
-
-**Educational illustration only:** this is not a clinically accurate capsule location, rupture geometry, mechanical tear simulation, surgical rescue guidance or medical-device validation. The indicator is deliberately positioned for visibility in the simplified pupil view.
-
-[Python 3.12/3.13 CI: 335 tests each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000372), including malformed numerical state, cache/mesh integrity and 3 scenario safety checks. [Mesa llvmpipe OpenGL CI](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377) validates different *central-eye* pixels (HUD excluded) for intact and injured capsule, and completes full normal, motion and capsule-injury scenarios. [Synthetic screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38338000377/artifacts/11785910265). Physical Windows GPU/4K validation and medical specialist review remain open.
-
-
-## Synthetic movement and haze feedback / accessibility (2026-10-13)
-
-The *separate interactive 3D prototype* now reads existing synthetic patient motion, game phase, opacity and cortex state through `ophthosim/vision3d.py`. Its camera-plane eye translation and frosted-view HUD veil are **visual metaphors only**; they are not physical eye tracking, simulated clinical optics, predictive physiology, or an input to the surgical collision/score engine. Motion is bounded and deterministic from **simulation time**, freezes during a safety hold, and never adds flashing or strobe animations.
-
-- Press **M** in the 3D prototype to disable eye-motion displacement (reduced motion); warning text, pausing and safety locks remain fully active.
-- Press **H** for an additional bright static high-contrast microscope outline. Both settings are purely local display choices.
-- Synthetic opacity/cortex clearing reduces the veil in active procedural phases. The view remains clinically unvalidated and the 2.5D fallback is unchanged.
-
-**Verified:** [Python 3.12 and 3.13, 395 tests each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531317); [Mesa Linux software OpenGL full integration](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344), showing distinct **center-eye** pixels for scene motion and haze and visual differences with reduced motion under the same patient-motion safety hold. [Captured screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38340531344/artifacts/11785993260). Windows Radeon hardware GPU, 4K monitor testing, contrast accessibility audit and clinical review remain **unverified**.
-
-
-## Stage-aware 3D educational contact guide (2026-10-13)
-
-Interactive 3D mode now includes a **read-only hover/contact guide** with a retained GPU world-space indicator ring. It evaluates the existing normalized stage targets, controller tool depth and patient safety state. Green = active target, blue = already visited, amber = near target. The exact state also appears as text in the HUD for non-color-only feedback. Wrong depth, offscreen misses, inactive phases, alerts and paused/ended sessions suppress the 3D ring.
-
-Moving the mouse without pressing a button **never invokes Game.action**, changes the synthetic score, or adds replay events. A real click still passes through the original strict phase engine (including its existing safety assessment and IOL explicit fresh-click gate). Previously cached instrument poses are deliberately **not restored automatically after pause**; fresh hover reacquires the display position.
-
-**Important limitation:** this is proximity feedback against **synthetic normalized task targets and a selected educational depth plane**, not a precise anatomical triangle mesh collision or force-feedback measurement. It must not be interpreted as a real surgery guidance system. Color/shape accessibility, real Windows GPU/4K, clinical review, and detailed tissue interaction remain to be tested.
-
-[CI tests Python 3.12/3.13: 422 each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565234). [Mesa OpenGL integration passed](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188), proving the GPU contact ring changes center-eye pixels with otherwise identical state and HUD. [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38343565188/artifacts/11788405053).
-
-
-## Read-only triangle-mesh inspection with bounded BVH (2026-10-13)
-
-The independent **3D anatomy atlas** (`python -m ophthosim.gl_preview`) now selects the *actual rigid triangulated iris and lens/IOL visual mesh*, rather than relying on the older analytic iris-plane/ellipsoid approximation. A Möller–Trumbore double-sided ray/triangle test and bounded **bounding-volume hierarchy (BVH)** compute the nearest triangle's number, position, ray distance, and barycentric weights. Mouse selection exposes the actual face ID and measured synthetic ray distance in the HUD. Indexes are constructed on a scene-mesh change, not once per frame or hover.
-
-**Scope boundary:** the selection uses static geometry for the standalone atlas. GPU shader deformations (folded IOL), appearance offsets, patient-eye motion, scene occlusion details and the interactive 3D surgery's tool collision/force response are **not represented in this CPU collision model**. Transparent cornea and decorative sclera are excluded. A triangle hit **does not** change procedural state, tissue damage, score, alerts or replay. These are procedural synthetic meshes and not medical anatomy.
-
-[Python 3.12 and 3.13 tests: 452 passed each](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423438); [Mesa OpenGL smoke with iris and optic triangle face IDs + full surgical replay](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423347). [Screenshot artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38345423347/artifacts/11788119181). Real Windows Radeon GPU performance/4K and clinical review are still unverified.
-
-
-## Deformed-IOL triangle picking parity (2026-10-13)
-
-The standalone ModernGL anatomy atlas now matches CPU read-only triangle
-selection to its **synthetic GPU IOL unfolding geometry**, IOL alignment offset,
-and bounded camera-plane visual motion. In IOL atlas view, press **F** to cycle
-the **fully unfolded → folded → halfway → unfolded** depiction. Mesh-picking
-indexes are rebuilt **on demand at selection time** only when deployment or
-alignment changes; the source 3D render mesh is not changed. A bounded
-16-entry mesh cache validates inputs **before** lookup, avoiding bool-vs-int
-cache aliasing and unhashable-input errors.
-
-The CPU deformation reproduces the explicit GPU vertex-position equations,
-not a physically accurate foldable implant. Selecting a point on the extended
-unfolded optic correctly yields an IOL face, while the same position misses
-after folding. The renderer uses the corresponding IOL shape; the unchanged
-iris remains separately pickable. Software OpenGL captures compare eye-center
-pixels, not just the changing HUD percentage. This is a **read-only atlas
-inspection** capability: the interactive simulated surgery still uses its
-existing stage-based guide and safety-state engine rather than physical
-triangle/tool force collision.
-
-**Verified** [Python 3.12/3.13: 480 tests passed per version](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38351299492)
-and [Linux Mesa OpenGL integration](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38351299510).
-**Not verified:** Windows AMD/Radeon hardware or 4K performance, corneal
-refraction/transparent occlusion parity, deforming tissue contact mechanics,
-clinical relevance, or complete 32-WP readiness.
-
-
-## Unitless nearest-triangle visual proximity in the interactive 3D game (2026-10-13)
-
-The synthetic interactive 3D mode now computes the Euclidean nearest point from
-the **validated, safely visible virtual stylus tip** to actual authored iris,
-crystalline-lens or visually folded/aligned IOL **triangle faces**. A bounded
-BVH branch-and-bound search uses exact point-to-triangle closest-point regions,
-including triangle edges, vertices and nonfatal degenerate faces. Static mesh
-indexes are cached; the synthetic IOL BVH is cached for up to eight
-deployment/alignment states. Where the scene is visually moved, the same
-camera-plane transformation is inverted for the read-only distance query.
-
-This appears as a separate 3D nearest-surface marker and **MESH GAP:
-CLOSE/NEAR/FAR (synthetic)** HUD label. Distances are **unitless model
-coordinates**, not millimeters or clinically meaningful separation. These
-thresholds are artistic feedback, NOT injury triggers. During a patient safety
-hold, pause, ending, invalid/outdated tool pose or inactive procedure, the
-visual tool and proximity indicator are suppressed. The procedural
-`ReplayGame` retains exclusive authority over actions, phases, alerts,
-scoring and event/replay records.
-
-**Verified:** [Python 3.12 and 3.13 CI: 510 passed per version](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355094995)
-and [Mesa Linux software OpenGL integration](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355095000)
-with different *eye-only* framebuffer pixels when the nearest-triangle
-marker is present. [Rendered synthetic screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355095000/artifacts/11792706594).
-
-**Not validated:** real tool/tissue force, contact physics, anatomical accuracy,
-real-world surgical training, Windows Radeon GPU or 4K desktop frame-time
-performance. The 32-work-package project is still in progress.
-
-
-## Single-evaluation 3D proximity per visual frame (2026-10-13)
-
-The interactive GPU surgery loop now computes the **synthetic nearest-triangle
-surface probe once per frame** and shares that one validated result between
-the GPU's nearest-surface ring and the 2D Pygame HUD. Previously the HUD
-triggered a second, redundant BVH proximity query after the renderer's
-own query. `SurgeryHUD.set_frame_proximity()` receives the prepared,
-read-only `SurfaceProbe`; `SurgeryHUD.draw()` only reads it.
-
-The HUD suppresses a stale prepared result after a stage transition, camera
-orbit, tool tip movement, safety alert, pause/abort, or restart. It displays
-`MESH GAP: CLOSE/NEAR/FAR 0.000u` where **u = unitless model space**, not
-millimetres or physical collision. The anatomical marker still uses its
-existing read-only GPU overlay. No procedural actions, safety gates, score,
-injury assessments or replay events are derived from this display data.
-
-[Python CI: 522 passed on each of 3.12 and 3.13](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978889);
-[Mesa Linux OpenGL full synthetic surgery CI](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911),
-including the same three normal/complication scenarios and screenshot artifacts.
-New regression checks instrument the BVH distance call count and ensure repeated
-HUD draws add **zero** BVH distance queries. This reduces redundant work; it
-does **not** establish a measured FPS speedup or 4K/Windows GPU performance.
-
-**Remaining:** 4K readability and sustained frame-time profiling on physical
-Windows AMD hardware, deforming tissue physics, medical realism validation and
-completion of the full 32-work-package plan.
+See [LICENSE](LICENSE). External assets must document their provenance and
+redistribution rights.

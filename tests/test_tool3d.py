@@ -14,6 +14,7 @@ from ophthosim.tool3d import stylus_mesh, visible_stylus
 
 def _entry():
     c = Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     assert c.command("confirm")
     assert c.command("prepare")
     return c
@@ -45,6 +46,7 @@ def test_cached_tool_is_bounded_and_closed():
 def test_default_and_preoperative_tool_is_hidden():
     c = Surgery3DController()
     assert visible_stylus(c) is None
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     assert visible_stylus(c) is None
 
@@ -84,6 +86,7 @@ def test_pause_abort_and_stage_transitions_hide_previous_pose():
 
 def test_patient_safety_hold_hides_instrument():
     c = Surgery3DController("motion")
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     for x, y in c.game._entry_target:

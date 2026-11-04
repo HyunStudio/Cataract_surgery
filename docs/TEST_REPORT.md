@@ -152,3 +152,92 @@ Everything is a non-clinical game abstraction; scores and data are synthetic. No
 - Staleness checks hide a prepared observation after moving the tool in the same phase, changing camera orientation, switching phase, pausing and resuming without a new safe hover, or restarting. Invalid `SurfaceProbe` types/status/gaps fail closed; reading the HUD does not mutate `Game.snapshot()` or the replay journal.
 - [Mesa Linux software GL run 38355978911](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911) succeeded, with three synthetic scenario/replay flows and the previously established *eye-only* nearest-triangle marker framebuffer difference. [Image artifact](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911/artifacts/11792578657).
 - **Not claimed:** wall-clock frame-rate improvement, reduced GPU draw cost, 4K performance on Windows AMD/Radeon, real tissue collision/forces or professional clinical validity. Quantitative target-device profiling remains a separate acceptance gate.
+
+
+## 2026-10-24 — frame-time statistics and benchmark workload
+
+- Local run: **557 tests passed** (Python 3.13, SDL dummy driver); 35 new tests in `tests/test_frametime.py`.
+- Percentiles match `statistics.quantiles(method="inclusive")` across 200 seeded sample sets; known-sample summary, infinite FPS for zero mean, and rejection of booleans, `None`, strings, NaN/Inf, negative, >10 s and huge-integer samples.
+- Profiler memory stays bounded (oldest samples drop), unknown section names and bad capacities are rejected.
+- GL08 assessment: software, small-window, short, NaN-duration and empty runs are always `INSUFFICIENT_EVIDENCE`; a hardware run with acceptable mean but P95 over budget is `CANDIDATE_BELOW_60FPS`.
+- Workload: camera path stays inside `View` limits for 20 000 frames; at 960×640, 1920×1080 and 3840×2160 every one of 400 frames yields a visible stylus and a nearest-triangle probe, exactly one `probe_surface` call per frame, with `Game.snapshot()` and the replay journal unchanged.
+- F3 HUD label renders three distinct states (hidden / measuring / measured) without Game mutation.
+- Local Xvfb + Mesa llvmpipe: `gl_smoke`, `gl_surgery_smoke` and `gl_benchmark` (120 frames at 960×640; 5 s at 1920×1080) succeeded with `game_state_unchanged: true` and `gl08.status: INSUFFICIENT_EVIDENCE`. The Software OpenGL workflow now runs a 300-frame 1080p benchmark and uploads the JSON report.
+- **Not claimed:** Windows GPU frame time, 4K performance, GPU execution time or any clinical property.
+
+
+## 2026-10-24 — zero-copy HUD upload
+
+- CI for the benchmark increment: [run 40065486713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486713) **557 passed on Python 3.12 and 3.13**; [Mesa run 40065486734](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486734) uploaded the 1080p frame-time JSON (`INSUFFICIENT_EVIDENCE`, software renderer).
+- Local: **560 passed**. New `hud_swizzle` tests cover little/big-endian ARGB and ABGR layouts; rejection of 24-bit, padded-row, zero-width, missing/duplicate/partial-byte masks and unknown byte order; and a real pygame `SRCALPHA` surface whose swizzled raw buffer reproduces `tobytes(..., "RGBA")` exactly.
+- `gl_surgery_smoke` now renders the same HUD frame through the zero-copy path and a forced copy fallback and requires identical framebuffer bytes, plus HUD surface reuse across frames. Local llvmpipe reports swizzle `BGRA`.
+- Manual A/B before commit: seven captured frames byte-identical to the previous implementation for both paths; 1080p llvmpipe mean frame 14.2 → 10.0 ms (two runs each).
+- **Not claimed:** any Windows GPU or 4K speedup.
+
+
+## 2026-10-24 — 4K HUD magnification
+
+- CI for the zero-copy upload commit: [Python 40065756237](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756237) and [Mesa GL 40065756219](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756219) succeeded.
+- Local: **585 passed**. New `tests/test_hud_scale.py`: 13 window sizes including 2559/2560 boundaries, 16:10 and ultrawide; invalid sizes (zero, negative, float, bool, string, None); 1440p/4K map to the 1280×720 logical layout; `set_ui_scale` bounds; the cursor ring drawn at window (2400, 1500) lands at logical (800, 500) at 3× with the Game unchanged; every phase title wraps between words in ≤2 lines of ≤21 characters; benchmark report `hud_scale`.
+- Manual GL checks under Xvfb/llvmpipe: seven 720p frames byte-identical to before; 1440p and 4K HUD textures 1280×720 with NEAREST filtering; title strip byte-identical to 720p after 1/2 and 1/3 sampling; screenshot inspection showed projected entry-target rings aligned with the 3D scene at 4K. Both GL smokes passed.
+- **Not claimed:** physical 4K monitor readability, Windows DPI scaling behaviour, GPU performance.
+
+
+## 2026-10-24 — GL07 memory measurement
+
+- Local: **594 passed**. New tests: memory trend slope/late slope/extremes and validation; Linux RSS parser on good/corrupt/missing files; GL07 triage (software/short/unmeasurable → insufficient; warm-up plateau → no growth; late rise → growth); scene-switch argument validation and report label; IOL display scene stays read-only; profiler records 240 000 samples with < 4 KiB traced allocation; ring-buffer wraparound statistics.
+- Manual: `tracemalloc` over 400 scene switches showed no Python-heap accumulation; RSS traces plateaued (2000 switches; 20 000 rendered frames with a switch every 10).
+- 300 s llvmpipe runs: see PROGRESS (1.92 MiB / 5.82 MiB growth, late slopes 0.0 / 0.54 MiB/min).
+- **Not claimed:** dedicated GPU memory behaviour or any Windows hardware result.
+
+
+## 2026-10-24 — v2 regression
+
+**Local run: 707 passed.** The new test files are:
+
+| File | Covers |
+|---|---|
+| `test_engine_v2.py` | pre-op gate; difficulty tolerances, thresholds and timeouts; every case reaching an ending at every difficulty; endings and veto (pausing cannot freeze the hold); response credit vs latency; pupil, haze, decentration, leak and random-case behaviour; metrics; instrument rules; replay v2 round-trips, including timed-out failure; rejection of v1 headers and edited difficulty |
+| `test_report.py` | KO/EN key parity and fallbacks; report/engine score agreement; explanations; chronological timeline; events/metrics CSV; session files; refusal of overflowed replays; agent endings; deterministic experiments with verified replays; config validation; CLI |
+| `test_gui_v2.py` | all nine cases and the difficulty cycle; clickable pre-op checklist; zoomed clicks mapping to eye coordinates; zoom lock while dragging; focus blur (visual only); every hazard screen in EN/KO; decentration re-centring; all four ending screens with KO/EN export; language, palette and reduced-motion pixel changes; cross-section synchronization; help and sound; instrument tray; illumination; autosave/resume, including tamper rejection |
+| `test_gl_surgery_v2.py` | checklist advance; 3D re-centring with a fresh click (held drag rejected); CLOSE without decentration has no tool; HUD for every alert and ending in EN/KO; report export; CLI; instrument cycling in hard; autosave restore |
+
+Updated `gl_surgery_smoke.py` adds a fourth Mesa scenario (decentration hold, visible 3D re-centring, managed-complication result) to the existing zero-copy HUD and capsule/vision checks.
+
+**Not claimed:** Windows GPU, physical 4K legibility, human usability or clinical validity.
+- **CI for v2:**
+  - Python 3.12/3.13: [Tests 40068709047](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047), 707 passed on 3.12; the 3.13 job succeeded. [GUI screenshots](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047/artifacts/12549384895).
+  - Mesa OpenGL: [40068709064](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709064), success with the four-scenario 3D smoke and benchmarks.
+  - Earlier v2 commits were also green: [40068403280](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068403280)/[40068403263](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068403263) and [40068152868](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068152868)/[40068152833](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068152833).
+
+## 2026-10-24 — v3 regression
+
+**Local run (Windows 11, Python 3.12): 804 passed.** New or rewritten:
+
+| File | Covers |
+|---|---|
+| `test_engine_v3.py` | instrument sets; the ideal surgeon finishes every case; wrong tool/site; tool lock during a hold; tutorial-only hints; anticoagulant bleeding; hyphema growth and irrigation; SCH closure → safe stop; failure when carrying on through a major complication; profile baselines and vitals drift; stress warning and decay; no-hydro deduction; earlier rhexis tear without OVD; tear → capsule rupture, zonular → failure and iris → trauma → hyphema chains; unresolved safety = 0; KO/EN key parity |
+| `test_complication3d.py` | every complication has a 3D sign while pending; devices appear after management; read-only and quantized mapping; validation; cached meshes; hyphema level and chord closure |
+| `test_assets.py` | OBJ fan triangulation, negative indices, refusal of bad files; licence manifest required; NC/unknown licences refused; procedural fallback with a report |
+| `test_gui_v2.py` | 14 cases (1–9 and N); patient chart; every hazard and management card in EN/KO; tutorial-only tray hint; cautery from the tray; V/D/B keys; held drag released on a phase change; bleeding/SCH/iris/zonular signs; all five endings; 15-instrument tray and Shift+T |
+| `test_gl_surgery_v2.py` | 3D driver with OVD, hydro and management; every hazard and its management card; all five endings; chart card and instrument row picking; 15-tool cycling and `quick_use` |
+| `surgeon_helpers.py` | shared ideal-surgeon driver (stop at alert, leave complications unmanaged on request) |
+
+`gl_surgery_smoke.py` follows the v3 procedure. It renders 15 complication signs and
+requires each to change the frame and to be distinct. Hardware result on an RTX 3070:
+`hardware-opengl-3d-surgery-integration-passed`.
+
+**Not claimed:** AMD Radeon results, human usability, clinical validity of the
+complication chains or of the synthetic vital-sign and bleeding values.
+
+## 2026-10-24 — v4 operating room
+
+**Local run (Windows 11): 865 passed.**
+
+| File | Covers |
+|---|---|
+| `test_room3d.py` | room meshes valid, inside the room and packable; people and tray for every instrument; tray = game instruments; held instrument tip at the eye; instrument tips at the origin; orthonormal rotations; finite cameras; eye framed in close-ups; screen cameras see the whole display; scope view orientation matches the 2D field; eye-disc UVs; display sizes and refresh groups; alert on vitals/video; hyphema in the eye texture; phaco console without digits and with qualitative levels |
+| `test_gl_surgery_v2.py` | `C` view cycle; room views hide microscope markers; `room_frame` feeds people and displays |
+
+GPU (RTX 3070): `or_gallery` rendered ten distinct, non-blank panels. The real game
+loop was driven through all five views with injected key events.

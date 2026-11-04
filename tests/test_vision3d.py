@@ -11,6 +11,7 @@ from ophthosim.vision3d import VisualFeedback, visual_feedback
 
 def _capsule_case(case="normal"):
     g=Game(case,seed=31)
+    for _check in ("identity", "site", "iol_plan"): g.action("verify", _check)
     assert g.action("confirm")
     assert g.action("prepare")
     for x,y in g._entry_target:
@@ -29,7 +30,12 @@ def test_hazard_motion_is_deterministic_static_during_safety_hold():
     for _ in range(100):
         g.tick(.05)
         assert visual_feedback(g)==first
-    assert g.snapshot()==before
+    # The hold is timed (an unattended alert ends in a veto), but procedure
+    # time, anatomy, patient values and phase stay frozen.
+    after=g.snapshot()
+    assert after["alert_elapsed"]==pytest.approx(5.0)
+    for key in ("phase","time","eye","patient","paused","ending","score"):
+        assert after[key]==before[key]
     assert g.action("assess")
     assert g.patient.motion==0.0
     assert visual_feedback(g).motion_x==0.0

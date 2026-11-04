@@ -10,6 +10,7 @@ import pytest
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
+from surgeon_helpers import use3d
 from ophthosim.engine import Phase
 from ophthosim.gl_surgery import SurgeryHUD, save_session, PHASE_NAMES, CHECKS
 from ophthosim.input3d import Surgery3DController, eye_to_pixel
@@ -18,17 +19,23 @@ from ophthosim.replay import ReplayGame
 
 def test_full_3d_session_export_validates_replay(tmp_path):
     c=Surgery3DController(seed=12)
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     for x,y in c.game._entry_target:
         pixel=eye_to_pixel(x,y,c.tool_depth,1280,720,c.view)
         assert c.pointer(*pixel,1280,720, fresh_press=True)
     for i in range(24):
+        if c.game.phase!=Phase.CAPSULE:
+            break
         angle=(i+.5)*math.tau/24
         pixel=eye_to_pixel(.5+.28*math.cos(angle),.5+.28*math.sin(angle),
                            c.tool_depth,1280,720,c.view)
         c.pointer(*pixel,1280,720)
-    for _ in range(82):
+    assert use3d(c,"hydro_cannula")
+    for _ in range(600):
+        if c.game.phase not in (Phase.PHACO,Phase.CORTEX):
+            break
         pixel=eye_to_pixel(.5,.5,c.tool_depth,1280,720,c.view)
         c.pointer(*pixel,1280,720)
     assert c.game.phase==Phase.IOL
@@ -46,6 +53,7 @@ def test_full_3d_session_export_validates_replay(tmp_path):
 
 def test_alert_branch_does_not_skip_safety_gate(tmp_path):
     c=Surgery3DController("motion")
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     c.command("confirm")
     c.command("prepare")
     for x,y in c.game._entry_target:
@@ -88,7 +96,8 @@ def test_hud_render_all_surgical_phases_on_sdl_surface():
         c.game.paused=True
         image.fill((0,0,0,0))
         hud.draw(pygame,image,c.view,1280,720,font,big)
-        assert image.get_at((450,335)).a>0
+        x,y,w,h=SurgeryHUD.card_rect(1280,720)   # hold card, low in the field
+        assert image.get_at((x+w//2,y+h//2)).a>0
     finally:
         pygame.quit()
 

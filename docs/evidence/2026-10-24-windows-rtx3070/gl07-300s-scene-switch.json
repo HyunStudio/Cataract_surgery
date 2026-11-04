@@ -1,0 +1,86 @@
+{
+  "benchmark": "ophthosim-gl-surgery-frametime",
+  "clinical_validation": false,
+  "environment": {
+    "gl_renderer": "NVIDIA GeForce RTX 3070 Laptop GPU/PCIe/SSE2",
+    "gl_vendor": "NVIDIA Corporation",
+    "gl_version": "3.3.0 NVIDIA 566.14",
+    "moderngl": "5.13.0",
+    "os": "Windows-11-10.0.26200-SP0",
+    "pygame": "2.6.1",
+    "python": "3.12.10",
+    "software_renderer": false
+  },
+  "frames_measured": 43381,
+  "frames_with_proximity": 43381,
+  "game_state_unchanged": true,
+  "gl07": {
+    "heuristic_max_growth_mb": 16.0,
+    "heuristic_max_slope_mb_per_min": 1.0,
+    "host_memory_only": true,
+    "reasons": [],
+    "requires_human_signoff": true,
+    "status": "CANDIDATE_NO_GROWTH",
+    "within_heuristics": true
+  },
+  "gl08": {
+    "mean_and_p95_within_target": true,
+    "reasons": [],
+    "requires_human_signoff": true,
+    "status": "CANDIDATE_WITHIN_60FPS",
+    "target_frame_ms": 16.667
+  },
+  "hud_scale": 1,
+  "mean_fps": 144.6,
+  "measured_seconds": 300.003,
+  "memory": {
+    "end_mb": 133.24,
+    "growth_mb": 9.84,
+    "late_slope_mb_per_min": 0.1,
+    "peak_mb": 133.82,
+    "samples": 725,
+    "slope_mb_per_min": 1.307,
+    "start_mb": 123.4
+  },
+  "scene_switches": 361,
+  "sections": {
+    "frame": {
+      "count": 43381,
+      "max_ms": 120.747,
+      "mean_ms": 6.916,
+      "min_ms": 4.358,
+      "over_target_fraction": 0.0094,
+      "p50_ms": 6.185,
+      "p95_ms": 9.043,
+      "p99_ms": 14.112
+    },
+    "probe": {
+      "count": 43381,
+      "max_ms": 91.11,
+      "mean_ms": 0.833,
+      "min_ms": 0.42,
+      "over_target_fraction": 0.0,
+      "p50_ms": 0.74,
+      "p95_ms": 1.425,
+      "p99_ms": 1.972
+    },
+    "render": {
+      "count": 43381,
+      "max_ms": 79.064,
+      "mean_ms": 5.474,
+      "min_ms": 3.713,
+      "over_target_fraction": 0.0003,
+      "p50_ms": 5.224,
+      "p95_ms": 7.429,
+      "p99_ms": 8.823
+    }
+  },
+  "timing_basis": "CPU wall clock incl. buffer swap; not GPU time",
+  "vsync_controlled": false,
+  "warmup_frames": 30,
+  "window_size": [
+    1920,
+    1080
+  ],
+  "workload": "entry-hover-orbit+scene-switch/120"
+}

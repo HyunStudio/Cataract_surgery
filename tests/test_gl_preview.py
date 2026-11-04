@@ -124,3 +124,44 @@ def test_shader_has_declared_model_translation_for_iol():
     assert "local_pos + u_offset" in VERTEX_SHADER
     assert "u_iol_mode" in VERTEX_SHADER
     assert "u_iol_fold" in VERTEX_SHADER
+
+
+def test_hud_swizzle_maps_surface_masks_to_texture_channels():
+    from ophthosim.gl_preview import hud_swizzle
+    argb = (0xff0000, 0xff00, 0xff, 0xff000000)  # SDL ARGB8888
+    assert hud_swizzle(32, 256, 64, argb, "little") == "BGRA"
+    assert hud_swizzle(32, 256, 64, argb, "big") == "GBAR"
+    abgr = (0xff, 0xff00, 0xff0000, 0xff000000)
+    assert hud_swizzle(32, 256, 64, abgr, "little") == "RGBA"
+
+
+def test_hud_swizzle_refuses_layouts_that_need_a_copy():
+    from ophthosim.gl_preview import hud_swizzle
+    argb = (0xff0000, 0xff00, 0xff, 0xff000000)
+    assert hud_swizzle(24, 192, 64, argb) is None          # no alpha byte
+    assert hud_swizzle(32, 260, 64, argb) is None          # padded rows
+    assert hud_swizzle(32, 0, 0, argb) is None
+    assert hud_swizzle(32, 256, 64, (0xff0000, 0xff00, 0xff, 0)) is None
+    assert hud_swizzle(32, 256, 64, (0xff, 0xff, 0xff00, 0xff000000)) is None
+    assert hud_swizzle(32, 256, 64, (0xf00000, 0xff00, 0xff, 0xff000000)) is None
+    assert hud_swizzle(32, 256, 64, argb[:3]) is None
+    assert hud_swizzle(32, 256, 64, argb, "middle") is None
+
+
+def test_hud_swizzle_accepts_real_pygame_alpha_surface():
+    pygame = pytest.importorskip("pygame")
+    from ophthosim.gl_preview import hud_swizzle
+    surface = pygame.Surface((97, 31), pygame.SRCALPHA)
+    swizzle = hud_swizzle(surface.get_bitsize(), surface.get_pitch(),
+                          surface.get_width(), tuple(surface.get_masks()))
+    assert swizzle is not None and sorted(swizzle) == ["A", "B", "G", "R"]
+    # The swizzled raw buffer must reproduce the explicit RGBA bytes.
+    surface.fill((10, 20, 30, 40))
+    surface.set_at((5, 3), (200, 100, 50, 25))
+    raw = bytes(surface.get_view("1"))
+    expected = pygame.image.tobytes(surface, "RGBA", False)
+    order = "RGBA"
+    rebuilt = bytearray(len(raw))
+    for channel, source in enumerate(swizzle):
+        rebuilt[channel::4] = raw[order.index(source)::4]
+    assert bytes(rebuilt) == expected

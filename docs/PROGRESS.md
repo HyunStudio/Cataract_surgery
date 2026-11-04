@@ -188,3 +188,130 @@ Never call this a 'completed 3D simulator' until GUI execution, full procedure c
 - Added `tests/test_3d_frame_proximity.py` with an instrumented `nearest_triangle` spy to prove two necessary initial mesh queries and **zero extra BVH queries** across repeated HUD paints. Also checks visual label on/off, dirty/untrusted prepared result rejection, stage/camera/pose invalidation, abort/pause/restart safety and synthetic Game snapshot/replay immutability.
 - [CI run 38355978889](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978889): **522 passed on both Python 3.12 and 3.13**. [Mesa OpenGL run 38355978911](https://github.com/HyunStudio/Cataract_surgery/actions/runs/38355978911): success, previous non-HUD triangle marker and three synthetic surgery safety scenarios still verified.
 - This is an observed **reduction in duplicated geometry calls**, not a demonstrated FPS increase. Real Windows/Radeon GPU and 4K sustained frame-time/legibility acceptance remain OPEN. Synthetic geometry is not clinically validated.
+
+
+## 2026-10-24 — scripted frame-time benchmark for the WP04/GL08 gate
+
+- Added `ophthosim/frametime.py`: bounded rolling `FrameProfiler` (fixed sections `frame`/`probe`/`render`), linear-interpolated percentiles, `FrameStats` (mean/P50/P95/P99/min/max, fraction over the 16.667 ms budget), software-renderer detection and a conservative `gl08_assessment` that can only return `INSUFFICIENT_EVIDENCE` or a `CANDIDATE_…` status requiring human sign-off.
+- Added `ophthosim/gl_benchmark.py`: deterministic ENTRY-phase workload (bounded camera orbit, stylus hover loop past the synthetic entry targets) that exercises one nearest-triangle query, contact ring, stylus, HUD upload and buffer swap per frame. Writes a JSON report with environment and OpenGL strings; exits nonzero if the synthetic Game snapshot or replay journal changes. `--size`, `--fullscreen`, `--seconds`/`--frames`, `--warmup` are bounds-checked.
+- `GPUEyePreview` accepts an optional `fullscreen` flag for full-display measurements. The interactive 3D game shows a rolling frame mean/P95 on **F3** (display only).
+- Issues found while building it and fixed before commit: the measured-duration anchor was never set after warmup (reported 0 s); per-frame `stats()` sorting would have distorted the measurement at high frame rates (replaced with a running mean); an `"unknown"` renderer string was treated as hardware; the pygame banner corrupted JSON stdout.
+- Local Mesa llvmpipe 1920×1080 sample: ≈13.9 ms mean frame, ≈0.23 ms proximity query, ≈13.6 ms render call. On software GL the full-window draw/HUD upload dominates, which points the next optimization at HUD texture upload rather than the BVH.
+- **WP04/GL08 remain OPEN**: no physical Windows Radeon run has been made. The tool produces evidence; it does not produce a pass.
+
+
+## 2026-10-24 — zero-copy HUD upload from benchmark evidence
+
+- CI confirmed the benchmark increment: [Tests 40065486713](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486713) (557 passed on 3.12 and 3.13) and [Mesa GL 40065486734](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065486734) (300 frames at 1080p: mean 13.5 ms, render 12.97 ms, probe 0.40 ms).
+- cProfile of the 1080p workload attributed ≈9.3 ms of a ≈15 ms render to `draw_hud`: per-frame `Surface` allocation, `tobytes(..., flipped=True)` and `Texture.write`. The BVH proximity query was ≈0.24 ms.
+- `GPUEyePreview` now reuses its HUD surface, uploads the raw surface buffer with a mask-derived texture swizzle (`hud_swizzle`), and flips the HUD quad's v coordinate instead of the bytes. Unsupported layouts fall back to the RGBA copy.
+- Verified pixel-identical framebuffers (7 frames, both paths) against the previous implementation; Mesa smoke asserts zero-copy == copy and surface reuse. Local llvmpipe 1080p: mean 14.2 → 10.0 ms, P95 16.0 → 11.4 ms.
+- **Still open:** Windows Radeon GL08 run, 4K, HUD legibility at 4K, clinical review.
+
+
+## 2026-10-24 — 1440p/4K HUD magnification (WP03/WP31 partial)
+
+- CI for the zero-copy upload: [Tests 40065756237](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756237) and [Mesa GL 40065756219](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065756219) succeeded.
+- Added `gl_preview.hud_scale` (integer 1–3 from the 1280×720 authored layout) and logical-resolution HUD painting with nearest-filtered GPU magnification. `SurgeryHUD.set_ui_scale` converts the window-pixel cursor ring; atlas selection markers are converted the same way. The benchmark report records `hud_scale`.
+- Fixed a pre-existing side-panel bug that split phase titles mid-word; `phase_title_lines` wraps between words into at most two lines.
+- Verified: 720p framebuffers unchanged; 1440p/4K HUD texture is 1280×720 and its title strip matches the 720p pixels exactly; 4K llvmpipe frame ≈56.8 → 20.4 ms. Local suite 585 passed.
+- **WP03/WP31 remain PARTIAL:** no true vector/high-DPI text, no Windows DPI-awareness handling, no human 4K legibility or contrast audit.
+
+
+## 2026-10-24 — GL07 host-memory evidence and two measurement-tool fixes
+
+- `gl_benchmark` samples resident memory every 60 frames (Linux `/proc/self/statm`, Windows working set) and reports start/end/peak, growth, whole-run slope and **late-half slope**; `--scene-switch-every N` swaps cataract/IOL GPU meshes and BVHs to stress reallocation.
+- Fix 1: a 4 s CI stress reported 28 MiB/min. A direct trace showed warm-up of ≈+2.3–3 MiB that then stays flat through 2000 switches / 20 000 frames, so GL07 triage now uses the late-half slope.
+- Fix 2: a first 5-minute scene-switch run grew 7.6 MiB; the extra growth came from the profiler's own deques of Python floats (~32 B per frame per section). Samples now live in preallocated C-double ring buffers; a test proves 240 000 recordings allocate nothing.
+- Local llvmpipe 300 s results after both fixes: 1080p (22 661 frames) +1.92 MiB, late slope 0.0 MiB/min; 960×640 with 303 scene switches +5.82 MiB, late slope 0.54 MiB/min. Both are within the triage heuristics and `game_state_unchanged: true`; GL07 stays `INSUFFICIENT_EVIDENCE` because the renderer is software.
+- CI: [Tests 40066436712](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066436712) and [Mesa 40066436664](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066436664) green for the late-slope change; earlier [40066192554](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066192554)/[40066192649](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40066192649) and [40065994478](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065994478)/[40065994457](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40065994457) green.
+
+
+## 2026-10-24 — v2: complete planned game loop
+
+- **Engine v2:**
+  - tutorial/standard/hard rules
+  - mandatory pre-op checklist
+  - four endings with a safety veto on unattended alerts
+  - explained 20/25/20/20/15 score
+  - pupil, haze, decentration, wound-leak and seeded random scenarios
+  - stage instruments, which must be chosen in hard
+  - research metrics
+  - replay schema v2 with difficulty and timed holds
+- **Report / research:** `report.py` builds the explained breakdown, timeline and CSV/JSON export. `experiments.py` runs scripted agents (192-session demo, all replays verified). `i18n.py` holds the KO/EN strings.
+- **2.5D app:**
+  - case/difficulty menus and checklist UI
+  - instrument tray
+  - alert panel with hold timer
+  - results screen
+  - KO/EN
+  - high contrast, colour-safe palette and reduced motion
+  - sound cues
+  - microscope zoom, focus and illumination
+  - depth cross-section
+  - autosave/resume
+- **3D app parity:** checklist flow, instruments, decentration re-centring in 3D, localized hold/results panels, sounds and autosave/resume. The Mesa smoke has a fourth scenario.
+- **Docs:** README rewritten as the product document (history moved to `docs/CHANGELOG.md`), Korean user guide, 32-WP status table.
+- **Local result:** 707 tests passed. Both Mesa smokes and the benchmark passed.
+- **CI:** [Tests 40068709047](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709047) (707 passed, Python 3.12/3.13) and [Mesa OpenGL 40068709064](https://github.com/HyunStudio/Cataract_surgery/actions/runs/40068709064) succeeded.
+- **Remaining, needs the owner:**
+  - Windows Radeon GL01–GL10 and the benchmarks
+  - physical 4K legibility
+  - expert review of content plausibility
+  - ethics/IRB determination before any participant study
+
+## 2026-10-24 — v3: real instruments, bleeding, patient and eye model
+
+- **Plan / design:** [V3 plan](V3_INSTRUMENTS_BLEEDING_MODEL_PLAN_KO.md) and the owner decision in [SAFETY](SAFETY.md).
+- **Engine v3 (schema v3):**
+  - 15 instruments: 9 for the procedure steps, 6 chosen for the situation
+  - assess → pending → manage with the right instrument at the right site (wrong ones are logged)
+  - `B` calls senior help; carrying on through a major complication fails
+  - viscoelastic and hydrodissection steps
+  - tissue stress
+  - technique-driven rhexis tear and its chains (tear → capsule rupture; iris prolapse → iris trauma → hyphema; zonular weakness → dialysis)
+  - bleeding: incision blood, hyphema that grows while unmanaged, suprachoroidal haemorrhage
+  - synthetic patient profiles with drifting vital signs
+  - a fifth ending, *Complication unresolved*
+- **2D:**
+  - procedural eye: textured iris, limbus, conjunctival vessels, drape and speculum, red reflex
+  - bleeding layers and complication/device signs
+  - instrument glyph at the cursor
+  - two-row tray with 15 instruments
+  - management card and pre-op patient chart
+  - fixed-step held input that releases on a phase change or a hold
+- **3D:** `complication3d.py` (ported from the surgeon-gameplay branch and extended) adds 15 cached signs: blood film, layered hyphema, red-reflex loss, iris hooks, CTR and sutures. The HUD has an instrument row, management and chart cards, and Korean strings.
+- **Assets:** `assets.py` loads OBJ models only with a licence manifest; otherwise the procedural meshes are used.
+- **Local result (Windows 11, RTX 3070):**
+  - 804 tests passed
+  - `gl_surgery_smoke` passed on hardware, and all 15 signs render distinctly
+  - `gl_hardware_check` GL01–GL06 + KO font: AUTOMATED_PASS
+  - 20 s 1080p benchmark: 166 fps mean
+  - experiment demo extended to the 13 cases: 312 sessions, every replay verified; standard mean scores: ideal 96.9 > slow 87.4 > careless 78.7 > unresponsive 25.8
+- **Remaining:**
+  - AMD Radeon target run
+  - human sign-off of GL01–GL10
+  - expert review of the clinical plausibility of the complication chains
+  - licensed anatomy models (none are committed)
+
+## 2026-10-24 — v4: 3D operating room from the concept image
+
+- **Plan / design:** [V4 plan](V4_OPERATING_ROOM_3D_PLAN_KO.md) maps the ten concept panels to modules.
+- **Room (`room3d.py`):** procedurally modelled theatre with:
+  - surgical lamp, table and draped patient (face, eye drape, speculum)
+  - floor-stand microscope
+  - vital-signs, phaco and video displays
+  - instrument tray with the 15 game instruments
+  - seated surgeon whose gloved hands hold `game.tool` with its tip at the eye
+  - scrub nurse
+  - nine cameras, including the view straight down the microscope
+- **Displays (`screens3d.py`):** live vitals with an alert banner, phaco console (relative bars only), video feed and the eye texture, all from the 2D procedural eye renderer. They refresh in two alternating groups at about 10 Hz.
+- **Renderer (`gl_room.py`):** hemisphere and ceiling light, lamp spotlight, metal highlights, exposure curve and gamma, 4× MSAA.
+- **Game:** `C` cycles five views. Room views observe only; mouse surgery stays in the microscope view.
+- **Gallery (`or_gallery.py`):** renders the ten panels on the GPU and assembles a captioned sheet. Mesa CI runs it too.
+- **Local result (RTX 3070):**
+  - 865 tests passed
+  - gallery rendered on hardware
+  - room view at 1080p: 9.5 ms mean, 17.8 ms p95 including display refresh
+  - in-game loop check through all five views
+- **Limits:** stylized procedural geometry, not photorealistic. Licensed models can replace parts through the asset loader.

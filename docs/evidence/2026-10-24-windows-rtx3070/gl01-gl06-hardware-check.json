@@ -1,0 +1,235 @@
+{
+  "all_automated_pass": true,
+  "checks": {
+    "GL01": {
+      "renderer": "NVIDIA GeForce RTX 3070 Laptop GPU/PCIe/SSE2",
+      "status": "AUTOMATED_PASS",
+      "vendor": "NVIDIA Corporation",
+      "version": "3.3.0 NVIDIA 566.14",
+      "version_code": 330
+    },
+    "GL02": {
+      "programs": [
+        "scene",
+        "hud"
+      ],
+      "status": "AUTOMATED_PASS"
+    },
+    "GL03": {
+      "gl_error": "GL_NO_ERROR",
+      "status": "AUTOMATED_PASS"
+    },
+    "GL04": {
+      "gl_error": "GL_NO_ERROR",
+      "status": "AUTOMATED_PASS"
+    },
+    "GL05": {
+      "failures": [],
+      "status": "AUTOMATED_PASS",
+      "views": 18
+    },
+    "GL06": {
+      "failures": [],
+      "note": "Window resized in place; OS display scaling must be judged by a person.",
+      "sizes": [
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            368,
+            368
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 1,
+          "requested": [
+            800,
+            600
+          ],
+          "window": [
+            800,
+            600
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            442,
+            442
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 1,
+          "requested": [
+            1280,
+            720
+          ],
+          "window": [
+            1280,
+            720
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            662,
+            662
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 1,
+          "requested": [
+            1920,
+            1080
+          ],
+          "window": [
+            1920,
+            1080
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            628,
+            628
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 1,
+          "requested": [
+            1280,
+            1024
+          ],
+          "window": [
+            1280,
+            1024
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            884,
+            884
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 2,
+          "requested": [
+            2560,
+            1440
+          ],
+          "window": [
+            2560,
+            1440
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            884,
+            884
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 2,
+          "requested": [
+            2560,
+            1440
+          ],
+          "window": [
+            2560,
+            1440
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            628,
+            628
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 1,
+          "requested": [
+            1280,
+            1024
+          ],
+          "window": [
+            1280,
+            1024
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            662,
+            662
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 1,
+          "requested": [
+            1920,
+            1080
+          ],
+          "window": [
+            1920,
+            1080
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            442,
+            442
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 1,
+          "requested": [
+            1280,
+            720
+          ],
+          "window": [
+            1280,
+            720
+          ]
+        },
+        {
+          "eye_aspect": 1.0,
+          "eye_diameter_px": [
+            368,
+            368
+          ],
+          "frame_bytes_match": true,
+          "gl_error": "GL_NO_ERROR",
+          "hud_scale": 1,
+          "requested": [
+            800,
+            600
+          ],
+          "window": [
+            800,
+            600
+          ]
+        }
+      ],
+      "status": "AUTOMATED_PASS"
+    },
+    "KO_FONT": {
+      "note": "HUD font draws Hangul glyphs (Korean UI legibility still judged by a person).",
+      "status": "AUTOMATED_PASS"
+    }
+  },
+  "clinical_validation": false,
+  "moderngl": "5.13.0",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "pygame": "2.6.1",
+  "python": "3.12.10",
+  "readback_gl_errors": [
+    "GL_INVALID_OPERATION"
+  ],
+  "readback_note": "moderngl default-framebuffer reads flag GL_INVALID_OPERATION on this driver; pixel data were still valid. Normal frames (no readback) are checked separately and must be error free.",
+  "renderer_kind": "hardware",
+  "requires_human_signoff": true,
+  "tool": "gl_hardware_check"
+}

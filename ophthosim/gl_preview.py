@@ -14,6 +14,7 @@ import argparse
 from dataclasses import dataclass
 import json
 import math
+import sys
 from typing import Iterable
 
 from .geometry import Mesh, anterior_eye_meshes
@@ -22,9 +23,25 @@ from .tool3d import stylus_mesh
 from .iol3d import foldable_iol_mesh
 from .iol_pick3d import deformed_iol_mesh
 from .capsule3d import capsule_indicator_meshes
+from .assets import default_assets
+from .complication3d import (LEVELS, ComplicationVisuals, PUPIL_RADIUS, STYLE as COMPLICATION_STYLE,
+                             complication_meshes, hyphema_mesh, miosis_ring)
 from .vision3d import VisualFeedback
 from .contact3d import ContactGuide, guide_ring_mesh
 from .surface_probe3d import SurfaceProbe
+
+# Hangul-capable fallback list (kept identical to app.FONT_NAMES).
+
+HUD_FONT_NAMES = 'malgungothic,applesdgothicneo,notosanscjkkr,nanumgothic,segoeui'
+
+
+def fps_label(fps: object) -> str:
+    """Show only a frame rate that was actually measured ("FPS: --" otherwise)."""
+    if fps is None or isinstance(fps, bool) or not isinstance(fps, (int, float)):
+        return "FPS: --"
+    if not math.isfinite(fps) or fps <= 0:
+        return "FPS: --"
+    return f"FPS: {fps:.0f}"
 
 VERTEX_SHADER = """
 #version 330
@@ -96,6 +113,49 @@ void main() {
     fragColor = texture(u_hud, v_uv);
 }
 """
+
+
+def hud_swizzle(bitsize: int, pitch: int, width: int,
+                masks: tuple[int, int, int, int],
+                byteorder: str = sys.byteorder) -> str | None:
+    """Texture swizzle for uploading a 32-bit surface buffer without copying.
+
+    Returns e.g. ``"BGRA"`` for SDL's usual little-endian ARGB8888 layout, or
+    None when rows are padded, a channel is not a whole byte, or channels
+    overlap; callers must then fall back to an explicit RGBA byte copy.
+    """
+    if bitsize != 32 or width < 1 or pitch != width * 4 or len(masks) != 4:
+        return None
+    if byteorder not in ("little", "big"):
+        return None
+    positions = []
+    for mask in masks:
+        if mask not in (0xff, 0xff00, 0xff0000, 0xff000000):
+            return None
+        shift = mask.bit_length() - 8
+        positions.append(shift // 8 if byteorder == "little" else 3 - shift // 8)
+    if len(set(positions)) != 4:
+        return None
+    return "".join("RGBA"[index] for index in positions)
+
+
+HUD_BASE_SIZE = (1280, 720)
+HUD_MAX_SCALE = 3
+
+
+def hud_scale(width: int, height: int) -> int:
+    """Integer HUD magnification for large windows (1 at 1080p, 3 at 4K).
+
+    The HUD layout is authored for roughly 1280x720. Larger windows paint it
+    at ``window // scale`` logical pixels and the GPU magnifies it with
+    nearest filtering, keeping glyphs sharp and the relative text size of the
+    authored layout instead of shrinking it on 1440p/4K displays.
+    """
+    if (type(width) is not int or type(height) is not int
+            or width < 1 or height < 1):
+        raise ValueError("HUD size must be positive integers")
+    fit = min(width // HUD_BASE_SIZE[0], height // HUD_BASE_SIZE[1])
+    return max(1, min(HUD_MAX_SCALE, fit))
 
 
 def bounded_float(value: object, lower: float, upper: float) -> float:
@@ -189,12 +249,16 @@ def atlas_meshes(phase: str) -> dict[str, Mesh]:
     if phase not in {"CATARACT", "IOL"}:
         raise ValueError("Invalid atlas phase")
     all_meshes = anterior_eye_meshes()
-    return {
+    meshes = {
         "sclera": all_meshes["sclera"],
         "iris": all_meshes["iris"],
         "lens": all_meshes["lens"] if phase == "CATARACT" else foldable_iol_mesh(),
         "cornea": all_meshes["cornea"],
     }
+    # Licensed models in assets/models/ replace procedural meshes (visual only).
+    loaded, _report = default_assets(phase)
+    meshes.update(loaded)
+    return meshes
 
 
 def offline_check() -> dict[str, object]:
@@ -220,7 +284,10 @@ class GPUEyePreview:
         "cornea": (.66, .87, .96),
     }
 
-    def __init__(self, pygame, moderngl, size=(1280, 720)):
+    def __init__(self, pygame, moderngl, size=(1280, 720), *,
+                 fullscreen: bool = False):
+        if type(fullscreen) is not bool:
+            raise ValueError("Fullscreen flag must be a boolean")
         self.pg = pygame
         self.gl = moderngl
         self.size = size
@@ -229,8 +296,9 @@ class GPUEyePreview:
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_MINOR_VERSION, 3)
         pygame.display.gl_set_attribute(pygame.GL_CONTEXT_PROFILE_MASK,
                                         pygame.GL_CONTEXT_PROFILE_CORE)
-        self.window = pygame.display.set_mode(size, pygame.OPENGL | pygame.DOUBLEBUF |
-                                              pygame.RESIZABLE)
+        flags = pygame.OPENGL | pygame.DOUBLEBUF
+        flags |= pygame.FULLSCREEN if fullscreen else pygame.RESIZABLE
+        self.window = pygame.display.set_mode(size, flags)
         pygame.display.set_caption("OphthoSim-AI | Experimental 3D GPU Atlas")
         self.ctx = moderngl.create_context(require=330)
         self.ctx.enable(moderngl.DEPTH_TEST)
@@ -239,16 +307,21 @@ class GPUEyePreview:
                                              fragment_shader=FRAGMENT_SHADER)
         self.hud_shader = self.ctx.program(vertex_shader=UI_VERTEX_SHADER,
                                            fragment_shader=UI_FRAGMENT_SHADER)
-        quad = array("f", (-1, -1, 0, 0,
-                            1, -1, 1, 0,
-                           -1,  1, 0, 1,
-                            1,  1, 1, 1))
+        # HUD rows are uploaded top-first (surface memory order), so the
+        # quad's v coordinate runs downward instead of flipping every byte.
+        quad = array("f", (-1, -1, 0, 1,
+                            1, -1, 1, 1,
+                           -1,  1, 0, 0,
+                            1,  1, 1, 0))
         self.quad_buffer = self.ctx.buffer(quad.tobytes())
         self.quad_vao = self.ctx.vertex_array(self.hud_shader,
                                [(self.quad_buffer, "2f 2f", "in_pos", "in_uv")])
-        self.font = pygame.font.SysFont("segoeui", 20)
-        self.font_big = pygame.font.SysFont("segoeui", 28, bold=True)
+        # Same Hangul-capable fallback list as the 2.5D app: Segoe UI has no
+        # Korean glyphs, so the KO HUD rendered as empty boxes on Windows.
+        self.font = pygame.font.SysFont(HUD_FONT_NAMES, 20)
+        self.font_big = pygame.font.SysFont(HUD_FONT_NAMES, 28, bold=True)
         self.hud_texture = None
+        self.hud_surface = None
         self.meshes: dict[str, tuple[object, object, object]] = {}
         self.selection: TriangleHit | None = None
         self.selection_pixel: tuple[int, int] | None = None
@@ -270,6 +343,12 @@ class GPUEyePreview:
                      [(vb, "3f 3f", "in_position", "in_normal")],
                      index_buffer=ib)
             self.capsule_buffers[key] = (vao, vb, ib)
+        # Complication signs: allocated once, drawn only when the Game shows
+        # that complication. The miosis ring and the hyphema level depend on
+        # state and are cached per (quantized) size: a bounded handful.
+        self.complication_buffers = {key: self._upload(mesh)
+                                     for key, mesh in complication_meshes().items()}
+        self.sized_buffers: dict[tuple[str, float], tuple[object, object, object]] = {}
         # Allocate one stylized 3D tool; motion uses a shader uniform only.
         tool_vertices, tool_indices, _ = pack_mesh(stylus_mesh())
         self.stylus_vbo = self.ctx.buffer(tool_vertices)
@@ -346,13 +425,83 @@ class GPUEyePreview:
         self.selection = None
         self.selection_pixel = None
 
+    def _upload(self, mesh: Mesh) -> tuple[object, object, object]:
+        vertex_bytes, index_bytes, _ = pack_mesh(mesh)
+        vb = self.ctx.buffer(vertex_bytes)
+        ib = self.ctx.buffer(index_bytes)
+        vao = self.ctx.vertex_array(self.scene_shader,
+                 [(vb, "3f 3f", "in_position", "in_normal")], index_buffer=ib)
+        return vao, vb, ib
+
+    def _sized(self, kind: str, size: float, build) -> tuple[object, object, object]:
+        key = (kind, size)
+        if key not in self.sized_buffers:
+            if len(self.sized_buffers) >= 2 * (LEVELS + 2):
+                for vao, vb, ib in self.sized_buffers.values():
+                    vao.release(); vb.release(); ib.release()
+                self.sized_buffers.clear()
+            self.sized_buffers[key] = self._upload(build(size))
+        return self.sized_buffers[key]
+
+    def _draw_complications(self, signs: ComplicationVisuals) -> None:
+        """Cosmetic complication signs in model space (no tissue physics)."""
+        shader = self.scene_shader
+
+        def draw(buffers, style: str, *, blend: bool = False, alpha: float = 1.) -> None:
+            color, base = COMPLICATION_STYLE[style]
+            shader["u_tint"].value = color
+            shader["u_alpha"].value = base * alpha
+            if blend:
+                self.ctx.enable(self.gl.BLEND)
+                self.ctx.blend_func = self.gl.SRC_ALPHA, self.gl.ONE_MINUS_SRC_ALPHA
+            buffers[0].render()
+            if blend:
+                self.ctx.disable(self.gl.BLEND)
+
+        meshes = self.complication_buffers
+        shader["u_offset"].value = (0., 0., 0.)
+        shader["u_iol_mode"].value = 0.0
+        shader["u_iol_fold"].value = 1.0
+        self.ctx.disable(self.gl.CULL_FACE)
+        if signs.pupil_radius < PUPIL_RADIUS:
+            draw(self._sized("miosis", signs.pupil_radius, miosis_ring), "miosis")
+        if signs.reflex_loss > 0:
+            draw(meshes["sch_dome"], "sch_dome", blend=True, alpha=min(1., .3 + signs.reflex_loss))
+        if signs.capsule_rupture:
+            draw(meshes["pcr_gap"], "pcr_gap")
+            draw(meshes["vitreous"], "vitreous", blend=True)
+        if signs.rhexis_tear:
+            draw(meshes["rhexis_tear_long" if signs.rhexis_tear == 2 else "rhexis_tear"],
+                 "rhexis_tear")
+        if signs.ctr:
+            draw(meshes["ctr"], "ctr")
+        if signs.iris_hooks:
+            draw(meshes["iris_hooks"], "iris_hooks")
+        if signs.iris_prolapse:
+            draw(meshes["iris_prolapse"], "iris_trauma" if signs.iris_prolapse == 2
+                 else "iris_prolapse")
+        if signs.hyphema > 0:
+            draw(self._sized("hyphema", signs.hyphema, hyphema_mesh), "hyphema", blend=True)
+        if signs.blood_film > 0:
+            draw(meshes["blood_film"], "blood_film", blend=True, alpha=.35 + .65 * signs.blood_film)
+        if signs.wound_leak:
+            draw(meshes["wound_leak"], "wound_leak", blend=True)
+        if signs.sutures:
+            draw(meshes["sutures"], "sutures")
+        self.ctx.enable(self.gl.CULL_FACE)
+
     def render(self, view: View, fps: float, *, capture: bool = False,
                overlay=None, appearance: AnatomyAppearance | None = None,
                tool_pose: tuple[float, float, float] | None = None,
                vision: VisualFeedback | None = None,
                contact: ContactGuide | None = None,
-               surface_probe: SurfaceProbe | None = None) -> bytes | None:
+               surface_probe: SurfaceProbe | None = None,
+               complications: ComplicationVisuals | None = None) -> bytes | None:
         view.check()
+        if complications is not None:
+            if not isinstance(complications, ComplicationVisuals):
+                raise ValueError("Invalid complication visuals")
+            complications.check()
         if appearance is not None:
             appearance.check()
         if vision is not None:
@@ -406,6 +555,9 @@ class GPUEyePreview:
             # communicate *simulated* progress, not biological tissue effects.
             color = self.TINTS[name]
             offset = (0., 0., 0.)
+            if name == "lens" and complications is not None and view.phase == "CATARACT":
+                # Weak zonules: the whole lens/bag sits off-centre.
+                offset = (complications.lens_shift, 0., 0.)
             if name == "lens" and appearance is not None:
                 if view.phase == "IOL":
                     displacement = .18 * (1. - appearance.iol_alignment)
@@ -436,6 +588,8 @@ class GPUEyePreview:
                                       else (.22, .82, .72))
             shader["u_alpha"].value = 1.0
             self.capsule_buffers[key][0].render()
+        if complications is not None and complications.any:
+            self._draw_complications(complications)
         self.ctx.enable(self.gl.BLEND)
         self.ctx.blend_func = self.gl.SRC_ALPHA, self.gl.ONE_MINUS_SRC_ALPHA
         self.ctx.disable(self.gl.CULL_FACE)
@@ -502,13 +656,43 @@ class GPUEyePreview:
         self.draw_hud(view, fps, w, h, overlay=overlay, vision=vision)
         # Optional readback must occur before swapping. CI uses Mesa software
         # GL; this cannot establish Windows GPU or display-driver correctness.
-        image = self.ctx.screen.read(components=3, alignment=1) if capture else None
+        # Read the CURRENT window area: ctx.screen keeps the size it had when
+        # the context was created, so after a resize a plain read returned a
+        # frame of the old size (found by the GL06 hardware check).
+        image = (self.ctx.screen.read(viewport=(0, 0, w, h), components=3, alignment=1)
+                 if capture else None)
         self.pg.display.flip()
         return image
 
-    def draw_hud(self, view: View, fps: float, w: int, h: int,
+    def render_room(self, room, camera, fps: float, *, overlay=None,
+                    capture: bool = False) -> bytes | None:
+        """Operating-room view (gl_room.RoomRenderer) with the same HUD."""
+        w, h = self.pg.display.get_window_size()
+        if not (w > 0 and h > 0):
+            return None
+        self.size = (w, h)
+        room.draw(camera, w, h)
+        self.draw_hud(None, fps, w, h, overlay=overlay)
+        image = (self.ctx.screen.read(viewport=(0, 0, w, h), components=3, alignment=1)
+                 if capture else None)
+        self.pg.display.flip()
+        return image
+
+    def draw_hud(self, view: View | None, fps: float, w: int, h: int,
                  *, overlay=None, vision: VisualFeedback | None = None) -> None:
-        hud = self.pg.Surface((w, h), self.pg.SRCALPHA)
+        # Large windows paint the HUD at a logical size and magnify it on the
+        # GPU; every coordinate below is in logical HUD pixels.
+        scale = hud_scale(w, h)
+        window_w = w
+        w, h = w // scale, h // scale
+        if hasattr(overlay, "set_ui_scale"):
+            overlay.set_ui_scale(scale)
+        # One reusable surface: allocating ~8 MB per frame at 1080p showed up
+        # in software-GL profiles.
+        if self.hud_surface is None or self.hud_surface.get_size() != (w, h):
+            self.hud_surface = self.pg.Surface((w, h), self.pg.SRCALPHA)
+        hud = self.hud_surface
+        hud.fill((0, 0, 0, 0))
         if vision is not None:
             # Frosted synthetic view veil; static and bounded, never blinking.
             # This HUD-layer approximation does NOT reproduce tissue optics.
@@ -522,11 +706,13 @@ class GPUEyePreview:
             if vision.high_contrast:
                 self.pg.draw.circle(hud,(245,236,146,235),(w//2,h//2),
                                     max(1,min(w,h)//3)+5,3)
-        if overlay is None:
+        if overlay is None and view is None:
+            lines = ()                      # clean room render (gallery images)
+        elif overlay is None:
             lines = (
                 ("OPHTHOSIM-AI  /  HARDWARE 3D FEASIBILITY", self.font_big, (230, 241, 250)),
                 ("EDUCATIONAL SYNTHETIC ANATOMY - NOT CLINICAL", self.font, (245, 202, 136)),
-                (f"VIEW: {view.phase}    FOLD: {view.iol_deployment:.0%}    FPS: {fps:.0f}", self.font, (125, 211, 231)),
+                (f"VIEW: {view.phase}    FOLD: {view.iol_deployment:.0%}    {fps_label(fps)}", self.font, (125, 211, 231)),
                 ("ARROWS: ORBIT   +/-: ZOOM   SPACE: LENS/IOL   F: FOLD   ESC: EXIT",
                  self.font, (201, 223, 236)),
                 ("LEFT CLICK: INSPECT IRIS / LENS (READ-ONLY DEPTH PICKING)",
@@ -536,13 +722,15 @@ class GPUEyePreview:
                  self.font, (128, 221, 174)),
             )
         else:
+            # Game header: title and the disclaimer in the player's language;
+            # the frame rate only with the F3 performance overlay.
+            from .i18n import t
+            lang = getattr(overlay, "lang", "en")
             lines = (
-                ("OPHTHOSIM-AI  /  INTERACTIVE 3D PROTOTYPE", self.font_big, (230, 241, 250)),
-                ("SYNTHETIC EDUCATIONAL SURGERY - NOT CLINICAL TRAINING", self.font,
-                 (245, 202, 136)),
-                (f"ANATOMY: {view.phase}    FPS: {fps:.0f} (measured locally)", self.font,
-                 (125, 211, 231)),
-            )
+                ("OPHTHOSIM-AI  ·  3D", self.font_big, (230, 241, 250)),
+                (t(lang, "ui.disclaimer"), self.font, (245, 202, 136)),
+            ) + (((fps_label(fps), self.font, (125, 211, 231)),)
+                 if getattr(overlay, "show_perf", False) else ())
         y = 24
         for text, font, color in lines:
             glyph = font.render(text, True, color)
@@ -553,7 +741,7 @@ class GPUEyePreview:
             # paints into this one shared GPU-uploaded Pygame HUD texture.
             overlay.draw(self.pg, hud, view, w, h, self.font, self.font_big)
         if self.selection_pixel is not None:
-            px, py = self.selection_pixel
+            px, py = (v // scale for v in self.selection_pixel)
             self.pg.draw.circle(hud, (110, 230, 195), (px, py), 12, 2)
             self.pg.draw.line(hud, (110, 230, 195), (px-18,py), (px-5,py), 2)
             self.pg.draw.line(hud, (110, 230, 195), (px+5,py), (px+18,py), 2)
@@ -563,8 +751,24 @@ class GPUEyePreview:
             if self.hud_texture is not None:
                 self.hud_texture.release()
             self.hud_texture = self.ctx.texture((w, h), 4)
-            self.hud_texture.filter = (self.gl.LINEAR, self.gl.LINEAR)
-        self.hud_texture.write(self.pg.image.tobytes(hud, "RGBA", True))
+        # Integer magnification uses nearest sampling so text is not blurred.
+        sampling = self.gl.LINEAR if w == window_w else self.gl.NEAREST
+        self.hud_texture.filter = (sampling, sampling)
+        swizzle = hud_swizzle(hud.get_bitsize(), hud.get_pitch(), w,
+                              tuple(hud.get_masks()))
+        if swizzle is not None:
+            # Hand the surface's own pixel memory to the driver; no
+            # intermediate RGBA/flip copy. The view locks the surface only
+            # for the duration of the upload.
+            self.hud_texture.swizzle = swizzle
+            view_buffer = hud.get_view("1")
+            try:
+                self.hud_texture.write(view_buffer)
+            finally:
+                del view_buffer
+        else:
+            self.hud_texture.swizzle = "RGBA"
+            self.hud_texture.write(self.pg.image.tobytes(hud, "RGBA", False))
         self.hud_texture.use(0)
         self.hud_shader["u_hud"].value = 0
         self.ctx.disable(self.gl.DEPTH_TEST)
@@ -578,7 +782,9 @@ class GPUEyePreview:
         self.contact_vao.release()
         self.contact_vbo.release()
         self.contact_ibo.release()
-        for vao, vbo, ibo in self.capsule_buffers.values():
+        for vao, vbo, ibo in (*self.capsule_buffers.values(),
+                              *self.complication_buffers.values(),
+                              *self.sized_buffers.values()):
             vao.release()
             vbo.release()
             ibo.release()
@@ -593,6 +799,7 @@ class GPUEyePreview:
         self.quad_buffer.release()
         if self.hud_texture is not None:
             self.hud_texture.release()
+        self.hud_surface = None
         self.scene_shader.release()
         self.hud_shader.release()
 

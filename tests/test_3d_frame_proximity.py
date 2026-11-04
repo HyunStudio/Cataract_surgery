@@ -17,6 +17,7 @@ from ophthosim.vision3d import visual_feedback
 
 def initial_hover():
     c=Surgery3DController(seed=19)
+    for _check in ("identity", "site", "iol_plan"): c.command("verify", _check)
     assert c.command("confirm")
     assert c.command("prepare")
     p=eye_to_pixel(.69,.46,c.tool_depth,1280,720,c.view)
@@ -46,6 +47,7 @@ def _label_pixels(hud,pg,surf,font,large):
 def test_hud_draw_reuses_prepared_surface_probe_and_never_reruns_bvh(monkeypatch):
     c=initial_hover()
     hud=SurgeryHUD(c)
+    hud.show_perf=True          # proximity readout is an F3 diagnostic
     calls=[]
     actual=probes.nearest_triangle
     def counted(*args,**kwargs):
@@ -81,6 +83,7 @@ def test_hud_draw_reuses_prepared_surface_probe_and_never_reruns_bvh(monkeypatch
 def test_explicit_same_phase_cursor_change_invalidates_prepared_hud():
     c=initial_hover()
     hud=SurgeryHUD(c)
+    hud.show_perf=True          # proximity readout is an F3 diagnostic
     status=probes.probe_surface(c)
     assert status is not None
     hud.set_frame_proximity(status)
@@ -98,6 +101,7 @@ def test_explicit_same_phase_cursor_change_invalidates_prepared_hud():
 def test_camera_orbit_phase_change_and_safety_hold_hide_stale_probe():
     c=initial_hover()
     hud=SurgeryHUD(c)
+    hud.show_perf=True          # proximity readout is an F3 diagnostic
     status=probes.probe_surface(c)
     assert status is not None
     hud.set_frame_proximity(status)
@@ -129,6 +133,7 @@ def test_camera_orbit_phase_change_and_safety_hold_hide_stale_probe():
 def test_hud_rejects_dirty_precomputed_values_without_game_mutation(bad):
     c=initial_hover()
     hud=SurgeryHUD(c)
+    hud.show_perf=True          # proximity readout is an F3 diagnostic
     old=c.game.snapshot()
     with pytest.raises(ValueError):
         hud.set_frame_proximity(bad)
@@ -138,6 +143,7 @@ def test_hud_rejects_dirty_precomputed_values_without_game_mutation(bad):
 def test_proximity_can_be_cleared_after_restart_and_has_no_stale_display():
     c=initial_hover()
     hud=SurgeryHUD(c)
+    hud.show_perf=True          # proximity readout is an F3 diagnostic
     hud.set_frame_proximity(probes.probe_surface(c))
     assert hud.frame_proximity is not None
     c.restart()

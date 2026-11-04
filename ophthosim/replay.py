@@ -38,13 +38,16 @@ def _invalid_constant(value: str) -> None:
 class ReplayGame(Game):
     """Game with bounded, deterministic command capture and integrity checks."""
 
-    REPLAY_VERSION = 1
-    MAX_RECORDS = 16000
-    MAX_TICKS = 300000
-    MAX_REPLAY_BYTES = 12_000_000
+    REPLAY_VERSION = 3
+    # Held instruments issue one command per 1/60 s tick; these limits allow
+    # about 35 minutes of continuous work and two hours of simulated time.
+    MAX_RECORDS = 250_000
+    MAX_TICKS = 432_000
+    MAX_REPLAY_BYTES = 32_000_000
 
-    def __init__(self, case: str = "normal", seed: int = 7) -> None:
-        super().__init__(case, seed)
+    def __init__(self, case: str = "normal", seed: int = 7,
+                 difficulty: str = "standard") -> None:
+        super().__init__(case, seed, difficulty)
         self.journal: list[dict[str, Any]] = []
         self.journal_overflow = False
         self._dispatch_depth = 0
@@ -60,30 +63,36 @@ class ReplayGame(Game):
         # Game.action('assess') can internally call self.action('abort').
         # Only the outer command belongs to the user's command stream.
         is_outer = self._dispatch_depth == 0
+        before = self.state_key() if is_outer else None
         self._dispatch_depth += 1
         try:
             accepted = super().action(name, x, y)
         finally:
             self._dispatch_depth -= 1
-        if is_outer and isinstance(name, str):
+        # Commands that changed nothing (a cursor re-tracing a visited
+        # segment, a click outside every target) cannot alter a replay, so
+        # they are not journaled; mouse-heavy sessions stay bounded.
+        if is_outer and isinstance(name, str) and self.state_key() != before:
             item: dict[str, Any] = {"kind": "action", "name": name,
                                     "accepted": accepted}
-            if name == "verify" and isinstance(x, str) and len(x) <= 80:
+            if name in ("verify", "tool") and isinstance(x, str) and len(x) <= 80:
                 item["x"] = x
                 self._append(item)
-            elif name in {"touch", "trace", "remove", "place"}:
+            elif name in {"touch", "trace", "remove", "place", "use"}:
                 point = self._xy(x, y)
                 if point is not None:
                     # Failed in-range actions also matter. A missed 'remove'
                     # can increment the synthetic capsule-stress counter.
                     item["x"], item["y"] = point
                     self._append(item)
-            elif name in {"abort", "assess", "pause", "confirm", "prepare"}:
+            elif name in {"abort", "assess", "pause", "confirm", "prepare", "escalate"}:
                 self._append(item)
         return accepted
 
     def tick(self, dt: float) -> None:
-        was_running = not self.paused and not self.ending
+        # A safety hold is timed (unattended alerts end in a veto), so its
+        # ticks are part of the deterministic command stream too.
+        was_running = not self.ending and (not self.paused or bool(self.patient.alert))
         super().tick(dt)
         if not was_running or dt == 0:
             return
@@ -105,7 +114,8 @@ class ReplayGame(Game):
         if self.journal_overflow:
             raise RuntimeError("Replay capture exceeded safety limits")
         header = {"kind": "session", "schema_version": self.REPLAY_VERSION,
-                  "case": self.case, "seed": self.seed}
+                  "case": self.case, "seed": self.seed,
+                  "difficulty": self.difficulty}
         footer = {"kind": "integrity",
                   "journal_sha256": _digest("\n".join(_canonical(row) for row in [header, *self.journal])),
                   "events_sha256": _digest(self.export_jsonl()),
@@ -128,7 +138,7 @@ class ReplayGame(Game):
         except (TypeError, json.JSONDecodeError, RecursionError) as exc:
             raise ValueError("Malformed replay JSON") from exc
         header, footer = records[0], records[-1]
-        if not isinstance(header, dict) or set(header) != {"kind", "schema_version", "case", "seed"}:
+        if not isinstance(header, dict) or set(header) != {"kind", "schema_version", "case", "seed", "difficulty"}:
             raise ValueError("Invalid replay header")
         if header["kind"] != "session" or header["schema_version"] != cls.REPLAY_VERSION:
             raise ValueError("Unsupported replay version")
@@ -142,7 +152,8 @@ class ReplayGame(Game):
         if footer["journal_sha256"] != _digest("\n".join(_canonical(row) for row in records[:-1])):
             raise ValueError("Replay command journal was modified")
         try:
-            game = cls(case=header["case"], seed=header["seed"])
+            game = cls(case=header["case"], seed=header["seed"],
+                       difficulty=header["difficulty"])
         except (ValueError, TypeError, OverflowError) as exc:
             raise ValueError("Invalid case or seed") from exc
         count = 0

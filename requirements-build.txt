@@ -1,0 +1,2 @@
+-r requirements-3d.txt
+pyinstaller==6.16.0

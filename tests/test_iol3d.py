@@ -4,6 +4,7 @@ import random
 
 import pytest
 
+from surgeon_helpers import use
 from ophthosim.engine import Game, Phase
 from ophthosim.geometry import Mesh
 from ophthosim.gl_preview import AnatomyAppearance, VERTEX_SHADER, atlas_meshes, pack_mesh
@@ -12,6 +13,7 @@ from ophthosim.iol3d import foldable_iol_mesh, iol_visual_deployment
 
 def _reach_iol():
     game = Game(seed=17)
+    for _check in ("identity", "site", "iol_plan"): game.action("verify", _check)
     assert game.action("confirm")
     assert game.action("prepare")
     for x, y in game._entry_target:
@@ -21,7 +23,10 @@ def _reach_iol():
         a = (n+.5)*math.tau/24
         game.action("trace", .5+.28*math.cos(a), .5+.28*math.sin(a))
     assert game.phase == Phase.PHACO
-    for _ in range(80):
+    use(game, "hydro_cannula")
+    for _ in range(1000):
+        if game.phase not in (Phase.PHACO, Phase.CORTEX):
+            break
         assert game.action("remove",.5,.5)
     assert game.phase == Phase.IOL
     return game

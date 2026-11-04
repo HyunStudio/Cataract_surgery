@@ -73,6 +73,7 @@ def test_single_triangle_far_budget_and_center():
 def test_mesh_probe_gated_before_case_and_during_abort():
     ctrl=Surgery3DController()
     assert probe_surface(ctrl) is None
+    for _check in ("identity", "site", "iol_plan"): ctrl.command("verify", _check)
     assert ctrl.command("confirm")
     assert ctrl.command("prepare")
     pt=eye_to_pixel(*ctrl.game._entry_target[0],ctrl.tool_depth,1280,720,ctrl.view)
@@ -95,6 +96,7 @@ def test_mesh_probe_gated_before_case_and_during_abort():
 
 def test_motion_safety_hold_never_produces_mesh_probe():
     ctrl=Surgery3DController("motion")
+    for _check in ("identity", "site", "iol_plan"): ctrl.command("verify", _check)
     ctrl.command("confirm")
     ctrl.command("prepare")
     for x,y in ctrl.game._entry_target:
@@ -107,6 +109,7 @@ def test_motion_safety_hold_never_produces_mesh_probe():
 
 def test_model_shift_adjusted_for_camera_orientation_without_changing_game():
     ctrl=Surgery3DController()
+    for _check in ("identity", "site", "iol_plan"): ctrl.command("verify", _check)
     ctrl.command("confirm")
     ctrl.command("prepare")
     pt=eye_to_pixel(.69,.46,ctrl.tool_depth,1280,720,ctrl.view)

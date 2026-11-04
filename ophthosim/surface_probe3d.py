@@ -20,8 +20,10 @@ from .tool3d import visible_stylus
 from .vision3d import VisualFeedback
 
 STATES = frozenset(("CLOSE", "NEAR", "FAR"))
+# CLOSE is only active while a decentered IOL is repositioned (the
+# controller exposes no target depth otherwise, so no stylus is shown).
 ACTIVE_PHASES = frozenset((Phase.ENTRY, Phase.CAPSULE, Phase.PHACO,
-                           Phase.CORTEX, Phase.IOL))
+                           Phase.CORTEX, Phase.IOL, Phase.CLOSE))
 
 
 @dataclass(frozen=True, slots=True)
