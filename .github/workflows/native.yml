@@ -1,0 +1,48 @@
+name: Native numerical contracts
+on:
+  push:
+    paths: ['native/**', 'tools/**', 'pytest.ini', '.github/workflows/native.yml']
+  pull_request:
+    paths: ['native/**', 'tools/**', 'pytest.ini', '.github/workflows/native.yml']
+  workflow_dispatch:
+jobs:
+  windows-native:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install independent numerical oracles
+        run: python -m pip install numpy==1.26.4 scipy==1.14.1
+      - name: Verify and extract pinned Zig
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .tools | Out-Null
+          $archive = Join-Path $PWD '.tools/zig-0.17.0.zip'
+          Invoke-WebRequest -Uri 'https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip' -OutFile $archive
+          $expected = 'b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428'
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'Pinned Zig archive checksum mismatch'
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath .tools
+      - name: Fetch pinned unmodified dependencies
+        run: python tools/setup_native_dependencies.py
+      - name: Build all eight numerical artifacts
+        shell: pwsh
+        run: |
+          foreach ($script in @('build_membrane_kernel', 'build_contact_distance', 'build_contact_guard', 'build_contact_merit_probe', 'build_contact_step_probe', 'build_coupled_contact', 'build_membrane_fem', 'build_fp_environment_probe')) {
+            python "tools/$script.py"
+            if ($LASTEXITCODE -ne 0) { throw "Native build failed: $script" }
+          }
+      - name: Qualify original force, gap, contact and calling-environment contracts
+        run: python tools/validate_fp_environment.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-native-contract-evidence
+          path: |
+            godot/reports/fp-environment-validation.json
+            .tools/native/*.build.json
+          if-no-files-found: ignore
