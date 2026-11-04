@@ -12,6 +12,8 @@ struct FineContacts {
     const double *weights,*capsules;
     int layers=1;
     const double *previous=nullptr,*times=nullptr;
+    bool endpoint_precision=false;
+    bool precise() const {return previous || endpoint_precision;}
     int pairs() const {return faces*bodies*layers;}
     int face_index(int pair) const {return (pair/bodies)%faces;}
     double time(int pair) const {return previous ? times[pair/(faces*bodies)] : 1.;}
@@ -35,21 +37,22 @@ struct FineContacts {
         // Hulls belong to this exact x evaluation, never to a body, dual or rho.
         // A fresh candidate rebuilds them; accepted state/next swaps carry them.
         out.hulls.clear();std::vector<unsigned char> regular;
-        if(previous) {
+        const double* field_previous=previous ? previous : problem.predicted.data();
+        if(precise()) {
             out.hulls.resize(faces*layers);
             if(physical_dual)regular.resize(faces*layers);
             for(int layer=0;layer<layers;++layer) for(int face=0;face<faces;++face) {
                 double old[9],end[9];
                 for(int j=0;j<3;++j) for(int axis=0;axis<3;++axis) {
-                    const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=previous[k];end[j*3+axis]=x[k];
+                    const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=field_previous[k];end[j*3+axis]=x[k];
                 }
-                out.hulls[layer*faces+face]=membrane::fem_trajectory_merit::hull(old,end,times[layer]);
-                if(physical_dual)regular[layer*faces+face]=membrane::fem_trajectory_merit::regular(old,end,weights+face*9,times[layer]);
+                out.hulls[layer*faces+face]=membrane::fem_trajectory_merit::hull(old,end,(previous ? times[layer] : 1.));
+                if(physical_dual)regular[layer*faces+face]=membrane::fem_trajectory_merit::regular(old,end,weights+face*9,(previous ? times[layer] : 1.));
             }
         }
         const size_t offset=out.blocks.size();out.blocks.resize(offset+size_t(pairs())*81,0.);
         out.updated.resize(pairs());
-        Vec uncertainty(previous ? x.size() : 0,0.);
+        Vec uncertainty(precise() ? x.size() : 0,0.);
         for(int p=0;p<pairs();++p) {
             double controls[9],triangle[9];local(x,p,controls,triangle);
             const double* capsule=body(p);const double r2=capsule[6]*capsule[6];
@@ -60,7 +63,7 @@ struct FineContacts {
             if(query.status!=0 && query.status!=3) return false;
             double g=query.values[0]/r2-1.,u=std::max(0.,dual[p]-rho*g),u_error=0.;
             if(!std::isfinite(g) || !std::isfinite(u)) return false;
-            if(previous) {
+            if(precise()) {
                 // The full query above is mandatory. Only its known-zero PHR
                 // refinement may reuse this unrounded original-control hull.
                 const auto& box=out.hulls[p/bodies];
@@ -74,7 +77,7 @@ struct FineContacts {
                 }
                 double old[9],end[9];const int face=face_index(p);
                 for(int j=0;j<3;++j) for(int axis=0;axis<3;++axis) {
-                    const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=previous[k];end[j*3+axis]=x[k];
+                    const int k=nodes[face*3+j]*3+axis;old[j*3+axis]=field_previous[k];end[j*3+axis]=x[k];
                 }
                 membrane::merit::Interval bounded_gap,separation;
 #ifdef FEM_TEMPORAL_FIELD_OBSERVER
@@ -94,7 +97,7 @@ struct FineContacts {
                 if(!std::isfinite(g) || !std::isfinite(u) || !std::isfinite(u_error)) return false;
             }
             out.updated[p]=u;
-            if(!previous) {
+            if(!precise()) {
                 out.penetration=std::max(out.penetration,-query.values[1]);
                 out.complementarity=std::max(out.complementarity,std::abs(u*g));
             }
@@ -106,7 +109,7 @@ struct FineContacts {
                 const int k=nodes[face*3+i/3]*3+i%3;
                 const double ji=exact.gradient[i]/r2;
                 if(problem.mass[k/3]>0.) out.gradient[k]-=previous ? u*t*ji : u*ji;
-                if(previous && problem.mass[k/3]>0.) {
+                if(precise() && problem.mass[k/3]>0.) {
                     const auto bound=membrane::merit::Interval(u_error)*membrane::merit::Interval(std::abs(t*ji));
                     uncertainty[k]=std::nextafter(uncertainty[k]+membrane::merit::upper_double(bound),std::numeric_limits<double>::infinity());
                 }
@@ -126,17 +129,18 @@ struct FineContacts {
                     const ContactState& current,const ContactState& candidate,double& upper) const {
         double original=0.;if(!problem.difference(x,y,original)) return false;
         membrane::merit::Interval value(original);
+        const double* field_previous=previous ? previous : problem.predicted.data();
         for(int p=0;p<pairs();++p) {
             double controls[9],before[9],after[9];local(x,p,controls,before);local(y,p,controls,after);
             const double* capsule=body(p);membrane::merit::Interval term;
-            if(previous) {
+            if(precise()) {
                 if(current.updated[p]==0. && candidate.updated[p]==0. &&
                    membrane::fem_trajectory_merit::inactive_hulls(current.hulls[p/bodies],candidate.hulls[p/bodies],capsule,capsule[6],dual[p],rho)) {
                     value=value+membrane::merit::Interval(0);continue;
                 }
                 double old[9],first[9],last[9];const int face=face_index(p);
                 for(int j=0;j<3;++j) for(int a=0;a<3;++a) {
-                    const int k=nodes[face*3+j]*3+a;old[j*3+a]=previous[k];first[j*3+a]=x[k];last[j*3+a]=y[k];
+                    const int k=nodes[face*3+j]*3+a;old[j*3+a]=field_previous[k];first[j*3+a]=x[k];last[j*3+a]=y[k];
                 }
 #ifdef FEM_CONTACT_OBSERVER
                 observe_contact_query(true);
@@ -167,7 +171,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
                   int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
                   int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* contact_dual,double* stats,
                   int layers=1,const double* previous=nullptr,const double* times=nullptr,
-                  const double* initial=nullptr,const double* multiplier_seed=nullptr,double initial_penalty=1.) {
+                  const double* initial=nullptr,const double* multiplier_seed=nullptr,double initial_penalty=1.,bool endpoint_precision=false) {
     if(!output || !inverse || !stats || grips<0 || grips>2 || (grips && (!grip_nodes || !weights || !targets || !reaction)) ||
        faces<0 || faces>8192 || bodies<0 || bodies>64 || layers<1 || layers>16 || faces*bodies*layers>65536 ||
        (faces && (!face_nodes || !face_weights)) || (bodies && !capsules) || (faces*bodies && !contact_dual) ||
@@ -229,7 +233,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         if(!q.allFinite() || projection_gap>gap_tolerance) return 2;
         for(int j=0;j<size;++j) x[free[j]]=q[j];
     }
-    FineContacts contacts{faces,bodies,face_nodes,face_weights,capsules,layers,previous,times};
+    FineContacts contacts{faces,bodies,face_nodes,face_weights,capsules,layers,previous,times,endpoint_precision};
     auto pattern=problem.cells;
     for(int p=0;p<contacts.pairs();++p) {Cell cell{};for(int j=0;j<3;++j) cell.node[j]=face_nodes[contacts.face_index(p)*3+j];pattern.push_back(cell);}
     SparseCells system(n,pattern,problem.mass,rows ? &a : nullptr);
@@ -256,7 +260,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
             // directly instead of amplifying coordinate rounding by another
             // penalty step. The proposed duals get a fresh full evaluation;
             // every original acceptance gate, including final SPD, still applies.
-            if(previous && !polish_tried && force>tolerance && force<=std::max(tolerance,1e-6) &&
+            if(contacts.precise() && !polish_tried && force>tolerance && force<=std::max(tolerance,1e-6) &&
                gap<=gap_tolerance && state.penetration<=gap_tolerance && state.complementarity<=comp_tolerance) {
                 polish_tried=true;std::vector<int> active;
                 for(int p=0;p<contacts.pairs();++p) if(state.updated[p]>0.) active.push_back(p);

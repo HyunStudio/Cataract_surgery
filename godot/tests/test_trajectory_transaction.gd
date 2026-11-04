@@ -25,6 +25,16 @@ class Backend extends RefCounted:
 		if layers>1 and bad_comp:stats[13]=1e-6
 		var dual:=PackedFloat64Array();dual.resize(layers)
 		return {"status":0,"xyz":xyz,"stats":stats,"reaction":PackedFloat64Array(),"dual":dual}
+class PreciseBackend extends Backend:
+	var endpoint_calls:=0
+	var legacy_calls:=0
+	var seeded_calls:=0
+	func solve_contact_fem(request:Dictionary)->Dictionary:
+		legacy_calls+=1;return candidate(request,1)
+	func solve_precise_contact_fem(request:Dictionary)->Dictionary:
+		endpoint_calls+=1;var result:=candidate(request,1);result.stats[15]=1.;return result
+	func solve_seeded_trajectory_fem(request:Dictionary)->Dictionary:
+		seeded_calls+=1;return candidate(request,request.times.size())
 class Guard extends RefCounted:
 	var calls:=0
 	var witness:=.5
@@ -54,6 +64,14 @@ func _initialize()->void:
 	check(first.budget==20 and retry.budget==17 and retry.times==PackedFloat64Array([.5,1.]),"retries share total Newton budget and carry sorted material contact times")
 	var after:Dictionary=value.snapshot()
 	check(after.steps==1 and after.time==1./60. and after.previous==before.xyz and after.contacts.times==retry.times,"histories, clock and sampled multipliers commit once after the complete guard")
+	var precise:=PreciseBackend.new();value=model();guard=Guard.new();before=value.snapshot()
+	var precise_result:Dictionary=value.advance_contact(1./60.,force,precise,2.,3.,motion(guard),1.,20)
+	check(precise_result.valid and precise.endpoint_calls==1 and precise.legacy_calls==0 and precise.seeded_calls==1,"accurate endpoint is preferred and qualified witness retries use its numerical seed")
+	if precise_result.valid:
+		var seed:Dictionary=precise.requests[1]
+		check(seed.xyz==precise.requests[0].xyz and seed.initial==seed.xyz and seed.previous==before.xyz and seed.times==PackedFloat64Array([.5,1.]) and seed.budget==17,"accurate endpoint warm seed preserves immutable prediction, accepted history and shared work budget")
+		check(value.snapshot().steps==1 and value.snapshot().previous==before.xyz,"accurate endpoint and witness retry publish once")
+
 	for mode in ["duplicate","zero","nan","exhausted","bad_work","bad_force"]:
 		value=model();backend=Backend.new();guard=Guard.new();before=value.snapshot()
 		if mode=="duplicate":guard.repeat=true

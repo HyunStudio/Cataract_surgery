@@ -156,7 +156,8 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 		context.times=contact_times.duplicate();context.previous=_state.xyz.duplicate()
 	var trajectory:=coupled and contact_times.size()>1
 	var seeded:=trajectory and not numerical_seed.is_empty()
-	if backend==null or not backend.has_method(("solve_seeded_trajectory_fem" if seeded else ("solve_trajectory_fem" if trajectory else "solve_contact_fem")) if coupled else ("solve_grasp_fem" if gripping else "solve_fem")):return invalid("native_fem_unavailable")
+	var endpoint_method:="solve_precise_contact_fem" if backend!=null and backend.has_method("solve_precise_contact_fem") else "solve_contact_fem"
+	if backend==null or not backend.has_method(("solve_seeded_trajectory_fem" if seeded else ("solve_trajectory_fem" if trajectory else endpoint_method)) if coupled else ("solve_grasp_fem" if gripping else "solve_fem")):return invalid("native_fem_unavailable")
 	if not _prepare_energy():return invalid("step_geometry")
 	var current:PackedFloat64Array=_state.xyz
 	var predicted:=current.duplicate();var inverse:=PackedFloat64Array();inverse.resize(_state.support.mass.size())
@@ -174,7 +175,7 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if coupled:request.merge({"face_nodes":_state.support.elements,"face_weights":_state.support.weights,"capsules":context.capsules,"complementarity_tolerance":ContactStep.COMP},true)
 	if trajectory:request.merge({"previous":current,"times":contact_times,"kinds":context.kinds,"packets":context.packets},true)
 	if seeded:request.merge({"initial":numerical_seed.initial,"multiplier_seed":numerical_seed.multiplier_seed,"penalty_seed":numerical_seed.penalty_seed},true)
-	var result=(backend.solve_seeded_trajectory_fem(request) if seeded else (backend.solve_trajectory_fem(request) if trajectory else backend.solve_contact_fem(request))) if coupled else (backend.solve_grasp_fem(request) if gripping else backend.solve_fem(request))
+	var result=(backend.solve_seeded_trajectory_fem(request) if seeded else (backend.solve_trajectory_fem(request) if trajectory else backend.call(endpoint_method,request))) if coupled else (backend.solve_grasp_fem(request) if gripping else backend.solve_fem(request))
 	if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array:return invalid("native_fem_shape")
 	if result.status!=0:
 		var failed:={"valid":false,"changed":false,"reason":"native_fem_solve","status":result.status,"stats":result.stats}

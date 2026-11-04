@@ -396,6 +396,17 @@ FEM_EXPORT int membrane_fem_solve_contact(int n,double* output,const double* inv
     catch(...) {return 2;}
 }
 
+FEM_EXPORT int membrane_fem_solve_precise_contact(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
+    const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
+    int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
+    int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* dual,double* stats) {
+    membrane::numeric::Scope environment;
+    if(stats) {std::fill(stats,stats+16,0.);stats[0]=stats[1]=stats[8]=stats[12]=stats[13]=std::numeric_limits<double>::infinity();}
+    try {return solve_contact(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
+                             grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules,dual,stats,1,nullptr,nullptr,nullptr,nullptr,1.,true);}
+    catch(...) {return 2;}
+}
+
 // Layer-major collocation candidate only; complete motion clearance remains a
 // separate mandatory acceptance condition in the caller.
 static int solve_recorded_trajectory(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
