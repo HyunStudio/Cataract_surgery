@@ -103,4 +103,15 @@ and delta review find no actionable correctness issue. All jobs terminal.
 No numerical prototype was adopted. Goal stays active. Continue with unresolved
 material-conserving actual tool/tear behavior and full-case input/performance;
 do not spend another full-prefix numerical run until the saved failing step has
-a reasoned fix. Local integration of this display milestone remains to be done.
+a reasoned fix. Integrated91bebc5 by fast-forward; actual main ocular test terminates0.
+
+
+Integration ledger: main runtime ocular test reports0failures; PowerShell runner
+AST parses without errors; branch sources were reviewed with no findings.
+The temporary no-fracture diagnostic used tear_strain=1e6 solely to observe
+elastic strain evolution and is NOT a passing material regression or proposed
+threshold change. No production physical source changed in this milestone.
+Next queue remains the professional simulation completion objective. Fix actual
+material-conserving tool/tear operation and real-time mechanics, then full-case
+operator/GPU/release qualification. Avoid another long uninstrumented numerical
+replay or tolerance-policy search without a concrete causal test.

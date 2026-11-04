@@ -166,5 +166,14 @@
     ".tools\\measure_ocular_gpu.gd": "6bf834f627d76f7b54c8bd1fd33bf9e3bdf31ff022b23ed5239d1ffeebf426f2",
     ".tools\\godot\\Godot_v4.7.2-stable_win64_console.exe": "c8f0a6bc45a19b33541501e57f6f7cd972ab18453743266339d495cbbe846643"
   },
-  "image_sha256": "751b3acab2fcb042ee53a7c5e5e6865c8f5d2c116e76b1de4772dc17f2dc1d2a"
+  "image_sha256": "751b3acab2fcb042ee53a7c5e5e6865c8f5d2c116e76b1de4772dc17f2dc1d2a",
+  "validation_root": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction",
+  "integration": {
+    "source_commit": "91bebc5",
+    "mode": "Fast-forward into feat/godot-surgery-game",
+    "command": "Godot --headless --path godot --script res://tests/test_ocular_appearance.gd",
+    "exit_code": 0,
+    "result": "Ocular appearance: 0 failures",
+    "note": "Scoped11suite evidence belongs to the isolated worktree; normal Git text checkout may change line endings. Integrated runtime test additionally passed."
+  }
 }
