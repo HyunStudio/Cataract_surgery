@@ -267,11 +267,20 @@ func _node(p:Vector3,face:Vector3i,snap_edges:=true)->int:
 		var distance:=p.distance_to(closest)
 		if distance<nearest:
 			nearest=distance; edge=_key(face[(j+1)%3],face[(j+2)%3])
-			var t:=clampf(_dot(closest-a,b-a)/_dot(b-a,b-a),0.,1.)
-			weights=Vector3.ZERO; weights[(j+1)%3]=1.-t; weights[(j+2)%3]=t
+	var edge_first:=-1;var edge_last:=-1
+	if edge.x>=0:
+		# Both incident faces must use the same source-edge arithmetic order.
+		# Reversed closest-point interpolation and three-term reconstruction
+		# can otherwise create distinct rounded copies of one shared crossing.
+		var a:Vector3=_original[edge.x];var b:Vector3=_original[edge.y]
+		var t:=clampf(_dot(p-a,b-a)/_dot(b-a,b-a),0.,1.)
+		weights=Vector3.ZERO
+		for j in range(3):
+			if face[j]==edge.x:edge_first=j;weights[j]=1.-t
+			if face[j]==edge.y:edge_last=j;weights[j]=t
 	if not weights.is_finite() or minf(weights.x,minf(weights.y,weights.z))<0.: _failure="outside_binding"; return -1
-	weights/=weights.x+weights.y+weights.z
-	p=_original[face.x]*weights.x+_original[face.y]*weights.y+_original[face.z]*weights.z
+	if edge.x>=0:p=_affine(_original[edge.x],_original[edge.y],_original[edge.y],Vector3(weights[edge_first],weights[edge_last],0.))
+	else:p=_affine(_original[face.x],_original[face.y],_original[face.z],weights)
 	if edge.x>=0:
 		for v in _edge_nodes.get(edge,PackedInt32Array()):
 			if _points[v].distance_to(p)<=EPS*2.: return v
@@ -281,6 +290,16 @@ func _node(p:Vector3,face:Vector3i,snap_edges:=true)->int:
 		if not _edge_nodes.has(edge): _edge_nodes[edge]=PackedInt32Array()
 		_edge_nodes[edge].append(index)
 	return index
+
+static func _affine(a:Vector3,b:Vector3,c:Vector3,weights:Vector3)->Vector3:
+	# Normalize in scalar double arithmetic. Rounded Vector3 weights need not
+	# sum to exactly one; a direct weighted sum then drifts off the source plane.
+	var total:float=float(weights.x)+weights.y+weights.z
+	var result:=Vector3.ZERO
+	for axis in range(3):
+		var base:float=a[axis]
+		result[axis]=base+((float(b[axis])-base)*weights.y+(float(c[axis])-base)*weights.z)/total
+	return result
 
 func _insert(triangles:Array[PackedInt32Array],v:int)->Array[PackedInt32Array]:
 	var output:Array[PackedInt32Array]=[]; var found:=false

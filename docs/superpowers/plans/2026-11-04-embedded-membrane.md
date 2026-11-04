@@ -104,3 +104,55 @@ GDScript energy is the independently testable reference; an efficient native
 implementation with derivative comparison is needed before interactive claims.
 Avoid another full-prefix expensive solve until each new candidate passes its
 saved local fixture. Continue full original goal, not support-only completion.
+
+### State transfer and affine robustness milestone
+
+- Prior turn progress:8ab9629 with original support/energy plus23-suite evidence.
+  No live job remained when continuing. Still the same complete simulator goal.
+- New embedded_membrane.gd starts independently from original rest geometry and
+  keeps its double control positions/histories, material areas, fine topology
+  and basis together. Geometric batches stage all changes before publication.
+  New split controls inherit the matching old ancestor controls; welding rejects.
+  Fine-point forces use the transpose of the canonical embedding, tested by
+  exact virtual work. State views are deep copies; bad/later-failing operations
+  preserve accepted state. No actual time integrator has been added yet.
+- Missing state module RED->GREEN. Tests check a deformed moving specimen cut
+  retains mass/momentum and introduces no elastic-energy impulse, as well as
+  fixed rim, noncontact and invalid force behavior. An initial test syntax error
+  was corrected before observing the intended missing-module RED.
+- Scaled shared-edge fixture exposed subdivision_winding: adjacent source faces
+  reconstructed one edge intersection in opposite arithmetic order, creating
+  two rounded points about3e-7apart. Canonical edge interpolation fixes it. A
+  plane-intersection extrapolation trial fails a near-parallel finite-patch
+  guard and was removed; use the bounded closest-edge interpolation instead.
+- A curved embedded64segment/128triangle-patch route first rejected atsegment12
+  with area_not_preserved. Diagnostics show a1.18e-9 area deficit. Rounded
+  Vector3 weights can sum to1+roundoff; direct float weighted sums drift away
+  from the material plane. Node and rest/history transfers now use normalized
+  scalar-double affine differences, matching the packed64 transfer. Existing
+  area/vertex/mass/native tolerances are unchanged. Constant-field and ordinary
+  vs packed64 transfer agreement tests pass. No precision-policy widening.
+- After that fix, the entire direct-curtain curved route passes:1001fine points,
+  1180faces,289controls,128incision events,2real components and no shared controls
+  between free flap/anchored remainder. Totalmass5.319326346740127, minimum
+  virtualmass.0014013379085461685. Histories are unchanged (no hidden time step).
+  This is not a sharp-blade input, contact solve or completed surgical procedure.
+- Review caught a detached-control anchoring bug: an original basis label may
+  reference a fixed vertex lying outside the retained fragment. The single
+  triangle/A-only anchor/severed opposite region fixture reproduced1RED.
+  state.fixed now comes from retained anchored fine-point support maps; a free
+  fragment can move, and retained anchor controls remain fixed. Fixture now0.
+  Reviewer confirmed the fix, no additional actionable issue found.
+-26 source-hashed suites in job62549 terminate0; no changed source, script errors
+  or leaked objects. Report: docs/assets/embedded-state-validation-2026-11-04.json.
+  Known default GS small-traction jobee8b1a still RED1; actual continuous blade
+  job311b5b now rejects nonmanifold_subdivision (RED2), captured in
+  tests/fixtures/blade-continuous-nonmanifold.bin. Inspect this local input next.
+  The previous frozen material-resolution fixture still reproduces its guard.
+- Main remains unchanged, native code unchanged, no release/default backend
+  promotion. Next: resolve local blade topology; implement efficient native
+  objective Hessian/backward Euler and contact mapping against the independent
+  GDScript energy; enrich/refine partial interior slits before actual operation.
+  Worktree .tools has no compiler/Eigen deps; main .tools contains the verified
+  pinned tools. Use explicit read-only dependency junctions or validated build
+  dependency configuration, with a separate worktree native output directory.

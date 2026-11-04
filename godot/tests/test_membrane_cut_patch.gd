@@ -25,6 +25,20 @@ func _initialize()->void:
 	var replay:Dictionary=cutter.slice_triangle(regression.points,regression.indices,regression_patch[0],regression_patch[1],regression_patch[2])
 	verify(replay,regression.points,regression.indices)
 	check(replay.valid and replay.changed,"a thin transverse stroke keeps its interior midpoint inside the material face")
+	var scaled:=PackedVector3Array([Vector3(-1.03,0,-.98),Vector3(1.03,0,-.98),Vector3(1.03,0,.98),Vector3(-1.03,0,.98)])
+	var scaled_ids:=PackedInt32Array([0,2,1,0,3,2])
+	var shared:Dictionary=cutter.slice_triangle(scaled,scaled_ids,Vector3(.25,-.2,-1.2),Vector3(.25,-.2,1.2),Vector3(.25,.4,0))
+	verify(shared,scaled,scaled_ids)
+	if shared.valid:
+		var copies:=0
+		for point in shared.points:
+			if point.distance_to(Vector3(.25,0,.25*.98/1.03))<1e-6:copies+=1
+		check(copies==2,"oppositely traversed original shared edge creates one intersection per open bank")
+	var grazing:=PackedVector3Array([Vector3.ZERO,Vector3.RIGHT,Vector3.BACK]);var grazing_ids:=PackedInt32Array([0,2,1])
+	var shallow:Dictionary=cutter.slice_triangle(grazing,grazing_ids,Vector3(.2,-.1,1.5e-7),Vector3(.8,-.1,3e-7),Vector3(.5,.1,2.25e-7))
+	verify(shallow,grazing,grazing_ids)
+	if shallow.valid:
+		for i in range(grazing.size(),shallow.points.size()):check(shallow.points[i].x>=.349999 and shallow.points[i].x<=.650001,"near-parallel source-edge snapping cannot extend the finite blade patch to a distant plane crossing")
 	var points:=PackedVector3Array([Vector3(-1,0,-1),Vector3(1,0,-1),Vector3(1,0,1),Vector3(-1,0,1)])
 	var ids:=PackedInt32Array([0,2,1,0,3,2]);var original:=points.duplicate();var original_ids:=ids.duplicate()
 	var a:=Vector3(-.5,-.2,0);var b:=Vector3(.5,-.2,0);var c:=Vector3(0,.2,0)

@@ -5,7 +5,13 @@ static func invalid(reason:String)->Dictionary:
 	return {"valid":false,"reason":reason}
 static func blend(values:PackedVector3Array,binding:Dictionary)->Vector3:
 	var ids:Vector3i=binding.ids; var w:Vector3=binding.weights
-	return values[ids.x]*w.x+values[ids.y]*w.y+values[ids.z]*w.z
+	var total:float=float(w.x)+w.y+w.z
+	if not is_finite(total) or total<=0.:return Vector3(INF,INF,INF)
+	var result:=Vector3.ZERO
+	for axis in range(3):
+		var base:float=values[ids.x][axis]
+		result[axis]=base+((float(values[ids.y][axis])-base)*w.y+(float(values[ids.z][axis])-base)*w.z)/total
+	return result
 static func flag(values:PackedByteArray,binding:Dictionary)->int:
 	for j in range(3):
 		if binding.weights[j]>0. and values[binding.ids[j]]==0: return 0
