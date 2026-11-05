@@ -10,3 +10,10 @@ extern "C" __declspec(dllexport) int membrane_guard_motion_witness(int n,const d
     if (!witness) return -1;
     return membrane::guard::check(n,previous,current,faces,triangles,bodies,kinds,packets,budget,gap,stats,witness);
 }
+
+// Explicit geometry-only capacity. Legacy entry points retain their4096bound.
+extern "C" __declspec(dllexport) int membrane_guard_fine_motion_witness(int n,const double* previous,const double* current,
+    int faces,const int* triangles,int bodies,const int* kinds,const double* packets,int budget,double gap,double* stats,double* witness) {
+    if(!witness) return -1;
+    return membrane::guard::check(n,previous,current,faces,triangles,bodies,kinds,packets,budget,gap,stats,witness,8192);
+}

@@ -19,6 +19,8 @@ class BackendProxy extends RefCounted:
 class GuardProxy extends RefCounted:
 	var inner:RefCounted
 	var history:Array=[]
+	func guard_fine_motion(value:Dictionary)->Dictionary:
+		var result:Dictionary=inner.guard_fine_motion(value);history.append({"request":value.duplicate(true),"response":result.duplicate(true),"fine":true});return result
 	func guard_motion(value:Dictionary)->Dictionary:
 		var result:Dictionary=inner.guard_motion(value);history.append({"request":value.duplicate(true),"response":result.duplicate(true)});return result
 class TraceState:

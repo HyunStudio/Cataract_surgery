@@ -1,6 +1,7 @@
 extends RefCounted
 ## Optional nonmutating surface-distance queries. Does not classify shell
 ## interiors, wounds or exterior state, and does not solve contact response.
+const GeometryLimits=preload("res://scripts/fine_geometry_limits.gd")
 const GAP:=1e-9
 const QUERY_BUDGET:=128
 var _xyz:=PackedFloat64Array()
@@ -24,8 +25,8 @@ func configure(mesh:Dictionary,radius:=.004)->bool:
 	_xyz=xyz; _triangles=ids.duplicate(); _radius=radius
 	return true
 
-func requests(previous:PackedFloat64Array,current:PackedFloat64Array,vertices:PackedInt32Array)->Dictionary:
-	if _xyz.is_empty() or previous.is_empty() or previous.size()%3!=0 or previous.size()!=current.size() or previous.size()/3>4096: return {"valid":false,"reason":"shape"}
+func requests(previous:PackedFloat64Array,current:PackedFloat64Array,vertices:PackedInt32Array,fine_point_limit:int=4096)->Dictionary:
+	if _xyz.is_empty() or previous.is_empty() or previous.size()%3!=0 or previous.size()!=current.size() or not GeometryLimits.supported(fine_point_limit) or previous.size()/3>fine_point_limit: return {"valid":false,"reason":"shape"}
 	for coordinate in range(previous.size()):
 		if not is_finite(previous[coordinate]) or not is_finite(current[coordinate]) or absf(previous[coordinate])>16. or absf(current[coordinate])>16.: return {"valid":false,"reason":"coordinate"}
 	var seen:={}
@@ -48,8 +49,8 @@ func requests(previous:PackedFloat64Array,current:PackedFloat64Array,vertices:Pa
 		chunks.append({"vertices":selected,"request":{"previous":_xyz.duplicate(),"current":_xyz.duplicate(),"triangles":_triangles.duplicate(),"packets":packets,"kinds":kinds,"budget":QUERY_BUDGET,"gap_tolerance":GAP}})
 	return {"valid":true,"chunks":chunks}
 
-func inspect(backend:RefCounted,previous:PackedFloat64Array,current:PackedFloat64Array,vertices:PackedInt32Array)->Dictionary:
-	var built:=requests(previous,current,vertices)
+func inspect(backend:RefCounted,previous:PackedFloat64Array,current:PackedFloat64Array,vertices:PackedInt32Array,fine_point_limit:int=4096)->Dictionary:
+	var built:=requests(previous,current,vertices,fine_point_limit)
 	if not built.valid: return {"status":-1,"reason":built.reason}
 	if not backend or not backend.has_method("guard_motion"): return {"status":-1,"reason":"backend"}
 	var gap:=INF; var calls:=0

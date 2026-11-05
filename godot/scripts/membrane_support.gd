@@ -1,4 +1,5 @@
 extends RefCounted
+const GeometryLimits=preload("res://scripts/fine_geometry_limits.gd")
 const Exact=preload("res://scripts/exact_material.gd")
 ## Linear original-material bases with one virtual control per connected support
 ## star. Fine cut geometry is retained. This builds a discretization only; it is
@@ -68,9 +69,9 @@ static func _material_weights(values:PackedFloat64Array,offset:int,p:Vector3,ori
 	if reconstructed.distance_to(p)>EMBEDDING_DISTANCE:return PackedFloat64Array()
 	return shape
 
-static func build(original:PackedVector3Array,original_indices:PackedInt32Array,points:PackedVector3Array,indices:PackedInt32Array,ancestors:PackedInt32Array,areas:PackedFloat64Array,density:float,material_weights:PackedFloat64Array=PackedFloat64Array())->Dictionary:
+static func build(original:PackedVector3Array,original_indices:PackedInt32Array,points:PackedVector3Array,indices:PackedInt32Array,ancestors:PackedInt32Array,areas:PackedFloat64Array,density:float,material_weights:PackedFloat64Array=PackedFloat64Array(),fine_point_limit:int=MAX_POINTS)->Dictionary:
 	if not is_finite(density) or density<.01 or density>100.:return invalid("density")
-	if original.size()<3 or original.size()>MAX_POINTS or points.size()<3 or points.size()>MAX_POINTS:return invalid("point_budget")
+	if original.size()<3 or original.size()>MAX_POINTS or points.size()<3 or not GeometryLimits.supported(fine_point_limit) or points.size()>fine_point_limit:return invalid("point_budget")
 	if original_indices.is_empty() or original_indices.size()%3!=0 or original_indices.size()>MAX_FACES*3 or indices.is_empty() or indices.size()%3!=0 or indices.size()>MAX_FACES*3:return invalid("face_budget")
 	var faces:int=indices.size()/3;var original_faces:int=original_indices.size()/3
 	if ancestors.size()!=faces or areas.size()!=faces:return invalid("face_count")
@@ -151,6 +152,7 @@ static func build(original:PackedVector3Array,original_indices:PackedInt32Array,
 		for j in range(3):
 			var root:=_root(parent,face*3+j)
 			if not nodes.has(root):
+				if fine_point_limit>MAX_POINTS and controls.size()>=GeometryLimits.CONTROLS:return invalid("control_budget")
 				nodes[root]=controls.size();controls.append(original_indices[ancestors[face]*3+j]);mass.append(0.)
 			var node:int=nodes[root];elements[face*3+j]=node
 			var shape_integral:float=(weights[face*9+j]+weights[face*9+3+j]+weights[face*9+6+j])/3.

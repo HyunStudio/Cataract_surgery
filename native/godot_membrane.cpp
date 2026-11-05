@@ -31,6 +31,8 @@ extern "C" int membrane_guard_motion(int,const double*,const double*,int,const i
     const double*,int,double,double*);
 extern "C" int membrane_guard_motion_witness(int,const double*,const double*,int,const int*,int,const int*,
     const double*,int,double,double*,double*);
+extern "C" int membrane_guard_fine_motion_witness(int,const double*,const double*,int,const int*,int,const int*,
+    const double*,int,double,double*,double*);
 extern "C" int membrane_solve_trajectory(int,const double*,double*,const double*,int,const int*,const int*,
     const double*,double,int,const int*,int,const int*,const double*,const double*,int,const double*,int,
     double,double,double,double*,double*);
@@ -248,11 +250,14 @@ protected:
     static void _bind_methods() {
         ClassDB::bind_method(D_METHOD("solve_contact","request"),&MembraneContactKernel::solve_contact);
         ClassDB::bind_method(D_METHOD("guard_motion","request"),&MembraneContactKernel::guard_motion);
+        ClassDB::bind_method(D_METHOD("guard_fine_motion","request"),&MembraneContactKernel::guard_fine_motion);
         ClassDB::bind_method(D_METHOD("solve_trajectory","request"),&MembraneContactKernel::solve_trajectory);
         ClassDB::bind_method(D_METHOD("solve_anatomy","request"),&MembraneContactKernel::solve_anatomy);
     }
 public:
-    Dictionary guard_motion(const Dictionary& request) {
+    Dictionary guard_motion(const Dictionary& request) {return guard_candidate(request,false);}
+    Dictionary guard_fine_motion(const Dictionary& request) {return guard_candidate(request,true);}
+    Dictionary guard_candidate(const Dictionary& request,bool fine) {
         PackedFloat64Array stats; stats.resize(8); stats.fill(0.);
         stats.set(2,-1.); stats.set(3,-1.); stats.set(4,std::numeric_limits<double>::infinity());
         bool valid=true;
@@ -269,10 +274,10 @@ public:
             PackedInt32Array triangles=request["triangles"],kinds=request["kinds"];
             int64_t budget=request["budget"];
             valid=previous.size()>0 && previous.size()%3==0 && previous.size()==current.size() &&
-                previous.size()/3<=4096 && triangles.size()%3==0 && triangles.size()/3<=16384 &&
+                previous.size()/3<=(fine ? 8192 : 4096) && triangles.size()%3==0 && triangles.size()/3<=16384 &&
                 kinds.size()<=64 && packets.size()==kinds.size()*41 && (triangles.size()/3)*kinds.size()<=65536 &&
                 budget>=0 && budget<=128;
-            if (valid) status=membrane_guard_motion_witness(static_cast<int>(previous.size()/3),previous.ptr(),current.ptr(),
+            if (valid) status=(fine ? membrane_guard_fine_motion_witness : membrane_guard_motion_witness)(static_cast<int>(previous.size()/3),previous.ptr(),current.ptr(),
                 static_cast<int>(triangles.size()/3),triangles.ptr(),static_cast<int>(kinds.size()),kinds.ptr(),
                 packets.ptr(),static_cast<int>(budget),static_cast<double>(request["gap_tolerance"]),stats.ptrw(),&witness);
         }

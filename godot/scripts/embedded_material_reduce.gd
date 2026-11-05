@@ -1,4 +1,5 @@
 extends RefCounted
+const GeometryLimits=preload("res://scripts/fine_geometry_limits.gd")
 const Exact=preload("res://scripts/exact_material.gd")
 ## Fine affine retessellation only. Coarse mechanics and accepted histories
 ## remain authoritative. Coincident positions never identify connected banks.
@@ -153,12 +154,12 @@ static func _pass(s:Dictionary,limit:int)->Dictionary:
 			held.vertex=remap[held.vertex]
 		held.face=face_map[held.face]
 	return {"valid":true,"changed":true,"state":next,"keep":keep,"certificates":selected}
-static func simplify(state:Dictionary,max_removals:int=128)->Dictionary:
-	if max_removals<1 or max_removals>256:return invalid("budget")
+static func simplify(state:Dictionary,max_removals:int=128,fine_point_limit:int=4096)->Dictionary:
+	if max_removals<1 or max_removals>256 or not GeometryLimits.supported(fine_point_limit):return invalid("budget")
 	if not state.has_all(["rest","fallback","anchored","removed","outside","indices","ancestors","areas","support","grasps"]):return invalid("shape")
 	if not state.support is Dictionary or not state.support.has_all(["elements","weights","point_nodes","point_weights","controls"]):return invalid("support_shape")
 	var faces:int=state.indices.size()/3;var points:int=state.rest.size()
-	if points<3 or points>4096 or faces<1 or faces>8192 or state.indices.size()%3!=0 or state.ancestors.size()!=faces or state.areas.size()!=faces:return invalid("shape")
+	if points<3 or points>fine_point_limit or faces<1 or faces>8192 or state.indices.size()%3!=0 or state.ancestors.size()!=faces or state.areas.size()!=faces:return invalid("shape")
 	for key in ["fallback","anchored","removed","outside"]:
 		if state[key].size()!=points:return invalid("shape")
 	if state.support.elements.size()!=faces*3 or state.support.weights.size()!=faces*9 or state.support.point_nodes.size()!=points or state.support.point_weights.size()!=points:return invalid("support_shape")

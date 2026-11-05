@@ -2,6 +2,7 @@ extends RefCounted
 ## Experimental retained-cut state in an original-material mechanical basis.
 ## Starts from its own rest state; never projects an accepted legacy simulation.
 ## Optional implicit dynamics; contact and partial-crack enrichment remain separate.
+const GeometryLimits=preload("res://scripts/fine_geometry_limits.gd")
 const Support=preload("res://scripts/membrane_support.gd")
 const Refinement=preload("res://scripts/membrane_refinement.gd")
 const Precision=preload("res://scripts/membrane_precision.gd")
@@ -158,6 +159,7 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if _state.is_empty():return invalid("uninitialized")
 	if not is_finite(dt) or dt<1e-6 or dt>.1 or not is_finite(damping) or damping<0. or damping>1. or budget<0 or budget>1000:return invalid("step_input")
 	if not is_finite(mu) or mu<=0. or not is_finite(lambda) or lambda<0.:return invalid("step_material")
+	if GeometryLimits.points(_state)==0 or _state.rest.size()>GeometryLimits.points(_state):return invalid("fine_geometry_capacity")
 	if force.size()!=_state.xyz.size() or _state.support.controls.size()>4096:return invalid("step_shape")
 	for value in force:
 		if not is_finite(value):return invalid("step_force")
@@ -332,9 +334,19 @@ func incise_patches(patches:Array)->Dictionary:
 		changed=changed or result.changed
 	if changed:_state=staged._state;_energy=null;_native_geometry={}
 	return {"valid":true,"changed":changed,"reason":"","work":work}
+func set_fine_geometry_capacity(limit:int,guard:RefCounted)->Dictionary:
+	if _state.is_empty() or not GeometryLimits.supported(limit):return invalid("fine_geometry_capacity")
+	var current_limit:=GeometryLimits.points(_state)
+	if current_limit==0 or _state.rest.size()>limit or _state.support.controls.size()>GeometryLimits.CONTROLS:return invalid("fine_geometry_capacity")
+	if limit>GeometryLimits.LEGACY_POINTS and (guard==null or not guard.has_method("guard_fine_motion")):return invalid("fine_geometry_guard_unavailable")
+	if limit==current_limit:return {"valid":true,"changed":false,"reason":""}
+	_state["fine_point_limit"]=limit
+	return {"valid":true,"changed":true,"reason":""}
 func _incise_one(patch:PackedVector3Array)->Dictionary:
-	if _state.rest.size()<=4096-128:return _incise_prepared(patch)
-	var reduced:=MaterialReduce.simplify(_state,128)
+	var limit:=GeometryLimits.points(_state)
+	if limit==0 or _state.rest.size()>limit:return invalid("fine_geometry_capacity")
+	if _state.rest.size()<=limit-128:return _incise_prepared(patch)
+	var reduced:=MaterialReduce.simplify(_state,128,limit)
 	if not reduced.valid:return reduced
 	if not reduced.changed:return _incise_prepared(patch)
 	# Retessellation and the requested incision are a single transaction.
@@ -345,8 +357,10 @@ func _incise_one(patch:PackedVector3Array)->Dictionary:
 	_state=staged._state;_energy=null;_native_geometry={}
 	return result.merged({"reduced_vertices":reduced.removed_vertices},true)
 func _incise_prepared(patch:PackedVector3Array)->Dictionary:
+	var limit:=GeometryLimits.points(_state)
+	if limit==0 or _state.rest.size()>limit:return invalid("fine_geometry_capacity")
 	var fine:=physical_positions()
-	var cut:Dictionary=_cutter.slice_triangle64(fine,_state.indices,patch[0],patch[1],patch[2],4096,8192)
+	var cut:Dictionary=_cutter.slice_triangle64(fine,_state.indices,patch[0],patch[1],patch[2],limit,8192)
 	if not cut.valid or not cut.changed:return cut
 	var transferred:=_cut_material_weights(cut)
 	if not transferred.valid:return transferred
@@ -354,7 +368,7 @@ func _incise_prepared(patch:PackedVector3Array)->Dictionary:
 	if not prepared.valid:return invalid(prepared.reason)
 	var ancestors:=PackedInt32Array()
 	for source in cut.sources:ancestors.append(_state.ancestors[source])
-	var support:=Support.build(_state.original,_state.original_indices,prepared.rest,cut.indices,ancestors,prepared.face_areas,_state.density,transferred.weights)
+	var support:=Support.build(_state.original,_state.original_indices,prepared.rest,cut.indices,ancestors,prepared.face_areas,_state.density,transferred.weights,limit)
 	if not support.valid:return invalid(support.reason)
 	for mass in support.mass:
 		if not supported_mass(mass):return invalid("embedded_mass_resolution").merged({"minimum_mass":support.minimum_mass,"inverse_mass":1./support.minimum_mass,"controls":support.controls.size()})

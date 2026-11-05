@@ -4,6 +4,7 @@ extends RefCounted
 const Embedded=preload("res://scripts/embedded_membrane.gd")
 const Precision=preload("res://scripts/membrane_precision.gd")
 const Path=preload("res://scripts/instrument_path.gd")
+const GeometryLimits=preload("res://scripts/fine_geometry_limits.gd")
 const Anatomy=preload("res://scripts/anatomical_contact.gd")
 static func invalid(reason:String)->Dictionary:return {"valid":false,"changed":false,"reason":reason}
 static func initialize(model)->Dictionary:
@@ -19,6 +20,10 @@ static func configure(model,backend:RefCounted,guard:RefCounted)->bool:
 	if model.positions!=model.rest_positions or model._previous!=model.rest_positions:return false
 	var prepared:=initialize(model)
 	if not prepared.valid:return false
+	if guard.has_method("guard_fine_motion"):
+		var tissue=Embedded.new();tissue._state=prepared.state
+		if not tissue.set_fine_geometry_capacity(8192,guard).valid:return false
+		prepared.state=tissue.snapshot()
 	model.embedded_backend=backend;model.embedded_guard=guard;model._embedded_state=prepared.state
 	model._embedded_solver=null;model.native_failure={}
 	return true
@@ -86,7 +91,7 @@ static func boundaries(model,before:PackedFloat64Array,after:PackedFloat64Array)
 	for name in model.embedded_surfaces:
 		var query=Anatomy.new()
 		if not query.configure(model.embedded_surfaces[name]):return invalid("anatomy_shape_"+name)
-		var result:Dictionary=query.inspect(model.embedded_guard,before,after,selected)
+		var result:Dictionary=query.inspect(model.embedded_guard,before,after,selected,GeometryLimits.points(model._embedded_state))
 		if result.get("status",-1)!=0:return result.merged({"valid":false,"changed":false,"reason":"anatomy_"+name},true)
 	var outside:PackedByteArray=model._outside.duplicate()
 	if model.tissue_boundary:

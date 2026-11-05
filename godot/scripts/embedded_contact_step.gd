@@ -1,5 +1,6 @@
 extends RefCounted
 ## Coupled candidate checks and full physical body interval guard; no projection.
+const GeometryLimits=preload("res://scripts/fine_geometry_limits.gd")
 const Query=preload("res://scripts/membrane_contact_query.gd")
 const Pose=preload("res://scripts/recorded_body_pose.gd")
 const GAP:=1e-9
@@ -10,6 +11,7 @@ static func prepare(state:Dictionary,motion:Dictionary)->Dictionary:
 	if not motion.get("kinds") is PackedInt32Array or not motion.get("packets") is PackedFloat64Array:return invalid("contact_motion_shape")
 	var guard=motion.get("guard")
 	if guard==null or not guard.has_method("guard_motion"):return invalid("contact_guard_unavailable")
+	if state.rest.size()>GeometryLimits.LEGACY_POINTS and not guard.has_method("guard_fine_motion"):return invalid("contact_fine_guard_unavailable")
 	var kinds:PackedInt32Array=motion.kinds;var packets:PackedFloat64Array=motion.packets
 	if kinds.size()>64 or packets.size()!=kinds.size()*41 or (state.indices.size()/3)*kinds.size()>65536:return invalid("contact_motion_budget")
 	for value in packets:
@@ -55,7 +57,10 @@ static func force(state:Dictionary,xyz:PackedFloat64Array,dual:PackedFloat64Arra
 			for axis in range(3):distributed[witness.nodes[node]*3+axis]-=u*t*witness.gradient[node*3+axis]/(radius*radius)
 	return {"valid":true,"reason":"","force":distributed,"complementarity":complementarity}
 static func guard(previous:PackedFloat64Array,current:PackedFloat64Array,triangles:PackedInt32Array,context:Dictionary)->Dictionary:
-	var answer=context.guard.guard_motion({"previous":previous,"current":current,"triangles":triangles,"kinds":context.kinds,"packets":context.packets,"budget":128,"gap_tolerance":GAP})
+	if previous.size()!=current.size() or previous.is_empty() or previous.size()%3!=0 or previous.size()/3>GeometryLimits.FINE_POINTS:return invalid("contact_guard_geometry_shape")
+	var method:="guard_fine_motion" if previous.size()/3>GeometryLimits.LEGACY_POINTS else "guard_motion"
+	if not context.guard.has_method(method):return invalid("contact_fine_guard_unavailable")
+	var answer=context.guard.call(method,{"previous":previous,"current":current,"triangles":triangles,"kinds":context.kinds,"packets":context.packets,"budget":128,"gap_tolerance":GAP})
 	if not answer is Dictionary or not answer.get("status") is int or not answer.get("stats") is PackedFloat64Array or answer.stats.size()!=8:return invalid("native_contact_guard_shape")
 	if answer.status!=0:return {"valid":false,"changed":false,"reason":"native_contact_motion","status":answer.status,"stats":answer.stats,"witness_t":answer.get("witness_t",-1.)}
 	for k in range(8):

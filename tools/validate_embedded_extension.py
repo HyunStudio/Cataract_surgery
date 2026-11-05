@@ -58,6 +58,7 @@ if not options.bridge_only:
             intended[str(source.relative_to(ROOT/'godot'))] = source
     intended['embedded_native.gd'] = ROOT/'godot/tests/test_embedded_native.gd'
     if options.operative_components:
+        intended['fine_geometry_state.gd']=ROOT/'native/tests/test_fine_geometry_godot.gd'
         for name in ['scripts/cut_geometry.gd','tests/test_binary64_incision.gd','scripts/operative_membrane.gd','tests/test_operative_embedded.gd','tests/test_operative_blade.gd','tests/test_operative_cut_geometry.gd','tests/test_material_edge_insertion.gd','tests/test_operative_resolution_native.gd','tests/fixtures/operative-blade-area.bin']:
             intended[name]=ROOT/'godot'/name
     if options.grasp:intended['embedded_grasp.gd'] = ROOT/'godot/tests/test_embedded_grasp_native.gd'
@@ -114,6 +115,8 @@ if options.trajectory:
     stages.append(('trajectory_advance',['--script','res://trajectory_advance.gd'],'Embedded trajectory advance: 0 failures'))
     stages.append(('material_point_advance',['--script','res://material_point_advance.gd'],'Material point native advance: 0 failures'))
 if options.operative_components:
+    stages.append(('fine_anatomy_boundary',['--script','res://tests/test_fine_anatomy.gd','--','--require-native'],'Fine anatomy boundary: 0 failures'))
+    stages.append(('fine_geometry_state',['--script','res://fine_geometry_state.gd'],'Fine geometry native state: 0 failures'))
     stages.append(('material_orientation',['--script','res://tests/test_material_orientation.gd'],'Original material orientation: 0 failures'))
     stages.append(('exact_material',['--script','res://tests/test_exact_material.gd'],'Exact material predicates: 0 failures'))
     stages.append(('material_reduce',['--script','res://tests/test_material_reduce.gd'],'Conservative material reduction: 0 failures'))

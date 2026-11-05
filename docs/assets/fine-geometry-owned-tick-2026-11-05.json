@@ -1,0 +1,43 @@
+{
+  "controls": 346,
+  "elapsed_ms": 643,
+  "faces": 4432,
+  "qualified": true,
+  "scope": "Owned cut299 plus synthetic far-body actual FEM tick only; not actual full operative route or real-time.",
+  "step": {
+    "candidate_normal_iterations": 2,
+    "candidate_ordinary_iterations": 0,
+    "changed": true,
+    "elastic_energy": 8.540022688102246e-06,
+    "force_inf": 1.5988476410877528e-09,
+    "gap": 0.0,
+    "maximum_strain": 0.037972928942716644,
+    "reason": "",
+    "stats": [
+      9.103256135605914e-06,
+      1.598847762952077e-09,
+      2.0,
+      5.0,
+      3.0,
+      2.254639523803789e-16,
+      1.0,
+      6.25e-05,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "trajectory_iterations": 2,
+    "trajectory_retired_layers": 0,
+    "trajectory_times": [
+      1.0
+    ],
+    "valid": true,
+    "work_iterations": 2
+  },
+  "vertices": 4103
+}

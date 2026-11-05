@@ -17,6 +17,7 @@ class TraceGuard extends RefCounted:
 	var inner:RefCounted
 	var backend:TraceBackend
 	var captured:=false
+	func guard_fine_motion(value:Dictionary)->Dictionary:return inner.guard_fine_motion(value)
 	func guard_motion(value:Dictionary)->Dictionary:
 		var result:Dictionary=inner.guard_motion(value)
 		if result.get("status",-1)!=0 and not captured:

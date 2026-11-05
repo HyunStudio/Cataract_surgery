@@ -59,6 +59,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Native Godot extension qualification failed' }
           python tools/audit_owned_material_orientation.py
           if ($LASTEXITCODE -ne 0) { throw 'Owned material orientation audit failed' }
+          python tools/audit_owned_fine_geometry.py
+          if ($LASTEXITCODE -ne 0) { throw 'Owned fine geometry audit failed' }
       - name: Focused retained-material geometry and state regressions
         run: python tools/validate_embedded_regressions.py
       - uses: actions/upload-artifact@v4
@@ -72,6 +74,8 @@ jobs:
             godot/reports/operative-components-trajectory-curved-coupled-contact-embedded-grasp-validation.json
             godot/reports/embedded-precision-regression.json
             godot/reports/owned-material-orientation-audit.json
+            godot/reports/owned-fine-geometry-audit.json
+            .tools/fem-extension-*/reports/fine-geometry-owned-cut-metrics.json
             godot/reports/motion179-material-points.json
             .tools/native/*.build.json
             .tools/native-godot/bin/membrane.build.json
