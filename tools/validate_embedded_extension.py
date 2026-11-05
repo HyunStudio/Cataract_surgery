@@ -42,6 +42,7 @@ if options.grasp:
     intended['grasp_bridge.gd'] = ROOT/'native/tests/test_grasp_godot.gd'
 if options.contact:
     intended['contact_bridge.gd'] = ROOT/'native/tests/test_embedded_contact_godot.gd'
+    intended['material_witness_bridge.gd'] = ROOT/'native/tests/test_material_witness_godot.gd'
 if options.coupled:
     intended['coupled_bridge.gd'] = ROOT/'native/tests/test_fem_contact_godot.gd'
 if options.trajectory:
@@ -59,6 +60,7 @@ if not options.bridge_only:
             intended[name]=ROOT/'godot'/name
     if options.grasp:intended['embedded_grasp.gd'] = ROOT/'godot/tests/test_embedded_grasp_native.gd'
     if options.contact:intended['embedded_contact.gd'] = ROOT/'godot/tests/test_embedded_contact_native.gd'
+    if options.contact:intended['material_witness_state.gd'] = ROOT/'godot/tests/test_material_witness_native.gd'
     if options.coupled:intended['embedded_coupled.gd'] = ROOT/'godot/tests/test_embedded_coupled_native.gd'
     if options.curved:intended['embedded_curved.gd'] = ROOT/'godot/tests/test_embedded_coupled_curved_native.gd'
     if options.trajectory:
@@ -95,7 +97,9 @@ if options.grasp:
     if not options.bridge_only:stages.append(('material_attachment_native', ['--script','res://tests/test_material_attachment_native.gd'], 'Native material attachment: 0 failures'))
 if options.contact:
     stages.append(('contact_bridge', ['--script','res://contact_bridge.gd'], 'Native embedded contact Godot bridge: 0 failures'))
+    stages.append(('material_witness_bridge', ['--script','res://material_witness_bridge.gd'], 'Native material witness bridge: 0 failures'))
     if not options.bridge_only:stages.append(('embedded_contact', ['--script','res://embedded_contact.gd'], 'Embedded native contact: 0 failures'))
+    if not options.bridge_only:stages.append(('material_witness_state', ['--script','res://material_witness_state.gd'], 'Native material witness state: 0 failures'))
 if options.coupled:
     stages.append(('coupled_bridge', ['--script','res://coupled_bridge.gd'], 'Native coupled FEM Godot bridge: 0 failures'))
     if not options.bridge_only:stages.append(('embedded_coupled', ['--script','res://embedded_coupled.gd'], 'Embedded native coupled step: 0 failures'))

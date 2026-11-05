@@ -1,5 +1,15 @@
 #include "contact_distance.h"
 #include "embedded_contact.h"
+#include "material_witness.h"
+
+extern "C" __declspec(dllexport) int membrane_material_witness(
+    const double* segment,const double* controls,const double* shape,double radius,double* output) {
+    if(!output) return -1;
+    const auto result=membrane::material_witness::query(segment,controls,shape,radius);
+    if(result.status==0 || result.status==1 || result.status==3)
+        std::copy(result.values.begin(),result.values.end(),output);
+    return result.status;
+}
 
 extern "C" __declspec(dllexport) int membrane_contact_distance(
     const double* segment,const double* triangle,double radius,double* output) {

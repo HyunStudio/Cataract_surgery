@@ -7,6 +7,7 @@
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <limits>
 #include "embedded_contact.h"
+#include "material_witness.h"
 
 extern "C" int membrane_solve(int,double*,const double*,int,const int*,const int*,
                                const double*,double,int,double,double*);
@@ -56,12 +57,29 @@ protected:
         ClassDB::bind_method(D_METHOD("evaluate_fem","request"),&MembraneFEMKernel::evaluate_fem);
         ClassDB::bind_method(D_METHOD("solve_grasp_fem","request"),&MembraneFEMKernel::solve_grasp_fem);
         ClassDB::bind_method(D_METHOD("contact_fem","request"),&MembraneFEMKernel::contact_fem);
+        ClassDB::bind_method(D_METHOD("material_witness_fem","request"),&MembraneFEMKernel::material_witness_fem);
         ClassDB::bind_method(D_METHOD("solve_contact_fem","request"),&MembraneFEMKernel::solve_contact_fem);
         ClassDB::bind_method(D_METHOD("solve_precise_contact_fem","request"),&MembraneFEMKernel::solve_precise_contact_fem);
         ClassDB::bind_method(D_METHOD("solve_trajectory_fem","request"),&MembraneFEMKernel::solve_trajectory_fem);
         ClassDB::bind_method(D_METHOD("solve_seeded_trajectory_fem","request"),&MembraneFEMKernel::solve_seeded_trajectory_fem);
     }
 public:
+    Dictionary material_witness_fem(const Dictionary& request) {
+        PackedFloat64Array values;int status=-1;bool valid=real(request,"radius");
+        for(const char* key:{"controls","weights","segment"})
+            if(!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+        if(valid) {
+            PackedFloat64Array controls=request["controls"],weights=request["weights"],segment=request["segment"];
+            if(controls.size()==9 && weights.size()==9 && segment.size()==6) {
+                const auto result=membrane::material_witness::query(segment.ptr(),controls.ptr(),weights.ptr(),static_cast<double>(request["radius"]));
+                status=result.status;
+                if(status==0 || status==1 || status==3) {
+                    values.resize(13);for(int k=0;k<13;++k) values.set(k,result.values[k]);
+                }
+            }
+        }
+        Dictionary answer;answer["status"]=status;answer["values"]=values;return answer;
+    }
     Dictionary solve_contact_fem(const Dictionary& request) {return contact_candidate(request,false);}
     Dictionary solve_precise_contact_fem(const Dictionary& request) {return contact_candidate(request,false,false,true);}
     Dictionary solve_trajectory_fem(const Dictionary& request) {return contact_candidate(request,true);}

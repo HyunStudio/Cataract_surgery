@@ -12,6 +12,7 @@ const ContactStep=preload("res://scripts/embedded_contact_step.gd")
 const NumericalSeed=preload("res://scripts/trajectory_seed.gd")
 const MaterialReduce=preload("res://scripts/embedded_material_reduce.gd")
 const MaterialAttachment=preload("res://scripts/material_attachment.gd")
+const MaterialSurfaceQuery=preload("res://scripts/material_surface_query.gd")
 const FORCE_TOLERANCE:=1e-8
 const GAP_TOLERANCE:=1e-9
 var _cutter=Cutter.new()
@@ -32,6 +33,8 @@ func contact_geometry()->Dictionary:
 	return {"valid":true,"reason":"","xyz":_state.xyz.duplicate(),"previous":_state.previous.duplicate(),"nodes":_state.support.elements.duplicate(),"weights":_state.support.weights.duplicate(),"triangles":_state.indices.duplicate(),"fine":physical_positions(),"fine_previous":_publish(_state,_state.previous),"events":_state.events,"steps":_state.steps}
 func contact_face(face:int,segment:PackedFloat64Array,radius:float,backend)->Dictionary:
 	return ContactQuery.face(_state,face,segment,radius,backend)
+func material_witness(face:int,segment:PackedFloat64Array,radius:float,backend)->Dictionary:
+	return MaterialSurfaceQuery.face(_state,face,segment,radius,backend)
 static func _fixed_controls(support:Dictionary,anchors:PackedByteArray)->PackedByteArray:
 	var fixed:=PackedByteArray();fixed.resize(support.controls.size())
 	# A virtual basis label can refer to a vertex outside its retained fragment.

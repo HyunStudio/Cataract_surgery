@@ -4,6 +4,7 @@ class BackendProxy extends RefCounted:
 	var history:Array=[]
 	func solve_fem(value:Dictionary)->Dictionary:return inner.solve_fem(value)
 	func solve_grasp_fem(value:Dictionary)->Dictionary:return inner.solve_grasp_fem(value)
+	func material_witness_fem(value:Dictionary)->Dictionary:return inner.material_witness_fem(value)
 	func contact_fem(value:Dictionary)->Dictionary:return inner.contact_fem(value)
 	func solve_contact_fem(value:Dictionary)->Dictionary:
 		var result:Dictionary=inner.solve_contact_fem(value);history.append({"kind":"static","request":value.duplicate(true),"response":result.duplicate(true)});return result

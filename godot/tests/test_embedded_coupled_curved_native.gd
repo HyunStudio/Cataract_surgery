@@ -8,6 +8,7 @@ class Backend extends RefCounted:
 		request=value.duplicate(true);answer=kernel.solve_precise_contact_fem(value);return answer
 	func solve_contact_fem(value:Dictionary)->Dictionary:
 		request=value.duplicate(true);answer=kernel.solve_contact_fem(value);return answer
+	func material_witness_fem(value:Dictionary)->Dictionary:return kernel.material_witness_fem(value)
 	func contact_fem(value:Dictionary)->Dictionary:return kernel.contact_fem(value)
 class Guard extends RefCounted:
 	var kernel=ClassDB.instantiate("MembraneContactKernel")

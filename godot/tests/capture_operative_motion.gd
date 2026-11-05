@@ -5,6 +5,7 @@ class TraceBackend extends RefCounted:
 	var request:Dictionary={}
 	var response:Dictionary={}
 	func solve_fem(value:Dictionary)->Dictionary:return inner.solve_fem(value)
+	func material_witness_fem(value:Dictionary)->Dictionary:return inner.material_witness_fem(value)
 	func contact_fem(value:Dictionary)->Dictionary:return inner.contact_fem(value)
 	func solve_precise_contact_fem(value:Dictionary)->Dictionary:
 		request=value.duplicate(true);response=inner.solve_precise_contact_fem(value);return response

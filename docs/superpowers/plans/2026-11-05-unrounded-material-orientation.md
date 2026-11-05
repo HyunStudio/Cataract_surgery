@@ -69,3 +69,11 @@ Whole route, actual instrument finite-jaw acquisition/pressure/friction/slip,
 partial-slit independent mechanics, all surgical/input phases, real-time, GPU and
 Windows release remain unqualified. Existing default game CI still has a real
 motion/flap completion failure. Keep full simulator goal active; no main merge.
+
+## Superseding full-route terminal status
+
+94265 terminated:178accepted steps,297cut events; attempted179 fails native
+solve before the full path guard. The fixed material-winding failure did not
+recur. Original179state and requests are now preserved. See
+2026-11-05-operative179-nonlinear-stall.md; do not poll/restart94265 or launch
+a duplicate full prefix before owned179 is understood and qualified.
