@@ -1,0 +1,25 @@
+{
+  "scope": "Source-based GitHub Actions evidence only; no real-time/GPU/full-native-case or release qualification.",
+  "native": {
+    "commit": "d665ac5425e3dc1ea88cd1c8da760019d156f9e2",
+    "run_id": 41953551140,
+    "job_id": 127002915042,
+    "conclusion": "success",
+    "url": "https://github.com/HyunStudio/Cataract_surgery/actions/runs/41953551140"
+  },
+  "legacy_godot": {
+    "commit": "d665ac5425e3dc1ea88cd1c8da760019d156f9e2",
+    "run_id": 41953551012,
+    "job_id": 127002915038,
+    "conclusion": "failure",
+    "failed_test": "test_volumetric_encounter",
+    "reason": "blade_nonmanifold_vertex",
+    "url": "https://github.com/HyunStudio/Cataract_surgery/actions/runs/41953551012"
+  },
+  "python": {
+    "commit": "196e812a8c37908f2cee1aea91d9cc1ede3bfe5a",
+    "run_id": 41954777145,
+    "conclusion": "success",
+    "url": "https://github.com/HyunStudio/Cataract_surgery/actions/runs/41954777145"
+  }
+}

@@ -29,3 +29,12 @@
 연속 전낭 개방 또는 전체 수술 완주로 해석하지 않는다.
 [기하 용량 개선 계획](superpowers/plans/2026-11-05-bounded-fine-geometry.md)을
 확인한다. 기존037a9c7의 연속 시험은 절개299에서 종료된 실패 이력이다.
+
+원격 CI 확인: `d665ac5` Windows 네이티브 빌드·수치·엔진·집중 회귀 작업은
+성공했다. 기존 Godot 전체 증례는 `blade_nonmanifold_vertex`로 실패하고 렌더
+검사는 건너뛰었다. 직전 칼날 출력478면에서 후속 기존 물리 계산이10면을
+제거하면서4개 비정상 정점 연결을 만들었음을 저장 패킷으로 검증했다.
+이 실패를 완료로 처리하지 않으며 제품 기본 경로의 재료 보존 역학 연결과
+실제 입력 전체 증례 검증이 계속 필요하다. 관련 증거는
+`docs/assets/ci-and-legacy-topology-2026-11-05.json`과
+`docs/assets/legacy-topology-audit-2026-11-05.json`에 있다.
