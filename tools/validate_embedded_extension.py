@@ -43,6 +43,7 @@ if options.grasp:
 if options.contact:
     intended['contact_bridge.gd'] = ROOT/'native/tests/test_embedded_contact_godot.gd'
     intended['material_witness_bridge.gd'] = ROOT/'native/tests/test_material_witness_godot.gd'
+    intended['material_witness_batch_bridge.gd'] = ROOT/'native/tests/test_material_witness_batch_godot.gd'
 if options.coupled:
     intended['coupled_bridge.gd'] = ROOT/'native/tests/test_fem_contact_godot.gd'
 if options.trajectory:
@@ -101,6 +102,7 @@ if options.grasp:
 if options.contact:
     stages.append(('contact_bridge', ['--script','res://contact_bridge.gd'], 'Native embedded contact Godot bridge: 0 failures'))
     stages.append(('material_witness_bridge', ['--script','res://material_witness_bridge.gd'], 'Native material witness bridge: 0 failures'))
+    stages.append(('material_witness_batch_bridge',['--script','res://material_witness_batch_bridge.gd'],'Native material witness batch: 0 failures'))
     if not options.bridge_only:stages.append(('embedded_contact', ['--script','res://embedded_contact.gd'], 'Embedded native contact: 0 failures'))
     if not options.bridge_only:stages.append(('material_witness_state', ['--script','res://material_witness_state.gd'], 'Native material witness state: 0 failures'))
 if options.coupled:

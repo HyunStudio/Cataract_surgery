@@ -1,0 +1,160 @@
+{
+  "scope": "Native bridge/core and optional original-material closed-blade engineering route only; no complete surgery, actual OS input, clinical, real-time, GPU or release qualification.",
+  "qualified": true,
+  "probe": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-usljha40",
+  "inputs": {
+    "native\\membrane.gdextension": "0060e0d978227e484c63c9de90090d573062c406ed316886e5d7cc8d14ff6a2a",
+    "native\\test_project.godot": "fbc73dad83488944fbfef83981aade449e57f2d439720e6aff057ff44590749b",
+    "native\\tests\\fixtures\\local_jaw_contact.json": "a3a42402f9de39742a60371668e9f9449d52bae2bd31ab3b1d24b6120b8fc561",
+    "native\\tests\\fixtures\\refined_flap.json": "0d5a27d589e351bf6dbd25a41d8caf69df6ab54502eedd8c16b231069ccbfe62",
+    "native\\tests\\test_embedded_contact_godot.gd": "967a8f4bf22bb11de5fd4590b0d3ed6d94f93b69583745d03733fabd2ace38b9",
+    "native\\tests\\test_fem_godot.gd": "52191f8f89d321a410cce494ab51ffccc3229f914106bf8f77606cc280bb677b",
+    "native\\tests\\test_godot_bridge.gd": "bcbd88139b397c122d3f58418d41d4d5d80eaf2dc6cb8699968effc7a33eca11",
+    "native\\tests\\test_material_witness_batch_godot.gd": "761c3c1a1ae95ca5e17e84bc7c0ff66406d6bbc325b94a7ea561f738b6787b83",
+    "native\\tests\\test_material_witness_godot.gd": "24c2523ab0e678a50c3dbf89a431d41e98f31449683312b843225d050b598395",
+    "tools\\audit_material_reduction.py": "5ac7cad8e0b9be9db120a62f1464e62583388ebbc9ac6f2f6550b46c37cf0c00",
+    "tools\\validate_embedded_extension.py": "009d54665ec0432452a8bcb0f7b442818a1eb4b7c2c0f8ead8ece4d571f8ee37"
+  },
+  "frozen_inputs": {
+    "project.godot": "fbc73dad83488944fbfef83981aade449e57f2d439720e6aff057ff44590749b",
+    "bin/membrane.gdextension": "0060e0d978227e484c63c9de90090d573062c406ed316886e5d7cc8d14ff6a2a",
+    "legacy_bridge.gd": "bcbd88139b397c122d3f58418d41d4d5d80eaf2dc6cb8699968effc7a33eca11",
+    "fem_bridge.gd": "52191f8f89d321a410cce494ab51ffccc3229f914106bf8f77606cc280bb677b",
+    "refined_flap.json": "0d5a27d589e351bf6dbd25a41d8caf69df6ab54502eedd8c16b231069ccbfe62",
+    "local_jaw_contact.json": "a3a42402f9de39742a60371668e9f9449d52bae2bd31ab3b1d24b6120b8fc561",
+    "contact_bridge.gd": "967a8f4bf22bb11de5fd4590b0d3ed6d94f93b69583745d03733fabd2ace38b9",
+    "material_witness_bridge.gd": "24c2523ab0e678a50c3dbf89a431d41e98f31449683312b843225d050b598395",
+    "material_witness_batch_bridge.gd": "761c3c1a1ae95ca5e17e84bc7c0ff66406d6bbc325b94a7ea561f738b6787b83",
+    "bin/membrane.dll": "9fbe062424bdd40b57a0c5e755580c91241d7ef1b22c21758e83927bfd6162d7"
+  },
+  "build": {
+    "artifact_sha256": "9fbe062424bdd40b57a0c5e755580c91241d7ef1b22c21758e83927bfd6162d7",
+    "sources": {
+      "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+      "native\\contact_guard.cpp": "2bcc75a64091d6316db45ed0afdf57a66f5de6728bd7b7d17fea85b82af9550e",
+      "native\\contact_guard.h": "e21520934b3d9233ffe07b56bfb9f738435bc793a260ef9499465a1c0b0d56c3",
+      "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+      "native\\contact_step_model.h": "ba3eaaa8fe87cd7e36263d9a214bf1c37c5bc8a1254b5c414408c247574c3569",
+      "native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+      "native\\fem_trajectory_merit.h": "27fb3f1459797578d54fefad4aec814f2f5897a8ffa22e8d5a15fc53fc5c8e6c",
+      "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+      "native\\godot_build_profile.json": "4d5dff914bf34cc7e2c23477f209193e9d152eda85691db5d7a7809722727a3e",
+      "native\\godot_membrane.cpp": "85fc57d644b4341fc32548119e801a17c54869ae5769fd08a07a9f029fc58e36",
+      "native\\material_point_contact.h": "6c7a30285bd276da4171f92cd1d9a0837b39060d1e97025e04ceea96cf3bf093",
+      "native\\material_witness.h": "c5aca9a295ac6421c006ad08cb404a150e828b683d2130fdf13454ea5e9852b5",
+      "native\\membrane.gdextension": "0060e0d978227e484c63c9de90090d573062c406ed316886e5d7cc8d14ff6a2a",
+      "native\\membrane_contact_solver.cpp": "52f2edbe533c1f0d4d5c8b0357cf0a32a2eb988fe7114fa56d78080462cde4ad",
+      "native\\membrane_contact_solver.h": "d355bd9a9f99d6cdb1c3e18c8dbc34e09a432f31ad1a78efd360cd416d8e1c70",
+      "native\\membrane_fem.cpp": "fa13099e21505ab3e8643871bde58ea6036e5ef892e8b11d7d61d6296128360c",
+      "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+      "native\\membrane_fem_contact.inc": "48d11f367b82ff8043a8d46d4d4a82a654446754cbce50ab6f580b9e44eb44c1",
+      "native\\membrane_kernel.cpp": "f4f21d3aab8dadc62da3f7600bcf42efda072c4f0a1a09590e1930608cad2518",
+      "native\\membrane_sparse.h": "8ab3fcbfdc2dc942b251093c0fe1658c20866356d15ba28f07ded423b0bf5439",
+      "native\\test_project.godot": "fbc73dad83488944fbfef83981aade449e57f2d439720e6aff057ff44590749b",
+      "tools\\build_membrane_extension.py": "e1fcd9f9d3f9d9439b1d26e0914042f73c7f41fb4a42c1058b17db930010313d",
+      "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+    },
+    "compiler": {
+      "version": "0.17.0",
+      "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+      "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+    },
+    "dependencies": {
+      ".tools\\godot-cpp-4.5": "e83fd0904c13356ed1d4c3d09f8bb9132bdc6b77",
+      ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+    },
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-DNDEBUG",
+      "-DGDEXTENSION",
+      "-DTHREADS_ENABLED",
+      "-DEIGEN_MPL2_ONLY",
+      "-target",
+      "x86_64-windows-gnu",
+      "-isystem",
+      "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\godot-cpp-4.5\\include",
+      "-isystem",
+      "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\godot-cpp-4.5\\gdextension",
+      "-isystem",
+      "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\membrane-extension\\gen\\include",
+      "-isystem",
+      "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1"
+    ],
+    "source_revision": "3dc71953de662dcbf1a3d7af8d0c56560d3b597b",
+    "source_dirty": true
+  },
+  "engine_sha256": "c8f0a6bc45a19b33541501e57f6f7cd972ab18453743266339d495cbbe846643",
+  "stages": [
+    {
+      "name": "fresh_import",
+      "arguments": [
+        "--editor",
+        "--import",
+        "--quit-after",
+        "35",
+        "--frame-delay",
+        "1000"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-usljha40\\fresh_import.log",
+      "log_sha256": "51be5c0b308504547b96bc1c05f77e1697ed4e2cd7d287ad5489387f12a70195"
+    },
+    {
+      "name": "legacy_bridge",
+      "arguments": [
+        "--script",
+        "res://legacy_bridge.gd"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-usljha40\\legacy_bridge.log",
+      "log_sha256": "b4417481fc344331484f4875035cb8e93e70b1355e87145dc74c63db2a6dfc80"
+    },
+    {
+      "name": "fem_bridge",
+      "arguments": [
+        "--script",
+        "res://fem_bridge.gd"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-usljha40\\fem_bridge.log",
+      "log_sha256": "b20c4e9f2aa0626ac94a54eaf2b93d23b676bdfba25af9b303f44ff384e2b1ed"
+    },
+    {
+      "name": "contact_bridge",
+      "arguments": [
+        "--script",
+        "res://contact_bridge.gd"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-usljha40\\contact_bridge.log",
+      "log_sha256": "6f8189db9eefc47b4f4865deeb2449a6a383d5281c7ca1147bdc54a29c6bf8c3"
+    },
+    {
+      "name": "material_witness_bridge",
+      "arguments": [
+        "--script",
+        "res://material_witness_bridge.gd"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-usljha40\\material_witness_bridge.log",
+      "log_sha256": "d882889a8458fcceab2bfbfce968f869468aa5c2287240e57a6f2842358c26c8"
+    },
+    {
+      "name": "material_witness_batch_bridge",
+      "arguments": [
+        "--script",
+        "res://material_witness_batch_bridge.gd"
+      ],
+      "returncode": 0,
+      "passed": true,
+      "log": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-usljha40\\material_witness_batch_bridge.log",
+      "log_sha256": "734fc32791da02b2e570c1a41116b68656842e1fa0145c721503e8eb42a91f87"
+    }
+  ]
+}

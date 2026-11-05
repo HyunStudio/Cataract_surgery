@@ -62,6 +62,7 @@ protected:
         ClassDB::bind_method(D_METHOD("solve_grasp_fem","request"),&MembraneFEMKernel::solve_grasp_fem);
         ClassDB::bind_method(D_METHOD("contact_fem","request"),&MembraneFEMKernel::contact_fem);
         ClassDB::bind_method(D_METHOD("material_witness_fem","request"),&MembraneFEMKernel::material_witness_fem);
+        ClassDB::bind_method(D_METHOD("material_witnesses_fem","request"),&MembraneFEMKernel::material_witnesses_fem);
         ClassDB::bind_method(D_METHOD("solve_contact_fem","request"),&MembraneFEMKernel::solve_contact_fem);
         ClassDB::bind_method(D_METHOD("solve_precise_contact_fem","request"),&MembraneFEMKernel::solve_precise_contact_fem);
         ClassDB::bind_method(D_METHOD("solve_material_points_fem","request"),&MembraneFEMKernel::solve_material_points_fem);
@@ -84,6 +85,28 @@ public:
             }
         }
         Dictionary answer;answer["status"]=status;answer["values"]=values;return answer;
+    }
+    Dictionary material_witnesses_fem(const Dictionary& request) {
+        PackedFloat64Array values;PackedInt32Array statuses;int status=-1;bool valid=true;
+        for(const char* key:{"controls","weights","capsules"})
+            if(!request.has(key) || request[key].get_type()!=Variant::PACKED_FLOAT64_ARRAY) valid=false;
+        if(valid) {
+            PackedFloat64Array controls=request["controls"],weights=request["weights"],capsules=request["capsules"];
+            const auto faces=controls.size()/9,bodies=capsules.size()/7;
+            if(controls.size()%9==0 && weights.size()==controls.size() && capsules.size()%7==0 &&
+               faces>=1 && faces<=8192 && bodies>=1 && bodies<=64 && faces*bodies<=65536) {
+                const auto batch=membrane::material_witness::query_batch(static_cast<int>(faces),controls.ptr(),weights.ptr(),static_cast<int>(bodies),capsules.ptr());
+                status=batch.status;
+                if(status==0) {
+                    statuses.resize(static_cast<int64_t>(batch.pairs.size()));values.resize(static_cast<int64_t>(batch.pairs.size()*13));
+                    for(std::size_t pair=0;pair<batch.pairs.size();++pair) {
+                        statuses.set(static_cast<int64_t>(pair),batch.pairs[pair].status);
+                        for(int k=0;k<13;++k) values.set(static_cast<int64_t>(pair*13+k),batch.pairs[pair].values[k]);
+                    }
+                }
+            }
+        }
+        Dictionary answer;answer["status"]=status;answer["statuses"]=statuses;answer["values"]=values;return answer;
     }
     Dictionary solve_material_points_fem(const Dictionary& request) {return contact_candidate(request,false,false,true,true);}
     Dictionary solve_contact_fem(const Dictionary& request) {return contact_candidate(request,false);}

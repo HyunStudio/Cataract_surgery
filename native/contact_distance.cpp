@@ -11,6 +11,19 @@ extern "C" __declspec(dllexport) int membrane_material_witness(
     return result.status;
 }
 
+extern "C" __declspec(dllexport) int membrane_material_witness_batch(
+    int faces,const double* controls,const double* shapes,int bodies,const double* capsules,
+    int* statuses,double* values) {
+    if(!statuses || !values) return -1;
+    const auto batch=membrane::material_witness::query_batch(faces,controls,shapes,bodies,capsules);
+    if(batch.status!=0) return batch.status;
+    for(std::size_t pair=0;pair<batch.pairs.size();++pair) {
+        statuses[pair]=batch.pairs[pair].status;
+        std::copy(batch.pairs[pair].values.begin(),batch.pairs[pair].values.end(),values+pair*13);
+    }
+    return 0;
+}
+
 extern "C" __declspec(dllexport) int membrane_contact_distance(
     const double* segment,const double* triangle,double radius,double* output) {
     if (!output) return -1;
