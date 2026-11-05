@@ -1,0 +1,24 @@
+import ctypes as ct,json,sys,time
+from pathlib import Path
+import numpy as np
+r=Path.cwd();sys.path[:0]=[str(r/'tools'),str(r/'native/tests')]
+from replay_fem_contact import replay as endpoint
+from replay_fem_trajectory import replay as trajectory
+from native_build_provenance import sha256,verify_sources
+meta=json.loads((r/'.tools/point-regular-cost-probe.json').read_text());verify_sources(meta['original_sources'])
+lib=Path(meta['library']);dll=ct.CDLL(str(lib));dll.point_regular_profile_time.restype=ct.c_uint64;dll.point_regular_profile_count.restype=ct.c_uint64
+case=r/'.tools/owned153-current-requests.json';data=json.loads(case.read_text());report={'qualified':False,'scope':'Timer-only copied Native regularity check; exact saved request/response parity, not whole-step performance qualification.','input_sha256':sha256(case),'library_sha256':sha256(lib),'results':[]}
+for index,row in enumerate(data['native_history']):
+ p=row['request'];kind=row['kind'];dll.point_regular_profile_reset();start=time.perf_counter_ns()
+ if kind in ('static','precise_endpoint','material_points'):
+  out=endpoint(p,lib,precise=kind=='precise_endpoint',method='membrane_fem_solve_material_points' if kind=='material_points' else None)
+ else:
+  extra={}
+  if kind in ('seeded','material_points_trajectory_seeded'):extra={'initial':p['initial'],'multiplier_seed':p['multiplier_seed'],'penalty_seed':p['penalty_seed']}
+  if kind.startswith('material_points_trajectory'):extra['method']='membrane_fem_solve_'+kind
+  out=trajectory(p,p['previous'],p['kinds'],p['packets'],p['times'],lib,**extra)
+ elapsed=time.perf_counter_ns()-start;saved=row['response'];assert out[0]==saved['status']
+ for name,value in zip(('xyz','reaction','dual','stats'),out[1:]):assert np.asarray(value,dtype=np.float64).tobytes()==np.asarray(saved[name],dtype=np.float64).tobytes(),(index,name)
+ item={'index':index,'kind':kind,'elapsed_ns':elapsed,'regular_ns':dll.point_regular_profile_time(),'regular_calls':dll.point_regular_profile_count(),'all_response_bits_equal':True};report['results'].append(item);print(json.dumps(item),flush=True)
+verify_sources(meta['original_sources']);report['total_ns']=sum(x['elapsed_ns'] for x in report['results']);report['regular_ns']=sum(x['regular_ns'] for x in report['results']);report['regular_fraction']=report['regular_ns']/report['total_ns'];report['profile_verified']=True
+(r/'godot/reports/point-regular-cost-profile.json').write_text(json.dumps(report,indent=2),encoding='utf-8');print('VERIFIED',report['regular_fraction'],flush=True)

@@ -1,0 +1,124 @@
+{
+  "qualified": false,
+  "scope": "Timer-only copied Native regularity check; exact saved request/response parity, not whole-step performance qualification.",
+  "input_sha256": "b3b232a284735e253699bcc4fd534f0b61d4b1b00db3194b4ea5bf7e82889ead",
+  "library_sha256": "8f9d7b31c68e6a581b3eb7ef80582dd97ff65c1f9ac976570b793ec484db3342",
+  "results": [
+    {
+      "index": 0,
+      "kind": "material_points",
+      "elapsed_ns": 1166342700,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 1,
+      "kind": "material_points",
+      "elapsed_ns": 1288934700,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 2,
+      "kind": "material_points",
+      "elapsed_ns": 1721871700,
+      "regular_ns": 8160700,
+      "regular_calls": 449,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 3,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 2416322900,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 4,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 1207962500,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 5,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 6694847700,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 6,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 2316405300,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 7,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 18506030700,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 8,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 3909159100,
+      "regular_ns": 89492700,
+      "regular_calls": 5556,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 9,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 18496160100,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 10,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 5146374600,
+      "regular_ns": 134422300,
+      "regular_calls": 6990,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 11,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 19885066400,
+      "regular_ns": 0,
+      "regular_calls": 0,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 12,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 6218901600,
+      "regular_ns": 51385700,
+      "regular_calls": 3283,
+      "all_response_bits_equal": true
+    },
+    {
+      "index": 13,
+      "kind": "material_points_trajectory_seeded",
+      "elapsed_ns": 5473829200,
+      "regular_ns": 67811200,
+      "regular_calls": 3760,
+      "all_response_bits_equal": true
+    }
+  ],
+  "total_ns": 94448209200,
+  "regular_ns": 351272600,
+  "regular_fraction": 0.0037192086856422894,
+  "profile_verified": true
+}

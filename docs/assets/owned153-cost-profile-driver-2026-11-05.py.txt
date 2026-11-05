@@ -1,0 +1,47 @@
+"""Cost breakdown of a qualified owned step; instrumentation must preserve bits."""
+import argparse
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+from native_build_provenance import sha256,source_hashes,verify_sources
+ROOT=Path(__file__).resolve().parents[1]
+parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--case',type=int,choices=[153,180],default=153);args=parser.parse_args()
+qualification=ROOT/'godot/reports/operative-components-trajectory-curved-coupled-contact-embedded-grasp-validation.json'
+report=json.loads(qualification.read_text());source=Path(report['probe']);engine=ROOT/'.tools/godot/Godot_v4.7.2-stable_win64_console.exe'
+assert report['qualified'] and any(s['name']==('motion153_advance' if args.case==153 else 'temporal_point_advance') and s['passed'] for s in report['stages'])
+assert sha256(engine)==report['engine_sha256'];assert all(sha256(source/n)==h for n,h in report['frozen_inputs'].items())
+probe=Path(tempfile.mkdtemp(prefix='owned-cost-',dir=ROOT/'.tools'));shutil.copytree(source,probe,dirs_exist_ok=True,ignore=shutil.ignore_patterns('*.log','reports'))
+baseline=source/f'reports/owned{args.case}-temporal-attempt.bin';assert baseline.exists();shutil.copyfile(baseline,probe/f'baseline{args.case}.bin')
+s=(source/'temporal_point_advance.gd').read_text(encoding='utf-8')
+s=s.replace(' var history:Array=[]',' var history:Array=[]\n var native_us:=0\n var native_calls:=0')
+for method,field in [('material_witness_fem','scalar'),('material_witnesses_fem','bulk')]:
+ old=f' func {method}(v:Dictionary)->Dictionary:return inner.{method}(v)';assert old in s
+ new=f' var {field}_us:=0\n var {field}_calls:=0\n func {method}(v:Dictionary)->Dictionary:\n  var start:=Time.get_ticks_usec();var out:Dictionary=inner.{method}(v)\n  {field}_us+=Time.get_ticks_usec()-start;{field}_calls+=1;return out'
+ s=s.replace(old,new)
+for method in ['solve_fem','solve_grasp_fem','contact_fem','solve_contact_fem','solve_precise_contact_fem']:
+ old=f' func {method}(v:Dictionary)->Dictionary:return inner.{method}(v)';assert old in s
+ s=s.replace(old,f' func {method}(v:Dictionary)->Dictionary:\n  var start:=Time.get_ticks_usec();var out:Dictionary=inner.{method}(v)\n  native_us+=Time.get_ticks_usec()-start;native_calls+=1;return out')
+for method in ['solve_material_points_fem','solve_trajectory_material_points_fem','solve_seeded_trajectory_material_points_fem','solve_trajectory_fem','solve_seeded_trajectory_fem','guard_motion','guard_fine_motion']:
+ old=f'  var out:Dictionary=inner.{method}(v);';assert old in s
+ s=s.replace(old,f'  var start:=Time.get_ticks_usec();var out:Dictionary=inner.{method}(v);native_us+=Time.get_ticks_usec()-start;native_calls+=1;')
+s=s.replace('var started:=Time.get_ticks_msec()','var started:=Time.get_ticks_usec()')
+old=' var elapsed:=Time.get_ticks_msec()-started;var work:=0;';assert old in s
+new=' var elapsed_us:=Time.get_ticks_usec()-started;var elapsed:int=elapsed_us/1000\n var cost:={"elapsed_us":elapsed_us,"solve_or_contact_check_us":backend.native_us,"solver_calls":backend.native_calls,"scalar_us":backend.scalar_us,"scalar_calls":backend.scalar_calls,"bulk_us":backend.bulk_us,"bulk_calls":backend.bulk_calls,"guard_us":guard.native_us,"guard_calls":guard.native_calls}\n cost["other_engine_us"]=elapsed_us-backend.native_us-backend.scalar_us-backend.bulk_us-guard.native_us\n var baseline:Dictionary=FileAccess.open("res://baseline%d.bin"%number,FileAccess.READ).get_var()\n check(var_to_bytes(result)==var_to_bytes(baseline.result),"instrumentation retains exact qualified result bits")\n if result.valid:check(model.snapshot().xyz.to_byte_array()==baseline.native_history[-1].response.xyz.to_byte_array(),"instrumentation retains exact accepted control bits")\n check(var_to_bytes(backend.history)==var_to_bytes(baseline.native_history) and var_to_bytes(guard.history)==var_to_bytes(baseline.guard_history),"all numerical requests, responses and guard results match qualified run")\n var work:=0;'
+s=s.replace(old,new).replace('var summary:={"qualified":false,','var summary:={"profile":cost,"qualified":false,')
+script=probe/'profile_owned_case.gd';script.write_text(s,encoding='utf-8')
+inputs=source_hashes([Path(__file__),ROOT/'tools/native_build_provenance.py']);frozen={**report['frozen_inputs'],script.name:sha256(script),f'baseline{args.case}.bin':sha256(baseline)}
+manifest={'qualified':False,'profile_verified':False,'scope':'Single instrumented owned-step cost decomposition only. Concurrent jobs may affect timing; no controlled throughput, whole-route, clinical, GPU or release claim. Exact requests/responses/result/control/guard parity is required.','case':args.case,'probe':str(probe),'inputs':inputs,'frozen_inputs':frozen,'qualification_sha256':sha256(qualification),'engine_sha256':report['engine_sha256']}
+log=probe/'profile.log';destination=ROOT/f'godot/reports/owned{args.case}-cost-profile.json';destination.write_text(json.dumps(manifest,indent=2))
+print('Profiling owned contact: '+str(probe),flush=True)
+with log.open('wb') as sink:completed=subprocess.run([str(engine),'--headless','--path',str(probe),'--script','res://'+script.name,'--',f'--case={args.case}'],stdout=sink,stderr=subprocess.STDOUT)
+text=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',log.read_text(encoding='utf-8',errors='replace'));passed=completed.returncode==0 and 'Temporal material point advance: 0 failures' in text and not re.search('ERROR:|SCRIPT ERROR|leaked at exit|resources still in use',text)
+verify_sources(inputs);assert all(sha256(probe/n)==h for n,h in frozen.items());assert sha256(engine)==report['engine_sha256']
+manifest.update(profile_verified=passed,returncode=completed.returncode,log_sha256=sha256(log))
+metrics=probe/f'reports/owned{args.case}-temporal-metrics.json'
+if metrics.exists():manifest['metrics']=json.loads(metrics.read_text())
+destination.write_text(json.dumps(manifest,indent=2));print(json.dumps({'profile_verified':passed,'profile':manifest.get('metrics',{}).get('profile'),'report':str(destination)}),flush=True)
+if not passed:print(text,flush=True)
+raise SystemExit(0 if passed else 1)

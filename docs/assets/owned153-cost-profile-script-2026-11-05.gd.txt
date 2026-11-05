@@ -1,0 +1,102 @@
+extends SceneTree
+var failures:=0
+func check(ok:bool,message:String)->void:
+ if not ok:failures+=1;push_error(message)
+class Backend extends RefCounted:
+ var inner:RefCounted
+ var history:Array=[]
+ var native_us:=0
+ var native_calls:=0
+ func solve_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_fem(v)
+  native_us+=Time.get_ticks_usec()-start;native_calls+=1;return out
+ func solve_grasp_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_grasp_fem(v)
+  native_us+=Time.get_ticks_usec()-start;native_calls+=1;return out
+ var scalar_us:=0
+ var scalar_calls:=0
+ func material_witness_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.material_witness_fem(v)
+  scalar_us+=Time.get_ticks_usec()-start;scalar_calls+=1;return out
+ var bulk_us:=0
+ var bulk_calls:=0
+ func material_witnesses_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.material_witnesses_fem(v)
+  bulk_us+=Time.get_ticks_usec()-start;bulk_calls+=1;return out
+ func contact_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.contact_fem(v)
+  native_us+=Time.get_ticks_usec()-start;native_calls+=1;return out
+ func solve_contact_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_contact_fem(v)
+  native_us+=Time.get_ticks_usec()-start;native_calls+=1;return out
+ func solve_precise_contact_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_precise_contact_fem(v)
+  native_us+=Time.get_ticks_usec()-start;native_calls+=1;return out
+ func solve_material_points_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_material_points_fem(v);native_us+=Time.get_ticks_usec()-start;native_calls+=1;history.append({"kind":"material_points","request":v.duplicate(true),"response":out.duplicate(true)});return out
+ func solve_trajectory_material_points_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_trajectory_material_points_fem(v);native_us+=Time.get_ticks_usec()-start;native_calls+=1;history.append({"kind":"material_points_trajectory","request":v.duplicate(true),"response":out.duplicate(true)});return out
+ func solve_seeded_trajectory_material_points_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_seeded_trajectory_material_points_fem(v);native_us+=Time.get_ticks_usec()-start;native_calls+=1;history.append({"kind":"material_points_trajectory_seeded","request":v.duplicate(true),"response":out.duplicate(true)});return out
+ func solve_trajectory_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_trajectory_fem(v);native_us+=Time.get_ticks_usec()-start;native_calls+=1;history.append({"kind":"ordinary_trajectory","request":v.duplicate(true),"response":out.duplicate(true)});return out
+ func solve_seeded_trajectory_fem(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.solve_seeded_trajectory_fem(v);native_us+=Time.get_ticks_usec()-start;native_calls+=1;history.append({"kind":"ordinary_seeded","request":v.duplicate(true),"response":out.duplicate(true)});return out
+class Guard extends RefCounted:
+ var inner:RefCounted
+ var history:Array=[]
+ var native_us:=0
+ var native_calls:=0
+ func guard_motion(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.guard_motion(v);native_us+=Time.get_ticks_usec()-start;native_calls+=1;history.append(out.duplicate(true));return out
+ func guard_fine_motion(v:Dictionary)->Dictionary:
+  var start:=Time.get_ticks_usec();var out:Dictionary=inner.guard_fine_motion(v);native_us+=Time.get_ticks_usec()-start;native_calls+=1;history.append(out.duplicate(true));return out
+func _initialize()->void:
+ var number:=180
+ for argument in OS.get_cmdline_user_args():
+  if argument.begins_with("--case="):
+   var selected:=argument.trim_prefix("--case=")
+   if selected not in ["153","180"]:push_error("owned temporal case must be153 or180");quit(1);return
+   number=int(selected)
+ var label:="owned%d"%number
+ var raw=ClassDB.instantiate("MembraneFEMKernel")
+ check(raw!=null and raw.has_method("solve_trajectory_material_points_fem") and raw.has_method("material_witnesses_fem"),label+" needs actual temporal point kernel")
+ if failures:quit(1);return
+ var fixture:="res://tests/fixtures/operative-motion153-temporal-state.bin" if number==153 else "res://tests/fixtures/operative-motion180-state.bin"
+ var saved:Dictionary=FileAccess.open(fixture,FileAccess.READ).get_var()
+ var model=load("res://scripts/embedded_membrane.gd").new();model._state=saved.state.duplicate(true)
+ var before:Dictionary=model.snapshot();var backend:=Backend.new();backend.inner=raw
+ var guard:=Guard.new();guard.inner=ClassDB.instantiate("MembraneContactKernel")
+ var motion:Dictionary=saved.motion.duplicate(true);motion.guard=guard
+ var started:=Time.get_ticks_usec()
+ var result:Dictionary=model.advance_contact(saved.dt,saved.force,backend,saved.mu,saved.lambda,motion,saved.damping,saved.budget,saved.targets)
+ var elapsed_us:=Time.get_ticks_usec()-started;var elapsed:int=elapsed_us/1000
+ var cost:={"elapsed_us":elapsed_us,"solve_or_contact_check_us":backend.native_us,"solver_calls":backend.native_calls,"scalar_us":backend.scalar_us,"scalar_calls":backend.scalar_calls,"bulk_us":backend.bulk_us,"bulk_calls":backend.bulk_calls,"guard_us":guard.native_us,"guard_calls":guard.native_calls}
+ cost["other_engine_us"]=elapsed_us-backend.native_us-backend.scalar_us-backend.bulk_us-guard.native_us
+ var baseline:Dictionary=FileAccess.open("res://baseline%d.bin"%number,FileAccess.READ).get_var()
+ check(var_to_bytes(result)==var_to_bytes(baseline.result),"instrumentation retains exact qualified result bits")
+ if result.valid:check(model.snapshot().xyz.to_byte_array()==baseline.native_history[-1].response.xyz.to_byte_array(),"instrumentation retains exact accepted control bits")
+ check(var_to_bytes(backend.history)==var_to_bytes(baseline.native_history) and var_to_bytes(guard.history)==var_to_bytes(baseline.guard_history),"all numerical requests, responses and guard results match qualified run")
+ var work:=0;var temporal_calls:=0;var ordinary_calls:=0
+ for row in backend.history:
+  work+=int(row.response.stats[2])
+  if row.kind.begins_with("material_points_trajectory"):temporal_calls+=1
+  if row.kind=="material_points_trajectory":
+   check(not row.request.has("initial") and not row.request.has("multiplier_seed") and not row.request.has("penalty_seed"),"point temporal candidates never consume ordinary face seeds")
+  if row.kind.begins_with("ordinary"):ordinary_calls+=1
+ check(result.valid,label+" must pass original force/full motion gates: "+str(result))
+ if result.valid:
+  var after:Dictionary=model.snapshot()
+  check(after.steps==before.steps+1 and after.events==before.events and after.previous==before.xyz and absf(after.time-before.time-saved.dt)<1e-12,"one accepted "+label+" advances only physics/history once")
+  check(result.force_inf<=1e-8 and result.trajectory_iterations<=250 and result.trajectory_iterations==work,"independent original force and shared work remain unchanged")
+  check(temporal_calls>0 and .5 in result.trajectory_times,"middle collision uses temporal material points without ordinary seeds")
+  check(not guard.history.is_empty() and guard.history[-1].status==0,"last complete large-geometry physical motion guard certifies clearance")
+  check(after.contacts.has("material_points") and after.contacts.times==result.trajectory_times and after.contacts.source_steps==before.steps,"accepted temporal reactions keep original material/time provenance")
+  var accepted:Dictionary=model.snapshot();var stopped:Dictionary=model.advance_contact(saved.dt,saved.force,backend,saved.mu,saved.lambda,motion,saved.damping,0,saved.targets)
+  check(not stopped.valid and model.snapshot()==accepted,"zero remaining budget cannot alter accepted time or positions")
+ else:check(model.snapshot()==before,"failed temporal exploration leaves owned state unchanged")
+ DirAccess.make_dir_recursive_absolute("res://reports")
+ FileAccess.open("res://reports/owned%d-temporal-attempt.bin"%number,FileAccess.WRITE).store_var({"state":before,"result":result,"native_history":backend.history,"guard_history":guard.history})
+ var summary:={"profile":cost,"qualified":false,"owned_step_qualified":result.valid and failures==0,"scope":"Owned%d actual engine step only; no full route, surgery, real-time or release qualification."%number,"elapsed_ms":elapsed,"vertices":before.rest.size(),"faces":before.indices.size()/3,"controls":before.xyz.size()/3,"temporal_calls":temporal_calls,"ordinary_calls":ordinary_calls,"work":work,"result":result}
+ FileAccess.open("res://reports/owned%d-temporal-metrics.json"%number,FileAccess.WRITE).store_string(JSON.stringify(summary,"  ",true,true))
+ print("Temporal material point advance: ",failures," failures; elapsed_ms=",elapsed," case=",number," result=",result);quit(1 if failures else 0)

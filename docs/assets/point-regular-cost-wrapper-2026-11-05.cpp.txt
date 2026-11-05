@@ -1,0 +1,7 @@
+#include <chrono>
+#include <cstdint>
+static std::uint64_t point_regular_profile_ns=0,point_regular_profile_calls=0;
+#include "native/membrane_fem.cpp"
+FEM_EXPORT void point_regular_profile_reset(){point_regular_profile_ns=point_regular_profile_calls=0;}
+FEM_EXPORT std::uint64_t point_regular_profile_time(){return point_regular_profile_ns;}
+FEM_EXPORT std::uint64_t point_regular_profile_count(){return point_regular_profile_calls;}

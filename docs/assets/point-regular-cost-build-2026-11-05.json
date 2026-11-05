@@ -1,0 +1,40 @@
+{
+  "artifact_sha256": "8f9d7b31c68e6a581b3eb7ef80582dd97ff65c1f9ac976570b793ec484db3342",
+  "sources": {
+    ".tools\\point-regular-cost-ng85pz3p\\native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\contact_guard.h": "e21520934b3d9233ffe07b56bfb9f738435bc793a260ef9499465a1c0b0d56c3",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\fem_trajectory_merit.h": "27fb3f1459797578d54fefad4aec814f2f5897a8ffa22e8d5a15fc53fc5c8e6c",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\material_point_contact.h": "6c7a30285bd276da4171f92cd1d9a0837b39060d1e97025e04ceea96cf3bf093",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\membrane_fem.cpp": "8f21f0c365dd53ec54e294fdefe095294ba3582b212f88928eb03d2b1c6b33ec",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+    ".tools\\point-regular-cost-ng85pz3p\\native\\membrane_fem_contact.inc": "63de1d19974f4ef3d1a39e857b166d08564773f062fb784b81095944d7d8fa89",
+    ".tools\\point-regular-cost-ng85pz3p\\regular_profile.cpp": "ab032600c0ce980ba59f0aaada24cfc3bcb31d074acf07e92e226eb677728fe0"
+  },
+  "compiler": {
+    "version": "0.17.0",
+    "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+    "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+  },
+  "dependencies": {
+    ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+  },
+  "flags": [
+    "-std=c++17",
+    "-O3",
+    "-Wall",
+    "-Wextra",
+    "-Wpedantic",
+    "-Werror",
+    "-DEIGEN_MPL2_ONLY",
+    "-isystem",
+    "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+    "-shared",
+    "-target",
+    "x86_64-windows-gnu"
+  ],
+  "source_revision": "a7f85a622eca1cd8d756bf74304c4256dbce1792",
+  "source_dirty": true
+}
