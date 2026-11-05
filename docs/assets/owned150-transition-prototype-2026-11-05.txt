@@ -1,0 +1,32 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+TRACE solve_material_points_fem budget=250 times=[] rows=319
+DONE solve_material_points_fem status=0 work=26.0
+TRACE solve_material_points_fem budget=224 times=[] rows=320
+DONE solve_material_points_fem status=0 work=22.0
+TRACE solve_material_points_fem budget=202 times=[] rows=321
+DONE solve_material_points_fem status=0 work=22.0
+TRACE solve_seeded_trajectory_material_points_fem budget=180 times=[0.125, 1.0] rows=326
+DONE solve_seeded_trajectory_material_points_fem status=0 work=22.0
+TRACE solve_seeded_trajectory_material_points_fem budget=158 times=[0.125, 1.0] rows=327
+DONE solve_seeded_trajectory_material_points_fem status=0 work=9.0
+TRACE solve_seeded_trajectory_material_points_fem budget=149 times=[0.0625, 0.125, 1.0] rows=329
+DONE solve_seeded_trajectory_material_points_fem status=0 work=14.0
+TRACE solve_seeded_trajectory_material_points_fem budget=135 times=[0.03125, 0.0625, 0.125, 1.0] rows=330
+DONE solve_seeded_trajectory_material_points_fem status=0 work=8.0
+TRACE solve_seeded_trajectory_material_points_fem budget=127 times=[0.015625, 0.03125, 0.0625, 0.125, 1.0] rows=331
+DONE solve_seeded_trajectory_material_points_fem status=0 work=8.0
+TRACE solve_seeded_trajectory_material_points_fem budget=119 times=[0.0078125, 0.015625, 0.03125, 0.0625, 0.125, 1.0] rows=332
+DONE solve_seeded_trajectory_material_points_fem status=0 work=7.0
+TRACE solve_seeded_trajectory_material_points_fem budget=112 times=[0.00390625, 0.0078125, 0.015625, 0.03125, 0.0625, 0.125, 1.0] rows=333
+DONE solve_seeded_trajectory_material_points_fem status=0 work=10.0
+TRACE solve_seeded_trajectory_material_points_fem budget=102 times=[0.001953125, 0.00390625, 0.0078125, 0.015625, 0.03125, 0.0625, 0.125, 1.0] rows=334
+DONE solve_seeded_trajectory_material_points_fem status=0 work=7.0
+ERROR: middle collision uses temporal material points without ordinary seeds
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] check (C:\Users/hyung/Documents/Hyun_Studio/Cataract_surgery/.tools/worktrees/surgery-step-transaction/.tools/trace-owned150-temporal.gd:4)
+       [1] _initialize (C:\Users/hyung/Documents/Hyun_Studio/Cataract_surgery/.tools/worktrees/surgery-step-transaction/.tools/trace-owned150-temporal.gd:63)
+TRACE solve_precise_contact_fem budget=0 times=[]
+DONE solve_precise_contact_fem status=1 work=0.0
+Temporal material point advance: 1 failures; elapsed_ms=77228 result={ "valid": true, "changed": true, "reason": "", "force_inf": 0.00000000001604, "gap": 0.0, "stats": [0.01191458097446, 0.00000000001597, 7.0, 10.0, 8.0, 0.0, 1.0, 0.00000006103516, 0.0, 1.0, 0.0, 0.0, 0.0, 0.00000000000001, 2.0, 100000000.0], "elastic_energy": 0.00572886042344, "maximum_strain": 0.01510603288536, "work_iterations": 7, "candidate_normal_iterations": 7, "candidate_ordinary_iterations": 0, "trajectory_iterations": 155, "trajectory_times": [0.001953125, 0.00390625, 0.0078125, 0.015625, 0.03125, 0.0625, 0.125, 1.0], "trajectory_retired_layers": 0 }

@@ -32,9 +32,10 @@ for index,row in rows:
     print(f'Replaying owned motion{args.motion} request{index}: {kind}',flush=True)
     if kind in ('static','precise_endpoint','material_points'):
         result=endpoint(p,library,precise=kind=='precise_endpoint',method='membrane_fem_solve_material_points' if kind=='material_points' else None)
-    elif kind in ('trajectory','seeded'):
+    elif kind in ('trajectory','seeded','material_points_trajectory','material_points_trajectory_seeded'):
         extra={}
-        if kind=='seeded':extra={'initial':p['initial'],'multiplier_seed':p['multiplier_seed'],'penalty_seed':p['penalty_seed']}
+        if kind in ('seeded','material_points_trajectory_seeded'):extra={'initial':p['initial'],'multiplier_seed':p['multiplier_seed'],'penalty_seed':p['penalty_seed']}
+        if kind.startswith('material_points_trajectory'):extra['method']='membrane_fem_solve_'+kind
         result=trajectory(p,p['previous'],p['kinds'],p['packets'],p['times'],library,**extra)
     else:raise ValueError('Unknown captured candidate kind: '+kind)
     status,xyz,reaction,dual,stats=result

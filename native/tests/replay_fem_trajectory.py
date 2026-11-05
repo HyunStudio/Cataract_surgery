@@ -4,9 +4,10 @@ from pathlib import Path
 import numpy as np
 from test_membrane_fem import D,I
 
-def replay(request,previous,kinds,packets,times,library,initial=None,multiplier_seed=None,penalty_seed=1.):
+def replay(request,previous,kinds,packets,times,library,initial=None,multiplier_seed=None,penalty_seed=1.,method=None):
     seeded=initial is not None or multiplier_seed is not None
-    lib=ct.CDLL(str(Path(library).resolve()));fn=getattr(lib,'membrane_fem_solve_trajectory_seeded' if seeded else 'membrane_fem_solve_trajectory')
+    lib=ct.CDLL(str(Path(library).resolve()));fn=getattr(lib,method or ('membrane_fem_solve_trajectory_seeded' if seeded else 'membrane_fem_solve_trajectory'))
+    if method and seeded and method!='membrane_fem_solve_material_points_trajectory_seeded':raise ValueError('Explicit candidate API does not accept ordinary trajectory seeds')
     fn.argtypes=[ct.c_int,D,D,ct.c_int,I,D,D,ct.c_double,ct.c_double,ct.c_double,ct.c_int,
                  ct.c_double,ct.c_double,ct.c_double,ct.c_int,I,D,D,D,ct.c_int,I,D,
                  ct.c_int,I,D,D,ct.c_int,D,D,D]

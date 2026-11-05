@@ -26,7 +26,7 @@ SUITES.insert(0,'test_material_orientation')
 SUITES.insert(0,'test_material_witness')
 SUITES.insert(0,'test_material_normal_contact')
 SUITES.insert(0,'test_material_normal_priority')
-SUITES[:0]=['test_anatomical_contact','test_fine_anatomy','test_fine_geometry_capacity','test_fine_guard_dispatch','test_fine_support_limits']
+SUITES[:0]=['test_temporal_material_normals','test_temporal_point_seed','test_temporal_point_protocol','test_anatomical_contact','test_fine_anatomy','test_fine_geometry_capacity','test_fine_guard_dispatch','test_fine_support_limits']
 probe = Path(tempfile.mkdtemp(prefix='embedded-regressions-', dir=ROOT/'.tools'))
 sources = [ROOT/name for name in subprocess.check_output(['git','ls-files','--','godot'], cwd=ROOT, text=True).splitlines()]
 sources = sorted({p for p in sources if p.is_file()} | {ROOT/'godot/tests'/f'{name}.gd' for name in SUITES} |

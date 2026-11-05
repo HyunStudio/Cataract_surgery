@@ -48,6 +48,9 @@ if options.coupled:
     intended['coupled_bridge.gd'] = ROOT/'native/tests/test_fem_contact_godot.gd'
 if options.trajectory:
     intended['trajectory_bridge.gd']=ROOT/'native/tests/test_fem_trajectory_godot.gd'
+    intended['temporal_points_bridge.gd']=ROOT/'native/tests/test_temporal_points_godot.gd'
+    intended['temporal_material_point.json']=ROOT/'native/tests/fixtures/temporal_material_point.json'
+    intended['temporal_point_advance.gd']=ROOT/'native/tests/test_temporal_point_advance_godot.gd'
     intended['trajectory_advance.gd']=ROOT/'native/tests/test_trajectory_advance_godot.gd'
     intended['material_point_advance.gd']=ROOT/'native/tests/test_material_point_advance_godot.gd'
     intended['scripts/material_normal_contact.gd']=ROOT/'godot/scripts/material_normal_contact.gd'
@@ -111,6 +114,8 @@ if options.coupled:
 if options.curved:stages.append(('embedded_curved', ['--script','res://embedded_curved.gd'], 'Embedded native curved coupled step: 0 failures'))
 if options.trajectory:
     stages.append(('trajectory_bridge',['--script','res://trajectory_bridge.gd'],'Native trajectory FEM Godot bridge: 0 failures'))
+    stages.append(('temporal_points_bridge',['--script','res://temporal_points_bridge.gd'],'Native temporal material points: 0 failures'))
+    stages.append(('temporal_point_advance',['--script','res://temporal_point_advance.gd'],'Temporal material point advance: 0 failures'))
     stages.append(('trajectory_pose',['--script','res://tests/test_trajectory_pose.gd'],'Recorded trajectory pose: 0 failures'))
     stages.append(('trajectory_transaction',['--script','res://tests/test_trajectory_transaction.gd'],'Trajectory step transaction: 0 failures'))
     stages.append(('trajectory_seed',['--script','res://tests/test_trajectory_seed.gd'],'Trajectory numerical seed: 0 failures'))

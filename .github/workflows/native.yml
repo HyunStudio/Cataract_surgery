@@ -83,6 +83,8 @@ jobs:
             .tools/fem-extension-*/reports/material-reduction.json
             .tools/fem-extension-*/reports/trajectory-advance-metrics.json
             .tools/fem-extension-*/reports/material-point-advance-metrics.json
+            .tools/fem-extension-*/reports/owned180-temporal-metrics.json
+            .tools/fem-extension-*/reports/owned180-temporal-attempt.bin
             .tools/embedded-regressions-*/*.log
             .tools/material-orientation-audit-*/candidate.json
             .tools/material-orientation-audit-*/replay.log

@@ -135,27 +135,32 @@ func advance_contact(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:f
 	return advance(dt,force,backend,mu,lambda,damping,budget,targets,motion)
 func advance(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,damping:float=1.,budget:int=100,targets:Dictionary={},motion:Dictionary={})->Dictionary:
 	if motion.is_empty():return _advance_once(dt,force,backend,mu,lambda,damping,budget,targets,motion)
-	var times:=PackedFloat64Array([1.]);var spent:=0;var numerical_seed:Dictionary={};var retired:=0
+	var times:=PackedFloat64Array([1.]);var spent:=0;var numerical_seed:Dictionary={};var point_seed:Dictionary={};var retired:=0
 	for attempt in range(16):
-		var answer:=_advance_once(dt,force,backend,mu,lambda,damping,budget-spent,targets,motion,times,numerical_seed)
+		var answer:=_advance_once(dt,force,backend,mu,lambda,damping,budget-spent,targets,motion,times,numerical_seed,point_seed)
 		var candidate:Dictionary=answer.get("_retry_candidate",{});answer.erase("_retry_candidate")
+		var point_retry:bool=answer.get("_point_retry",false);answer.erase("_point_retry")
+		var point_candidate:Dictionary=answer.get("_point_candidate",{});answer.erase("_point_candidate")
 		spent+=int(answer.get("work_iterations",0))
 		if answer.valid:
 			answer["trajectory_iterations"]=spent;answer["trajectory_times"]=times.duplicate();answer["trajectory_retired_layers"]=retired;return answer
 		if answer.get("retry_temporal",false):
 			if spent>=budget:return invalid("native_contact_retry_budget")
-			times=PackedFloat64Array([.5,1.]);numerical_seed={};continue
+			times=PackedFloat64Array([.5,1.]);numerical_seed={};point_seed={};continue
 		if answer.reason!="native_contact_motion" or answer.get("status")!=1:return answer
 		var witness=answer.get("witness_t")
 		if not (witness is float or witness is int) or not is_finite(witness) or witness<=0. or witness>=1. or witness in times:return invalid("native_contact_witness")
 		if spent>=budget:return invalid("native_contact_retry_budget")
-		if backend.has_method("solve_seeded_trajectory_fem"):
+		if point_retry:
+			times.append(witness);times.sort();numerical_seed={};point_seed=point_candidate
+		elif backend.has_method("solve_seeded_trajectory_fem"):
+			point_seed={}
 			var next:=NumericalSeed.transition(candidate,witness)
 			if not next.valid:return next
 			times=next.times;numerical_seed=next;retired+=next.retired
 		else:times.append(witness);times.sort()
 	return invalid("native_contact_retry_budget")
-func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,damping:float=1.,budget:int=100,targets:Dictionary={},motion:Dictionary={},contact_times:PackedFloat64Array=PackedFloat64Array([1.]),numerical_seed:Dictionary={})->Dictionary:
+func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:float,damping:float=1.,budget:int=100,targets:Dictionary={},motion:Dictionary={},contact_times:PackedFloat64Array=PackedFloat64Array([1.]),numerical_seed:Dictionary={},point_seed:Dictionary={})->Dictionary:
 	if _state.is_empty():return invalid("uninitialized")
 	if not is_finite(dt) or dt<1e-6 or dt>.1 or not is_finite(damping) or damping<0. or damping>1. or budget<0 or budget>1000:return invalid("step_input")
 	if not is_finite(mu) or mu<=0. or not is_finite(lambda) or lambda<0.:return invalid("step_material")
@@ -167,10 +172,11 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if not attachments.valid:return attachments
 	var gripping:bool=not attachments.hands.is_empty()
 	var coupled:=not motion.is_empty();var context:Dictionary={}
+	var temporal_points:bool=coupled and contact_times.size()>1 and backend!=null and backend.has_method("solve_trajectory_material_points_fem") and backend.has_method("material_witness_fem")
 	if coupled:
 		context=ContactStep.prepare(_state,motion)
 		if not context.valid:return context
-		if (_state.indices.size()/3)*context.bodies*contact_times.size()>65536:return invalid("contact_motion_budget")
+		if (_state.indices.size()/3)*context.bodies*contact_times.size()>65536 and not temporal_points:return invalid("contact_motion_budget")
 		context.times=contact_times.duplicate();context.previous=_state.xyz.duplicate()
 	var trajectory:=coupled and contact_times.size()>1
 	var seeded:=trajectory and not numerical_seed.is_empty()
@@ -194,18 +200,24 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if trajectory:request.merge({"previous":current,"times":contact_times,"kinds":context.kinds,"packets":context.packets},true)
 	if seeded:request.merge({"initial":numerical_seed.initial,"multiplier_seed":numerical_seed.multiplier_seed,"penalty_seed":numerical_seed.penalty_seed},true)
 	var point_contacts:=false;var point_rows:Array=[];var normal_work:=0;var ordinary_work:=0
-	var point_capable:bool=coupled and not trajectory and backend.has_method("solve_material_points_fem") and backend.has_method("material_witness_fem")
-	var point_first:=false
+	var point_capable:bool=temporal_points or (coupled and not trajectory and backend.has_method("solve_material_points_fem") and backend.has_method("material_witness_fem"))
+	var point_first:=temporal_points
 	if point_capable and budget>0:
 		for body in range(context.bodies):
 			var off:=body*7
 			if context.capsules[off]!=context.capsules[off+3] or context.capsules[off+1]!=context.capsules[off+4] or context.capsules[off+2]!=context.capsules[off+5]:point_first=true
 	var result
 	if point_first:
-		var normal:=MaterialNormals.solve(_state,request,context,backend);normal_work=normal.work_iterations
-		if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model"]:return normal
+		var normal_request:=request.duplicate(true)
+		if temporal_points:
+			for key in ["initial","multiplier_seed","penalty_seed"]:normal_request.erase(key)
+		var normal:=MaterialNormals.solve_trajectory(_state,normal_request,context,backend,point_seed) if temporal_points else MaterialNormals.solve(_state,normal_request,context,backend)
+		normal_work=normal.work_iterations
+		if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model","material_normal_context","material_normal_history","material_normal_times","material_normal_pose","material_normal_coordinate","material_normal_seed"]:return normal
 		if normal.valid:result=normal.result;point_contacts=true;point_rows=normal.rows.duplicate(true)
 	if not point_contacts:
+		if temporal_points and normal_work>=budget:return invalid("material_normal_budget").merged({"work_iterations":normal_work},true)
+		if trajectory and (_state.indices.size()/3)*context.bodies*contact_times.size()>65536:return invalid("contact_motion_budget").merged({"work_iterations":normal_work},true)
 		var ordinary_request:=request.duplicate(true);ordinary_request.budget=budget-normal_work
 		result=(backend.solve_seeded_trajectory_fem(ordinary_request) if seeded else (backend.solve_trajectory_fem(ordinary_request) if trajectory else backend.call(endpoint_method,ordinary_request))) if coupled else (backend.solve_grasp_fem(ordinary_request) if gripping else backend.solve_fem(ordinary_request))
 		if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array or result.stats.size()!=(16 if coupled else (12 if gripping else 8)):return invalid("native_fem_shape")
@@ -267,7 +279,7 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 		if gap>GAP_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_grasp_gap","gap":gap}
 	var contact_force:=PackedFloat64Array();contact_force.resize(current.size())
 	if coupled:
-		var contact:=MaterialNormals.force(_state,result.xyz,result.dual,point_rows,context) if point_contacts else ContactStep.force(_state,result.xyz,result.dual,context,backend)
+		var contact:=(MaterialNormals.force_trajectory(_state,result.xyz,result.dual,point_rows,context) if trajectory else MaterialNormals.force(_state,result.xyz,result.dual,point_rows,context)) if point_contacts else ContactStep.force(_state,result.xyz,result.dual,context,backend)
 		if not contact.valid:return contact
 		contact_force=contact.force
 	var residual:=0.
@@ -281,7 +293,12 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if residual>FORCE_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_fem_force","force_inf":residual}
 	if coupled:
 		var guarded:=ContactStep.guard(_publish(_state,current),_publish(_state,result.xyz),_state.indices,context)
-		if not guarded.valid and point_contacts:return guarded.merged({"work_iterations":int(result.stats[2]),"retry_temporal":true},true)
+		if not guarded.valid and point_contacts:
+			if backend.has_method("solve_trajectory_material_points_fem") and guarded.get("status",-1)==1:
+				var retry:={"work_iterations":int(result.stats[2]),"_point_retry":true}
+				if backend.has_method("solve_seeded_trajectory_material_points_fem"):retry["_point_candidate"]=MaterialNormals.candidate_seed(_state,context,point_rows,result)
+				return guarded.merged(retry,true)
+			return guarded.merged({"work_iterations":int(result.stats[2]),"retry_temporal":not trajectory},true)
 		if not guarded.valid:return guarded.merged({"work_iterations":int(result.stats[2]),"_retry_candidate":{"xyz":result.xyz.duplicate(),"dual":result.dual.duplicate(),"times":contact_times.duplicate(),"pairs":int(_state.indices.size()/3)*context.bodies,"penalty":result.stats[15]}},true)
 	var accepted:=set_motion(result.xyz,current)
 	if not accepted.valid:return accepted

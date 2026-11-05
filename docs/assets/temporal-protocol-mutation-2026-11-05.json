@@ -1,0 +1,9 @@
+{
+  "scope": "Budget guard mutation negative control only; no accepted physics step.",
+  "passed": true,
+  "mutated_returncode": 1,
+  "detected_failures": 3,
+  "production_source_sha256": "1727cb1dc76a9592c4b33d0a4debfe0316d904c0b0b38af2f56810b67bdae132",
+  "mutated_source_sha256": "91702413965497e6e6d7081e10a89fa269ec51abb544921a93568fa83a236c8f",
+  "test_sha256": "016e4ea9f6c46866c4d8c8300b89d4b60d3e0f1e34353fcf77c9550b7daf3443"
+}

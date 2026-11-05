@@ -25,7 +25,12 @@ func run_case(number:int,backend,guard)->Dictionary:
 	var after:Dictionary=model.snapshot()
 	check(after.steps==before.steps+1 and after.previous==before.xyz and after.time==before.time+saved.dt,"only one accepted physical step and its actual history are published")
 	check(result.trajectory_iterations<=saved.budget and after.contacts.times[-1]==1.,"actual witness/numerical retries share the original Newton budget and retain endpoint")
-	if number==150:check(result.trajectory_retired_layers>0,"exact150 exchanges inactive layers instead of exceeding the dense pair budget")
+	if number==150:
+		if after.contacts.has("material_points"):
+			var rows:int=after.contacts.material_points.size();var pairs:int=rows*after.contacts.kinds.size()*after.contacts.times.size()
+			check(rows<=8192 and after.contacts.times.size()<=16 and pairs<=65536 and after.contacts.dual.size()==pairs,"exact150 sparse temporal points retain their actual bounded constraint packet")
+			check(after.contacts.source_steps==before.steps and after.contacts.source_events==before.events,"sparse time rows belong to this owned source geometry")
+		else:check(result.trajectory_retired_layers>0,"exact150 dense trajectory exchanges inactive layers instead of exceeding its pair budget")
 	check(result.force_inf<=1e-8,"independent GDScript original material force remains strict")
 	print("Captured trajectory ",number,": steps=",after.steps," force=",result.force_inf," elapsed_ms=",elapsed)
 	return {"accepted_steps":after.steps,"times":after.contacts.times,"force_inf":result.force_inf,"iterations":result.trajectory_iterations,"retired_layers":result.trajectory_retired_layers,"elapsed_ms":elapsed}

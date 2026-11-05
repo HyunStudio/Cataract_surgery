@@ -1,0 +1,183 @@
+{
+  "qualified": false,
+  "scope": "Owned150 failing temporal warm-start diagnosis only. Request candidate success is not whole-step/full-motion acceptance.",
+  "failed_packet_sha256": "fba792dfbc31e61884f657efd276350e63856c317aec5743b735d63a5c108614",
+  "state_summary": {
+    "controls": 352,
+    "faces": 2477,
+    "fine_point_limit": 4096,
+    "fine_vertices": 2262,
+    "staged_events": 201,
+    "steps": 149
+  },
+  "result": {
+    "changed": false,
+    "reason": "material_normal_budget",
+    "valid": false,
+    "work_iterations": 180
+  },
+  "history": [
+    {
+      "kind": "material_points",
+      "budget": 250,
+      "times": [
+        1.0
+      ],
+      "rows": 319,
+      "penalty": null,
+      "status": 0,
+      "stats": [
+        0.009960819644100907,
+        9.697742828661511e-12,
+        26.0,
+        35.0,
+        33.0,
+        2.604548786949068e-16,
+        0.5,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        1.6291748243013409e-18,
+        0.0,
+        2.3462534240806004e-12,
+        7.0,
+        100.0
+      ]
+    },
+    {
+      "kind": "material_points",
+      "budget": 224,
+      "times": [
+        1.0
+      ],
+      "rows": 320,
+      "penalty": null,
+      "status": 0,
+      "stats": [
+        0.010015455936292926,
+        7.370573773003259e-11,
+        22.0,
+        29.0,
+        29.0,
+        1.7393622356002177e-16,
+        0.5,
+        5.6843418860808015e-11,
+        0.0,
+        1.0,
+        0.0,
+        2.952661277319995e-17,
+        4.977527088282268e-13,
+        7.851738507145361e-13,
+        4.0,
+        100.0
+      ]
+    },
+    {
+      "kind": "material_points",
+      "budget": 202,
+      "times": [
+        1.0
+      ],
+      "rows": 321,
+      "penalty": null,
+      "status": 0,
+      "stats": [
+        0.0100154641538258,
+        1.6947060768601752e-09,
+        22.0,
+        34.0,
+        26.0,
+        4.4987351206996814e-17,
+        0.5,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        2.27e-322,
+        0.0,
+        5.946430572365809e-17,
+        9.0,
+        1000000.0
+      ]
+    },
+    {
+      "kind": "material_points_trajectory_seeded",
+      "budget": 180,
+      "times": [
+        0.125,
+        1.0
+      ],
+      "rows": 622,
+      "penalty": 1000000.0,
+      "status": 1,
+      "stats": [
+        0.07824450341781594,
+        43.56724160813015,
+        180.0,
+        1252.0,
+        215.0,
+        1.911068368721716e-14,
+        2.9802322387695312e-08,
+        0.019259299443872356,
+        0.0,
+        1.0,
+        0.0,
+        6.797304232223517e-16,
+        9.932429380952759e-09,
+        9.865310441559487e-07,
+        0.0,
+        1000000.0
+      ]
+    }
+  ],
+  "comparison_same_final_request": [
+    {
+      "label": "cold",
+      "elapsed_s": 5.288130521774292,
+      "status": 0,
+      "stats": [
+        0.01165525988264916,
+        9.918126201754564e-12,
+        27.0,
+        35.0,
+        31.0,
+        5.796876506489734e-16,
+        1.0,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        5.506307863142821e-17,
+        0.0,
+        1.2491569422429746e-13,
+        7.0,
+        1000.0
+      ]
+    },
+    {
+      "label": "seed_penalty1",
+      "elapsed_s": 4.136927366256714,
+      "status": 0,
+      "stats": [
+        0.011655284119133955,
+        1.091639511684747e-11,
+        22.0,
+        30.0,
+        23.0,
+        2.552715219015471e-16,
+        1.0,
+        1e-12,
+        0.0,
+        1.0,
+        0.0,
+        3.420267421867544e-17,
+        0.0,
+        1.249486152363286e-13,
+        7.0,
+        1000.0
+      ]
+    }
+  ],
+  "method": "Only numerical penalty_seed changed to1; physical inputs, initial positions, mapped multipliers and remaining180 Newton budget unchanged."
+}
