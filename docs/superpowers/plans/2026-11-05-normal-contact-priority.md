@@ -67,3 +67,12 @@ Next bottlenecks: batch full scene witness queries while independently checking
 returned source material points and retaining the full guard; then sparse
 material-point temporal candidates to avoid the remaining expensive ordinary
 trajectory solves. Keep all original force/gap/COMP and shared-work gates.
+
+## Superseding full-route status
+
+43249 is TERMINAL failed, not live. Former179physical solve passed, then a
+staged cut299hit vertex_budget. All4095fine points used, current exact boundary
+reducer removes0,346mechanical controls. Typed packet and complete source-bound
+replay are preserved; see2026-11-05-cut299-geometry-capacity.md. No central flap
+completion or full-route qualification. No current validation/full-route job
+remains live. Do not duplicate the prefix before qualifying the owned cut.
