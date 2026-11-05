@@ -1,0 +1,15 @@
+{
+  "adopted": false,
+  "scope": "Rejected local-preparation prototype. Owned179 bitwise parity passed; timing improvement was not stable after complete ownership protection. Not product code or real-time qualification.",
+  "files": {
+    "godot/scripts/material_surface_query.gd": "c636e2c178490e4a23147eab3c117130204e19364a5548aa270254e9e06ccd25",
+    "godot/scripts/material_normal_contact.gd": "1c8bee566f95525c243c6e45b1f35b00a520335ae002d950705c87a6726701d1",
+    "godot/tests/test_material_face_batch.gd": "9099a8b723bae61afb32fc5a8c97df974af7621bbd09839387f1db7dbea69445",
+    "native/tests/test_material_face_batch_godot.gd": "e57d96a1659bb5311b882d91f5834efc5277ea6de90fe1766020201c96ad4877",
+    "tools/benchmark_material_face.gd": "bdadf922012a553253466a85916206b65012acac0217162529e2399ace0952dc",
+    "tools/compare_material_face.py": "5dbbb9c4abf917242a213b2a308ad0f546539d2b17d5af7210bdffcfed99135c"
+  },
+  "observed_baseline_median_us": 3495615,
+  "observed_candidate_median_us": 3716533,
+  "candidate_speedup": 0.9405580415941417
+}
