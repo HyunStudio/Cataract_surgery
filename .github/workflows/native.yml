@@ -38,6 +38,8 @@ jobs:
           }
       - name: Qualify original force, gap, contact and calling-environment contracts
         run: python tools/validate_fp_environment.py
+      - name: Verify geometric counterexample for affine tissue paths
+        run: python tools/prove_piecewise_motion.py
       - name: Qualify owned distributed normal contact and full interval
         run: python tools/resolve_owned_material_points.py --require-qualified
       - name: Install pinned Windows Godot for actual native bridge tests
@@ -69,6 +71,7 @@ jobs:
           name: windows-native-contract-evidence
           path: |
             godot/reports/fp-environment-validation.json
+            godot/reports/piecewise-motion-family-proof.json
             godot/reports/curved-coupled-contact-embedded-grasp-validation.json
             godot/reports/trajectory-curved-coupled-contact-embedded-grasp-validation.json
             godot/reports/operative-components-trajectory-curved-coupled-contact-embedded-grasp-validation.json
@@ -85,6 +88,7 @@ jobs:
             .tools/fem-extension-*/reports/material-point-advance-metrics.json
             .tools/fem-extension-*/reports/owned180-temporal-metrics.json
             .tools/fem-extension-*/reports/owned180-temporal-attempt.bin
+            .tools/fem-extension-*/reports/witness-batch-owned-metrics.json
             .tools/embedded-regressions-*/*.log
             .tools/material-orientation-audit-*/candidate.json
             .tools/material-orientation-audit-*/replay.log

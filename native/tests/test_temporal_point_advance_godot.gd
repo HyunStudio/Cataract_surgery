@@ -8,6 +8,7 @@ class Backend extends RefCounted:
  func solve_fem(v:Dictionary)->Dictionary:return inner.solve_fem(v)
  func solve_grasp_fem(v:Dictionary)->Dictionary:return inner.solve_grasp_fem(v)
  func material_witness_fem(v:Dictionary)->Dictionary:return inner.material_witness_fem(v)
+ func material_witnesses_fem(v:Dictionary)->Dictionary:return inner.material_witnesses_fem(v)
  func contact_fem(v:Dictionary)->Dictionary:return inner.contact_fem(v)
  func solve_contact_fem(v:Dictionary)->Dictionary:return inner.solve_contact_fem(v)
  func solve_precise_contact_fem(v:Dictionary)->Dictionary:return inner.solve_precise_contact_fem(v)
@@ -30,7 +31,7 @@ class Guard extends RefCounted:
   var out:Dictionary=inner.guard_fine_motion(v);history.append(out.duplicate(true));return out
 func _initialize()->void:
  var raw=ClassDB.instantiate("MembraneFEMKernel")
- check(raw!=null and raw.has_method("solve_trajectory_material_points_fem"),"owned180 needs actual temporal point kernel")
+ check(raw!=null and raw.has_method("solve_trajectory_material_points_fem") and raw.has_method("material_witnesses_fem"),"owned180 needs actual temporal point kernel")
  if failures:quit(1);return
  var saved:Dictionary=FileAccess.open("res://tests/fixtures/operative-motion180-state.bin",FileAccess.READ).get_var()
  var model=load("res://scripts/embedded_membrane.gd").new();model._state=saved.state.duplicate(true)

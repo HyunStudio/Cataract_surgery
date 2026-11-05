@@ -1,0 +1,17 @@
+{
+  "cases": [
+    {
+      "batch_calls": 23,
+      "batch_ms": 256946,
+      "case": 153,
+      "equal_state_and_result": true,
+      "force_inf": null,
+      "pairs": 237452,
+      "scalar_calls": 237452,
+      "scalar_ms": 318261,
+      "work": 250
+    }
+  ],
+  "qualified": true,
+  "scope": "Known failed153 scalar/bulk failure and unchanged-state bit parity only. Physical solve remains unqualified; not a full-route pass."
+}

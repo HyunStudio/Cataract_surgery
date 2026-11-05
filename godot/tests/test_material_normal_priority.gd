@@ -20,6 +20,14 @@ class Backend extends RefCounted:
 		legacy_calls+=1;legacy_budget=value.budget
 		var stats:=PackedFloat64Array();stats.resize(16);stats[2]=-1. if negative_work else 1.
 		return {"status":0,"xyz":value.xyz.duplicate(),"reaction":PackedFloat64Array(),"dual":PackedFloat64Array([0.]),"stats":stats}
+class BadBatch extends Backend:
+	func material_witnesses_fem(_value:Dictionary)->Dictionary:
+		return {"status":0,"values":PackedFloat64Array(),"statuses":PackedInt32Array()}
+class BadFallbackBatch extends BadBatch:
+	func solve_contact_fem(value:Dictionary)->Dictionary:
+		legacy_calls+=1
+		var stats:=PackedFloat64Array();stats.resize(16);stats[2]=1.
+		return {"status":2,"xyz":value.xyz.duplicate(),"reaction":PackedFloat64Array(),"dual":PackedFloat64Array([0.]),"stats":stats}
 class Guard extends RefCounted:
 	func guard_motion(_value:Dictionary)->Dictionary:return {"status":0,"stats":PackedFloat64Array([0.,1.,-1.,-1.,.2,0.,0.,0.])}
 func model():
@@ -45,4 +53,12 @@ func _initialize()->void:
 	tissue=model();backend=Backend.new();backend.point_mode="fail";backend.negative_work=true;before=tissue.snapshot()
 	result=tissue.advance_contact(1./60.,force,backend,2.,3.,motion,1.,100)
 	check(not result.valid and tissue.snapshot()==before,"negative ordinary work cannot hide inside positive point work")
+	tissue=model();var bad_batch:=BadBatch.new();before=tissue.snapshot()
+	result=tissue.advance_contact(1./60.,force,bad_batch,2.,3.,motion,1.,100)
+	check(not result.valid and result.reason=="material_normal_batch_geometry" and bad_batch.legacy_calls==0 and bad_batch.point_calls==0 and tissue.snapshot()==before,"malformed primary batch cannot switch to an ordinary solver or publish")
+	var point_motion:Dictionary=motion.duplicate(true)
+	for off in [3,9]:point_motion.packets[off]=.2
+	tissue=model();var bad_fallback:=BadFallbackBatch.new();before=tissue.snapshot()
+	result=tissue.advance_contact(1./60.,force,bad_fallback,2.,3.,point_motion,1.,100)
+	check(not result.valid and result.reason=="material_normal_batch_geometry" and result.work_iterations==1 and bad_fallback.legacy_calls==1 and bad_fallback.point_calls==0 and tissue.snapshot()==before,"malformed fallback batch stops retrying and preserves prior spent work")
 	print("Material normal priority: ",failures," failures");quit(1 if failures else 0)

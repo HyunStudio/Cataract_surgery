@@ -28,15 +28,27 @@ static func _add(state:Dictionary,face:int,bary:PackedFloat64Array,rows:Array,ke
 	keys[key]=true;rows.append({"face":face,"barycentric":bary.duplicate(),"nodes":nodes,"weights":weights})
 static func _inspect(state:Dictionary,xyz:PackedFloat64Array,context:Dictionary,backend,rows:Array,keys:Dictionary,seed:bool)->Dictionary:
 	var view:=state.duplicate(false);view.xyz=xyz;var violations:Array=[]
+	var batched:bool=backend!=null and backend.has_method("material_witnesses_fem")
+	var packet:Dictionary={}
+	if batched:
+		packet=Surface.batch(view,context.capsules,backend)
+		if not packet.valid:return invalid("material_normal_batch_geometry")
 	for face in range(state.indices.size()/3):
 		for body in range(context.bodies):
-			var off:=body*7;var witness:=Surface.face(view,face,context.capsules.slice(off,off+6),context.capsules[off+6],backend)
-			if not witness.valid:return invalid("material_normal_geometry")
-			if seed and witness.values[1]<.02:
+			var gap:float;var bary:=PackedFloat64Array()
+			if batched:
+				var offset:int=(face*context.bodies+body)*13
+				gap=packet.values[offset+1]
+				if (seed and gap<.02) or gap < -GAP:bary=packet.values.slice(offset+8,offset+11)
+			else:
+				var off:=body*7;var witness:=Surface.face(view,face,context.capsules.slice(off,off+6),context.capsules[off+6],backend)
+				if not witness.valid:return invalid("material_normal_geometry")
+				gap=witness.values[1];bary=witness.barycentric
+			if seed and gap<.02:
 				for j in range(3):
 					var corner:=PackedFloat64Array([0.,0.,0.]);corner[j]=1.;_add(state,face,corner,rows,keys)
-				_add(state,face,witness.barycentric,rows,keys)
-			if witness.values[1] < -GAP:violations.append({"face":face,"barycentric":witness.barycentric})
+				_add(state,face,bary,rows,keys)
+			if gap < -GAP:violations.append({"face":face,"barycentric":bary})
 	return {"valid":true,"violations":violations}
 static func solve(state:Dictionary,request:Dictionary,context:Dictionary,backend)->Dictionary:
 	if not backend.has_method("solve_material_points_fem") or not backend.has_method("material_witness_fem"):return invalid("material_normal_unavailable")

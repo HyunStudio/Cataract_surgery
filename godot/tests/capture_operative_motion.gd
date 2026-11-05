@@ -8,6 +8,7 @@ class TraceBackend extends RefCounted:
 	func solve_fem(value:Dictionary)->Dictionary:return inner.solve_fem(value)
 	func solve_grasp_fem(value:Dictionary)->Dictionary:return inner.solve_grasp_fem(value)
 	func material_witness_fem(value:Dictionary)->Dictionary:return inner.material_witness_fem(value)
+	func material_witnesses_fem(value:Dictionary)->Dictionary:return inner.material_witnesses_fem(value)
 	func contact_fem(value:Dictionary)->Dictionary:return inner.contact_fem(value)
 	func solve_precise_contact_fem(value:Dictionary)->Dictionary:
 		request=value.duplicate(true);var result:Dictionary=inner.solve_precise_contact_fem(value);response=result.duplicate(true);return result
@@ -51,6 +52,7 @@ class TraceState:
 		return result
 func configure_capsule(app)->bool:
 	if not super.configure_capsule(app):return false
+	if not app.capsule.embedded_backend.has_method("material_witnesses_fem"):return false
 	var backend:=TraceBackend.new();backend.inner=app.capsule.embedded_backend
 	var guard:=TraceGuard.new();guard.inner=app.capsule.embedded_guard;guard.backend=backend
 	app.capsule.embedded_backend=backend;app.capsule.embedded_guard=guard;app.capsule._embedded_solver=TraceState.new()

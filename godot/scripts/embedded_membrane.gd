@@ -213,7 +213,7 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 			for key in ["initial","multiplier_seed","penalty_seed"]:normal_request.erase(key)
 		var normal:=MaterialNormals.solve_trajectory(_state,normal_request,context,backend,point_seed) if temporal_points else MaterialNormals.solve(_state,normal_request,context,backend)
 		normal_work=normal.work_iterations
-		if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model","material_normal_context","material_normal_history","material_normal_times","material_normal_pose","material_normal_coordinate","material_normal_seed"]:return normal
+		if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model","material_normal_batch_geometry","material_normal_context","material_normal_history","material_normal_times","material_normal_pose","material_normal_coordinate","material_normal_seed"]:return normal
 		if normal.valid:result=normal.result;point_contacts=true;point_rows=normal.rows.duplicate(true)
 	if not point_contacts:
 		if temporal_points and normal_work>=budget:return invalid("material_normal_budget").merged({"work_iterations":normal_work},true)
@@ -230,7 +230,7 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 		if point_capable and not point_first and result.status==2 and result.xyz==predicted and ordinary_work<budget:
 			var point_request:=request.duplicate(true);point_request.budget=budget-ordinary_work
 			var normal:=MaterialNormals.solve(_state,point_request,context,backend);normal_work=normal.work_iterations
-			if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model"]:return normal.merged({"work_iterations":ordinary_work+normal_work},true)
+			if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model","material_normal_batch_geometry"]:return normal.merged({"work_iterations":ordinary_work+normal_work},true)
 			if normal.valid:result=normal.result;point_contacts=true;point_rows=normal.rows.duplicate(true)
 	result.stats[2]=normal_work+ordinary_work
 	if result.status!=0:

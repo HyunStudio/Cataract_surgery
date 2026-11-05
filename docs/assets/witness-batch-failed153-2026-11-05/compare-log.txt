@@ -1,0 +1,4 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+Witness batch owned153: { "case": 153, "scalar_ms": 318261, "batch_ms": 256946, "scalar_calls": 237452, "batch_calls": 23, "pairs": 237452, "work": 250, "force_inf": <null>, "equal_state_and_result": true }
+Native witness batch failed153 parity: 0 failures

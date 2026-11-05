@@ -5,6 +5,7 @@ class BackendProxy extends RefCounted:
 	func solve_fem(value:Dictionary)->Dictionary:return inner.solve_fem(value)
 	func solve_grasp_fem(value:Dictionary)->Dictionary:return inner.solve_grasp_fem(value)
 	func material_witness_fem(value:Dictionary)->Dictionary:return inner.material_witness_fem(value)
+	func material_witnesses_fem(value:Dictionary)->Dictionary:return inner.material_witnesses_fem(value)
 	func contact_fem(value:Dictionary)->Dictionary:return inner.contact_fem(value)
 	func solve_contact_fem(value:Dictionary)->Dictionary:
 		var result:Dictionary=inner.solve_contact_fem(value);history.append({"kind":"static","request":value.duplicate(true),"response":result.duplicate(true)});return result
@@ -42,6 +43,7 @@ class TraceState:
 		return answer
 func configure_capsule(app)->bool:
 	if not super.configure_capsule(app):return false
+	if not app.capsule.embedded_backend.has_method("material_witnesses_fem"):return false
 	var backend:=BackendProxy.new();backend.inner=app.capsule.embedded_backend
 	var guard:=GuardProxy.new();guard.inner=app.capsule.embedded_guard
 	app.capsule.embedded_backend=backend;app.capsule.embedded_guard=guard;app.capsule._embedded_solver=TraceState.new()

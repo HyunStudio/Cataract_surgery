@@ -1,0 +1,94 @@
+{
+  "qualified": false,
+  "geometric_proof_verified": true,
+  "scope": "Same tissue endpoints and same recorded linear obstacle path: affine tissue motion collides, two-piece motion is certified clear. No equilibrium, momentum, energy, physical integration, owned153 feasibility, full surgery, real-time or release qualification.",
+  "inputs": {
+    "native\\tests\\replay_fem_trajectory.py": "f1743f2d15ad14637905134c07b8ce317a1acbe8057fc29629183999ecc0b27f",
+    "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f",
+    "tools\\prove_piecewise_motion.py": "0508e6716d1d1a891b5ca708b017ab6528fe2a11dca44e98c6b050657044dd3a"
+  },
+  "build": {
+    "artifact_sha256": "1417f6325000e47da2261a9b7d992ac6cde279c53b477e88e0c8ee57b033f38d",
+    "sources": {
+      "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+      "native\\contact_guard.cpp": "2bcc75a64091d6316db45ed0afdf57a66f5de6728bd7b7d17fea85b82af9550e",
+      "native\\contact_guard.h": "e21520934b3d9233ffe07b56bfb9f738435bc793a260ef9499465a1c0b0d56c3",
+      "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+      "tools\\build_contact_guard.py": "0317e85f9015598e5ed869faf27870cb71c770ec8d0e5052b8b5fc6239bb07d7",
+      "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+    },
+    "compiler": {
+      "version": "0.17.0",
+      "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+      "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+    },
+    "dependencies": {},
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Werror",
+      "-shared",
+      "-target",
+      "x86_64-windows-gnu"
+    ],
+    "source_revision": "bc20dbd75b9ccfb14cdf482d5ebd8cc7985ac379",
+    "source_dirty": true
+  },
+  "patch_half_width_exact": "5764607523034235/576460752303423488",
+  "radius_exact": "3602879701896397/36028797018963968",
+  "center_min_squared": "1/17",
+  "triangle_separation_lower_bound": "547637714688252313/2882303761517117440",
+  "guards": [
+    {
+      "path": "affine",
+      "status": 1,
+      "stats": [
+        4.0,
+        1.0,
+        0.0,
+        0.0,
+        -0.1,
+        0.0,
+        0.0,
+        4.0
+      ],
+      "witness_t": 0.5,
+      "expected": 1
+    },
+    {
+      "path": "piece0",
+      "status": 0,
+      "stats": [
+        2.0,
+        1.0,
+        -1.0,
+        -1.0,
+        0.15,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "witness_t": -1.0,
+      "expected": 0
+    },
+    {
+      "path": "piece1",
+      "status": 0,
+      "stats": [
+        2.0,
+        1.0,
+        -1.0,
+        -1.0,
+        0.15,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "witness_t": -1.0,
+      "expected": 0
+    }
+  ]
+}

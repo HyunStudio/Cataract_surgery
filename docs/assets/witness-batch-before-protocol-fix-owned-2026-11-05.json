@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "batch_calls": 76,
+      "batch_ms": 46187,
+      "case": 150,
+      "equal_state_and_result": true,
+      "force_inf": 1.60448321295803e-11,
+      "pairs": 753008,
+      "scalar_calls": 753008,
+      "scalar_ms": 104288,
+      "work": 155
+    },
+    {
+      "batch_calls": 93,
+      "batch_ms": 55294,
+      "case": 180,
+      "equal_state_and_result": true,
+      "force_inf": 2.891069605936991e-10,
+      "pairs": 1791924,
+      "scalar_calls": 1791924,
+      "scalar_ms": 151288,
+      "work": 177
+    }
+  ],
+  "qualified": true,
+  "scope": "Two exact owned steps scalar/batch whole-state bit parity only; not full route, real-time, GPU or release qualification."
+}

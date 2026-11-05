@@ -44,6 +44,7 @@ if options.contact:
     intended['contact_bridge.gd'] = ROOT/'native/tests/test_embedded_contact_godot.gd'
     intended['material_witness_bridge.gd'] = ROOT/'native/tests/test_material_witness_godot.gd'
     intended['material_witness_batch_bridge.gd'] = ROOT/'native/tests/test_material_witness_batch_godot.gd'
+    intended['surface_batch_state.gd']=ROOT/'native/tests/test_surface_batch_godot.gd'
 if options.coupled:
     intended['coupled_bridge.gd'] = ROOT/'native/tests/test_fem_contact_godot.gd'
 if options.trajectory:
@@ -51,6 +52,7 @@ if options.trajectory:
     intended['temporal_points_bridge.gd']=ROOT/'native/tests/test_temporal_points_godot.gd'
     intended['temporal_material_point.json']=ROOT/'native/tests/fixtures/temporal_material_point.json'
     intended['temporal_point_advance.gd']=ROOT/'native/tests/test_temporal_point_advance_godot.gd'
+    intended['witness_batch_advance.gd']=ROOT/'native/tests/test_witness_batch_advance_godot.gd'
     intended['trajectory_advance.gd']=ROOT/'native/tests/test_trajectory_advance_godot.gd'
     intended['material_point_advance.gd']=ROOT/'native/tests/test_material_point_advance_godot.gd'
     intended['scripts/material_normal_contact.gd']=ROOT/'godot/scripts/material_normal_contact.gd'
@@ -106,6 +108,7 @@ if options.contact:
     stages.append(('contact_bridge', ['--script','res://contact_bridge.gd'], 'Native embedded contact Godot bridge: 0 failures'))
     stages.append(('material_witness_bridge', ['--script','res://material_witness_bridge.gd'], 'Native material witness bridge: 0 failures'))
     stages.append(('material_witness_batch_bridge',['--script','res://material_witness_batch_bridge.gd'],'Native material witness batch: 0 failures'))
+    stages.append(('surface_batch_state',['--script','res://surface_batch_state.gd'],'Native surface batch state: 0 failures'))
     if not options.bridge_only:stages.append(('embedded_contact', ['--script','res://embedded_contact.gd'], 'Embedded native contact: 0 failures'))
     if not options.bridge_only:stages.append(('material_witness_state', ['--script','res://material_witness_state.gd'], 'Native material witness state: 0 failures'))
 if options.coupled:
@@ -116,6 +119,7 @@ if options.trajectory:
     stages.append(('trajectory_bridge',['--script','res://trajectory_bridge.gd'],'Native trajectory FEM Godot bridge: 0 failures'))
     stages.append(('temporal_points_bridge',['--script','res://temporal_points_bridge.gd'],'Native temporal material points: 0 failures'))
     stages.append(('temporal_point_advance',['--script','res://temporal_point_advance.gd'],'Temporal material point advance: 0 failures'))
+    stages.append(('witness_batch_advance',['--script','res://witness_batch_advance.gd'],'Native witness batch advance: 0 failures'))
     stages.append(('trajectory_pose',['--script','res://tests/test_trajectory_pose.gd'],'Recorded trajectory pose: 0 failures'))
     stages.append(('trajectory_transaction',['--script','res://tests/test_trajectory_transaction.gd'],'Trajectory step transaction: 0 failures'))
     stages.append(('trajectory_seed',['--script','res://tests/test_trajectory_seed.gd'],'Trajectory numerical seed: 0 failures'))
