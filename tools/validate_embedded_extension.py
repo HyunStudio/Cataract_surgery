@@ -48,6 +48,8 @@ if options.coupled:
 if options.trajectory:
     intended['trajectory_bridge.gd']=ROOT/'native/tests/test_fem_trajectory_godot.gd'
     intended['trajectory_advance.gd']=ROOT/'native/tests/test_trajectory_advance_godot.gd'
+    intended['material_point_advance.gd']=ROOT/'native/tests/test_material_point_advance_godot.gd'
+    intended['scripts/material_normal_contact.gd']=ROOT/'godot/scripts/material_normal_contact.gd'
 if not options.bridge_only:
     intended['scripts/cut_geometry.gd']=ROOT/'godot/scripts/cut_geometry.gd'
     for name in subprocess.check_output(['git', 'ls-files', '--', 'godot'], cwd=ROOT, text=True).splitlines():
@@ -110,6 +112,7 @@ if options.trajectory:
     stages.append(('trajectory_transaction',['--script','res://tests/test_trajectory_transaction.gd'],'Trajectory step transaction: 0 failures'))
     stages.append(('trajectory_seed',['--script','res://tests/test_trajectory_seed.gd'],'Trajectory numerical seed: 0 failures'))
     stages.append(('trajectory_advance',['--script','res://trajectory_advance.gd'],'Embedded trajectory advance: 0 failures'))
+    stages.append(('material_point_advance',['--script','res://material_point_advance.gd'],'Material point native advance: 0 failures'))
 if options.operative_components:
     stages.append(('material_orientation',['--script','res://tests/test_material_orientation.gd'],'Original material orientation: 0 failures'))
     stages.append(('exact_material',['--script','res://tests/test_exact_material.gd'],'Exact material predicates: 0 failures'))

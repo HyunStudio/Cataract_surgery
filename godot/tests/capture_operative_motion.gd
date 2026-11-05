@@ -9,6 +9,8 @@ class TraceBackend extends RefCounted:
 	func contact_fem(value:Dictionary)->Dictionary:return inner.contact_fem(value)
 	func solve_precise_contact_fem(value:Dictionary)->Dictionary:
 		request=value.duplicate(true);response=inner.solve_precise_contact_fem(value);return response
+	func solve_material_points_fem(value:Dictionary)->Dictionary:
+		request=value.duplicate(true);response=inner.solve_material_points_fem(value);return response
 	func solve_contact_fem(value:Dictionary)->Dictionary:
 		request=value.duplicate(true);response=inner.solve_contact_fem(value);return response
 class TraceGuard extends RefCounted:

@@ -30,8 +30,8 @@ for index,row in rows:
     if args.request is not None and index!=args.request:continue
     p=row['request'];kind=row['kind'];started=time.perf_counter()
     print(f'Replaying owned motion{args.motion} request{index}: {kind}',flush=True)
-    if kind in ('static','precise_endpoint'):
-        result=endpoint(p,library,precise=kind=='precise_endpoint')
+    if kind in ('static','precise_endpoint','material_points'):
+        result=endpoint(p,library,precise=kind=='precise_endpoint',method='membrane_fem_solve_material_points' if kind=='material_points' else None)
     elif kind in ('trajectory','seeded'):
         extra={}
         if kind=='seeded':extra={'initial':p['initial'],'multiplier_seed':p['multiplier_seed'],'penalty_seed':p['penalty_seed']}

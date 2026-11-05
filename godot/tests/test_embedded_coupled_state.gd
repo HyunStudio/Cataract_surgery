@@ -13,7 +13,9 @@ class Backend extends RefCounted:
 		if mode=="nonfinite":dual[0]=NAN
 		if mode=="active":dual[0]=1.
 		if mode=="shape":dual=PackedFloat64Array()
-		return {"status":0,"xyz":xyz,"stats":stats,"reaction":reaction,"dual":dual}
+		var result:={"status":0,"xyz":xyz,"stats":stats,"reaction":reaction,"dual":dual}
+		if mode=="ghost_model":result["normal_rows"]=[];result.dual=PackedFloat64Array()
+		return result
 class Guard extends RefCounted:
 	var status:=0
 	var malformed:=false
@@ -49,7 +51,7 @@ func _initialize()->void:
 		guard.bad_index=pair[0];guard.bad_value=pair[1]
 		check(not model.advance_contact(1./60.,force,backend,2.,3.,motion).valid and model.snapshot()==after,"only the documented unsampled positive gap infinity is permitted")
 	guard.malformed=false
-	for mode in ["force","negative","nonfinite","active","shape"]:
+	for mode in ["force","negative","nonfinite","active","shape","ghost_model"]:
 		backend.mode=mode
 		check(not model.advance_contact(1./60.,force,backend,2.,3.,motion).valid and model.snapshot()==after,"fabricated candidate/dual cannot bypass original force/contact checks: "+mode)
 	backend.mode="clear"

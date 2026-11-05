@@ -29,15 +29,17 @@ jobs:
           Expand-Archive -LiteralPath $archive -DestinationPath .tools
       - name: Fetch pinned unmodified dependencies
         run: python tools/setup_native_dependencies.py
-      - name: Build all nine numerical artifacts
+      - name: Build all ten numerical artifacts
         shell: pwsh
         run: |
-          foreach ($script in @('build_membrane_kernel', 'build_contact_distance', 'build_contact_guard', 'build_contact_merit_probe', 'build_contact_step_probe', 'build_coupled_contact', 'build_membrane_fem', 'build_fp_environment_probe', 'build_contact_activity_probe')) {
+          foreach ($script in @('build_membrane_kernel', 'build_contact_distance', 'build_contact_guard', 'build_contact_merit_probe', 'build_contact_step_probe', 'build_coupled_contact', 'build_membrane_fem', 'build_material_point_probe', 'build_fp_environment_probe', 'build_contact_activity_probe')) {
             python "tools/$script.py"
             if ($LASTEXITCODE -ne 0) { throw "Native build failed: $script" }
           }
       - name: Qualify original force, gap, contact and calling-environment contracts
         run: python tools/validate_fp_environment.py
+      - name: Qualify owned distributed normal contact and full interval
+        run: python tools/resolve_owned_material_points.py --require-qualified
       - name: Install pinned Windows Godot for actual native bridge tests
         shell: pwsh
         run: |
@@ -70,11 +72,13 @@ jobs:
             godot/reports/operative-components-trajectory-curved-coupled-contact-embedded-grasp-validation.json
             godot/reports/embedded-precision-regression.json
             godot/reports/owned-material-orientation-audit.json
+            godot/reports/motion179-material-points.json
             .tools/native/*.build.json
             .tools/native-godot/bin/membrane.build.json
             .tools/fem-extension-*/*.log
             .tools/fem-extension-*/reports/material-reduction.json
             .tools/fem-extension-*/reports/trajectory-advance-metrics.json
+            .tools/fem-extension-*/reports/material-point-advance-metrics.json
             .tools/embedded-regressions-*/*.log
             .tools/material-orientation-audit-*/candidate.json
             .tools/material-orientation-audit-*/replay.log

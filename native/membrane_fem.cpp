@@ -9,6 +9,7 @@
 #include "contact_merit_difference.h"
 #include "contact_guard.h"
 #include "fem_trajectory_merit.h"
+#include "material_point_contact.h"
 
 #if defined(_WIN32)
 #define FEM_EXPORT extern "C" __declspec(dllexport)
@@ -404,6 +405,19 @@ FEM_EXPORT int membrane_fem_solve_precise_contact(int n,double* output,const dou
     if(stats) {std::fill(stats,stats+16,0.);stats[0]=stats[1]=stats[8]=stats[12]=stats[13]=std::numeric_limits<double>::infinity();}
     try {return solve_contact(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
                              grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules,dual,stats,1,nullptr,nullptr,nullptr,nullptr,1.,true);}
+    catch(...) {return 2;}
+}
+
+// Fixed material-point normal constraints only. Complete original surface and
+// full motion clearance must be independently checked before publication.
+FEM_EXPORT int membrane_fem_solve_material_points(int n,double* output,const double* inverse,int count,const int* nodes,const double* gradients,
+    const double* areas,double mu,double lambda,double dt,int budget,double tolerance,double gap_tolerance,double comp_tolerance,
+    int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
+    int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* dual,double* stats) {
+    membrane::numeric::Scope environment;
+    if(stats) {std::fill(stats,stats+16,0.);stats[0]=stats[1]=stats[8]=stats[12]=stats[13]=std::numeric_limits<double>::infinity();}
+    try {return solve_contact(n,output,inverse,count,nodes,gradients,areas,mu,lambda,dt,budget,tolerance,gap_tolerance,comp_tolerance,
+        grips,grip_nodes,weights,targets,reaction,faces,face_nodes,face_weights,bodies,capsules,dual,stats,1,nullptr,nullptr,nullptr,nullptr,1.,true,true);}
     catch(...) {return 2;}
 }
 

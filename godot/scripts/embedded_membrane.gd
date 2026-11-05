@@ -12,6 +12,7 @@ const ContactStep=preload("res://scripts/embedded_contact_step.gd")
 const NumericalSeed=preload("res://scripts/trajectory_seed.gd")
 const MaterialReduce=preload("res://scripts/embedded_material_reduce.gd")
 const MaterialAttachment=preload("res://scripts/material_attachment.gd")
+const MaterialNormals=preload("res://scripts/material_normal_contact.gd")
 const MaterialSurfaceQuery=preload("res://scripts/material_surface_query.gd")
 const FORCE_TOLERANCE:=1e-8
 const GAP_TOLERANCE:=1e-9
@@ -190,8 +191,18 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if coupled:request.merge({"face_nodes":_state.support.elements,"face_weights":_state.support.weights,"capsules":context.capsules,"complementarity_tolerance":ContactStep.COMP},true)
 	if trajectory:request.merge({"previous":current,"times":contact_times,"kinds":context.kinds,"packets":context.packets},true)
 	if seeded:request.merge({"initial":numerical_seed.initial,"multiplier_seed":numerical_seed.multiplier_seed,"penalty_seed":numerical_seed.penalty_seed},true)
+	var point_contacts:=false;var point_rows:Array=[]
 	var result=(backend.solve_seeded_trajectory_fem(request) if seeded else (backend.solve_trajectory_fem(request) if trajectory else backend.call(endpoint_method,request))) if coupled else (backend.solve_grasp_fem(request) if gripping else backend.solve_fem(request))
 	if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array:return invalid("native_fem_shape")
+	if result.has("normal_rows"):return invalid("native_contact_model")
+	if coupled and not trajectory and result.status==2 and result.xyz==predicted and result.stats.size()==16 and backend.has_method("solve_material_points_fem") and backend.has_method("material_witness_fem"):
+		var old_work:float=result.stats[2]
+		if is_finite(old_work) and old_work>=0. and old_work<budget and floor(old_work)==old_work:
+			var point_request:=request.duplicate(true);point_request.budget=budget-int(old_work)
+			var normal:=MaterialNormals.solve(_state,point_request,context,backend)
+			if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model"]:return normal.merged({"work_iterations":int(old_work)+normal.work_iterations},true)
+			if normal.valid:result=normal.result;point_contacts=true;point_rows=normal.rows.duplicate(true)
+			result.stats[2]=old_work+normal.work_iterations
 	if result.status!=0:
 		var failed:={"valid":false,"changed":false,"reason":"native_fem_solve","status":result.status,"stats":result.stats}
 		# An endpoint force/feasibility solve may stall from rounded fields before it
@@ -238,7 +249,7 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 		if gap>GAP_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_grasp_gap","gap":gap}
 	var contact_force:=PackedFloat64Array();contact_force.resize(current.size())
 	if coupled:
-		var contact:=ContactStep.force(_state,result.xyz,result.dual,context,backend)
+		var contact:=MaterialNormals.force(_state,result.xyz,result.dual,point_rows,context) if point_contacts else ContactStep.force(_state,result.xyz,result.dual,context,backend)
 		if not contact.valid:return contact
 		contact_force=contact.force
 	var residual:=0.
@@ -252,6 +263,7 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if residual>FORCE_TOLERANCE:return {"valid":false,"changed":false,"reason":"independent_fem_force","force_inf":residual}
 	if coupled:
 		var guarded:=ContactStep.guard(_publish(_state,current),_publish(_state,result.xyz),_state.indices,context)
+		if not guarded.valid and point_contacts:return guarded.merged({"work_iterations":int(result.stats[2]),"retry_temporal":true},true)
 		if not guarded.valid:return guarded.merged({"work_iterations":int(result.stats[2]),"_retry_candidate":{"xyz":result.xyz.duplicate(),"dual":result.dual.duplicate(),"times":contact_times.duplicate(),"pairs":int(_state.indices.size()/3)*context.bodies,"penalty":result.stats[15]}},true)
 	var accepted:=set_motion(result.xyz,current)
 	if not accepted.valid:return accepted
@@ -260,6 +272,8 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	_state.grasps=attachments.next
 	if coupled:_state.contacts={"dual":result.dual.duplicate(),"kinds":context.kinds.duplicate(),"packets":context.packets.duplicate(),"times":contact_times.duplicate()}
 	else:_state.erase("contacts")
+	if coupled and point_contacts:
+		_state.contacts["material_points"]=point_rows.duplicate(true);_state.contacts["source_events"]=_state.events;_state.contacts["source_steps"]=_state.steps
 	_state.steps+=1;_state.time+=dt
 	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"gap":gap,"stats":result.stats,"elastic_energy":evaluated.energy,"maximum_strain":evaluated.maximum_strain,"work_iterations":int(result.stats[2])}
 static func _publish(state:Dictionary,xyz:PackedFloat64Array)->PackedFloat64Array:

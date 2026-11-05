@@ -13,6 +13,7 @@ struct FineContacts {
     int layers=1;
     const double *previous=nullptr,*times=nullptr;
     bool endpoint_precision=false;
+    bool material_points=false;
     bool precise() const {return previous || endpoint_precision;}
     int pairs() const {return faces*bodies*layers;}
     int face_index(int pair) const {return (pair/bodies)%faces;}
@@ -59,7 +60,7 @@ struct FineContacts {
 #ifdef FEM_CONTACT_OBSERVER
             observe_contact_query(false);
 #endif
-            const auto query=membrane::contact::distance(capsule,triangle,capsule[6]);
+            const auto query=material_points ? membrane::material_point_contact::geometry(capsule,triangle,capsule[6]) : membrane::contact::distance(capsule,triangle,capsule[6]);
             if(query.status!=0 && query.status!=3) return false;
             double g=query.values[0]/r2-1.,u=std::max(0.,dual[p]-rho*g),u_error=0.;
             if(!std::isfinite(g) || !std::isfinite(u)) return false;
@@ -103,7 +104,7 @@ struct FineContacts {
             }
             if(u==0. && u_error==0.) continue; // certified inactive ties need no ordinary Hessian
             const int face=face_index(p);const double t=time(p);
-            const auto exact=membrane::embedded_contact::distance(capsule,controls,weights+face*9,capsule[6]);
+            const auto exact=material_points ? membrane::material_point_contact::distance(capsule,controls,weights+face*9,capsule[6]) : membrane::embedded_contact::distance(capsule,controls,weights+face*9,capsule[6]);
             if(exact.status!=0) return false;
             for(int i=0;i<9;++i) {
                 const int k=nodes[face*3+i/3]*3+i%3;
@@ -145,7 +146,7 @@ struct FineContacts {
 #ifdef FEM_CONTACT_OBSERVER
                 observe_contact_query(true);
 #endif
-                if(!membrane::fem_trajectory_merit::contact_change(old,first,last,weights+face*9,time(p),capsule,capsule[6],dual[p],rho,term)) return false;
+                if(!(material_points ? membrane::material_point_contact::change(old,first,last,weights+face*9,time(p),capsule,capsule[6],dual[p],rho,term) : membrane::fem_trajectory_merit::contact_change(old,first,last,weights+face*9,time(p),capsule,capsule[6],dual[p],rho,term))) return false;
                 value=value+term;continue;
             }
             if(current.updated[p]==0. && candidate.updated[p]==0. &&
@@ -171,7 +172,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
                   int grips,const int* grip_nodes,const double* weights,const double* targets,double* reaction,
                   int faces,const int* face_nodes,const double* face_weights,int bodies,const double* capsules,double* contact_dual,double* stats,
                   int layers=1,const double* previous=nullptr,const double* times=nullptr,
-                  const double* initial=nullptr,const double* multiplier_seed=nullptr,double initial_penalty=1.,bool endpoint_precision=false) {
+                  const double* initial=nullptr,const double* multiplier_seed=nullptr,double initial_penalty=1.,bool endpoint_precision=false,bool material_points=false) {
     if(!output || !inverse || !stats || grips<0 || grips>2 || (grips && (!grip_nodes || !weights || !targets || !reaction)) ||
        faces<0 || faces>8192 || bodies<0 || bodies>64 || layers<1 || layers>16 || faces*bodies*layers>65536 ||
        (faces && (!face_nodes || !face_weights)) || (bodies && !capsules) || (faces*bodies && !contact_dual) ||
@@ -183,6 +184,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
     for(int f=0;f<faces;++f) {
         for(int j=0;j<3;++j) if(face_nodes[f*3+j]<0 || face_nodes[f*3+j]>=n) return -1;
         if(face_nodes[f*3]==face_nodes[f*3+1] || face_nodes[f*3+1]==face_nodes[f*3+2] || face_nodes[f*3+2]==face_nodes[f*3]) return -1;
+        if(material_points) for(int j=0;j<3;++j) if(face_weights[f*9+j]!=face_weights[f*9+3+j] || face_weights[f*9+j]!=face_weights[f*9+6+j]) return -1;
         for(int corner=0;corner<3;++corner) {
             double sum=0.;
             for(int j=0;j<3;++j) {const double v=face_weights[f*9+corner*3+j];if(!std::isfinite(v) || v<0. || v>1.) return -1;sum+=v;}
@@ -233,7 +235,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         if(!q.allFinite() || projection_gap>gap_tolerance) return 2;
         for(int j=0;j<size;++j) x[free[j]]=q[j];
     }
-    FineContacts contacts{faces,bodies,face_nodes,face_weights,capsules,layers,previous,times,endpoint_precision};
+    FineContacts contacts{faces,bodies,face_nodes,face_weights,capsules,layers,previous,times,endpoint_precision,material_points};
     auto pattern=problem.cells;
     for(int p=0;p<contacts.pairs();++p) {Cell cell{};for(int j=0;j<3;++j) cell.node[j]=face_nodes[contacts.face_index(p)*3+j];pattern.push_back(cell);}
     SparseCells system(n,pattern,problem.mass,rows ? &a : nullptr);
@@ -269,7 +271,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
                     for(size_t column=0;column<active.size();++column) {
                         const int p=active[column],face=contacts.face_index(p);double controls[9],triangle[9];contacts.local(x,p,controls,triangle);
                         const double* body=contacts.body(p);const double r2=body[6]*body[6];
-                        const auto exact=membrane::embedded_contact::distance(body,controls,face_weights+face*9,body[6]);
+                        const auto exact=material_points ? membrane::material_point_contact::distance(body,controls,face_weights+face*9,body[6]) : membrane::embedded_contact::distance(body,controls,face_weights+face*9,body[6]);
                         if(exact.status!=0) {valid=false;break;}
                         for(int j=0;j<9;++j) {const int k=map[face_nodes[face*3+j/3]*3+j%3];
                             if(k>=0) jac(k,column)+=contacts.time(p)*exact.gradient[j]/r2;}

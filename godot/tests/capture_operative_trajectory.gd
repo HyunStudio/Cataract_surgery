@@ -10,6 +10,8 @@ class BackendProxy extends RefCounted:
 		var result:Dictionary=inner.solve_contact_fem(value);history.append({"kind":"static","request":value.duplicate(true),"response":result.duplicate(true)});return result
 	func solve_precise_contact_fem(value:Dictionary)->Dictionary:
 		var result:Dictionary=inner.solve_precise_contact_fem(value);history.append({"kind":"precise_endpoint","request":value.duplicate(true),"response":result.duplicate(true)});return result
+	func solve_material_points_fem(value:Dictionary)->Dictionary:
+		var result:Dictionary=inner.solve_material_points_fem(value);history.append({"kind":"material_points","request":value.duplicate(true),"response":result.duplicate(true)});return result
 	func solve_trajectory_fem(value:Dictionary)->Dictionary:
 		var result:Dictionary=inner.solve_trajectory_fem(value);history.append({"kind":"trajectory","request":value.duplicate(true),"response":result.duplicate(true)});return result
 	func solve_seeded_trajectory_fem(value:Dictionary)->Dictionary:

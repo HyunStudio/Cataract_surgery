@@ -19,6 +19,8 @@ extern "C" int membrane_fem_solve_contact(int,double*,const double*,int,const in
                                         int,const int*,const double*,const double*,double*,int,const int*,const double*,int,const double*,double*,double*);
 extern "C" int membrane_fem_solve_precise_contact(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,double,
                                         int,const int*,const double*,const double*,double*,int,const int*,const double*,int,const double*,double*,double*);
+extern "C" int membrane_fem_solve_material_points(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,double,
+                                        int,const int*,const double*,const double*,double*,int,const int*,const double*,int,const double*,double*,double*);
 extern "C" int membrane_fem_solve_trajectory(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,double,
     int,const int*,const double*,const double*,double*,int,const int*,const double*,int,const int*,const double*,const double*,int,const double*,double*,double*);
 extern "C" int membrane_fem_solve_trajectory_seeded(int,double*,const double*,int,const int*,const double*,const double*,double,double,double,int,double,double,double,
@@ -60,6 +62,7 @@ protected:
         ClassDB::bind_method(D_METHOD("material_witness_fem","request"),&MembraneFEMKernel::material_witness_fem);
         ClassDB::bind_method(D_METHOD("solve_contact_fem","request"),&MembraneFEMKernel::solve_contact_fem);
         ClassDB::bind_method(D_METHOD("solve_precise_contact_fem","request"),&MembraneFEMKernel::solve_precise_contact_fem);
+        ClassDB::bind_method(D_METHOD("solve_material_points_fem","request"),&MembraneFEMKernel::solve_material_points_fem);
         ClassDB::bind_method(D_METHOD("solve_trajectory_fem","request"),&MembraneFEMKernel::solve_trajectory_fem);
         ClassDB::bind_method(D_METHOD("solve_seeded_trajectory_fem","request"),&MembraneFEMKernel::solve_seeded_trajectory_fem);
     }
@@ -80,11 +83,12 @@ public:
         }
         Dictionary answer;answer["status"]=status;answer["values"]=values;return answer;
     }
+    Dictionary solve_material_points_fem(const Dictionary& request) {return contact_candidate(request,false,false,true,true);}
     Dictionary solve_contact_fem(const Dictionary& request) {return contact_candidate(request,false);}
     Dictionary solve_precise_contact_fem(const Dictionary& request) {return contact_candidate(request,false,false,true);}
     Dictionary solve_trajectory_fem(const Dictionary& request) {return contact_candidate(request,true);}
     Dictionary solve_seeded_trajectory_fem(const Dictionary& request) {return contact_candidate(request,true,true);}
-    Dictionary contact_candidate(const Dictionary& request,bool trajectory,bool seeded=false,bool precise=false) {
+    Dictionary contact_candidate(const Dictionary& request,bool trajectory,bool seeded=false,bool precise=false,bool points=false) {
         PackedFloat64Array result,reaction,dual,stats;stats.resize(16);stats.fill(0.);
         for(int k:{0,1,8,12,13}) stats.set(k,std::numeric_limits<double>::infinity());
         if(request.has("xyz") && request["xyz"].get_type()==Variant::PACKED_FLOAT64_ARRAY) result=request["xyz"];
@@ -129,7 +133,7 @@ public:
                     static_cast<double>(request["force_tolerance"]),static_cast<double>(request["gap_tolerance"]),static_cast<double>(request["complementarity_tolerance"]),
                     static_cast<int>(targets.size()/3),grip_nodes.ptr(),weights.ptr(),targets.ptr(),next_reaction.ptrw(),static_cast<int>(face_nodes.size()/3),face_nodes.ptr(),face_weights.ptr(),
                     static_cast<int>(bodies),kinds.ptr(),packets.ptr(),previous.ptr(),static_cast<int>(layers),times.ptr(),next_dual.ptrw(),stats.ptrw());
-                else status=(precise ? membrane_fem_solve_precise_contact : membrane_fem_solve_contact)(static_cast<int>(inverse.size()),result.ptrw(),inverse.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
+                else status=(points ? membrane_fem_solve_material_points : (precise ? membrane_fem_solve_precise_contact : membrane_fem_solve_contact))(static_cast<int>(inverse.size()),result.ptrw(),inverse.ptr(),static_cast<int>(areas.size()),nodes.ptr(),gradients.ptr(),areas.ptr(),
                     static_cast<double>(request["mu"]),static_cast<double>(request["lambda"]),static_cast<double>(request["dt"]),static_cast<int>(budget),
                     static_cast<double>(request["force_tolerance"]),static_cast<double>(request["gap_tolerance"]),static_cast<double>(request["complementarity_tolerance"]),
                     static_cast<int>(targets.size()/3),grip_nodes.ptr(),weights.ptr(),targets.ptr(),next_reaction.ptrw(),static_cast<int>(face_nodes.size()/3),face_nodes.ptr(),face_weights.ptr(),

@@ -5,9 +5,9 @@ import numpy as np
 from test_membrane_fem import D,I
 
 
-def replay(request, library, precise=False):
+def replay(request, library, precise=False, method=None):
     lib = ct.CDLL(str(Path(library).resolve()))
-    fn = getattr(lib,'membrane_fem_solve_precise_contact' if precise else 'membrane_fem_solve_contact')
+    fn = getattr(lib,method or ('membrane_fem_solve_precise_contact' if precise else 'membrane_fem_solve_contact'))
     fn.argtypes = [ct.c_int,D,D,ct.c_int,I,D,D,ct.c_double,ct.c_double,ct.c_double,ct.c_int,
                    ct.c_double,ct.c_double,ct.c_double,ct.c_int,I,D,D,D,ct.c_int,I,D,ct.c_int,D,D,D]
     fn.restype = ct.c_int
