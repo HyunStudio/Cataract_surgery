@@ -1,0 +1,42 @@
+{
+  "qualified": false,
+  "scope": "Four small two-contact held/pinned numerical subproblems only, with independent stress/inertia/reaction checks; no full tool acquisition or whole motion.",
+  "cases": [
+    {
+      "mode": "pinned",
+      "mu": 2.0,
+      "cold_steps": 25.0,
+      "warm_steps": 17.0,
+      "force_inf_independent": 1.5728103264223137e-09,
+      "min_fraction": 0.0001220703125,
+      "final_penalty": 10000.0
+    },
+    {
+      "mode": "held",
+      "mu": 2.0,
+      "cold_steps": 25.0,
+      "warm_steps": 24.0,
+      "force_inf_independent": 1.3873728832436427e-09,
+      "min_fraction": 0.00048828125,
+      "final_penalty": 1000.0
+    },
+    {
+      "mode": "pinned",
+      "mu": 10000.0,
+      "cold_steps": 23.0,
+      "warm_steps": 17.0,
+      "force_inf_independent": 2.395138309907452e-09,
+      "min_fraction": 0.0009765625,
+      "final_penalty": 10000.0
+    },
+    {
+      "mode": "held",
+      "mu": 10000.0,
+      "cold_steps": 23.0,
+      "warm_steps": 19.0,
+      "force_inf_independent": 2.761338713241912e-09,
+      "min_fraction": 0.0001220703125,
+      "final_penalty": 1000.0
+    }
+  ]
+}

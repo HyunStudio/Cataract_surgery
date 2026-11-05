@@ -57,3 +57,14 @@ No far-pair culling is planned without a separate proof. Require scalar/bulk
 packet and acceptance bit parity, malformed final pair atomicity, all layers,
 capacity/ownership coverage and actual measured cost decomposition. The earlier
 face-reuse prototype showed no stable gain and must not be silently reinstated.
+
+
+Additional exact-threshold requirement for a future point-specific certificate:
+current normalized field uses rounded binary64 r2=radius*radius. Require BOTH
+separation from exact binary64radius² and normalized inactivity relative to
+roundedr2*(1+dual/rho). Using only exactradius²*(1+dual/rho) is insufficient when
+roundedr2 rounds UP. A conservative maximum of separately outward-enclosed
+thresholds can establish both. This is a proposal only; no helper implemented.
+Current180profile was6%solver, but failed153native line-search81/79 had hundreds
+of evaluations and dominated cost. Reprofile AFTER numerical recovery before
+choosing engine versus native interval work; one saved step is not all workloads.

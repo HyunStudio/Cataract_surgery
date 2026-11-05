@@ -1,0 +1,1547 @@
+{
+  "qualified": false,
+  "scope": "Line-search observation of unchanged original owned153 requests only; no product change or whole-step qualification.",
+  "build": {
+    "artifact_sha256": "4cf9c4a527d249cd60d6f19bdafa8b3b3d25a1eaad7965f22a69b684f8d58eb0",
+    "sources": {
+      "native\\contact_distance.h": "53b2dd611ce76c01888271186abe788c4a9b321d720e8cc4220ae304e01b5690",
+      "native\\contact_guard.h": "e21520934b3d9233ffe07b56bfb9f738435bc793a260ef9499465a1c0b0d56c3",
+      "native\\contact_merit_difference.h": "45efc947048b75b6b0c87a5d818caea8b505c42ecd98a50f39f83c8ab2f51190",
+      "native\\embedded_contact.h": "8ffaf06f88cc19a3db9cbc285c62e7733cd521a5072a734c32da2f51d137ffcf",
+      "native\\fem_trajectory_merit.h": "27fb3f1459797578d54fefad4aec814f2f5897a8ffa22e8d5a15fc53fc5c8e6c",
+      "native\\fp_environment.h": "0c4b5ef7f80ce5f5fb0cea3bbd2e28a777007e003b5709392cbccbad855db308",
+      "native\\material_point_contact.h": "6c7a30285bd276da4171f92cd1d9a0837b39060d1e97025e04ceea96cf3bf093",
+      "native\\membrane_fem.cpp": "8f21f0c365dd53ec54e294fdefe095294ba3582b212f88928eb03d2b1c6b33ec",
+      "native\\membrane_fem.h": "a8ea9e81663cccb749e469245f73c9960bba357d45cf1030c4abbe77efbf5211",
+      "native\\membrane_fem_contact.inc": "48d11f367b82ff8043a8d46d4d4a82a654446754cbce50ab6f580b9e44eb44c1",
+      "native\\tests\\fem_contact_trace_probe.cpp": "6318928e8c02c7bd6951b32db5aca117f8e6281284ee0ac47affc1c3d70a3152",
+      "tools\\build_fem_contact_trace.py": "f69bc51463de2e7d497981619dccece94c20d70133b16610146c8509c6d58b21",
+      "tools\\native_build_provenance.py": "d140809373d11838162ed8f79b375dd782ea9881c64bdd538849ac151008847f"
+    },
+    "compiler": {
+      "version": "0.17.0",
+      "executable": ".tools\\zig-x86_64-windows-0.17.0\\zig.exe",
+      "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+    },
+    "dependencies": {
+      ".tools\\eigen-5.0.1": "bc3b39870ecb690a623a3f49149a358b95c5781d"
+    },
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DEIGEN_MPL2_ONLY",
+      "-isystem",
+      "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\eigen-5.0.1",
+      "-shared",
+      "-target",
+      "x86_64-windows-gnu"
+    ],
+    "source_revision": "8c3c2d99240ee8e7266df7b1f25ae973be99c67e",
+    "source_dirty": false
+  },
+  "requests": [
+    {
+      "index": 5,
+      "seconds": 164.00908017158508,
+      "status": 0,
+      "same_saved_status": true,
+      "same_saved_stats": true,
+      "stats": [
+        0.02411015150420758,
+        3.1992279059178273e-10,
+        81.0,
+        453.0,
+        86.0,
+        2.1707545571578077e-14,
+        7.62939453125e-06,
+        9.313225746154785e-10,
+        0.0,
+        1.0,
+        0.0,
+        3.5637377940105513e-17,
+        3.1939936880822446e-15,
+        2.0654245516116092e-14,
+        2.0,
+        100000.0
+      ],
+      "trace_sha256": "e42f797d70a688377e2a0513024539e0b954372f7a8bff1f9e5703eeb81406a6",
+      "trace_bytes": 23254247,
+      "line_count": 449,
+      "iterations": [
+        {
+          "iteration": 0,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -5.858769666848216,
+          "change": -3.949274034900683,
+          "work": 0
+        },
+        {
+          "iteration": 1,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -2.299780807703186,
+          "change": -0.8485394038881641,
+          "work": 0
+        },
+        {
+          "iteration": 2,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.25119643155431864,
+          "change": -0.15641689678825585,
+          "work": 0
+        },
+        {
+          "iteration": 3,
+          "evaluations": 4,
+          "rho": 100000,
+          "fraction": 0.125,
+          "slope": -0.0625799338014629,
+          "change": -0.007553973457393403,
+          "work": 0
+        },
+        {
+          "iteration": 4,
+          "evaluations": 4,
+          "rho": 100000,
+          "fraction": 0.125,
+          "slope": -0.025323111415192938,
+          "change": -0.003091340921313793,
+          "work": 0
+        },
+        {
+          "iteration": 5,
+          "evaluations": 5,
+          "rho": 100000,
+          "fraction": 0.0625,
+          "slope": -0.00865350112602161,
+          "change": -0.00016477369505593444,
+          "work": 0
+        },
+        {
+          "iteration": 6,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0028517635015476083,
+          "change": -0.0023870424463053688,
+          "work": 0
+        },
+        {
+          "iteration": 7,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.005700743411056851,
+          "change": -0.0052831587631290075,
+          "work": 0
+        },
+        {
+          "iteration": 8,
+          "evaluations": 9,
+          "rho": 100000,
+          "fraction": 0.00390625,
+          "slope": -0.01714749622274211,
+          "change": -3.292343110925782e-05,
+          "work": 0
+        },
+        {
+          "iteration": 9,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.004366673458952475,
+          "change": -0.004113535801620987,
+          "work": 0
+        },
+        {
+          "iteration": 10,
+          "evaluations": 9,
+          "rho": 100000,
+          "fraction": 0.00390625,
+          "slope": -0.014769321283531311,
+          "change": -1.2676859171056318e-05,
+          "work": 0
+        },
+        {
+          "iteration": 11,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.003597061431840829,
+          "change": -0.003405992867404644,
+          "work": 0
+        },
+        {
+          "iteration": 12,
+          "evaluations": 10,
+          "rho": 100000,
+          "fraction": 0.001953125,
+          "slope": -0.013022935577622019,
+          "change": -1.364573891906284e-05,
+          "work": 0
+        },
+        {
+          "iteration": 13,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0029837850530421346,
+          "change": -0.002866260159952353,
+          "work": 0
+        },
+        {
+          "iteration": 14,
+          "evaluations": 10,
+          "rho": 100000,
+          "fraction": 0.001953125,
+          "slope": -0.011679264299834128,
+          "change": -9.442255438573987e-06,
+          "work": 0
+        },
+        {
+          "iteration": 15,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0025880340031381056,
+          "change": -0.002492861818012182,
+          "work": 0
+        },
+        {
+          "iteration": 16,
+          "evaluations": 10,
+          "rho": 100000,
+          "fraction": 0.001953125,
+          "slope": -0.010597457642860771,
+          "change": -5.0953664470507046e-06,
+          "work": 0
+        },
+        {
+          "iteration": 17,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0022808322187951357,
+          "change": -0.0021998098441595735,
+          "work": 0
+        },
+        {
+          "iteration": 18,
+          "evaluations": 10,
+          "rho": 100000,
+          "fraction": 0.001953125,
+          "slope": -0.009704890359839725,
+          "change": -1.2376723307134523e-06,
+          "work": 0
+        },
+        {
+          "iteration": 19,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.002033446135870396,
+          "change": -0.001962224682831478,
+          "work": 0
+        },
+        {
+          "iteration": 20,
+          "evaluations": 11,
+          "rho": 100000,
+          "fraction": 0.0009765625,
+          "slope": -0.008954584969440288,
+          "change": -4.221684185761247e-06,
+          "work": 0
+        },
+        {
+          "iteration": 21,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0017982065642908763,
+          "change": -0.0017489993153043848,
+          "work": 0
+        },
+        {
+          "iteration": 22,
+          "evaluations": 11,
+          "rho": 100000,
+          "fraction": 0.0009765625,
+          "slope": -0.008316846301393451,
+          "change": -3.399446488192628e-06,
+          "work": 0
+        },
+        {
+          "iteration": 23,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0016251105457012935,
+          "change": -0.00158244676135503,
+          "work": 0
+        },
+        {
+          "iteration": 24,
+          "evaluations": 11,
+          "rho": 100000,
+          "fraction": 0.0009765625,
+          "slope": -0.007765407952868328,
+          "change": -2.366785128376268e-06,
+          "work": 0
+        },
+        {
+          "iteration": 25,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0014780797322962941,
+          "change": -0.001440291698344386,
+          "work": 0
+        },
+        {
+          "iteration": 26,
+          "evaluations": 11,
+          "rho": 100000,
+          "fraction": 0.0009765625,
+          "slope": -0.007283857137514869,
+          "change": -1.413066490002897e-06,
+          "work": 0
+        },
+        {
+          "iteration": 27,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0013512374910606825,
+          "change": -0.0013173342448137549,
+          "work": 0
+        },
+        {
+          "iteration": 28,
+          "evaluations": 11,
+          "rho": 100000,
+          "fraction": 0.0009765625,
+          "slope": -0.006859741504954581,
+          "change": -5.402290443429276e-07,
+          "work": 0
+        },
+        {
+          "iteration": 29,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0012407319767778224,
+          "change": -0.0012099812273588513,
+          "work": 0
+        },
+        {
+          "iteration": 30,
+          "evaluations": 12,
+          "rho": 100000,
+          "fraction": 0.00048828125,
+          "slope": -0.00648344264670438,
+          "change": -1.5549056641037759e-06,
+          "work": 0
+        },
+        {
+          "iteration": 31,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0011337336585708767,
+          "change": -0.0011102935259588015,
+          "work": 0
+        },
+        {
+          "iteration": 32,
+          "evaluations": 12,
+          "rho": 100000,
+          "fraction": 0.00048828125,
+          "slope": -0.006147788452337223,
+          "change": -1.3771367995725046e-06,
+          "work": 0
+        },
+        {
+          "iteration": 33,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.001047520242673056,
+          "change": -0.0010265301634740788,
+          "work": 0
+        },
+        {
+          "iteration": 34,
+          "evaluations": 12,
+          "rho": 100000,
+          "fraction": 0.00048828125,
+          "slope": -0.0058461066689074175,
+          "change": -1.1105203999339269e-06,
+          "work": 0
+        },
+        {
+          "iteration": 35,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0009709577273808276,
+          "change": -0.0009519545851102502,
+          "work": 0
+        },
+        {
+          "iteration": 36,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0032671547298191612,
+          "change": -0.0030744646254797685,
+          "work": 0
+        },
+        {
+          "iteration": 37,
+          "evaluations": 13,
+          "rho": 100000,
+          "fraction": 0.000244140625,
+          "slope": -0.012405399712357369,
+          "change": -1.5809919776285971e-06,
+          "work": 0
+        },
+        {
+          "iteration": 38,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0025545037462294104,
+          "change": -0.0024147645848349173,
+          "work": 0
+        },
+        {
+          "iteration": 39,
+          "evaluations": 13,
+          "rho": 100000,
+          "fraction": 0.000244140625,
+          "slope": -0.0107476935164916,
+          "change": -5.327112181273869e-07,
+          "work": 0
+        },
+        {
+          "iteration": 40,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.002036960549718165,
+          "change": -0.0019328719914541719,
+          "work": 0
+        },
+        {
+          "iteration": 41,
+          "evaluations": 14,
+          "rho": 100000,
+          "fraction": 0.0001220703125,
+          "slope": -0.009476479635908744,
+          "change": -7.237846649787325e-07,
+          "work": 0
+        },
+        {
+          "iteration": 42,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0016476609070301621,
+          "change": -0.001570080545429894,
+          "work": 0
+        },
+        {
+          "iteration": 43,
+          "evaluations": 14,
+          "rho": 100000,
+          "fraction": 0.0001220703125,
+          "slope": -0.008482104677267899,
+          "change": -4.4415797524229514e-07,
+          "work": 0
+        },
+        {
+          "iteration": 44,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0013559010234114445,
+          "change": -0.0012958591651216357,
+          "work": 0
+        },
+        {
+          "iteration": 45,
+          "evaluations": 14,
+          "rho": 100000,
+          "fraction": 0.0001220703125,
+          "slope": -0.007689782246811804,
+          "change": -2.0497921164278267e-07,
+          "work": 0
+        },
+        {
+          "iteration": 46,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0011300197026293743,
+          "change": -0.0010827534723157055,
+          "work": 0
+        },
+        {
+          "iteration": 47,
+          "evaluations": 14,
+          "rho": 100000,
+          "fraction": 0.0001220703125,
+          "slope": -0.007049243740827825,
+          "change": -7.454328426151653e-09,
+          "work": 0
+        },
+        {
+          "iteration": 48,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.000952382676515929,
+          "change": -0.0009146228434613709,
+          "work": 0
+        },
+        {
+          "iteration": 49,
+          "evaluations": 15,
+          "rho": 100000,
+          "fraction": 6.103515625e-05,
+          "slope": -0.006524767831624836,
+          "change": -1.6562972367747726e-07,
+          "work": 0
+        },
+        {
+          "iteration": 50,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0008094291656687385,
+          "change": -0.0007794226519422156,
+          "work": 0
+        },
+        {
+          "iteration": 51,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.002318668187843316,
+          "change": -0.0020740587225805997,
+          "work": 0
+        },
+        {
+          "iteration": 52,
+          "evaluations": 14,
+          "rho": 100000,
+          "fraction": 0.0001220703125,
+          "slope": -0.009938046059351866,
+          "change": -8.973888843988169e-07,
+          "work": 0
+        },
+        {
+          "iteration": 53,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0014715968230454245,
+          "change": -0.0013357291694291583,
+          "work": 0
+        },
+        {
+          "iteration": 54,
+          "evaluations": 15,
+          "rho": 100000,
+          "fraction": 6.103515625e-05,
+          "slope": -0.00855319947429874,
+          "change": -4.7421793725995494e-07,
+          "work": 0
+        },
+        {
+          "iteration": 55,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0009926124584648545,
+          "change": -0.0009117607597092641,
+          "work": 0
+        },
+        {
+          "iteration": 56,
+          "evaluations": 15,
+          "rho": 100000,
+          "fraction": 6.103515625e-05,
+          "slope": -0.007655964488717596,
+          "change": -1.6661708454580225e-07,
+          "work": 0
+        },
+        {
+          "iteration": 57,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0007043340827584864,
+          "change": -0.0006524915552140981,
+          "work": 0
+        },
+        {
+          "iteration": 58,
+          "evaluations": 16,
+          "rho": 100000,
+          "fraction": 3.0517578125e-05,
+          "slope": -0.007040116958095505,
+          "change": -1.3985145597569088e-07,
+          "work": 0
+        },
+        {
+          "iteration": 59,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0005165180229694216,
+          "change": -0.00048167946088098,
+          "work": 0
+        },
+        {
+          "iteration": 60,
+          "evaluations": 16,
+          "rho": 100000,
+          "fraction": 3.0517578125e-05,
+          "slope": -0.006599669245040319,
+          "change": -4.7353670796754966e-08,
+          "work": 0
+        },
+        {
+          "iteration": 61,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0003891226789526362,
+          "change": -0.0003645166704596979,
+          "work": 0
+        },
+        {
+          "iteration": 62,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0008840698102742577,
+          "change": -0.0007348615025560577,
+          "work": 0
+        },
+        {
+          "iteration": 63,
+          "evaluations": 15,
+          "rho": 100000,
+          "fraction": 6.103515625e-05,
+          "slope": -0.007657377813903585,
+          "change": -3.187944557927795e-07,
+          "work": 0
+        },
+        {
+          "iteration": 64,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0003974281785183193,
+          "change": -0.00033402372719876976,
+          "work": 0
+        },
+        {
+          "iteration": 65,
+          "evaluations": 16,
+          "rho": 100000,
+          "fraction": 3.0517578125e-05,
+          "slope": -0.007166872303329756,
+          "change": -6.991274036799281e-08,
+          "work": 0
+        },
+        {
+          "iteration": 66,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.00018807946542013566,
+          "change": -0.0001598313149179058,
+          "work": 0
+        },
+        {
+          "iteration": 67,
+          "evaluations": 17,
+          "rho": 100000,
+          "fraction": 1.52587890625e-05,
+          "slope": -0.006933407378840154,
+          "change": -1.0484754546891533e-08,
+          "work": 0
+        },
+        {
+          "iteration": 68,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -9.381247687499833e-05,
+          "change": -8.081548021723745e-05,
+          "work": 0
+        },
+        {
+          "iteration": 69,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.00012324906182118118,
+          "change": -9.602708663855457e-05,
+          "work": 0
+        },
+        {
+          "iteration": 70,
+          "evaluations": 18,
+          "rho": 100000,
+          "fraction": 7.62939453125e-06,
+          "slope": -0.007336373693412777,
+          "change": -2.8540251766761448e-08,
+          "work": 0
+        },
+        {
+          "iteration": 71,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -4.80446905112629e-05,
+          "change": -4.373274479995946e-05,
+          "work": 0
+        },
+        {
+          "iteration": 72,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.00012529976395955541,
+          "change": -0.00011707612461902943,
+          "work": 0
+        },
+        {
+          "iteration": 73,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0002870376419712103,
+          "change": -0.00023923659052655676,
+          "work": 0
+        },
+        {
+          "iteration": 74,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -0.0002669633265287143,
+          "change": -0.0001819328399390848,
+          "work": 0
+        },
+        {
+          "iteration": 75,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -5.621626789519274e-05,
+          "change": -3.235951758429308e-05,
+          "work": 0
+        },
+        {
+          "iteration": 76,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -1.8936468234596908e-06,
+          "change": -9.904234477006264e-07,
+          "work": 0
+        },
+        {
+          "iteration": 77,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -5.163831019932766e-09,
+          "change": -2.608142606570606e-09,
+          "work": 0
+        },
+        {
+          "iteration": 78,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -5.806315384610368e-13,
+          "change": -2.910439487199816e-13,
+          "work": 0
+        },
+        {
+          "iteration": 79,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -4.1814672230607535e-08,
+          "change": -2.0907329251336426e-08,
+          "work": 0
+        },
+        {
+          "iteration": 80,
+          "evaluations": 1,
+          "rho": 100000,
+          "fraction": 1,
+          "slope": -1.3607403266517345e-18,
+          "change": -6.803784975697705e-19,
+          "work": 0
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "seconds": 241.3490388393402,
+      "status": 1,
+      "same_saved_status": true,
+      "same_saved_stats": true,
+      "stats": [
+        0.0378452026027034,
+        5.816772303321544,
+        79.0,
+        560.0,
+        83.0,
+        1.6990629060011768e-15,
+        6.103515625e-05,
+        0.15625,
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        5e-324,
+        0.0,
+        1000000.0
+      ],
+      "trace_sha256": "23acd42dde93b549e58f478711a6e393e417e84f26939476cff98a309af1ea79",
+      "trace_bytes": 31057461,
+      "line_count": 559,
+      "iterations": [
+        {
+          "iteration": 0,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -3.125975912000513,
+          "change": -2.165211785545262,
+          "work": 0
+        },
+        {
+          "iteration": 1,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -4.20270265512911,
+          "change": -0.600067472018895,
+          "work": 0
+        },
+        {
+          "iteration": 2,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.27951957487820833,
+          "change": -0.21468159129888334,
+          "work": 0
+        },
+        {
+          "iteration": 3,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.19869027820444202,
+          "change": -0.14416678810296601,
+          "work": 0
+        },
+        {
+          "iteration": 4,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.1134122178128684,
+          "change": -0.08510389406974157,
+          "work": 0
+        },
+        {
+          "iteration": 5,
+          "evaluations": 2,
+          "rho": 1000000,
+          "fraction": 0.5,
+          "slope": -0.09028220187029518,
+          "change": -0.03916508559910304,
+          "work": 0
+        },
+        {
+          "iteration": 6,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.08282668352537514,
+          "change": -2.021959400987269e-05,
+          "work": 0
+        },
+        {
+          "iteration": 7,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.04741824783104651,
+          "change": -5.33507674184791e-06,
+          "work": 0
+        },
+        {
+          "iteration": 8,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.010302276800872642,
+          "change": -0.008909133560191993,
+          "work": 0
+        },
+        {
+          "iteration": 9,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.03833910236669524,
+          "change": -1.527148956186132e-06,
+          "work": 0
+        },
+        {
+          "iteration": 10,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.006298124677526185,
+          "change": -0.005869039364933999,
+          "work": 0
+        },
+        {
+          "iteration": 11,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.03236528514572554,
+          "change": -3.950731321449183e-06,
+          "work": 0
+        },
+        {
+          "iteration": 12,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.013258876027997826,
+          "change": -7.822053831941792e-07,
+          "work": 0
+        },
+        {
+          "iteration": 13,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0013001599747503342,
+          "change": -0.0012748212112391488,
+          "work": 0
+        },
+        {
+          "iteration": 14,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.012723456505896399,
+          "change": -2.6366637691839678e-06,
+          "work": 0
+        },
+        {
+          "iteration": 15,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0012098714443282998,
+          "change": -0.0011886014245424063,
+          "work": 0
+        },
+        {
+          "iteration": 16,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.012218548358825337,
+          "change": -2.397837164609846e-06,
+          "work": 0
+        },
+        {
+          "iteration": 17,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.001133578260445912,
+          "change": -0.0011141152600331412,
+          "work": 0
+        },
+        {
+          "iteration": 18,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.011745690020749253,
+          "change": -2.149161658080335e-06,
+          "work": 0
+        },
+        {
+          "iteration": 19,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.001065627859558937,
+          "change": -0.0010475654535655927,
+          "work": 0
+        },
+        {
+          "iteration": 20,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.011304489932226398,
+          "change": -1.9002490079348104e-06,
+          "work": 0
+        },
+        {
+          "iteration": 21,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.001004534411445681,
+          "change": -0.0009876158396573105,
+          "work": 0
+        },
+        {
+          "iteration": 22,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.010893364462023708,
+          "change": -1.653509710783967e-06,
+          "work": 0
+        },
+        {
+          "iteration": 23,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.000949271586492924,
+          "change": -0.0009333076232641071,
+          "work": 0
+        },
+        {
+          "iteration": 24,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.010510217768222646,
+          "change": -1.4105961653845759e-06,
+          "work": 0
+        },
+        {
+          "iteration": 25,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0008990449142439979,
+          "change": -0.0008838881993255189,
+          "work": 0
+        },
+        {
+          "iteration": 26,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.010152810125425946,
+          "change": -1.1726515347529578e-06,
+          "work": 0
+        },
+        {
+          "iteration": 27,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0008532114936743208,
+          "change": -0.0008387435752550993,
+          "work": 0
+        },
+        {
+          "iteration": 28,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.009818945254274597,
+          "change": -9.40440528614751e-07,
+          "work": 0
+        },
+        {
+          "iteration": 29,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0008112379076803329,
+          "change": -0.0007973616686821158,
+          "work": 0
+        },
+        {
+          "iteration": 30,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.009506559122636277,
+          "change": -7.144504189526748e-07,
+          "work": 0
+        },
+        {
+          "iteration": 31,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0007726746813969599,
+          "change": -0.0007593094404955391,
+          "work": 0
+        },
+        {
+          "iteration": 32,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.00921375615479665,
+          "change": -4.949658606841367e-07,
+          "work": 0
+        },
+        {
+          "iteration": 33,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.00073713910131039,
+          "change": -0.0007242171984788295,
+          "work": 0
+        },
+        {
+          "iteration": 34,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.008938817895293126,
+          "change": -2.821236986652938e-07,
+          "work": 0
+        },
+        {
+          "iteration": 35,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0007043027891893744,
+          "change": -0.0006917670761052026,
+          "work": 0
+        },
+        {
+          "iteration": 36,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.008680197706365403,
+          "change": -7.595319026001178e-08,
+          "work": 0
+        },
+        {
+          "iteration": 37,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0006738822645572242,
+          "change": -0.0006616841907413723,
+          "work": 0
+        },
+        {
+          "iteration": 38,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.008436508859581075,
+          "change": -1.0141466074185647e-06,
+          "work": 0
+        },
+        {
+          "iteration": 39,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0006347532066121676,
+          "change": -0.000621658062753765,
+          "work": 0
+        },
+        {
+          "iteration": 40,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.003228119456207306,
+          "change": -0.0030519545863595724,
+          "work": 0
+        },
+        {
+          "iteration": 41,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.01760141873898208,
+          "change": -1.8205606138347155e-06,
+          "work": 0
+        },
+        {
+          "iteration": 42,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0025633681920890303,
+          "change": -0.002454009991963257,
+          "work": 0
+        },
+        {
+          "iteration": 43,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.015593771540537983,
+          "change": -5.000286778591001e-07,
+          "work": 0
+        },
+        {
+          "iteration": 44,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.002137714356608285,
+          "change": -0.002052664018964787,
+          "work": 0
+        },
+        {
+          "iteration": 45,
+          "evaluations": 15,
+          "rho": 1000000,
+          "fraction": 6.103515625e-05,
+          "slope": -0.014014860078115657,
+          "change": -8.553884576221221e-07,
+          "work": 0
+        },
+        {
+          "iteration": 46,
+          "evaluations": 15,
+          "rho": 1000000,
+          "fraction": 6.103515625e-05,
+          "slope": -0.005508659057953375,
+          "change": -4.8823973036673346e-08,
+          "work": 0
+        },
+        {
+          "iteration": 47,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.00047899293248531707,
+          "change": -0.00047307016258523534,
+          "work": 0
+        },
+        {
+          "iteration": 48,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.005372953189455367,
+          "change": -3.6068059027668225e-07,
+          "work": 0
+        },
+        {
+          "iteration": 49,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.00045928770489843005,
+          "change": -0.00045366794625944774,
+          "work": 0
+        },
+        {
+          "iteration": 50,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.0052445238939706,
+          "change": -3.1331850116121585e-07,
+          "work": 0
+        },
+        {
+          "iteration": 51,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.00044096783109843184,
+          "change": -0.0004355570434204576,
+          "work": 0
+        },
+        {
+          "iteration": 52,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.005123010627846217,
+          "change": -2.664659924440109e-07,
+          "work": 0
+        },
+        {
+          "iteration": 53,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0004237746865484783,
+          "change": -0.00041855211883925445,
+          "work": 0
+        },
+        {
+          "iteration": 54,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.00500790369563504,
+          "change": -2.205853972267005e-07,
+          "work": 0
+        },
+        {
+          "iteration": 55,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0004076084385444616,
+          "change": -0.000402557151819283,
+          "work": 0
+        },
+        {
+          "iteration": 56,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.004898719549395188,
+          "change": -1.7571140533776618e-07,
+          "work": 0
+        },
+        {
+          "iteration": 57,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0003923832987472736,
+          "change": -0.00038748842915019814,
+          "work": 0
+        },
+        {
+          "iteration": 58,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.00479501640198819,
+          "change": -1.3184941667860262e-07,
+          "work": 0
+        },
+        {
+          "iteration": 59,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.00037802313535356696,
+          "change": -0.00037327150677517065,
+          "work": 0
+        },
+        {
+          "iteration": 60,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.004696395268142092,
+          "change": -8.899202436735384e-08,
+          "work": 0
+        },
+        {
+          "iteration": 61,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.00036445995463921504,
+          "change": -0.00035983981651294757,
+          "work": 0
+        },
+        {
+          "iteration": 62,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.004602496499705219,
+          "change": -4.7124830032279875e-08,
+          "work": 0
+        },
+        {
+          "iteration": 63,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.00035163274994636347,
+          "change": -0.0003471335755541635,
+          "work": 0
+        },
+        {
+          "iteration": 64,
+          "evaluations": 14,
+          "rho": 1000000,
+          "fraction": 0.0001220703125,
+          "slope": -0.004512995321316243,
+          "change": -6.229463496560855e-09,
+          "work": 0
+        },
+        {
+          "iteration": 65,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -0.0003394865721010704,
+          "change": -0.0003350988963020824,
+          "work": 0
+        },
+        {
+          "iteration": 66,
+          "evaluations": 15,
+          "rho": 1000000,
+          "fraction": 6.103515625e-05,
+          "slope": -0.0044275975223566156,
+          "change": -2.702368238741232e-07,
+          "work": 0
+        },
+        {
+          "iteration": 67,
+          "evaluations": 15,
+          "rho": 1000000,
+          "fraction": 6.103515625e-05,
+          "slope": -0.0015657820259047045,
+          "change": -3.339697238309737e-08,
+          "work": 0
+        },
+        {
+          "iteration": 68,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -8.372249589133385e-05,
+          "change": -8.314485424183467e-05,
+          "work": 0
+        },
+        {
+          "iteration": 69,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.0015585886788690858,
+          "change": -2.6274680169081094e-07,
+          "work": 0
+        },
+        {
+          "iteration": 70,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -8.33482400374233e-05,
+          "change": -8.259582314880753e-05,
+          "work": 0
+        },
+        {
+          "iteration": 71,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.0015513823794918783,
+          "change": -2.525212311322136e-07,
+          "work": 0
+        },
+        {
+          "iteration": 72,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -8.266445890476334e-05,
+          "change": -8.189308164956077e-05,
+          "work": 0
+        },
+        {
+          "iteration": 73,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.001544352201502312,
+          "change": -2.464887658175207e-07,
+          "work": 0
+        },
+        {
+          "iteration": 74,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -8.196563606144319e-05,
+          "change": -8.118727951997305e-05,
+          "work": 0
+        },
+        {
+          "iteration": 75,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.0015374694436778463,
+          "change": -2.4090183414576413e-07,
+          "work": 0
+        },
+        {
+          "iteration": 76,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -8.127375172458954e-05,
+          "change": -8.048960711543692e-05,
+          "work": 0
+        },
+        {
+          "iteration": 77,
+          "evaluations": 13,
+          "rho": 1000000,
+          "fraction": 0.000244140625,
+          "slope": -0.0015307129472337875,
+          "change": -2.3543821826219396e-07,
+          "work": 0
+        },
+        {
+          "iteration": 78,
+          "evaluations": 1,
+          "rho": 1000000,
+          "fraction": 1,
+          "slope": -8.059043217601508e-05,
+          "change": -7.98008150872894e-05,
+          "work": 0
+        }
+      ]
+    }
+  ]
+}

@@ -250,7 +250,7 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
         // Early infeasible AL models need only inexact minimization. This is
         // not acceptance: the original final force tolerance is checked below.
         const double inner_tolerance=(state.penetration>gap_tolerance || state.complementarity>comp_tolerance) ? std::max(tolerance,1e-6) : tolerance;
-        bool inner_done=false,polish_tried=false;
+        bool inner_done=false,polish_tried=false,restart_penalty=false;
         for(;;) {
             for(int j=0;j<size;++j) {q[j]=x[free[j]];gf[j]=state.gradient[free[j]];}
             balance=gf;
@@ -350,7 +350,16 @@ int solve_contact(int n,double* output,const double* inverse,int count,const int
             // New accepted coordinates may now balance with valid reactions.
             polish_tried=false;
             damping=fraction>=.5 ? std::max(1e-12,damping*.25) : std::min(1e12,damping*4.);
+            // A borrowed temporal point penalty can make the new subproblem
+            // crawl through backtracking. Restart numerical minimization only
+            // after a counted accepted step, keeping its private x and physical
+            // dual guess. The next outer iteration rebuilds every value under
+            // the smaller rho; no stale gradient or dual update is accepted.
+            if(material_points && previous && initial && rho>1. && fraction<.5) {
+                rho=std::max(1.,rho/10.);restart_penalty=true;break;
+            }
         }
+        if(restart_penalty) continue;
         if(!inner_done) break;
         if(force<=tolerance && state.penetration<=gap_tolerance && state.complementarity<=comp_tolerance) {
             for(int attempt=0;attempt<12;++attempt) {

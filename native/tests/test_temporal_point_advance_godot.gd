@@ -30,10 +30,18 @@ class Guard extends RefCounted:
  func guard_fine_motion(v:Dictionary)->Dictionary:
   var out:Dictionary=inner.guard_fine_motion(v);history.append(out.duplicate(true));return out
 func _initialize()->void:
+ var number:=180
+ for argument in OS.get_cmdline_user_args():
+  if argument.begins_with("--case="):
+   var selected:=argument.trim_prefix("--case=")
+   if selected not in ["153","180"]:push_error("owned temporal case must be153 or180");quit(1);return
+   number=int(selected)
+ var label:="owned%d"%number
  var raw=ClassDB.instantiate("MembraneFEMKernel")
- check(raw!=null and raw.has_method("solve_trajectory_material_points_fem") and raw.has_method("material_witnesses_fem"),"owned180 needs actual temporal point kernel")
+ check(raw!=null and raw.has_method("solve_trajectory_material_points_fem") and raw.has_method("material_witnesses_fem"),label+" needs actual temporal point kernel")
  if failures:quit(1);return
- var saved:Dictionary=FileAccess.open("res://tests/fixtures/operative-motion180-state.bin",FileAccess.READ).get_var()
+ var fixture:="res://tests/fixtures/operative-motion153-temporal-state.bin" if number==153 else "res://tests/fixtures/operative-motion180-state.bin"
+ var saved:Dictionary=FileAccess.open(fixture,FileAccess.READ).get_var()
  var model=load("res://scripts/embedded_membrane.gd").new();model._state=saved.state.duplicate(true)
  var before:Dictionary=model.snapshot();var backend:=Backend.new();backend.inner=raw
  var guard:=Guard.new();guard.inner=ClassDB.instantiate("MembraneContactKernel")
@@ -47,10 +55,10 @@ func _initialize()->void:
   if row.kind=="material_points_trajectory":
    check(not row.request.has("initial") and not row.request.has("multiplier_seed") and not row.request.has("penalty_seed"),"point temporal candidates never consume ordinary face seeds")
   if row.kind.begins_with("ordinary"):ordinary_calls+=1
- check(result.valid,"owned180 must pass original force/full motion gates: "+str(result))
+ check(result.valid,label+" must pass original force/full motion gates: "+str(result))
  if result.valid:
   var after:Dictionary=model.snapshot()
-  check(after.steps==before.steps+1 and after.events==before.events and after.previous==before.xyz and absf(after.time-before.time-saved.dt)<1e-12,"one accepted owned180 advances only physics/history once")
+  check(after.steps==before.steps+1 and after.events==before.events and after.previous==before.xyz and absf(after.time-before.time-saved.dt)<1e-12,"one accepted "+label+" advances only physics/history once")
   check(result.force_inf<=1e-8 and result.trajectory_iterations<=250 and result.trajectory_iterations==work,"independent original force and shared work remain unchanged")
   check(temporal_calls>0 and .5 in result.trajectory_times,"middle collision uses temporal material points without ordinary seeds")
   check(not guard.history.is_empty() and guard.history[-1].status==0,"last complete large-geometry physical motion guard certifies clearance")
@@ -59,7 +67,7 @@ func _initialize()->void:
   check(not stopped.valid and model.snapshot()==accepted,"zero remaining budget cannot alter accepted time or positions")
  else:check(model.snapshot()==before,"failed temporal exploration leaves owned state unchanged")
  DirAccess.make_dir_recursive_absolute("res://reports")
- FileAccess.open("res://reports/owned180-temporal-attempt.bin",FileAccess.WRITE).store_var({"state":before,"result":result,"native_history":backend.history,"guard_history":guard.history})
- var summary:={"qualified":false,"owned_step_qualified":result.valid and failures==0,"scope":"Owned180 actual engine step only; no full route, surgery, real-time or release qualification.","elapsed_ms":elapsed,"vertices":before.rest.size(),"faces":before.indices.size()/3,"controls":before.xyz.size()/3,"temporal_calls":temporal_calls,"ordinary_calls":ordinary_calls,"work":work,"result":result}
- FileAccess.open("res://reports/owned180-temporal-metrics.json",FileAccess.WRITE).store_string(JSON.stringify(summary,"  ",true,true))
- print("Temporal material point advance: ",failures," failures; elapsed_ms=",elapsed," result=",result);quit(1 if failures else 0)
+ FileAccess.open("res://reports/owned%d-temporal-attempt.bin"%number,FileAccess.WRITE).store_var({"state":before,"result":result,"native_history":backend.history,"guard_history":guard.history})
+ var summary:={"qualified":false,"owned_step_qualified":result.valid and failures==0,"scope":"Owned%d actual engine step only; no full route, surgery, real-time or release qualification."%number,"elapsed_ms":elapsed,"vertices":before.rest.size(),"faces":before.indices.size()/3,"controls":before.xyz.size()/3,"temporal_calls":temporal_calls,"ordinary_calls":ordinary_calls,"work":work,"result":result}
+ FileAccess.open("res://reports/owned%d-temporal-metrics.json"%number,FileAccess.WRITE).store_string(JSON.stringify(summary,"  ",true,true))
+ print("Temporal material point advance: ",failures," failures; elapsed_ms=",elapsed," case=",number," result=",result);quit(1 if failures else 0)

@@ -17,3 +17,22 @@ The capsule model starts with the static endpoint solve, then runs the complete 
 Tests cover an analytical rotating sphere approaching a planar membrane, independent reaction/KKT reconstruction, actual262 midpoint contact, endpoint-only ABI equality, invalid input and atomic exhaustion. The analytic midpoint-only solution has endpoint plane1.15, energy.015 and midpoint dual.03, including the required time factor. This is a collocation reference, not a complete-trajectory certificate.
 
 For the actual262 capture, bounded generation adds times.5,.25,.125,.0625. The final selected-time solve passes the original force1e-8, gap1e-9 and complementarity1e-11 gates; the complete guard then certifies the represented interval. Native Python diagnostics independently reassemble forces and reactions using SciPy pose interpolation. Frozen Godot integration reaches the same five-layer time set and passes the actual integration/rollback suite. Moving finite-feature certificates resolve the later263checkpoint in frozen `u1dmbzmg`. Contact curvature resolves the saved264three-layer request and fresh actual integration qualifies in `novw6kax`. Latest complete replay `t4us842l` accepts264ticks then rejects265first static substep; `joint_static265.json` preserves the exact unresolved request and its atomic rejection is tested. Complete extraction remains unqualified. These are uncalibrated numerical scene-unit models, not clinical mechanical validation or realtime qualification.
+
+
+## Seeded temporal material-point numerical recovery
+
+The retained original-material FEM solver has a separate material-point candidate.
+For a seeded multi-layer point solve, an accepted Newton fraction below the same
+`.5` criterion already used for damping may restart the numerical AL subproblem
+at `max(1,rho/10)`. This occurs only AFTER an accepted/countable private step.
+The next outer iteration rebuilds contact state under the new penalty; it keeps
+coordinates and the physical dual guess, and does not promote stale updated
+duals. Existing outer/work limits and original force/gap/complementarity/final
+undamped SPD checks remain. Cold, static and ordinary-contact paths keep their
+control flow. Failure never publishes intermediate coordinates/reactions.
+
+This changes numerical scheduling of the same affine tissue path candidate,
+not dt, forces, predictor, tool motion or a physical time integrator. Small-family,
+64caller-FP, atomic-budget and independent owned153 equation tests qualify it;
+actual engine153 additionally checks whole surface/motion, clock and rollback.
+Whole-route, real-time and clinical qualification remain separate.

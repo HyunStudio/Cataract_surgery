@@ -10,7 +10,7 @@ from native_build_provenance import sha256,source_hashes,verify_sources
 ROOT=Path(__file__).resolve().parents[1]
 ARTIFACTS=['material_point_probe','membrane_kernel','contact_distance','contact_guard','contact_merit_probe',
            'contact_step_probe','membrane_contact','membrane_fem','fp_environment_probe','contact_activity_probe']
-PATTERNS=['test_fem_temporal_points.py','test_material_witness_batch.py','test_fine_geometry_guard.py','test_material_point_distance.py','test_fem_material_points.py','test_membrane_kernel.py','test_contact_distance.py','test_embedded_contact.py',
+PATTERNS=['test_fem_warm_point_recovery.py','test_fem_temporal_points.py','test_material_witness_batch.py','test_fine_geometry_guard.py','test_material_point_distance.py','test_fem_material_points.py','test_membrane_kernel.py','test_contact_distance.py','test_embedded_contact.py',
           'test_contact_guard.py','test_contact_merit_difference.py','test_point_merit_difference.py',
           'test_contact_step_model.py','test_coupled_contact.py','test_trajectory_contact.py',
           'test_anatomical_contact.py','test_membrane_fem.py','test_membrane_grasp.py',
@@ -24,7 +24,7 @@ for name in ARTIFACTS:
     verify_sources(manifest['sources'])
     if str(Path('native/fp_environment.h')) not in manifest['sources']:raise SystemExit('Missing boundary dependency: '+name)
     builds[name]=manifest
-sources=[*ROOT.joinpath('native/tests').glob('*.py'),*ROOT.joinpath('native/tests/fixtures').rglob('*.json'),ROOT/'docs/assets/operative-motion150-budget-case-2026-11-05.json',ROOT/'docs/assets/operative-motion156-native-case-2026-11-05.json',ROOT/'docs/assets/operative-motion167-native-case-2026-11-05.json',Path(__file__).resolve()]
+sources=[*ROOT.joinpath('native/tests').glob('*.py'),*ROOT.joinpath('native/tests/fixtures').rglob('*.json'),ROOT/'docs/assets/operative-motion150-budget-case-2026-11-05.json',ROOT/'docs/assets/operative-motion153-native-case-2026-11-05.json',ROOT/'docs/assets/operative-motion156-native-case-2026-11-05.json',ROOT/'docs/assets/operative-motion167-native-case-2026-11-05.json',Path(__file__).resolve()]
 inputs=source_hashes(sources)
 probe=Path(tempfile.mkdtemp(prefix='fp-qualification-',dir=ROOT/'.tools'))
 report={'qualified':False,'scope':'Native numerical boundary and component regressions only. Runtime enclosure, normal/early/exception/nested restoration, actual API bitwise results across64caller contexts with independent x87/SSE rounding, old/new numerical suites. No actual surgical/controller case, real-time/GPU throughput, clinical calibration or Windows release claim.',

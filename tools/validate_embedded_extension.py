@@ -119,6 +119,7 @@ if options.trajectory:
     stages.append(('trajectory_bridge',['--script','res://trajectory_bridge.gd'],'Native trajectory FEM Godot bridge: 0 failures'))
     stages.append(('temporal_points_bridge',['--script','res://temporal_points_bridge.gd'],'Native temporal material points: 0 failures'))
     stages.append(('temporal_point_advance',['--script','res://temporal_point_advance.gd'],'Temporal material point advance: 0 failures'))
+    stages.append(('motion153_advance',['--script','res://temporal_point_advance.gd','--','--case=153'],'Temporal material point advance: 0 failures'))
     stages.append(('witness_batch_advance',['--script','res://witness_batch_advance.gd'],'Native witness batch advance: 0 failures'))
     stages.append(('trajectory_pose',['--script','res://tests/test_trajectory_pose.gd'],'Recorded trajectory pose: 0 failures'))
     stages.append(('trajectory_transaction',['--script','res://tests/test_trajectory_transaction.gd'],'Trajectory step transaction: 0 failures'))

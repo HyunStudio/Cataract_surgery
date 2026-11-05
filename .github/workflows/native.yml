@@ -88,6 +88,8 @@ jobs:
             .tools/fem-extension-*/reports/material-point-advance-metrics.json
             .tools/fem-extension-*/reports/owned180-temporal-metrics.json
             .tools/fem-extension-*/reports/owned180-temporal-attempt.bin
+            .tools/fem-extension-*/reports/owned153-temporal-metrics.json
+            .tools/fem-extension-*/reports/owned153-temporal-attempt.bin
             .tools/fem-extension-*/reports/witness-batch-owned-metrics.json
             .tools/embedded-regressions-*/*.log
             .tools/material-orientation-audit-*/candidate.json
