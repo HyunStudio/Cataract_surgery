@@ -452,6 +452,7 @@ func _physics_process(dt: float) -> void:
 	if not display or not _can_operate(): return
 	if not is_finite(dt) or dt<=0 or dt>.05: return
 	var geometric_blade:bool=geometry!=null and hand_tools[selected]=="knife" and grip_down
+	var blade_action:=""
 	var saved:Dictionary=PhysicsTransaction.capture(self) if capsule.requires_physics_transaction() or geometric_blade else {}
 	var movement:=_advance_motion(dt)
 	metrics.path_length+=movement
@@ -462,6 +463,7 @@ func _physics_process(dt: float) -> void:
 	incision.update(dt,[rigs[0].insertion,rigs[1].insertion])
 	if geometric_blade:
 		var prior:Dictionary=_body_poses[selected]
+		blade_action="stationary" if prior.tip==rigs[selected].tip and prior.axis==rigs[selected].axis and prior.get("roll",0.)==rigs[selected].roll else "no_new_cut"
 		var sweep:Dictionary=BladeSweep.build("knife",prior.tip,prior.axis,rigs[selected].tip,rigs[selected].axis,true,prior.get("roll",0.),rigs[selected].roll)
 		if not sweep.valid:
 			_reject_physics_tick(saved,{"reason":"blade_"+sweep.reason,"status":-1});return
@@ -469,6 +471,9 @@ func _physics_process(dt: float) -> void:
 			var incision_result:Dictionary=capsule.incise_patches(sweep.patches)
 			if not incision_result.valid:
 				_reject_physics_tick(saved,{"reason":"blade_"+incision_result.reason,"status":-1});return
+			# No new incision can also mean an already-open bank; it is not a
+			# contact or completion claim. Publish only after the whole tick.
+			blade_action="new_cut" if incision_result.changed else "no_new_cut"
 	var flow_active:=pedal_down and tool in ["phaco","ia","cannula"]
 	var aspirating:=flow_active and pedal_stage>=2 and tool in ["phaco","ia"]
 	var powered:=flow_active and pedal_stage==3 and tool=="phaco"
@@ -506,6 +511,9 @@ func _physics_process(dt: float) -> void:
 	iol.step(dt,implant_nozzle,injecting,tip,tool=="manipulator" and grip_down)
 	clock+=dt; metrics.energy_exposure+=(machine.energy*dt if powered else 0.)
 	_cache_metrics()
+	if geometric_blade:
+		_last_capsule["blade_action"]=blade_action
+		_last_capsule["blade_hand"]=selected
 	director.observe(dt,_observation(movement,machine.energy if powered else 0.))
 	if director.snapshot().alert!="":
 		release_controls(); status="조직 형상 손상 기록. 상태를 확인하고 기록 검토 또는 안전 중단을 선택하세요." if director.snapshot().alert=="tissue_injury" else "환자 움직임. 기구·페달을 멈추고 상태를 평가하세요."
@@ -617,7 +625,7 @@ func refresh_ui() -> void:
 		report_metrics["length_unit"]="mm"; report_metrics["area_unit"]="mm²"
 		report_metrics["path_length"]/=geometry.units_per_mm
 		for key in ["posterior_open_area","corneal_open_area","corneal_damage_area","extracted_area","retained_detached_area","cut_loss_area"]: report_metrics[key]/=geometry.units_per_mm*geometry.units_per_mm
-	ui.refresh({"director":state,"case_id":case_id,"room_view":room_view,"paused":paused,"status":status,"tools":hand_tools,"selected":selected,"latched":latched,"clock":clock,"pedal_stage":pedal_stage,"capsule":_last_capsule,"lens":_last_lens,"iol":_last_iol,"wound":incision.metrics(),"assisted":assisted,"debug":wireframe,"frame_count":recording.frames.size(),"reviewing":reviewing,"metrics":report_metrics,"machine":machine,"pupil_radius":pupil_radius,"ending":state.ending,"objective":objective,"show_briefing":not case_active and state.ending=="","practice":practice,"sound":_sound,"high_contrast":high_contrast,"reduced_motion":reduced_motion,"review_index":review_index,"injury":_last_injury})
+	ui.refresh({"director":state,"case_id":case_id,"room_view":room_view,"paused":paused,"status":status,"tools":hand_tools,"selected":selected,"latched":latched,"blade_active":geometry!=null and grip_down and hand_tools[selected]=="knife","clock":clock,"pedal_stage":pedal_stage,"capsule":_last_capsule,"lens":_last_lens,"iol":_last_iol,"wound":incision.metrics(),"assisted":assisted,"debug":wireframe,"frame_count":recording.frames.size(),"reviewing":reviewing,"metrics":report_metrics,"machine":machine,"pupil_radius":pupil_radius,"ending":state.ending,"objective":objective,"show_briefing":not case_active and state.ending=="","practice":practice,"sound":_sound,"high_contrast":high_contrast,"reduced_motion":reduced_motion,"review_index":review_index,"injury":_last_injury})
 
 func preview_frame(index: int) -> void:
 	var frame: Dictionary=recording.frame_at(index)

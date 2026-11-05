@@ -5,7 +5,7 @@ static func save(app,central_vertex:int,pieces:Array)->void:
 	var state:Dictionary=model._embedded_state.duplicate(true)
 	var binary:={"state":state,"central_vertex":central_vertex,"components":pieces,"metrics":model.metrics(),"clock":app.clock,"failure":model.native_failure.duplicate(true)}
 	var blade_trace:Array=[]
-	if model._embedded_solver!=null and "blade_trace" in model._embedded_solver:blade_trace=model._embedded_solver.blade_trace.duplicate(true)
+	if model._embedded_solver!=null and model._embedded_solver.has_method("observed_blade_trace"):blade_trace=model._embedded_solver.observed_blade_trace()
 	binary["blade_trace"]=blade_trace
 	var poses:Array=[]
 	for rig in app.rigs:poses.append({"tip":[rig.tip.x,rig.tip.y,rig.tip.z],"axis":[rig.axis.x,rig.axis.y,rig.axis.z],"roll":rig.roll})

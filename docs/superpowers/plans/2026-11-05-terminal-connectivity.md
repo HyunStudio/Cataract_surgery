@@ -46,6 +46,14 @@ This proves a circular tip target alone cannot guarantee closed material cutting
 it does not settle every cause of the deformed route's different retained bridge.
 No blade geometry, physical gates, old target path or existing assertion changed.
 
+Correction after inspecting actual trace length: the first completed terminal
+state has EMPTY blade_trace. Embedded.incise_patches creates staged script
+instances, so instance-owned logging was discarded. Owned final state/topology
+and independent path proofs remain valid. Added smoke with2real retained patches:
+RED missing exported history; observer-only static collector + duplicated accessor
+and clear-on-configure GREEN2entries, owned byte preservation stillpasses.
+Historical binary/JSON remain unmodified; no old trace reconstruction claim.
+
 Next aligned interaction improvement: show accepted new-cut / no-new-cut / no-motion
 observations during knife use, derived from actual cutter output and published only
 after full tick acceptance. No automatic depth correction, fabricated contact or

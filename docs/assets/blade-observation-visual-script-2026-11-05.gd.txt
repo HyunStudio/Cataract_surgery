@@ -1,0 +1,29 @@
+extends SceneTree
+var app
+var failed:=false
+func _initialize()->void:call_deferred("run")
+func place(target:Vector3)->void:
+ app.targets[0]=target;app.target_valid[0]=true
+ for i in range(200):
+  app._physics_process(1./60.)
+  if app.paused:failed=true;return
+  if app.rigs[0].tip.distance_to(target)<.001:return
+ failed=true
+func run()->void:
+ app=load("res://scripts/simulator.gd").new();root.add_child(app);app.set_physics_process(false);app.set_process(false);app.set_process_input(false);await process_frame
+ app.start_practice();app.choose_tool("knife")
+ for target in [Vector3(1.32,.80,0),Vector3(1.32,.65,0),Vector3(1.20,.65,0),Vector3(.90,.68,0),Vector3(0,.75,0)]:
+  place(target)
+  if failed:break
+ if not failed:
+  app.grip_down=true;place(Vector3(.57,app.geometry.bag_front(.57)-.005,0))
+ if failed:push_error("Actual knife visual route rejected");app.free();quit(1);return
+ app.refresh_ui()
+ var observations:Array=[]
+ for size in [Vector2i(1280,800),Vector2i(1600,1000)]:
+  DisplayServer.window_set_size(size);await process_frame;await process_frame;await RenderingServer.frame_post_draw
+  var path:String=ProjectSettings.globalize_path("res://../.tools/blade-feedback-%d.png"%size.x);root.get_texture().get_image().save_png(path)
+  var label:Label=app.ui._telemetry;observations.append({"resolution":[size.x,size.y],"label_text":label.text,"label_right":label.global_position.x+label.size.x,"viewport_right":root.get_visible_rect().end.x,"action":app._last_capsule.get("blade_action","")})
+  if label.global_position.x+label.size.x>root.get_visible_rect().end.x+.5:failed=true
+ print("Blade visual QA: ",JSON.stringify({"failed":failed,"adapter":RenderingServer.get_video_adapter_name(),"observations":observations},"",true,true))
+ app.free();await process_frame;quit(1 if failed else 0)

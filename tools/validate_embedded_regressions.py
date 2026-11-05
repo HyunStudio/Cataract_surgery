@@ -17,6 +17,8 @@ SUITES = ['test_trajectory_pose','test_trajectory_transaction','test_material_ed
           'test_precise_step_transaction','test_control_context','test_physical_instrument_path',
           'test_body_app','test_rigid_body_app','test_presentation_clock','test_capsule_solver',
           'test_capsule_surface','test_membrane_normal','test_flap_boundary','test_capsule_extraction']
+SUITES.insert(0,'test_blade_observation')
+SUITES.insert(0,'test_blade_observation_events')
 SUITES.insert(0,'test_trajectory_seed')
 SUITES.insert(0,'test_binary64_incision')
 SUITES.insert(0,'test_material_reduce')

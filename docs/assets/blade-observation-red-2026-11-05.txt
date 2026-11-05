@@ -1,0 +1,23 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+ERROR: accepted finite sweep publishes actual changed cutter result
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] check (res://tests/test_blade_observation.gd:16)
+       [1] run (res://tests/test_blade_observation.gd:27)
+ERROR: active selected knife displays accepted incision observation
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] check (res://tests/test_blade_observation.gd:16)
+       [1] run (res://tests/test_blade_observation.gd:28)
+ERROR: unchanged sweep reports no new incision rather than inventing contact or completion
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] check (res://tests/test_blade_observation.gd:16)
+       [1] run (res://tests/test_blade_observation.gd:30)
+ERROR: stationary blade does not reuse prior incision result or invoke cutter
+   at: push_error (core/variant/variant_utility.cpp:1023)
+   GDScript backtrace (most recent call first):
+       [0] check (res://tests/test_blade_observation.gd:16)
+       [1] run (res://tests/test_blade_observation.gd:32)
+Blade observation: 4 failures

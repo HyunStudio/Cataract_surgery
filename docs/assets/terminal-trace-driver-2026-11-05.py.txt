@@ -1,0 +1,84 @@
+"""Copy a qualified project and observe final closed-route connectivity."""
+import argparse
+import json
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import tempfile
+
+from native_build_provenance import sha256, source_hashes, verify_sources
+
+ROOT = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--smoke', action='store_true', help='Validate observer ownership/export without running the route')
+parser.add_argument('--qualification', type=Path, default=ROOT / 'godot/reports/operative-components-trajectory-curved-coupled-contact-embedded-grasp-validation.json', help='Completed frozen-project qualification report')
+args = parser.parse_args()
+qualification = args.qualification
+report = json.loads(qualification.read_text(encoding='utf-8'))
+source = Path(report['probe'])
+engine = ROOT / '.tools/godot/Godot_v4.7.2-stable_win64_console.exe'
+if not report['qualified'] or sha256(engine) != report['engine_sha256']:
+    raise SystemExit('A qualified project and pinned engine are required')
+if not all(sha256(source / name) == digest for name, digest in report['frozen_inputs'].items()):
+    raise SystemExit('Qualified frozen inputs changed')
+probe = Path(tempfile.mkdtemp(prefix='terminal-route-', dir=ROOT / '.tools'))
+shutil.copytree(source, probe, dirs_exist_ok=True, ignore=shutil.ignore_patterns('*.log', 'reports'))
+if not all(sha256(probe / name) == digest for name, digest in report['frozen_inputs'].items()):
+    raise SystemExit('Copied inputs differ from the qualified project before instrumentation')
+inputs = source_hashes([Path(__file__), ROOT / 'tools/native_build_provenance.py',
+                        ROOT / 'tools/capture_operative_terminal.gd', ROOT / 'tools/capture_operative_terminal_smoke.gd'])
+for name in ['capture_operative_terminal.gd', 'capture_operative_terminal_smoke.gd']:
+    shutil.copyfile(ROOT / 'tools' / name, probe / name)
+closed = probe / 'tests/test_blade_closed.gd'
+text = closed.read_text(encoding='utf-8')
+needle = '\tvar central_detached:=false'
+if text.count(needle) != 1:
+    raise SystemExit('Closed-route test structure changed')
+text = text.replace(needle, '\tload("res://capture_operative_terminal.gd").save(app,central_vertex,pieces)\n' + needle)
+closed.write_text(text, encoding='utf-8')
+capture = probe / 'tests/capture_operative_trajectory.gd'
+text = capture.read_text(encoding='utf-8')
+needle = '\tfunc advance_contact('
+if text.count(needle) != 1:
+    raise SystemExit('Transparent capture structure changed')
+trace = '''\tstatic var blade_trace:Array=[]
+\tfunc observed_blade_trace()->Array:return blade_trace.duplicate(true)
+\tfunc _incise_one(patch:PackedVector3Array)->Dictionary:
+\t\tvar event_before:int=_state.events;var step_before:int=_state.steps
+\t\tvar out:Dictionary=super._incise_one(patch)
+\t\tblade_trace.append({"patch":load("res://scripts/membrane_precision.gd").pack(patch),"step":step_before,"events_before":event_before,"events_after":_state.events,"valid":out.valid,"changed":out.get("changed",false),"reason":out.get("reason","")})
+\t\treturn out
+'''
+text = text.replace(needle, trace + needle)
+needle = 'app.capsule._embedded_solver=TraceState.new()'
+if text.count(needle) != 1:
+    raise SystemExit('Observer state initialization changed')
+capture.write_text(text.replace(needle, needle + ';TraceState.blade_trace.clear()'), encoding='utf-8')
+frozen = {name: sha256(probe / name) for name in report['frozen_inputs']}
+for name in ['capture_operative_terminal.gd', 'capture_operative_terminal_smoke.gd']:
+    frozen[name] = sha256(probe / name)
+manifest = {'qualified': False, 'status': 'running', 'smoke': args.smoke, 'probe': str(probe),
+            'scope': 'Observer-only copied frozen route. Does not qualify whole operation, timing, clinical fidelity or release.',
+            'qualification_sha256': sha256(qualification), 'engine_sha256': report['engine_sha256'],
+            'inputs': inputs, 'frozen_inputs': frozen}
+destination = ROOT / 'godot/reports' / ('terminal-capture-smoke.json' if args.smoke else 'terminal-closed-route.json')
+destination.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+script = 'capture_operative_terminal_smoke.gd' if args.smoke else 'tests/capture_operative_trajectory.gd'
+log = probe / 'capture-log.txt'
+print('Observing terminal geometry: ' + str(probe), flush=True)
+with log.open('wb') as sink:
+    completed = subprocess.run([str(engine), '--headless', '--path', str(probe), '--script', 'res://' + script], stdout=sink, stderr=subprocess.STDOUT)
+verify_sources(inputs)
+if sha256(engine) != report['engine_sha256'] or not all(sha256(probe / name) == digest for name, digest in frozen.items()):
+    raise SystemExit('Capture inputs changed during observation')
+text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', log.read_text(encoding='utf-8', errors='replace'))
+marker = 'Terminal capture smoke: 0 failures' if args.smoke else 'Closed blade result: 0 failures'
+passed = completed.returncode == 0 and marker in text and not re.search(r'ERROR:|SCRIPT ERROR|leaked at exit|resources still in use', text)
+outputs = {name: sha256(probe / 'reports' / name) for name in ['operative-terminal.bin', 'operative-terminal.json'] if (probe / 'reports' / name).exists()}
+manifest.update(status='completed', returncode=completed.returncode, check_passed=passed, log_sha256=sha256(log), outputs=outputs)
+destination.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+print(json.dumps({'passed': passed, 'report': str(destination), 'outputs': list(outputs)}), flush=True)
+if not passed:
+    print(text[-12000:], flush=True)
+raise SystemExit(0 if passed else 1)

@@ -286,6 +286,10 @@ func refresh(state: Dictionary) -> void:
 	if lens.has("nucleus_remaining"):
 		_telemetry.text+="   ·   핵 %.0f%% / 피질 %.0f%%   ·   부착 해제 %.0f%%"%[float(lens.nucleus_remaining)*100.,float(lens.cortex_remaining)*100.,float(lens.adhesion_released)*100.]
 	var injury:Dictionary=state.get("injury",{})
+	if interactive and state.get("blade_active",false) and capsule.get("blade_hand",-1)==selected:
+		var blade_labels:={"new_cut":"칼날: 새 절개 형성","no_new_cut":"칼날: 새 절개 없음","stationary":"칼날: 이동 없음"}
+		var blade_text:String=blade_labels.get(capsule.get("blade_action",""),"")
+		if not blade_text.is_empty():_telemetry.text+="   ·   "+blade_text
 	if injury.get("posterior_breached",false) or injury.get("corneal_breached",false):
 		_telemetry.text+="   ·   구조 손상 기록 있음 · 후낭 유출 %.4f"%float(lens.get("rupture_outflow",0.))
 	diagnostics.visible=state.get("debug",false)

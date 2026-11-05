@@ -12,8 +12,9 @@ from native_build_provenance import sha256, source_hashes, verify_sources
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--smoke', action='store_true', help='Validate observer ownership/export without running the route')
+parser.add_argument('--qualification', type=Path, default=ROOT / 'godot/reports/operative-components-trajectory-curved-coupled-contact-embedded-grasp-validation.json', help='Completed frozen-project qualification report')
 args = parser.parse_args()
-qualification = ROOT / 'godot/reports/operative-components-trajectory-curved-coupled-contact-embedded-grasp-validation.json'
+qualification = args.qualification
 report = json.loads(qualification.read_text(encoding='utf-8'))
 source = Path(report['probe'])
 engine = ROOT / '.tools/godot/Godot_v4.7.2-stable_win64_console.exe'
@@ -41,14 +42,19 @@ text = capture.read_text(encoding='utf-8')
 needle = '\tfunc advance_contact('
 if text.count(needle) != 1:
     raise SystemExit('Transparent capture structure changed')
-trace = '''\tvar blade_trace:Array=[]
+trace = '''\tstatic var blade_trace:Array=[]
+\tfunc observed_blade_trace()->Array:return blade_trace.duplicate(true)
 \tfunc _incise_one(patch:PackedVector3Array)->Dictionary:
 \t\tvar event_before:int=_state.events;var step_before:int=_state.steps
 \t\tvar out:Dictionary=super._incise_one(patch)
 \t\tblade_trace.append({"patch":load("res://scripts/membrane_precision.gd").pack(patch),"step":step_before,"events_before":event_before,"events_after":_state.events,"valid":out.valid,"changed":out.get("changed",false),"reason":out.get("reason","")})
 \t\treturn out
 '''
-capture.write_text(text.replace(needle, trace + needle), encoding='utf-8')
+text = text.replace(needle, trace + needle)
+needle = 'app.capsule._embedded_solver=TraceState.new()'
+if text.count(needle) != 1:
+    raise SystemExit('Observer state initialization changed')
+capture.write_text(text.replace(needle, needle + ';TraceState.blade_trace.clear()'), encoding='utf-8')
 frozen = {name: sha256(probe / name) for name in report['frozen_inputs']}
 for name in ['capture_operative_terminal.gd', 'capture_operative_terminal_smoke.gd']:
     frozen[name] = sha256(probe / name)

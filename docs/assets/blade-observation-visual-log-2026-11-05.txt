@@ -1,0 +1,4 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+OpenGL API 3.3.0 NVIDIA 566.14 - Compatibility - Using Device: NVIDIA - NVIDIA GeForce RTX 3070 Laptop GPU
+
+Blade visual QA: {"adapter":"NVIDIA GeForce RTX 3070 Laptop GPU","failed":false,"observations":[{"action":"new_cut","label_right":1322.0,"label_text":"잔여물 100%   ·   IOL 0%   ·   페달 0   ·   기록 1   ·   핵 51% / 피질 49%   ·   부착 해제 0%   ·   칼날: 새 절개 형성","resolution":[1280,800],"viewport_right":1600.0},{"action":"new_cut","label_right":1322.0,"label_text":"잔여물 100%   ·   IOL 0%   ·   페달 0   ·   기록 1   ·   핵 51% / 피질 49%   ·   부착 해제 0%   ·   칼날: 새 절개 형성","resolution":[1600,1000],"viewport_right":1600.0}]}
