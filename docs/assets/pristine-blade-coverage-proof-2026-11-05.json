@@ -1,0 +1,153 @@
+{
+  "qualified": false,
+  "geometric_proof_verified": true,
+  "scope": "Exact rational separating-axis proof for exported pristine fixed triangle mesh and sharp-edge patches only. No dynamic route, cutter acceptance, surgical or release qualification.",
+  "capture_sha256": "0ed65036df530ef22a5387e98b7e6a63862e1435d4e4517f91760356308ef664",
+  "verifier_sha256": "6b6d9fff8fb0fe40e41efdc4a6d7d21124dc6d8cfcb1f7a6849ef365cc4a26bb",
+  "results": [
+    {
+      "interval": 65,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1539,
+        "rational_projection": 45
+      }
+    },
+    {
+      "interval": 66,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1545,
+        "rational_projection": 39
+      }
+    },
+    {
+      "interval": 67,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1545,
+        "rational_projection": 39
+      }
+    },
+    {
+      "interval": 68,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1548,
+        "rational_projection": 36
+      }
+    },
+    {
+      "interval": 69,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1550,
+        "rational_projection": 34
+      }
+    },
+    {
+      "interval": 70,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1544,
+        "rational_projection": 40
+      }
+    },
+    {
+      "interval": 71,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1552,
+        "rational_projection": 32
+      }
+    },
+    {
+      "interval": 72,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1550,
+        "rational_projection": 34
+      }
+    },
+    {
+      "interval": 73,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1550,
+        "rational_projection": 34
+      }
+    },
+    {
+      "interval": 74,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1552,
+        "rational_projection": 32
+      }
+    },
+    {
+      "interval": 75,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1555,
+        "rational_projection": 29
+      }
+    },
+    {
+      "interval": 76,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1552,
+        "rational_projection": 32
+      }
+    },
+    {
+      "interval": 77,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1554,
+        "rational_projection": 30
+      }
+    },
+    {
+      "interval": 78,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1547,
+        "rational_projection": 37
+      }
+    },
+    {
+      "interval": 79,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1550,
+        "rational_projection": 34
+      }
+    },
+    {
+      "interval": 80,
+      "patches": 4,
+      "faces": 396,
+      "strict_separation_certificates": {
+        "coordinate": 1545,
+        "rational_projection": 39
+      }
+    }
+  ]
+}

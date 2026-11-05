@@ -1,0 +1,27 @@
+extends SceneTree
+func _initialize()->void:
+ var model=load("res://scripts/capsule_solver.gd").new();model.geometry=load("res://scripts/anterior_segment.gd").new();model.reset()
+ var points:PackedFloat64Array=load("res://scripts/membrane_precision.gd").pack(model.rest_positions)
+ var rig=load("res://scripts/instrument_rig.gd").new();rig.portal=model.geometry.portals[0];var prior:=Vector3(0,.75,0);var prior_axis:Vector3=(prior-rig.portal).normalized()
+ var cutter=load("res://scripts/membrane_cut.gd").new();var rows:Array=[]
+ for i in range(145):
+  var angle:float=TAU*i/144.;var r:=.57;var target:=Vector3(r*cos(angle),model.geometry.bag_front(r)-.005,r*sin(angle))
+  var patches:=0;var changed:=0;var packets:Array=[]
+  while prior.distance_to(target)>.000001:
+   var next:Vector3=prior.move_toward(target,.025);var axis:Vector3=(next-rig.portal).normalized()
+   var sweep:Dictionary=load("res://scripts/blade_sweep.gd").build("knife",prior,prior_axis,next,axis,true)
+   if not sweep.valid:push_error(sweep.reason);quit(1);return
+   for patch in sweep.patches:
+    packets.append(Array(load("res://scripts/membrane_precision.gd").pack(patch)))
+    var result:Dictionary=cutter.slice_triangle64(points,model.triangles,patch[0],patch[1],patch[2],8192,8192)
+    if not result.valid:push_error(result.reason);quit(1);return
+    patches+=1
+    if result.changed:changed+=1
+   prior=next;prior_axis=axis
+  rows.append({"index":i,"angle":angle,"patches":patches,"changed":changed,"packets":packets})
+ var out:={"qualified":false,"scope":"Independent sharp-edge sweep intersection with pristine coarse capsule only. No dynamics, full app path or surgical qualification.","portal":[rig.portal.x,rig.portal.y,rig.portal.z],"points":Array(points),"triangles":Array(model.triangles),"rows":rows}
+ DirAccess.make_dir_recursive_absolute("res://reports");FileAccess.open("res://reports/coverage.json",FileAccess.WRITE).store_string(JSON.stringify(out,"  ",true,true))
+ var missing:Array=[]
+ for row in rows:
+  if row.changed==0:missing.append(row.index)
+ print("Pristine finite blade intervals missing intersection: ",missing);quit(0)

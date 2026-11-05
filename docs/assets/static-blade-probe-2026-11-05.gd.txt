@@ -1,0 +1,44 @@
+extends SceneTree
+var model
+var rig
+var prior:Vector3
+var prior_axis:Vector3
+var failed:=false
+var intervals:Array=[]
+func _initialize()->void:
+ call_deferred("run")
+func cut_to(target:Vector3)->void:
+ while prior.distance_to(target)>.000001:
+  var next:Vector3=prior.move_toward(target,.025)
+  var axis:Vector3=(next-rig.portal).normalized()
+  var sweep:Dictionary=load("res://scripts/blade_sweep.gd").build("knife",prior,prior_axis,next,axis,true)
+  if not sweep.valid:
+   failed=true;push_error("static sweep: "+sweep.reason);return
+  var result:Dictionary=model.incise_patches(sweep.patches)
+  if not result.valid:
+   failed=true;push_error("static incision: "+result.reason);return
+  prior=next;prior_axis=axis;rig.place_tip(next)
+func run()->void:
+ model=load("res://scripts/capsule_solver.gd").new();model.geometry=load("res://scripts/anterior_segment.gd").new();model.reset()
+ if not model.set_embedded_backend(ClassDB.instantiate("MembraneFEMKernel"),ClassDB.instantiate("MembraneContactKernel")):
+  push_error("configuration failed");quit(1);return
+ rig=load("res://scripts/instrument_rig.gd").new();rig.portal=model.geometry.portals[0]
+ prior=Vector3(0,.75,0);prior_axis=(prior-rig.portal).normalized();rig.place_tip(prior)
+ var central:=0;var closest:=INF
+ for vertex in range(model.rest_positions.size()):
+  var p:Vector3=model.rest_positions[vertex];var distance:float=p.x*p.x+p.z*p.z
+  if distance<closest:closest=distance;central=vertex
+ var area:float=model.metrics().retained_area
+ for i in range(145):
+  var angle:float=TAU*i/144.;var radius:=.57
+  cut_to(Vector3(radius*cos(angle),model.geometry.bag_front(radius)-.005,radius*sin(angle)))
+  intervals.append({"index":i,"events":model.metrics().incision_events,"angle":angle})
+  if failed:break
+  if i%24==0:print("Static geometry progress ",i," ",model.metrics().incision_events)
+ DirAccess.make_dir_recursive_absolute("res://reports");FileAccess.open("res://reports/static-intervals.json",FileAccess.WRITE).store_string(JSON.stringify({"qualified":false,"portal":[rig.portal.x,rig.portal.y,rig.portal.z],"scope":"Ideal prescribed sharp-edge sweep on frozen pristine tissue; no force or app/input qualification.","intervals":intervals},"  ",true,true))
+ var pieces:Array=model.detached_components();var detached:=false
+ for piece in pieces:
+  if central in piece.vertices:detached=true
+ load("res://capture_operative_terminal.gd").save({"capsule":model,"rigs":[rig],"clock":0.},central,pieces)
+ print("Static blade diagnostic: ",JSON.stringify({"central_detached":detached,"cut_rejected":failed,"area_error":model.metrics().retained_area-area,"metrics":model.metrics()},"",true,true))
+ quit(1 if failed else 0)

@@ -1,0 +1,7 @@
+# Captured byte-hashed evidence must round-trip without platform EOL conversion.
+docs/assets/owned153-cost-* -text whitespace=cr-at-eol
+docs/assets/point-regular-cost-* -text whitespace=cr-at-eol
+docs/assets/warm-recovery-full-route-* -text whitespace=cr-at-eol
+docs/assets/terminal-* -text whitespace=cr-at-eol
+docs/assets/static-blade-* -text whitespace=cr-at-eol
+docs/assets/pristine-blade-coverage-* -text whitespace=cr-at-eol

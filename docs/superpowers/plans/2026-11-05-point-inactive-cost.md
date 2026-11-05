@@ -1,5 +1,17 @@
 # Investigate certified inactive material-point cost
 
+Latest measurement after a7f85a6 recovery: source-bound owned153 instrumented
+whole step97.8s,Native solve/contact82.6%,bulk1.77%,guard0.06%,other engine15.6%.
+All result/control/request/response/guard bytes match the captured baseline.
+Separate timer-only Native replay14requests94.45s;regularity0.351s(0.37%),
+all saved response bytes identical. Ruling: DO NOT implement regularity omission
+on this evidence; it cannot materially address the current latency. No production
+Native optimization added. Earlier inactive-certificate proposal remains unimplemented.
+Full unchanged route now reaches244acceptedsteps but fails central-detachment;
+terminal connectivity diagnosis takes priority (2026-11-05-terminal-connectivity.md).
+
+Historical planning notes follow; old durations/process IDs are not current state.
+
 No production change during active final temporal-source validation18776. Earlier81677 failed150 and is terminal.
 Owned180 is functionally passing but153946ms; actual144 now175600ms.
 Full simulator real-time goal remains unmet. Need measured cost decomposition,

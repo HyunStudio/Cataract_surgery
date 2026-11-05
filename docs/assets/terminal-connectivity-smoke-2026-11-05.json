@@ -1,0 +1,113 @@
+{
+  "qualified": false,
+  "scope": "Independent face-edge connectivity only; no mechanics, cutting correctness, clinical or release qualification.",
+  "capture_sha256": "0bed9d43da9a78e75cfe350c2a7c388f3c7c59076df741c03427c2b20851ce4e",
+  "auditor_sha256": "39698627efc75ce286ed95cd314107c238b0cff1f341b8cd195b8e125215f852",
+  "central_vertex": 0,
+  "central_component_vertices": 217,
+  "central_detached": false,
+  "agrees_with_declared_component": true,
+  "anchored_vertices_in_central_component": 36,
+  "shortest_edge_path_to_anchor": [
+    0,
+    1,
+    37,
+    73,
+    109,
+    145,
+    181
+  ],
+  "path_coordinates": [
+    {
+      "vertex": 0,
+      "rest": [
+        0.0,
+        0.527999997138977,
+        0.0
+      ],
+      "current": [
+        0.0,
+        0.527999997138977,
+        0.0
+      ]
+    },
+    {
+      "vertex": 1,
+      "rest": [
+        0.2919478714466095,
+        0.5100088119506836,
+        0.0
+      ],
+      "current": [
+        0.2919478714466095,
+        0.5100088119506836,
+        0.0
+      ]
+    },
+    {
+      "vertex": 37,
+      "rest": [
+        0.5640000104904175,
+        0.45726141333580017,
+        0.0
+      ],
+      "current": [
+        0.5640000104904175,
+        0.45726141333580017,
+        0.0
+      ]
+    },
+    {
+      "vertex": 73,
+      "rest": [
+        0.7976164221763611,
+        0.37335237860679626,
+        0.0
+      ],
+      "current": [
+        0.7976164221763611,
+        0.37335237860679626,
+        0.0
+      ]
+    },
+    {
+      "vertex": 109,
+      "rest": [
+        0.9768766760826111,
+        0.2639999985694885,
+        0.0
+      ],
+      "current": [
+        0.9768766760826111,
+        0.2639999985694885,
+        0.0
+      ]
+    },
+    {
+      "vertex": 145,
+      "rest": [
+        1.089564323425293,
+        0.13665646314620972,
+        0.0
+      ],
+      "current": [
+        1.089564323425293,
+        0.13665646314620972,
+        0.0
+      ]
+    },
+    {
+      "vertex": 181,
+      "rest": [
+        1.128000020980835,
+        0.0,
+        0.0
+      ],
+      "current": [
+        1.128000020980835,
+        0.0,
+        0.0
+      ]
+    }
+  ]
+}

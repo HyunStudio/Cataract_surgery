@@ -1,5 +1,14 @@
 # Warm temporal point penalty recovery implementation plan
 
+Latest outer-route result after a7f85a6: all244physics ticks accepted but the
+existing final central-detachment assertion FAILED (470incisions,6636vertices,
+7129faces,retainedarea conserved). The former153solver blockade is passed;
+this does not establish correct capsular opening. Evidence archived as
+assets/warm-recovery-full-route-2026-11-05.json and matching log. Terminal
+topology observation/independent connectivity diagnosis is now in
+2026-11-05-terminal-connectivity.md. Full simulator goal remains active.
+Remote a7f85a6 Python andNative CI bothsuccess, Actions41980892757/41980892718.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans task-by-task.
 
 **Goal:** Recover numerical stagnation in the SAME physical temporal-contact problem, preserving loads, dt, predictor, constraints, acceptance and work limits.
