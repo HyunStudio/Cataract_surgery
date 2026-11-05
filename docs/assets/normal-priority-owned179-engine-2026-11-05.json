@@ -1,0 +1,42 @@
+{
+  "elapsed_ms": 4779,
+  "points": 32,
+  "qualified": true,
+  "result": {
+    "candidate_normal_iterations": 37,
+    "candidate_ordinary_iterations": 0,
+    "changed": true,
+    "elastic_energy": 0.03384339814939027,
+    "force_inf": 3.6863186114732827e-09,
+    "gap": 0.0,
+    "maximum_strain": 0.031654215711837574,
+    "reason": "",
+    "stats": [
+      0.03539652954234563,
+      3.687083374726008e-09,
+      37.0,
+      34.0,
+      26.0,
+      1.761793782289367e-16,
+      0.125,
+      1e-12,
+      0.0,
+      1.0,
+      0.0,
+      3.7e-322,
+      6.085480716175455e-13,
+      5.656696281385385e-13,
+      7.0,
+      1000.0
+    ],
+    "trajectory_iterations": 37,
+    "trajectory_retired_layers": 0,
+    "trajectory_times": [
+      1.0
+    ],
+    "valid": true,
+    "work_iterations": 37
+  },
+  "scope": "Owned179 actual native+engine transaction only; not full surgery, real-time or release.",
+  "steps": 179
+}

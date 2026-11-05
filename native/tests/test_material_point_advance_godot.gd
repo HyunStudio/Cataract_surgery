@@ -19,6 +19,7 @@ func _initialize()->void:
   check(after.steps==before.steps+1 and after.time==before.time+saved.dt and after.previous==before.xyz,"exactly one physical clock/history update is committed")
   check(after.contacts.has("material_points") and not after.contacts.material_points.is_empty(),"distributed normal reactions retain their actual material point provenance")
   check(answer.trajectory_iterations<=saved.budget and answer.force_inf<=1e-8,"all retries share original budget and independent force tolerance")
+  check(answer.get("candidate_ordinary_iterations",-1)==0 and answer.get("candidate_normal_iterations",-1)==answer.trajectory_iterations,"finite-axis owned179 completes without first running the stalled smooth solver")
   var data:={"qualified":true,"scope":"Owned179 actual native+engine transaction only; not full surgery, real-time or release.","result":answer,"elapsed_ms":Time.get_ticks_msec()-started,"points":after.contacts.material_points.size(),"steps":after.steps}
   DirAccess.make_dir_recursive_absolute("res://reports")
   FileAccess.open("res://reports/material-point-advance-metrics.json",FileAccess.WRITE).store_string(JSON.stringify(data,"  ",true,true))

@@ -191,18 +191,34 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if coupled:request.merge({"face_nodes":_state.support.elements,"face_weights":_state.support.weights,"capsules":context.capsules,"complementarity_tolerance":ContactStep.COMP},true)
 	if trajectory:request.merge({"previous":current,"times":contact_times,"kinds":context.kinds,"packets":context.packets},true)
 	if seeded:request.merge({"initial":numerical_seed.initial,"multiplier_seed":numerical_seed.multiplier_seed,"penalty_seed":numerical_seed.penalty_seed},true)
-	var point_contacts:=false;var point_rows:Array=[]
-	var result=(backend.solve_seeded_trajectory_fem(request) if seeded else (backend.solve_trajectory_fem(request) if trajectory else backend.call(endpoint_method,request))) if coupled else (backend.solve_grasp_fem(request) if gripping else backend.solve_fem(request))
-	if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array:return invalid("native_fem_shape")
-	if result.has("normal_rows"):return invalid("native_contact_model")
-	if coupled and not trajectory and result.status==2 and result.xyz==predicted and result.stats.size()==16 and backend.has_method("solve_material_points_fem") and backend.has_method("material_witness_fem"):
-		var old_work:float=result.stats[2]
-		if is_finite(old_work) and old_work>=0. and old_work<budget and floor(old_work)==old_work:
-			var point_request:=request.duplicate(true);point_request.budget=budget-int(old_work)
-			var normal:=MaterialNormals.solve(_state,point_request,context,backend)
-			if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model"]:return normal.merged({"work_iterations":int(old_work)+normal.work_iterations},true)
+	var point_contacts:=false;var point_rows:Array=[];var normal_work:=0;var ordinary_work:=0
+	var point_capable:bool=coupled and not trajectory and backend.has_method("solve_material_points_fem") and backend.has_method("material_witness_fem")
+	var point_first:=false
+	if point_capable and budget>0:
+		for body in range(context.bodies):
+			var off:=body*7
+			if context.capsules[off]!=context.capsules[off+3] or context.capsules[off+1]!=context.capsules[off+4] or context.capsules[off+2]!=context.capsules[off+5]:point_first=true
+	var result
+	if point_first:
+		var normal:=MaterialNormals.solve(_state,request,context,backend);normal_work=normal.work_iterations
+		if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model"]:return normal
+		if normal.valid:result=normal.result;point_contacts=true;point_rows=normal.rows.duplicate(true)
+	if not point_contacts:
+		var ordinary_request:=request.duplicate(true);ordinary_request.budget=budget-normal_work
+		result=(backend.solve_seeded_trajectory_fem(ordinary_request) if seeded else (backend.solve_trajectory_fem(ordinary_request) if trajectory else backend.call(endpoint_method,ordinary_request))) if coupled else (backend.solve_grasp_fem(ordinary_request) if gripping else backend.solve_fem(ordinary_request))
+		if not result is Dictionary or not result.get("status") is int or not result.get("xyz") is PackedFloat64Array or not result.get("stats") is PackedFloat64Array or result.stats.size()!=(16 if coupled else (12 if gripping else 8)):return invalid("native_fem_shape")
+		if result.has("normal_rows"):return invalid("native_contact_model")
+		var candidate_work:float=result.stats[2]
+		# Validate this candidate BEFORE adding previously spent work: a negative
+		# or excessive value must not be hidden by a different model's counter.
+		if not is_finite(candidate_work) or candidate_work<0. or candidate_work>ordinary_request.budget or floor(candidate_work)!=candidate_work:return invalid("native_fem_work")
+		ordinary_work=int(candidate_work)
+		if point_capable and not point_first and result.status==2 and result.xyz==predicted and ordinary_work<budget:
+			var point_request:=request.duplicate(true);point_request.budget=budget-ordinary_work
+			var normal:=MaterialNormals.solve(_state,point_request,context,backend);normal_work=normal.work_iterations
+			if not normal.valid and normal.reason in ["material_normal_shape","material_normal_work","material_normal_model"]:return normal.merged({"work_iterations":ordinary_work+normal_work},true)
 			if normal.valid:result=normal.result;point_contacts=true;point_rows=normal.rows.duplicate(true)
-			result.stats[2]=old_work+normal.work_iterations
+	result.stats[2]=normal_work+ordinary_work
 	if result.status!=0:
 		var failed:={"valid":false,"changed":false,"reason":"native_fem_solve","status":result.status,"stats":result.stats}
 		# An endpoint force/feasibility solve may stall from rounded fields before it
@@ -275,7 +291,7 @@ func _advance_once(dt:float,force:PackedFloat64Array,backend,mu:float,lambda:flo
 	if coupled and point_contacts:
 		_state.contacts["material_points"]=point_rows.duplicate(true);_state.contacts["source_events"]=_state.events;_state.contacts["source_steps"]=_state.steps
 	_state.steps+=1;_state.time+=dt
-	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"gap":gap,"stats":result.stats,"elastic_energy":evaluated.energy,"maximum_strain":evaluated.maximum_strain,"work_iterations":int(result.stats[2])}
+	return {"valid":true,"changed":true,"reason":"","force_inf":residual,"gap":gap,"stats":result.stats,"elastic_energy":evaluated.energy,"maximum_strain":evaluated.maximum_strain,"work_iterations":int(result.stats[2]),"candidate_normal_iterations":normal_work,"candidate_ordinary_iterations":ordinary_work}
 static func _publish(state:Dictionary,xyz:PackedFloat64Array)->PackedFloat64Array:
 	var result:=PackedFloat64Array();result.resize(state.rest.size()*3)
 	for point in range(state.rest.size()):

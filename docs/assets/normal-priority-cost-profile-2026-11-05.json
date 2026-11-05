@@ -1,0 +1,50 @@
+{
+  "guard_us": 16043,
+  "other_us": 4456417,
+  "point_calls": 2,
+  "point_us": 358732,
+  "qualified": false,
+  "result": {
+    "candidate_normal_iterations": 37,
+    "candidate_ordinary_iterations": 0,
+    "changed": true,
+    "elastic_energy": 0.03384339814939027,
+    "force_inf": 3.6863186114732827e-09,
+    "gap": 0.0,
+    "maximum_strain": 0.031654215711837574,
+    "reason": "",
+    "stats": [
+      0.03539652954234563,
+      3.687083374726008e-09,
+      37.0,
+      34.0,
+      26.0,
+      1.761793782289367e-16,
+      0.125,
+      1e-12,
+      0.0,
+      1.0,
+      0.0,
+      3.7e-322,
+      6.085480716175455e-13,
+      5.656696281385385e-13,
+      7.0,
+      1000.0
+    ],
+    "trajectory_iterations": 37,
+    "trajectory_retired_layers": 0,
+    "trajectory_times": [
+      1.0
+    ],
+    "valid": true,
+    "work_iterations": 37
+  },
+  "scope": "Cost observation of owned179 only. No real-time, full case or release claim.",
+  "step_valid": true,
+  "total_us": 5738268,
+  "witness_calls": 52920,
+  "witness_us": 907076,
+  "profile_script_sha256": "bc6142e9d0218daaa1c85d4c876bfea075a95bdcee82d9d0a7663554805a7bf1",
+  "component_report_sha256": "ccf29978030c68eb2e33f47bf3e321201cde0e0f9fe7c9478ba422fbe8a1bf8d",
+  "frozen_probe": "C:\\Users\\hyung\\Documents\\Hyun_Studio\\Cataract_surgery\\.tools\\worktrees\\surgery-step-transaction\\.tools\\fem-extension-fq04psom"
+}
